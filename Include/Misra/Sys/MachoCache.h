@@ -93,10 +93,10 @@ void MachoCacheDeinit(MachoCache *self);
 ///
 bool macho_cache_resolve_zstr(
     MachoCache *self,
-    Zstr        module_path,
+    Zstr module_path,
     u64         slide,
     u64         runtime_ip,
-    Zstr       *out_name,
+    Zstr *out_name,
     u32        *out_offset
 );
 bool macho_cache_resolve_str(
@@ -104,11 +104,11 @@ bool macho_cache_resolve_str(
     const Str  *module_path,
     u64         slide,
     u64         runtime_ip,
-    Zstr       *out_name,
+    Zstr *out_name,
     u32        *out_offset
 );
 #define MachoCacheResolve(self, module_path, slide, runtime_ip, out_name, out_offset)                                                                                        \
-    _Generic((module_path), Str *: macho_cache_resolve_str, const Str *: macho_cache_resolve_str, char *: macho_cache_resolve_zstr, const char *: macho_cache_resolve_zstr)( \
+    _Generic((module_path), Str *: macho_cache_resolve_str, Zstr: macho_cache_resolve_zstr)( \
         (self),                                                                                                                                                              \
         (module_path),                                                                                                                                                       \
         (slide),                                                                                                                                                             \

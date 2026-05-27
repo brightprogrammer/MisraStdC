@@ -42,7 +42,7 @@ static i32 zstr_compare_ptr(const void *lhs, const void *rhs) {
 }
 
 static bool test_map_deep_copy_zstrs(void) {
-    typedef Map(const char *, const char *) ZstrMap;
+    typedef Map(Zstr , Zstr) ZstrMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
     ZstrMap          map   = MapInitWithDeepCopy(
         zstr_hash,
@@ -59,7 +59,7 @@ static bool test_map_deep_copy_zstrs(void) {
     const char  *key                = key_buf;
     const char  *value              = value_buf;
     const char  *second_value       = second_value_buf;
-    const char **stored_value;
+    Zstr *stored_value;
     int          value_count = 0;
 
     MapInsertL(&map, key, value);
@@ -88,7 +88,7 @@ static bool test_map_deep_copy_zstrs(void) {
 }
 
 static bool test_map_policy_switch_preserves_entries(void) {
-    typedef Map(const char *, const char *) ZstrMap;
+    typedef Map(Zstr , Zstr) ZstrMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
     ZstrMap          map   = MapInitWithDeepCopy(
         zstr_hash,

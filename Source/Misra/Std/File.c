@@ -31,7 +31,7 @@
 // Parse a libc-style mode string ("r", "w", "a", with optional '+' or 'b').
 // Returns POSIX open() flags. `binary` is set true regardless -- we treat
 // every mode as binary. Returns false if the mode is invalid.
-static bool parse_open_mode(const char *mode, int *out_flags) {
+static bool parse_open_mode(Zstr mode, int *out_flags) {
 #if PLATFORM_WINDOWS
     (void)mode;
     (void)out_flags;
@@ -42,7 +42,7 @@ static bool parse_open_mode(const char *mode, int *out_flags) {
     }
     char primary = mode[0];
     bool plus    = false;
-    for (const char *p = mode + 1; *p; ++p) {
+    for (Zstr p = mode + 1; *p; ++p) {
         if (*p == '+') {
             plus = true;
         }
@@ -81,7 +81,7 @@ File file_open(Zstr path, Zstr mode) {
     DWORD access      = 0;
     DWORD disposition = OPEN_EXISTING;
     bool  plus        = false;
-    for (const char *p = mode + 1; *p; ++p) {
+    for (Zstr p = mode + 1; *p; ++p) {
         if (*p == '+')
             plus = true;
     }
@@ -581,7 +581,7 @@ File file_open_temp(Str *out_path, Allocator *alloc) {
         fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(u64)out_path->data, (long)flags, 0600L);
 #        endif
 #    else
-        extern int open(const char *, int, ...);
+        extern int open(Zstr , int, ...);
         fd = open(out_path->data, flags, 0600);
         if (fd < 0) {
             fd = -Errno();

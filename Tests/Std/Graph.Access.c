@@ -52,7 +52,7 @@ static bool test_graph_has_edge_query(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    typedef Graph(const char *) ZstrGraph;
+    typedef Graph(Zstr) ZstrGraph;
     ZstrGraph graph = GraphInit(&alloc);
 
     GraphNodeId red   = GraphAddNodeR(&graph, "red");

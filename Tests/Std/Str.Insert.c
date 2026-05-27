@@ -56,16 +56,16 @@ bool test_str_insert_char_at(void) {
     return result;
 }
 
-// Test StrInsertCstr function
+// Test StrInsert 4-arg (Cstr) form
 bool test_str_insert_cstr(void) {
-    WriteFmt("Testing StrInsertCstr\n");
+    WriteFmt("Testing StrInsert (Cstr form)\n");
     DefaultAllocator alloc = DefaultAllocatorInit();
 
 
     Str s = StrInitFromZstr("Hello", &alloc);
 
     // Insert a string in the middle
-    StrInsertCstr(&s, " World", 2, 6);
+    StrInsert(&s, " World", 2, 6);
 
     // Check that the string was inserted correctly
     bool result = (ZstrCompare(StrBegin(&s), "He Worldllo") == 0);
@@ -75,16 +75,17 @@ bool test_str_insert_cstr(void) {
     return result;
 }
 
-// Test StrInsertZstr function
+// Test StrInsert 3-arg Zstr form
 bool test_str_insert_zstr(void) {
-    WriteFmt("Testing StrInsertZstr\n");
+    WriteFmt("Testing StrInsert (Zstr form)\n");
     DefaultAllocator alloc = DefaultAllocatorInit();
 
 
     Str s = StrInitFromZstr("Hello", &alloc);
 
     // Insert a string in the middle
-    StrInsertZstr(&s, " World", 2);
+    Zstr w = " World";
+    StrInsert(&s, w, 2);
 
     // Check that the string was inserted correctly
     bool result = (ZstrCompare(StrBegin(&s), "He Worldllo") == 0);
@@ -363,7 +364,7 @@ bool test_str_write_fmt_append(void) {
     Str s = StrInitFromZstr("Hello", &alloc);
 
     // Append formatted suffix.
-    StrAppendFmt(&s, " {} {}", (const char *)"World", (u32)2023);
+    StrAppendFmt(&s, " {} {}", (Zstr)"World", (u32)2023);
 
     // Check that the string was appended correctly
     bool result = (ZstrCompare(StrBegin(&s), "Hello World 2023") == 0);

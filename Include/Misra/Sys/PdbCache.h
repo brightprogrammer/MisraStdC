@@ -88,10 +88,10 @@ void PdbCacheDeinit(PdbCache *self);
 ///
 bool pdb_cache_resolve_zstr(
     PdbCache *self,
-    Zstr      module_path,
+    Zstr module_path,
     u64       module_base,
     u64       runtime_ip,
-    Zstr     *out_name,
+    Zstr *out_name,
     u32      *out_offset
 );
 bool pdb_cache_resolve_str(
@@ -99,11 +99,11 @@ bool pdb_cache_resolve_str(
     const Str *module_path,
     u64        module_base,
     u64        runtime_ip,
-    Zstr      *out_name,
+    Zstr *out_name,
     u32       *out_offset
 );
 #define PdbCacheResolve(self, module_path, module_base, runtime_ip, out_name, out_offset)                                                                            \
-    _Generic((module_path), Str *: pdb_cache_resolve_str, const Str *: pdb_cache_resolve_str, char *: pdb_cache_resolve_zstr, const char *: pdb_cache_resolve_zstr)( \
+    _Generic((module_path), Str *: pdb_cache_resolve_str, Zstr: pdb_cache_resolve_zstr)( \
         (self),                                                                                                                                                      \
         (module_path),                                                                                                                                               \
         (module_base),                                                                                                                                               \

@@ -109,7 +109,7 @@ typedef struct Pe {
 /// Open and parse a PE file from disk.
 ///
 /// out[out]   : Populated on success.
-/// path[in]   : Filesystem path. `Str *` preferred; `const char *` accepted.
+/// path[in]   : Filesystem path. `Str *` preferred; `Zstr ` accepted.
 /// alloc[in]  : Allocator for the read-in buffer and the sections
 ///              vector. Must outlive the `Pe`.
 ///
@@ -123,16 +123,14 @@ bool pe_open(Pe *out, Zstr path, Allocator *alloc);
 #define PeOpen_2(out, path)                                                                                            \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: pe_open((out), ((Str *)(path))->data, MisraScope),                                                      \
-        char *: pe_open((out), (const char *)(path), MisraScope),                                                      \
-        const char *: pe_open((out), (const char *)(path), MisraScope)                                                 \
+        Str *: pe_open((out), (Zstr)StrBegin((Str *)(path)), MisraScope),                                                      \
+        Zstr: pe_open((out), (Zstr)(path), MisraScope)                                                 \
     )
 #define PeOpen_3(out, path, alloc)                                                                                     \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: pe_open((out), ((Str *)(path))->data, ALLOCATOR_OF(alloc)),                                             \
-        char *: pe_open((out), (const char *)(path), ALLOCATOR_OF(alloc)),                                             \
-        const char *: pe_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                        \
+        Str *: pe_open((out), (Zstr)StrBegin((Str *)(path)), ALLOCATOR_OF(alloc)),                                             \
+        Zstr: pe_open((out), (Zstr)(path), ALLOCATOR_OF(alloc))                                        \
     )
 
 ///

@@ -77,7 +77,7 @@ static size quadratic_next_index(u64 hash, size capacity, size previous_index, s
     return capacity ? (quadratic_probe_index(hash, probe_count, capacity) % capacity) : 0;
 }
 
-static size map_validate_policy_index(size idx, size capacity, const char *callback_name) {
+static size map_validate_policy_index(size idx, size capacity, Zstr callback_name) {
     if (capacity && idx >= capacity) {
         LOG_FATAL("{} returned index {} for capacity {}", callback_name, idx, capacity);
     }
@@ -364,12 +364,12 @@ static bool map_insert_raw_entry(
     size        key_size,
     size        hash_offset
 ) {
-    u64  hash       = *(const u64 *)(const void *)((const char *)entry + hash_offset);
+    u64  hash       = *(const u64 *)(const void *)((Zstr)entry + hash_offset);
     size insert_idx = map->capacity;
 
     map_scan_slots(
         map,
-        (const char *)entry + key_offset,
+        (Zstr)entry + key_offset,
         entry_size,
         key_offset,
         key_size,

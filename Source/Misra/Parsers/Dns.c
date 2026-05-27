@@ -18,15 +18,15 @@
 //   [len][label-bytes...]  ...  [0]
 // e.g. "example.com" -> 0x07 "example" 0x03 "com" 0x00.
 // Returns false on label > 63 bytes or total > 255 bytes.
-static bool encode_qname(DnsWireBuf *out, const char *name) {
+static bool encode_qname(DnsWireBuf *out, Zstr name) {
     if (!name) {
         return false;
     }
-    const char *p           = name;
+    Zstr p           = name;
     u64         total_bytes = 0;
     while (*p) {
         // Find next dot or end-of-string.
-        const char *seg = p;
+        Zstr seg = p;
         while (*p && *p != '.') {
             ++p;
         }
@@ -60,7 +60,7 @@ static bool encode_qname(DnsWireBuf *out, const char *name) {
     return BufWriteU8(out, 0);
 }
 
-bool dns_build_query_zstr(DnsWireBuf *out, u16 id, const char *name, DnsType type) {
+bool dns_build_query_zstr(DnsWireBuf *out, u16 id, Zstr name, DnsType type) {
     if (!out || !name) {
         return false;
     }

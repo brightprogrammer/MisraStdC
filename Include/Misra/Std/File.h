@@ -46,14 +46,15 @@ typedef enum FileWhence {
     FILE_SEEK_END = 2,
 } FileWhence;
 
-// File API path-arg dispatch. `Str *` / `const Str *` are the
-// canonical forms; `char *` / `const char *` are accepted as a
-// NUL-terminated C-string convenience for literals and borrowed
-// buffers. Any other input type triggers a compile-time `_Generic`
+// File API path-arg dispatch. `Str *` is the canonical Str form;
+// `Zstr` covers NUL-terminated C-string callers (literals and
+// borrowed buffers). With `-Wwrite-strings` / `/Zc:strictStrings`
+// on (set in `meson.build`), string literals match the `Zstr` arm
+// directly. Any other input type triggers a compile-time `_Generic`
 // mismatch -- silently casting `int *` or a struct pointer to
-// `const char *` is precisely the bug we want to surface. Each
-// macro inlines its own `_Generic`; we intentionally do not share
-// a dispatch helper across APIs.
+// `Zstr` is precisely the bug we want to surface. Each macro
+// inlines its own `_Generic`; we intentionally do not share a
+// dispatch helper across APIs.
 
 ///
 /// Open a file. `mode` accepts: `"r"`/`"rb"`, `"w"`/`"wb"`,
@@ -62,8 +63,8 @@ typedef enum FileWhence {
 /// implementation.
 ///
 /// path[in] : Path to open. Prefer `Str *` (carries length, can't
-///            silently drop the NUL terminator). `const char *` is
-///            accepted as a literal/borrowed-buffer convenience.
+///            silently drop the NUL terminator). `Zstr` is accepted
+///            as a literal / borrowed-buffer convenience.
 ///
 /// SUCCESS : Returns a File where `FileIsOpen(&out)` is true.
 /// FAILURE : Returns a File where `FileIsOpen(&out)` is false.
@@ -72,9 +73,8 @@ File file_open(Zstr path, Zstr mode);
 #define FileOpen(path, mode)                                                                                           \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: file_open(((Str *)(path))->data, (mode)),                                                               \
-        char *: file_open((const char *)(path), (mode)),                                                               \
-        const char *: file_open((const char *)(path), (mode))                                                          \
+        Str *: file_open((Zstr)StrBegin((Str *)(path)), (mode)),                                                       \
+        Zstr:  file_open((Zstr)(path), (mode))                                                                         \
     )
 
 ///
@@ -167,7 +167,7 @@ i64 file_read_to_buf(File *f, Buf *out);
 /// parser caller. The fast path inside `file_read_to_{buf,str}` (one-
 /// shot reserve via `FileSeek(END)`) still applies.
 ///
-/// path[in] : Path to open. `Str *` / `char *` (NUL-terminated).
+/// path[in] : Path to open. `Str *` / `Zstr` (NUL-terminated).
 /// out[out] : Already-init'd `Buf *` or `Str *`. Existing content is
 ///            overwritten; the destination's allocator drives growth.
 ///
@@ -185,15 +185,13 @@ i64 file_read_and_close_to_str(Zstr path, Str *out);
         (out),                                                                                                         \
         Buf *: _Generic(                                                                                               \
             (path),                                                                                                    \
-            Str *: file_read_and_close_to_buf(((Str *)(path))->data, (Buf *)(out)),                                    \
-            char *: file_read_and_close_to_buf((const char *)(path), (Buf *)(out)),                                    \
-            const char *: file_read_and_close_to_buf((const char *)(path), (Buf *)(out))                               \
+            Str *: file_read_and_close_to_buf((Zstr)StrBegin((Str *)(path)), (Buf *)(out)),                            \
+            Zstr:  file_read_and_close_to_buf((Zstr)(path), (Buf *)(out))                                              \
         ),                                                                                                             \
         Str *: _Generic(                                                                                               \
             (path),                                                                                                    \
-            Str *: file_read_and_close_to_str(((Str *)(path))->data, (Str *)(out)),                                    \
-            char *: file_read_and_close_to_str((const char *)(path), (Str *)(out)),                                    \
-            const char *: file_read_and_close_to_str((const char *)(path), (Str *)(out))                               \
+            Str *: file_read_and_close_to_str((Zstr)StrBegin((Str *)(path)), (Str *)(out)),                            \
+            Zstr:  file_read_and_close_to_str((Zstr)(path), (Str *)(out))                                              \
         )                                                                                                              \
     )
 
@@ -234,23 +232,20 @@ i64 file_write_and_close_from_bytes(Zstr path, const void *buf, u64 n);
         (container),                                                                                                   \
         Buf *: _Generic(                                                                                               \
             (path),                                                                                                    \
-            Str *: file_write_and_close_from_buf(((Str *)(path))->data, (const Buf *)(container)),                     \
-            char *: file_write_and_close_from_buf((const char *)(path), (const Buf *)(container)),                     \
-            const char *: file_write_and_close_from_buf((const char *)(path), (const Buf *)(container))                \
+            Str *: file_write_and_close_from_buf((Zstr)StrBegin((Str *)(path)), (const Buf *)(container)),             \
+            Zstr:  file_write_and_close_from_buf((Zstr)(path), (const Buf *)(container))                               \
         ),                                                                                                             \
         Str *: _Generic(                                                                                               \
             (path),                                                                                                    \
-            Str *: file_write_and_close_from_str(((Str *)(path))->data, (const Str *)(container)),                     \
-            char *: file_write_and_close_from_str((const char *)(path), (const Str *)(container)),                     \
-            const char *: file_write_and_close_from_str((const char *)(path), (const Str *)(container))                \
+            Str *: file_write_and_close_from_str((Zstr)StrBegin((Str *)(path)), (const Str *)(container)),             \
+            Zstr:  file_write_and_close_from_str((Zstr)(path), (const Str *)(container))                               \
         )                                                                                                              \
     )
 #define FileWriteAndClose_3(path, buf, n)                                                                              \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: file_write_and_close_from_bytes(((Str *)(path))->data, (buf), (n)),                                     \
-        char *: file_write_and_close_from_bytes((const char *)(path), (buf), (n)),                                     \
-        const char *: file_write_and_close_from_bytes((const char *)(path), (buf), (n))                                \
+        Str *: file_write_and_close_from_bytes((Zstr)StrBegin((Str *)(path)), (buf), (n)),                             \
+        Zstr:  file_write_and_close_from_bytes((Zstr)(path), (buf), (n))                                               \
     )
 
 ///

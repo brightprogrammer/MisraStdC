@@ -43,11 +43,11 @@ static void append_build_id_path(Str *out, const u8 *id, u32 n) {
 
 // Extract the directory portion of `path` into `out` (no trailing slash).
 // On no slash, leaves `out` empty.
-static void append_dirname(Str *out, const char *path) {
+static void append_dirname(Str *out, Zstr path) {
     if (!path)
         return;
-    const char *last_slash = NULL;
-    for (const char *p = path; *p; ++p) {
+    Zstr last_slash = NULL;
+    for (Zstr p = path; *p; ++p) {
         if (*p == '/')
             last_slash = p;
     }
@@ -60,7 +60,7 @@ static void append_dirname(Str *out, const char *path) {
 }
 
 // Check whether `path` exists and is non-empty.
-static bool path_exists(const char *path) {
+static bool path_exists(Zstr path) {
     File f = FileOpen(path, "rb");
     if (!FileIsOpen(&f)) {
         return false;
@@ -93,7 +93,7 @@ static bool sidecar_matches(const Elf *main, const Elf *sidecar, bool by_build_i
 //   4. /usr/lib/debug{binary_dir}/{debuglink_name}
 //
 // Returns true on success; `out` is populated with an opened Elf.
-static bool try_open_sidecar(const char *main_path, const Elf *main, Elf *out, Allocator *alloc) {
+static bool try_open_sidecar(Zstr main_path, const Elf *main, Elf *out, Allocator *alloc) {
     Str path = StrInit(alloc);
 
     // (1) Build-ID
@@ -102,7 +102,7 @@ static bool try_open_sidecar(const char *main_path, const Elf *main, Elf *out, A
         StrPushBackZstr(&path, "/usr/lib/debug/.build-id/");
         append_build_id_path(&path, main->build_id, main->build_id_size);
         StrPushBackZstr(&path, ".debug");
-        if (path_exists(path.data) && ElfOpen(out, path.data, alloc)) {
+        if (path_exists(StrBegin(&path)) && ElfOpen(out, &path, alloc)) {
             if (sidecar_matches(main, out, /*by_build_id*/ true)) {
                 StrDeinit(&path);
                 return true;
@@ -113,15 +113,15 @@ static bool try_open_sidecar(const char *main_path, const Elf *main, Elf *out, A
 
     // (2-4) debuglink in standard locations
     if (main->debuglink_name && main->debuglink_name[0]) {
-        const char *cand_dirs[] = {NULL, "/.debug", NULL};
-        const char *cand_prefix = "/usr/lib/debug";
+        Zstr cand_dirs[]  = {NULL, "/.debug", NULL};
+        Zstr cand_prefix  = "/usr/lib/debug";
 
         // (2) {dir}/{name}
         path.length = 0;
         append_dirname(&path, main_path);
         StrPushBack(&path, '/');
         StrPushBackZstr(&path, main->debuglink_name);
-        if (path_exists(path.data) && ElfOpen(out, path.data, alloc)) {
+        if (path_exists(StrBegin(&path)) && ElfOpen(out, &path, alloc)) {
             if (sidecar_matches(main, out, /*by_build_id*/ false)) {
                 StrDeinit(&path);
                 return true;
@@ -134,7 +134,7 @@ static bool try_open_sidecar(const char *main_path, const Elf *main, Elf *out, A
         append_dirname(&path, main_path);
         StrPushBackZstr(&path, "/.debug/");
         StrPushBackZstr(&path, main->debuglink_name);
-        if (path_exists(path.data) && ElfOpen(out, path.data, alloc)) {
+        if (path_exists(StrBegin(&path)) && ElfOpen(out, &path, alloc)) {
             if (sidecar_matches(main, out, /*by_build_id*/ false)) {
                 StrDeinit(&path);
                 return true;
@@ -148,7 +148,7 @@ static bool try_open_sidecar(const char *main_path, const Elf *main, Elf *out, A
         append_dirname(&path, main_path);
         StrPushBack(&path, '/');
         StrPushBackZstr(&path, main->debuglink_name);
-        if (path_exists(path.data) && ElfOpen(out, path.data, alloc)) {
+        if (path_exists(StrBegin(&path)) && ElfOpen(out, &path, alloc)) {
             if (sidecar_matches(main, out, /*by_build_id*/ false)) {
                 StrDeinit(&path);
                 return true;
@@ -166,7 +166,7 @@ static bool try_open_sidecar(const char *main_path, const Elf *main, Elf *out, A
 // Cache management
 // ---------------------------------------------------------------------------
 
-static ResolverCacheEntry *resolver_cache_find_or_open(SymbolResolver *self, const char *path, u64 load_base) {
+static ResolverCacheEntry *resolver_cache_find_or_open(SymbolResolver *self, Zstr path, u64 load_base) {
     for (u64 i = 0; i < self->cache.length; ++i) {
         ResolverCacheEntry *e = &self->cache.data[i];
         if (e->path == path) {

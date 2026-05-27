@@ -200,11 +200,11 @@ static i32 hex_nibble_value(char c) {
 
 // Parse a decimal port number (0..65535) from a NUL-terminated string.
 // Empty / non-numeric input -> false. Out-of-range -> false.
-static bool parse_port(const char *s, u16 *out) {
+static bool parse_port(Zstr s, u16 *out) {
     if (!s || !*s)
         return false;
     u32 v = 0;
-    for (const char *p = s; *p; ++p) {
+    for (Zstr p = s; *p; ++p) {
         if (*p < '0' || *p > '9')
             return false;
         v = v * 10 + (u32)(*p - '0');
@@ -216,7 +216,7 @@ static bool parse_port(const char *s, u16 *out) {
 }
 
 // Parse an IPv4 dotted-quad ("a.b.c.d") into 4 bytes.
-static bool parse_ipv4(const char *s, u8 octets[4]) {
+static bool parse_ipv4(Zstr s, u8 octets[4]) {
     if (!s)
         return false;
     for (i32 i = 0; i < 4; ++i) {
@@ -241,7 +241,7 @@ static bool parse_ipv4(const char *s, u8 octets[4]) {
 
 // Parse an IPv6 textual form into 16 bytes. Handles RFC 5952 "::"
 // compression. Does not handle zone IDs or embedded IPv4.
-static bool parse_ipv6(const char *s, u8 bytes[16]) {
+static bool parse_ipv6(Zstr s, u8 bytes[16]) {
     if (!s)
         return false;
     u16  before_cc[8];
@@ -484,14 +484,14 @@ static i32 socket_family_to_af(SocketFamily f) {
     }
 }
 
-static bool split_host_port(const char *spec, char *host_out, size host_cap, const char **port_out) {
+static bool split_host_port(Zstr spec, char *host_out, size host_cap, Zstr *port_out) {
     if (!spec || !host_out || !port_out) {
         return false;
     }
 
     if (spec[0] == '[') {
-        const char *close = NULL;
-        for (const char *p = spec + 1; *p; ++p) {
+        Zstr close = NULL;
+        for (Zstr p = spec + 1; *p; ++p) {
             if (*p == ']') {
                 close = p;
                 break;
@@ -510,8 +510,8 @@ static bool split_host_port(const char *spec, char *host_out, size host_cap, con
         return true;
     }
 
-    const char *colon = NULL;
-    for (const char *p = spec; *p; ++p) {
+    Zstr colon = NULL;
+    for (Zstr p = spec; *p; ++p) {
         if (*p == ':') {
             colon = p;
             break;
@@ -550,7 +550,7 @@ static void fill_socket_addr_from_sockaddr(SocketAddr *out, const struct sockadd
 // SocketAddr
 // ---------------------------------------------------------------------------
 
-bool socket_addr_parse_zstr(SocketAddr *out, const char *spec, SocketKind kind) {
+bool socket_addr_parse_zstr(SocketAddr *out, Zstr spec, SocketKind kind) {
     if (!out) {
         LOG_FATAL("SocketAddrParse: out is NULL");
     }
@@ -563,7 +563,7 @@ bool socket_addr_parse_zstr(SocketAddr *out, const char *spec, SocketKind kind) 
     (void)kind;
 
     char        host[256];
-    const char *port_str = NULL;
+    Zstr port_str = NULL;
     if (!split_host_port(spec, host, sizeof(host), &port_str)) {
         return false;
     }
@@ -628,7 +628,7 @@ Str socket_addr_format(const SocketAddr *addr, Allocator *alloc) {
     char host[48];
     u16  port = 0;
 
-    const char *host_p = host;
+    Zstr host_p = host;
     if (addr->family == SOCKET_FAMILY_INET) {
         const struct sockaddr_in *sa = (const struct sockaddr_in *)addr->raw;
         if (!format_ipv4((const u8 *)&sa->sin_addr.s_addr, host, sizeof(host))) {
@@ -723,7 +723,7 @@ static i64 plat_recv(SockFd s, void *buf, size n) {
 static i64 plat_send(SockFd s, const void *buf, size n) {
     int len = (int)((n > (size)0x7FFFFFFF) ? (size)0x7FFFFFFF : n);
     // No MSG_NOSIGNAL needed -- Winsock doesn't raise SIGPIPE.
-    int r = send(sf_to_socket(s), (const char *)buf, len, 0);
+    int r = send(sf_to_socket(s), (Zstr)buf, len, 0);
     if (r == SOCKET_ERROR) {
         LOG_SOCK_ERROR(0, "send() failed");
         return -1;
@@ -732,7 +732,7 @@ static i64 plat_send(SockFd s, const void *buf, size n) {
 }
 
 static bool plat_setsockopt(SockFd s, int level, int optname, const void *optval, u32 optlen) {
-    if (setsockopt(sf_to_socket(s), level, optname, (const char *)optval, (int)optlen) == SOCKET_ERROR) {
+    if (setsockopt(sf_to_socket(s), level, optname, (Zstr)optval, (int)optlen) == SOCKET_ERROR) {
         LOG_SOCK_ERROR(0, "setsockopt() failed");
         return false;
     }

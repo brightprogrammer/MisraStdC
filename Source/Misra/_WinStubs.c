@@ -161,7 +161,7 @@ __attribute__((used)) void *__imp___stdio_common_vsprintf = (void *)misra_stdio_
 //     NULL -- matching the Darwin `EnvGet` behaviour (no env access
 //     without libc). Same `__imp_<name>` indirect-call convention as
 //     `__stdio_common_vsprintf` above.
-static char *misra_getenv_stub(const char *name) {
+static char *misra_getenv_stub(Zstr name) {
     (void)name;
     return ((char *)0);
 }

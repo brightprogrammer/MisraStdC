@@ -177,7 +177,7 @@ bool test_macho_cache_resolves_via_main_symtab(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     Allocator       *base  = ALLOCATOR_OF(&alloc);
 
-    Zstr    bin_path = "/tmp/misra_macho_main.bin";
+    Zstr bin_path = "/tmp/misra_macho_main.bin";
     SymSpec sym      = {.vmaddr = 0x100000100ull, .name = "real_main_proc"};
     u64     bin_size = build_macho_image(bin_buf, kUuid, &sym, 1);
     if (!write_file(bin_path, bin_buf, bin_size)) {
@@ -192,7 +192,7 @@ bool test_macho_cache_resolves_via_main_symtab(void) {
     // function start)
     const u64 slide      = 0x100;
     const u64 runtime_ip = 0x100000100ull + 0x10 + slide;
-    Zstr      name       = NULL;
+    Zstr name       = NULL;
     u32       offset     = 0;
     bool      ok         = MachoCacheResolve(&cache, bin_path, slide, runtime_ip, &name, &offset);
     ok                   = ok && name && ZstrCompare(name, "real_main_proc") == 0 && offset == 0x10;
@@ -230,7 +230,7 @@ bool test_macho_cache_falls_through_to_dsym(void) {
 
     const u64 slide      = 0;
     const u64 runtime_ip = 0x100000208ull; // 8 bytes into dsym_only_fn
-    Zstr      name       = NULL;
+    Zstr name       = NULL;
     u32       offset     = 0;
     bool      ok         = MachoCacheResolve(&cache, bin_path, slide, runtime_ip, &name, &offset);
     ok                   = ok && name && ZstrCompare(name, "dsym_only_fn") == 0 && offset == 0x8;

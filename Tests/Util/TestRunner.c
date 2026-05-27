@@ -133,7 +133,7 @@ int run_test_suite(
     int           normal_count,
     TestFunction *deadend_tests,
     int           deadend_count,
-    Zstr          test_name
+    Zstr test_name
 ) {
     WriteFmt("[INFO] Starting {} tests\n\n", test_name ? test_name : "Test Suite");
 

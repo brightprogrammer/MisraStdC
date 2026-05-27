@@ -18,7 +18,7 @@
 
 // Human-readable type name used in invalid-value error messages. Lines
 // up 1:1 with the ArgKind enum; new entries get a label here.
-static const char *arg_kind_label(ArgKind k) {
+static Zstr arg_kind_label(ArgKind k) {
     switch (k) {
         case ARG_KIND_ZSTR :
             return "string";
@@ -51,7 +51,7 @@ static const char *arg_kind_label(ArgKind k) {
     }
 }
 
-static bool zstr_eq(const char *a, const char *b) {
+static bool zstr_eq(Zstr a, Zstr b) {
     return a && b && ZstrCompare(a, b) == 0;
 }
 
@@ -120,10 +120,10 @@ static bool parse_f64_full(Zstr s, f64 *out) {
 // `value` is the raw token from argv (or the `=value` slice). Returns
 // false on type-mismatch / out-of-range so the caller can emit a
 // "invalid value 'X' for --flag: expected <type>" message.
-static bool store_value(ArgKind kind, void *target, const char *value) {
+static bool store_value(ArgKind kind, void *target, Zstr value) {
     switch (kind) {
         case ARG_KIND_ZSTR : {
-            *(const char **)target = value;
+            *(Zstr *)target = value;
             return true;
         }
         case ARG_KIND_STR : {
@@ -230,7 +230,7 @@ static bool count_bump(ArgKind kind, void *target) {
 /* Spec lookup                                                         */
 /* ------------------------------------------------------------------ */
 
-static ArgSpec *find_long(ArgParse *self, const char *long_name) {
+static ArgSpec *find_long(ArgParse *self, Zstr long_name) {
     VecForeachPtr(&self->specs, sp) {
         if (sp->role == ARG_ROLE_POSITIONAL)
             continue;
@@ -240,7 +240,7 @@ static ArgSpec *find_long(ArgParse *self, const char *long_name) {
     return NULL;
 }
 
-static ArgSpec *find_short(ArgParse *self, const char *short_name) {
+static ArgSpec *find_short(ArgParse *self, Zstr short_name) {
     VecForeachPtr(&self->specs, sp) {
         if (sp->role == ARG_ROLE_POSITIONAL)
             continue;
@@ -259,7 +259,7 @@ static ArgSpec *find_short(ArgParse *self, const char *short_name) {
 // long-flag name upper-cased and hyphens swapped for underscores. For
 // short-only options without a long form we fall back to "VALUE".
 static void append_metavar(Str *out, const ArgSpec *sp) {
-    const char *src = sp->long_name;
+    Zstr src = sp->long_name;
     if (!src) {
         StrPushBackZstr(out, "VALUE");
         return;
@@ -417,9 +417,9 @@ static void print_help(ArgParse *self) {
 void arg_register(
     ArgParse   *self,
     ArgRole     role,
-    const char *short_name,
-    const char *long_name,
-    const char *help,
+    Zstr short_name,
+    Zstr long_name,
+    Zstr help,
     ArgTarget   target
 ) {
     if (!self)
@@ -483,16 +483,16 @@ void ArgParseDeinit(ArgParse *self) {
 // `ARG_RUN_ERROR` on failure (after printing the error).
 static ArgRun handle_option_token(
     ArgParse   *self,
-    const char *tok,  // the current argv[i] token
+    Zstr tok,  // the current argv[i] token
     int        *i_io, // walked forward by 1 when we consume a value
     int         argc,
     char      **argv,
     File       *err
 ) {
     bool        is_long  = (tok[0] == '-' && tok[1] == '-');
-    const char *eq       = NULL;
-    const char *flag     = tok;
-    const char *inline_v = NULL;
+    Zstr eq       = NULL;
+    Zstr flag     = tok;
+    Zstr inline_v = NULL;
 
     if (is_long) {
         eq = ZstrFindChar(tok, '=');
@@ -548,7 +548,7 @@ static ArgRun handle_option_token(
         }
         case ARG_ROLE_REQUIRED :
         case ARG_ROLE_OPTIONAL : {
-            const char *val = inline_v;
+            Zstr val = inline_v;
             if (!val) {
                 if (*i_io + 1 >= argc) {
                     FWriteFmtLn(err, "{}: option {} requires a value", self->name, flag);
@@ -581,13 +581,13 @@ static ArgRun handle_option_token(
 // Bundled-short-flag form: -vvv counts as three uses of -v, and only
 // when -v is a Flag or a Count. -lFOO (stuck value) is intentionally
 // not supported in v1.
-static ArgRun handle_short_bundle(ArgParse *self, const char *tok, File *err) {
+static ArgRun handle_short_bundle(ArgParse *self, Zstr tok, File *err) {
     // tok looks like "-XYZ..."; verify every char maps to a Flag/Count.
-    for (const char *p = tok + 1; *p; ++p) {
+    for (Zstr p = tok + 1; *p; ++p) {
         char     buf[3] = {'-', *p, 0};
-        ArgSpec *sp     = find_short(self, (const char *)buf);
+        ArgSpec *sp     = find_short(self, (Zstr)buf);
         if (!sp) {
-            FWriteFmtLn(err, "{}: unknown option: {}", self->name, (const char *)buf);
+            FWriteFmtLn(err, "{}: unknown option: {}", self->name, (Zstr)buf);
             return ARG_RUN_ERROR;
         }
         if (sp->role == ARG_ROLE_FLAG) {
@@ -597,7 +597,7 @@ static ArgRun handle_short_bundle(ArgParse *self, const char *tok, File *err) {
             count_bump(sp->kind, sp->target);
             sp->seen = true;
         } else {
-            FWriteFmtLn(err, "{}: option {} requires a value, can't bundle", self->name, (const char *)buf);
+            FWriteFmtLn(err, "{}: option {} requires a value, can't bundle", self->name, (Zstr)buf);
             return ARG_RUN_ERROR;
         }
     }
@@ -646,7 +646,7 @@ ArgRun ArgParseRun(ArgParse *self, int argc, char **argv) {
     }
 
     for (int i = 1; i < argc; ++i) {
-        const char *tok = argv[i];
+        Zstr tok = argv[i];
 
         if (!rest_positional) {
             if (zstr_eq(tok, "--")) {
@@ -666,7 +666,7 @@ ArgRun ArgParseRun(ArgParse *self, int argc, char **argv) {
                 // short option.
                 if (tok[2] != '\0') {
                     char     two[3] = {'-', tok[1], 0};
-                    ArgSpec *first  = find_short(self, (const char *)two);
+                    ArgSpec *first  = find_short(self, (Zstr)two);
                     if (first && (first->role == ARG_ROLE_FLAG || first->role == ARG_ROLE_COUNT)) {
                         ArgRun r = handle_short_bundle(self, tok, &err);
                         if (r != ARG_RUN_OK)
@@ -677,9 +677,9 @@ ArgRun ArgParseRun(ArgParse *self, int argc, char **argv) {
                         &err,
                         "{}: short value option '{}' cannot be bundled; use form '{} VAL' or '{}=VAL'",
                         self->name,
-                        (const char *)two,
-                        (const char *)two,
-                        (const char *)two
+                        (Zstr)two,
+                        (Zstr)two,
+                        (Zstr)two
                     );
                     return ARG_RUN_ERROR;
                 }

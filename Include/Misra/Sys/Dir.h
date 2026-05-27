@@ -85,7 +85,7 @@ typedef Vec(DirEntry) DirContents;
 ///
 /// Read directory contents into a vector.
 ///
-/// path[in]  : Path of directory. Prefer `Str *`; `const char *`
+/// path[in]  : Path of directory. Prefer `Str *`; `Zstr `
 ///             accepted for literals / borrowed buffers.
 /// alloc[in] : Allocator backing the returned vector + entry names
 ///             (omit inside a `Scope` block to use `MisraScope`).
@@ -100,22 +100,20 @@ DirContents dir_get_contents(Zstr path, Allocator *alloc);
 #define DirGetContents_1(path)                                                                                         \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: dir_get_contents(((Str *)(path))->data, MisraScope),                                                    \
-        char *: dir_get_contents((const char *)(path), MisraScope),                                                    \
-        const char *: dir_get_contents((const char *)(path), MisraScope)                                               \
+        Str *: dir_get_contents((Zstr)StrBegin((Str *)(path)), MisraScope),                                                    \
+        Zstr: dir_get_contents((Zstr)(path), MisraScope)                                               \
     )
 #define DirGetContents_2(path, alloc)                                                                                  \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: dir_get_contents(((Str *)(path))->data, ALLOCATOR_OF(alloc)),                                           \
-        char *: dir_get_contents((const char *)(path), ALLOCATOR_OF(alloc)),                                           \
-        const char *: dir_get_contents((const char *)(path), ALLOCATOR_OF(alloc))                                      \
+        Str *: dir_get_contents((Zstr)StrBegin((Str *)(path)), ALLOCATOR_OF(alloc)),                                           \
+        Zstr: dir_get_contents((Zstr)(path), ALLOCATOR_OF(alloc))                                      \
     )
 
 ///
 /// Get size of file without opening it.
 ///
-/// path[in] : Path of file. Prefer `Str *`; `const char *` accepted.
+/// path[in] : Path of file. Prefer `Str *`; `Zstr ` accepted.
 ///
 /// SUCCESS : Non-negative value representing size of file in bytes.
 /// FAILURE : Returns -1 if file cannot be accessed.
@@ -126,9 +124,8 @@ i64 file_get_size(Zstr filename);
 #define FileGetSize(path)                                                                                              \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: file_get_size(((Str *)(path))->data),                                                                   \
-        char *: file_get_size((const char *)(path)),                                                                   \
-        const char *: file_get_size((const char *)(path))                                                              \
+        Str *: file_get_size((Zstr)StrBegin((Str *)(path))),                                                                   \
+        Zstr: file_get_size((Zstr)(path))                                                              \
     )
 
 ///
@@ -154,9 +151,8 @@ i8 file_remove(Zstr path);
 #define FileRemove(path)                                                                                               \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: file_remove(((Str *)(path))->data),                                                                     \
-        char *: file_remove((const char *)(path)),                                                                     \
-        const char *: file_remove((const char *)(path))                                                                \
+        Str *: file_remove((Zstr)StrBegin((Str *)(path))),                                                                     \
+        Zstr: file_remove((Zstr)(path))                                                                \
     )
 
 ///
@@ -165,7 +161,7 @@ i8 file_remove(Zstr path);
 /// `RemoveDirectoryA` on Windows). The directory must be empty;
 /// populated directories require recursive removal via `DirRemoveAll`.
 ///
-/// path[in] : Path of the directory. Prefer `Str *`; `const char *`
+/// path[in] : Path of the directory. Prefer `Str *`; `Zstr `
 ///            accepted.
 ///
 /// SUCCESS : Returns 1; the directory is gone.
@@ -177,9 +173,8 @@ i8 dir_remove(Zstr path);
 #define DirRemove(path)                                                                                                \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: dir_remove(((Str *)(path))->data),                                                                      \
-        char *: dir_remove((const char *)(path)),                                                                      \
-        const char *: dir_remove((const char *)(path))                                                                 \
+        Str *: dir_remove((Zstr)StrBegin((Str *)(path))),                                                                      \
+        Zstr: dir_remove((Zstr)(path))                                                                 \
     )
 
 ///
@@ -188,7 +183,7 @@ i8 dir_remove(Zstr path);
 /// on Windows). Mode is 0755 on POSIX. Fails if a parent component
 /// is missing -- use `DirCreateAll` for `mkdir -p` semantics.
 ///
-/// path[in] : Path of the directory. Prefer `Str *`; `const char *`
+/// path[in] : Path of the directory. Prefer `Str *`; `Zstr `
 ///            accepted.
 ///
 /// SUCCESS : Returns 1; the directory now exists.
@@ -200,9 +195,8 @@ i8 dir_create(Zstr path);
 #define DirCreate(path)                                                                                                \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: dir_create(((Str *)(path))->data),                                                                      \
-        char *: dir_create((const char *)(path)),                                                                      \
-        const char *: dir_create((const char *)(path))                                                                 \
+        Str *: dir_create((Zstr)StrBegin((Str *)(path))),                                                                      \
+        Zstr: dir_create((Zstr)(path))                                                                 \
     )
 
 ///
@@ -222,9 +216,8 @@ i8 dir_create_all(Zstr path);
 #define DirCreateAll(path)                                                                                             \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: dir_create_all(((Str *)(path))->data),                                                                  \
-        char *: dir_create_all((const char *)(path)),                                                                  \
-        const char *: dir_create_all((const char *)(path))                                                             \
+        Str *: dir_create_all((Zstr)StrBegin((Str *)(path))),                                                                  \
+        Zstr: dir_create_all((Zstr)(path))                                                             \
     )
 
 ///
@@ -232,7 +225,7 @@ i8 dir_create_all(Zstr path);
 /// symlinks, subdirectories). If `path` doesn't exist this is a
 /// no-op success. Follows the cross-platform `i8` return convention.
 ///
-/// path[in] : Root of the tree. Prefer `Str *`; `const char *` accepted.
+/// path[in] : Root of the tree. Prefer `Str *`; `Zstr ` accepted.
 ///
 /// SUCCESS : Returns 1; the path is gone (or never existed).
 /// FAILURE : Returns 0 on first un-recoverable error.
@@ -243,9 +236,8 @@ i8 dir_remove_all(Zstr path);
 #define DirRemoveAll(path)                                                                                             \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: dir_remove_all(((Str *)(path))->data),                                                                  \
-        char *: dir_remove_all((const char *)(path)),                                                                  \
-        const char *: dir_remove_all((const char *)(path))                                                             \
+        Str *: dir_remove_all((Zstr)StrBegin((Str *)(path))),                                                                  \
+        Zstr: dir_remove_all((Zstr)(path))                                                             \
     )
 
 #endif // MISRA_SYS_DIR_H

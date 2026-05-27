@@ -522,7 +522,7 @@ bool test_character_ordinal_reading(void) {
     u16_val = 0;
     z       = "AB";
     StrReadFmt(z, "{c}", u16_val);
-    bool u16_multi_pass = (ZstrCompareN((const char *)&u16_val, "AB", 2) == 0);
+    bool u16_multi_pass = (ZstrCompareN((Zstr)&u16_val, "AB", 2) == 0);
     WriteFmt("u16_val multi-char test: comparing memory with 'AB', pass = {}\n", u16_multi_pass ? "true" : "false");
     WriteFmt(
         "DEBUG: u16_val bytes: [{}, {}], expected 'AB' bytes: [{}, {}]\n",
@@ -536,28 +536,28 @@ bool test_character_ordinal_reading(void) {
     i16_val = 0;
     z       = "CD";
     StrReadFmt(z, "{c}", i16_val);
-    bool i16_multi_pass = (ZstrCompareN((const char *)&i16_val, "CD", 2) == 0);
+    bool i16_multi_pass = (ZstrCompareN((Zstr)&i16_val, "CD", 2) == 0);
     WriteFmt("i16_val multi-char test: comparing memory with 'CD', pass = {}\n", i16_multi_pass ? "true" : "false");
     success = success && i16_multi_pass;
 
     u32_val = 0;
     z       = "EFGH";
     StrReadFmt(z, "{c}", u32_val);
-    bool u32_multi_pass = (ZstrCompareN((const char *)&u32_val, "EFGH", 4) == 0);
+    bool u32_multi_pass = (ZstrCompareN((Zstr)&u32_val, "EFGH", 4) == 0);
     WriteFmt("u32_val multi-char test: comparing memory with 'EFGH', pass = {}\n", u32_multi_pass ? "true" : "false");
     success = success && u32_multi_pass;
 
     i32_val = 0;
     z       = "IJKL";
     StrReadFmt(z, "{c}", i32_val);
-    bool i32_multi_pass = (ZstrCompareN((const char *)&i32_val, "IJKL", 4) == 0);
+    bool i32_multi_pass = (ZstrCompareN((Zstr)&i32_val, "IJKL", 4) == 0);
     WriteFmt("i32_val multi-char test: comparing memory with 'IJKL', pass = {}\n", i32_multi_pass ? "true" : "false");
     success = success && i32_multi_pass;
 
     u64_val = 0;
     z       = "MNOPQRST";
     StrReadFmt(z, "{c}", u64_val);
-    bool u64_multi_pass = (ZstrCompareN((const char *)&u64_val, "MNOPQRST", 8) == 0);
+    bool u64_multi_pass = (ZstrCompareN((Zstr)&u64_val, "MNOPQRST", 8) == 0);
     WriteFmt(
         "u64_val multi-char test: comparing memory with 'MNOPQRST', pass = {}\n",
         u64_multi_pass ? "true" : "false"
@@ -567,7 +567,7 @@ bool test_character_ordinal_reading(void) {
     i64_val = 0;
     z       = "UVWXYZab";
     StrReadFmt(z, "{c}", i64_val);
-    bool i64_multi_pass = (ZstrCompareN((const char *)&i64_val, "UVWXYZab", 8) == 0);
+    bool i64_multi_pass = (ZstrCompareN((Zstr)&i64_val, "UVWXYZab", 8) == 0);
     WriteFmt(
         "i64_val multi-char test: comparing memory with 'UVWXYZab', pass = {}\n",
         i64_multi_pass ? "true" : "false"
@@ -598,14 +598,14 @@ bool test_character_ordinal_reading(void) {
     u32_val = 0;
     z       = "XY";
     StrReadFmt(z, "{c}", u32_val);
-    bool xy_pass = (ZstrCompareN((const char *)&u32_val, "XY", 2) == 0);
+    bool xy_pass = (ZstrCompareN((Zstr)&u32_val, "XY", 2) == 0);
     WriteFmt("u32_val partial test: comparing memory with 'XY', pass = {}\n", xy_pass ? "true" : "false");
     success = success && xy_pass;
 
     u64_val = 0;
     z       = "abc";
     StrReadFmt(z, "{c}", u64_val);
-    bool abc_pass = (ZstrCompareN((const char *)&u64_val, "abc", 3) == 0);
+    bool abc_pass = (ZstrCompareN((Zstr)&u64_val, "abc", 3) == 0);
     WriteFmt("u64_val partial test: comparing memory with 'abc', pass = {}\n", abc_pass ? "true" : "false");
     success = success && abc_pass;
 

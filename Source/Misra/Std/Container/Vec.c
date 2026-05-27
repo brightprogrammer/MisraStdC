@@ -36,10 +36,10 @@ static inline char *vec_ptr_at(GenericVec *v, size idx, size item_size) {
     return v->data + vec_aligned_offset_at(v, idx, item_size);
 }
 
-static inline const char *vec_const_ptr_at(const GenericVec *v, size idx, size item_size) {
+static inline const u8 *vec_const_ptr_at(const GenericVec *v, size idx, size item_size) {
     ValidateVec(v);
 
-    return v->data + vec_aligned_offset_at((GenericVec *)v, idx, item_size);
+    return (const u8 *)v->data + vec_aligned_offset_at((GenericVec *)v, idx, item_size);
 }
 
 void deinit_vec(GenericVec *vec, size item_size) {
@@ -180,7 +180,7 @@ bool clone_vec(GenericVec *dst, const GenericVec *src, size item_size) {
 }
 
 
-bool insert_range_into_vec(GenericVec *vec, const char *item_data, size item_size, size idx, size count) {
+bool insert_range_into_vec(GenericVec *vec, const u8 *item_data, size item_size, size idx, size count) {
     size aligned_size;
     size inserted_count = 0;
 
@@ -249,7 +249,7 @@ bool insert_range_into_vec(GenericVec *vec, const char *item_data, size item_siz
     return true;
 }
 
-bool insert_range_fast_into_vec(GenericVec *vec, const char *item_data, size item_size, size idx, size count) {
+bool insert_range_fast_into_vec(GenericVec *vec, const u8 *item_data, size item_size, size idx, size count) {
     size aligned_size;
     size inserted_count = 0;
 

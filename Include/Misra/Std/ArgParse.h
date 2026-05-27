@@ -18,7 +18,7 @@
 ///
 /// Value targets are typed via `_Generic` -- pass `&u32_var` and the
 /// parser knows it has to convert to u32; pass `&str_ptr` and it stores
-/// the raw string. Supported target types: `const char **`, `char **`,
+/// the raw string. Supported target types: `Zstr *`, `char **`,
 /// `bool *`, `u8/u16/u32/u64 *`, `i8/i16/i32/i64 *`, `f32/f64 *`,
 /// `Str *`. Unknown targets trip `ARG_KIND_INVALID` and `ArgParseRun`
 /// refuses to start.
@@ -55,7 +55,7 @@ extern "C" {
     ///
     typedef enum ArgKind {
         ARG_KIND_INVALID = 0, // unknown target type -- registration fails
-        ARG_KIND_ZSTR,        // `const char **` / `char **`
+        ARG_KIND_ZSTR,        // `Zstr *` / `char **`
         ARG_KIND_STR,         // `Str *`
         ARG_KIND_BOOL,        // `bool *`
         ARG_KIND_U8,
@@ -111,9 +111,9 @@ extern "C" {
     /// time, mutated during `ArgParseRun`.
     ///
     typedef struct ArgSpec {
-        const char *short_name; // "-l" or NULL; ignored for positionals
-        const char *long_name;  // "--listen" for options; metavar (e.g. "hostname") for positionals
-        const char *help;       // one-line description for `--help`
+        Zstr short_name; // "-l" or NULL; ignored for positionals
+        Zstr long_name;  // "--listen" for options; metavar (e.g. "hostname") for positionals
+        Zstr help;       // one-line description for `--help`
         ArgRole     role;
         ArgKind     kind;
         void       *target;
@@ -131,8 +131,8 @@ extern "C" {
     ///
     typedef struct ArgParse {
         Allocator  *alloc;
-        const char *name;
-        const char *about;
+        Zstr name;
+        Zstr about;
         ArgSpecs    specs;
     } ArgParse;
 
@@ -184,9 +184,9 @@ extern "C" {
     void arg_register(
         ArgParse   *self,
         ArgRole     role,
-        const char *short_name,
-        const char *long_name,
-        const char *help,
+        Zstr short_name,
+        Zstr long_name,
+        Zstr help,
         ArgTarget   target
     );
 
@@ -209,7 +209,7 @@ extern "C" {
 #define ARG_TARGET(t)                                                                                                  \
     _Generic(                                                                                                          \
         (t),                                                                                                           \
-        const char **: ((ArgTarget) {ARG_KIND_ZSTR, (void *)(t)}),                                                     \
+        Zstr *: ((ArgTarget) {ARG_KIND_ZSTR, (void *)(t)}),                                                     \
         char **: ((ArgTarget) {ARG_KIND_ZSTR, (void *)(t)}),                                                           \
         Str *: ((ArgTarget) {ARG_KIND_STR, (void *)(t)}),                                                              \
         bool *: ((ArgTarget) {ARG_KIND_BOOL, (void *)(t)}),                                                            \
@@ -232,7 +232,7 @@ extern "C" {
     /// have been written.
     ///
     /// USAGE:
-    ///   const char *listen = NULL;
+    ///   Zstr listen = NULL;
     ///   ArgRequired(&p, "-l", "--listen", &listen, "host:port to listen on");
     ///
 #define ArgRequired(parser, short_, long_, target, help_)                                                              \
@@ -282,7 +282,7 @@ extern "C" {
     /// prefixes -- positionals never start with `-`.
     ///
     /// USAGE:
-    ///   const char *hostname = NULL;
+    ///   Zstr hostname = NULL;
     ///   ArgPositional(&p, "hostname", &hostname, "name to resolve");
     ///
 #define ArgPositional(parser, name, target, help_)                                                                     \

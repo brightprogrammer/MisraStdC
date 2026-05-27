@@ -479,7 +479,7 @@ static SectionRva *load_section_table(const Pdb *self, u16 section_hdr_stream, u
 // the caller (a Str); we keep names there because pool resizing
 // invalidates earlier pointers -- we resolve to pointers in a second
 // pass after the walk completes.
-static bool pool_append_cstr(Str *pool, const char *s, u64 *out_offset) {
+static bool pool_append_cstr(Str *pool, Zstr s, u64 *out_offset) {
     *out_offset = pool->length;
     for (; *s; ++s) {
         if (!StrPushBack(pool, *s))
@@ -556,7 +556,7 @@ static bool walk_publics(
                 cur = next;
                 continue;
             }
-            const char *name = (const char *)(body.data + body.pos);
+            Zstr name = (Zstr)(body.data + body.pos);
 
             (void)flags; // permissive: we don't filter by FUNCTION bit;
                          // many real-world PDBs leave it unset.

@@ -903,7 +903,7 @@ Str bitvec_to_str(BitVec *bv, Allocator *alloc) {
     return result;
 }
 
-static bool bitvec_try_from_str_impl(BitVec *out, const char *str, u64 str_len, Allocator *alloc) {
+static bool bitvec_try_from_str_impl(BitVec *out, Zstr str, u64 str_len, Allocator *alloc) {
     if (!str) {
         LOG_FATAL("str is NULL");
     }

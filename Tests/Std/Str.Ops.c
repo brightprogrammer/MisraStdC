@@ -105,15 +105,15 @@ bool test_str_contains_index(void) {
     Str needle   = StrInitFromZstr("World", &alloc);
 
     bool result = StrContains(&haystack, &needle);
-    result      = result && StrContainsZstr(&haystack, "Hello");
-    result      = result && StrContainsCstr(&haystack, "lo Wo", 5);
+    result      = result && StrContains(&haystack, "Hello");
+    result      = result && StrContains(&haystack, "lo Wo", 5);
     result      = result && (StrIndexOf(&haystack, &needle) == 6);
-    result      = result && (StrIndexOfZstr(&haystack, "Hello") == 0);
-    result      = result && (StrIndexOfCstr(&haystack, "World", 5) == 6);
-    result      = result && !StrContainsZstr(&haystack, "missing");
-    result      = result && (StrIndexOfZstr(&haystack, "missing") == SIZE_MAX);
-    result      = result && StrContainsZstr(&haystack, "");
-    result      = result && (StrIndexOfZstr(&haystack, "") == 0);
+    result      = result && (StrIndexOf(&haystack, "Hello") == 0);
+    result      = result && (StrIndexOf(&haystack, "World", 5) == 6);
+    result      = result && !StrContains(&haystack, "missing");
+    result      = result && (StrIndexOf(&haystack, "missing") == SIZE_MAX);
+    result      = result && StrContains(&haystack, "");
+    result      = result && (StrIndexOf(&haystack, "") == 0);
 
     StrDeinit(&haystack);
     StrDeinit(&needle);
@@ -131,27 +131,27 @@ bool test_str_starts_ends_with(void) {
     Str prefix = StrInitFromZstr("Hello", &alloc);
     Str suffix = StrInitFromZstr("World", &alloc);
 
-    // Test StrStartsWith
+    // Test Str-form
     bool result = StrStartsWith(&s, &prefix);
 
-    // Test StrEndsWith
+    // Test Str-form
     result = result && StrEndsWith(&s, &suffix);
 
-    // Test StrStartsWithZstr
-    result = result && StrStartsWithZstr(&s, "Hello");
-    result = result && !StrStartsWithZstr(&s, "World");
+    // Test Zstr-form (string literal)
+    result = result && StrStartsWith(&s, "Hello");
+    result = result && !StrStartsWith(&s, "World");
 
-    // Test StrEndsWithZstr
-    result = result && StrEndsWithZstr(&s, "World");
-    result = result && !StrEndsWithZstr(&s, "Hello");
+    // Test Zstr-form (string literal)
+    result = result && StrEndsWith(&s, "World");
+    result = result && !StrEndsWith(&s, "Hello");
 
-    // Test StrStartsWithCstr
-    result = result && StrStartsWithCstr(&s, "Hell", 4);
-    result = result && !StrStartsWithCstr(&s, "Worl", 4);
+    // Test Cstr-form (fixed-length view)
+    result = result && StrStartsWith(&s, "Hell", 4);
+    result = result && !StrStartsWith(&s, "Worl", 4);
 
-    // Test StrEndsWithCstr
-    result = result && StrEndsWithCstr(&s, "orld", 4);
-    result = result && !StrEndsWithCstr(&s, "ello", 4);
+    // Test Cstr-form (fixed-length view)
+    result = result && StrEndsWith(&s, "orld", 4);
+    result = result && !StrEndsWith(&s, "ello", 4);
 
     StrDeinit(&s);
     StrDeinit(&prefix);
@@ -166,24 +166,24 @@ bool test_str_replace(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
 
 
-    // Test StrReplaceZstr
+    // Test Zstr-form (string literals)
     Str s1 = StrInitFromZstr("Hello World", &alloc);
-    StrReplaceZstr(&s1, "World", "Universe", 1);
+    StrReplace(&s1, "World", "Universe", 1);
     bool result = (ZstrCompare(StrBegin(&s1), "Hello Universe") == 0);
 
     // Test multiple replacements
     StrDeinit(&s1);
     s1 = StrInitFromZstr("Hello Hello Hello", &alloc);
-    StrReplaceZstr(&s1, "Hello", "Hi", 2);
+    StrReplace(&s1, "Hello", "Hi", 2);
     result = result && (ZstrCompare(StrBegin(&s1), "Hi Hi Hello") == 0);
 
-    // Test StrReplaceCstr - use the full "World" string instead of just "Wo"
+    // Test Cstr-form (fixed-length views) - use the full "World" string instead of just "Wo"
     StrDeinit(&s1);
     s1 = StrInitFromZstr("Hello World", &alloc);
-    StrReplaceCstr(&s1, "World", 5, "Universe", 8, 1);
+    StrReplace(&s1, "World", 5, "Universe", 8, 1);
     result = result && (ZstrCompare(StrBegin(&s1), "Hello Universe") == 0);
 
-    // Test StrReplace
+    // Test Str-form
     StrDeinit(&s1);
     s1          = StrInitFromZstr("Hello World", &alloc);
     Str find    = StrInitFromZstr("World", &alloc);

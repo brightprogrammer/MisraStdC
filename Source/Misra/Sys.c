@@ -41,7 +41,7 @@
 // ENOENT=2, ...) and identical across Linux / macOS / *BSD. Windows
 // (UCRT) maps most of them to the same values; the ones it diverges
 // on don't matter for our call sites today.
-static const char *errno_description(i32 eno) {
+static Zstr errno_description(i32 eno) {
     switch (eno) {
 #ifdef EPERM
         case EPERM :
@@ -332,11 +332,11 @@ ProcId ProcGetCurrentId(void) {
 // NULL safely.
 char **misra_envp = NULL;
 #elif PLATFORM_WINDOWS
-__declspec(dllimport) extern char *__cdecl getenv(const char *name);
+__declspec(dllimport) extern char *__cdecl getenv(Zstr name);
 #elif !PLATFORM_DARWIN
 // Other Unix: weak fallback. Resolves to libc's `getenv` when libc
 // is linked; unresolved (treated as NULL) otherwise.
-extern char *getenv(const char *name) __attribute__((weak));
+extern char *getenv(Zstr name) __attribute__((weak));
 #endif
 
 Zstr EnvGet(Zstr name) {
@@ -349,8 +349,8 @@ Zstr EnvGet(Zstr name) {
     }
     // Match `name` against the prefix of each entry up to '='.
     for (char **e = misra_envp; *e; ++e) {
-        const char *entry = *e;
-        const char *n     = name;
+        Zstr entry = *e;
+        Zstr n     = name;
         while (*n && *entry == *n) {
             ++entry;
             ++n;
@@ -361,7 +361,7 @@ Zstr EnvGet(Zstr name) {
     }
     return NULL;
 #elif PLATFORM_WINDOWS
-    return (const char *)getenv(name);
+    return (Zstr)getenv(name);
 #elif PLATFORM_DARWIN
     // No libSystem `_getenv` reference -- callers must capture envp
     // themselves.
@@ -371,6 +371,6 @@ Zstr EnvGet(Zstr name) {
     if (!getenv) {
         return NULL;
     }
-    return (const char *)getenv(name);
+    return (Zstr)getenv(name);
 #endif
 }

@@ -36,7 +36,7 @@ static bool kvconfig_parse_bool_value(const Str *value, bool *out) {
 }
 
 static bool kvconfig_parse_i64_value(const Str *value, i64 *out) {
-    Zstr      endptr = NULL;
+    Zstr endptr = NULL;
     long long parsed;
 
     if (!out) {
@@ -54,7 +54,7 @@ static bool kvconfig_parse_i64_value(const Str *value, i64 *out) {
 }
 
 static bool kvconfig_parse_f64_value(const Str *value, f64 *out) {
-    Zstr   endptr = NULL;
+    Zstr endptr = NULL;
     double parsed;
 
     if (!out) {

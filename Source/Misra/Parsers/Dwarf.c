@@ -50,7 +50,7 @@ enum {
 
 // Append `s` (NUL-terminated) including its terminator into `pool` and
 // return the offset at which it was inserted.
-static bool pool_append(Str *pool, const char *s, u64 *out_offset) {
+static bool pool_append(Str *pool, Zstr s, u64 *out_offset) {
     u64 start = pool->length;
     while (*s) {
         if (!StrPushBack(pool, *s))
@@ -224,7 +224,7 @@ static void cu_strings_deinit(CuStrings *cs) {
 static bool collect_cu_strings(BufIter cur, Str *pool, CuStrings *cs) {
     // include_directories
     while (cur.pos < cur.length && cur.data[cur.pos] != 0) {
-        const char *dir = BufReadCstr(&cur);
+        Zstr dir = BufReadCstr(&cur);
         if (!dir)
             return false;
         u64 off = 0;
@@ -238,7 +238,7 @@ static bool collect_cu_strings(BufIter cur, Str *pool, CuStrings *cs) {
 
     // file_names
     while (cur.pos < cur.length && cur.data[cur.pos] != 0) {
-        const char *name = BufReadCstr(&cur);
+        Zstr name = BufReadCstr(&cur);
         if (!name)
             return false;
         u64 dir_idx = 0, mtime = 0, length_ = 0;
@@ -624,8 +624,8 @@ bool dwarf_lines_build_from_elf(DwarfLines *out, const Elf *elf, Allocator *allo
         for (u64 i = 0; i < out->entries.length; ++i) {
             u64 fo                    = pending_file_offsets.data[i];
             u64 dofs                  = pending_dir_offsets.data[i];
-            out->entries.data[i].file = fo ? (const char *)(out->string_pool.data + fo) : NULL;
-            out->entries.data[i].dir  = dofs ? (const char *)(out->string_pool.data + dofs) : NULL;
+            out->entries.data[i].file = fo ? (Zstr)(out->string_pool.data + fo) : NULL;
+            out->entries.data[i].dir  = dofs ? (Zstr)(out->string_pool.data + dofs) : NULL;
         }
     }
 

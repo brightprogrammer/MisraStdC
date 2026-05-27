@@ -486,7 +486,7 @@ bool FloatToInt(Int *result, Float *value) {
     return true;
 }
 
-static bool float_try_from_str_impl(Float *out, const char *text, size length) {
+static bool float_try_from_str_impl(Float *out, Zstr text, size length) {
     Float result;
     Str   digits;
     size  pos          = 0;
@@ -538,8 +538,8 @@ static bool float_try_from_str_impl(Float *out, const char *text, size length) {
         }
 
         if (ch == 'e' || ch == 'E') {
-            const char *endptr     = NULL;
-            const char *exp_start  = NULL;
+            Zstr endptr     = NULL;
+            Zstr exp_start  = NULL;
             long long   parsed     = 0;
             size        exp_offset = 0;
 

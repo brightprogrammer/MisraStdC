@@ -65,7 +65,7 @@ static i32 hex_nibble_value(char c) {
     return -1;
 }
 
-static bool parse_ipv4(const char *s, u8 octets[4]) {
+static bool parse_ipv4(Zstr s, u8 octets[4]) {
     if (!s)
         return false;
     for (i32 i = 0; i < 4; ++i) {
@@ -88,7 +88,7 @@ static bool parse_ipv4(const char *s, u8 octets[4]) {
     return *s == '\0';
 }
 
-static bool parse_ipv6(const char *s, u8 bytes[16]) {
+static bool parse_ipv6(Zstr s, u8 bytes[16]) {
     if (!s)
         return false;
     u16  before_cc[8];
@@ -219,7 +219,7 @@ static void ascii_lower(char *p, u64 n) {
 // Slurp a whole File into `out`. Caller owns `out`; allocator inline
 // on the Str. Returns false on read error; missing file returns true
 // with an empty Str.
-static bool slurp_file(const char *path, Str *out) {
+static bool slurp_file(Zstr path, Str *out) {
     File f = FileOpen(path, "rb");
     if (!FileIsOpen(&f)) {
         // Missing config file is fine -- resolver just won't know about it.
@@ -258,8 +258,8 @@ static void parse_hosts_table(HostsTable *table, Allocator *alloc) {
         return;
     }
 
-    const char *p   = buf.data;
-    const char *end = buf.data ? buf.data + buf.length : NULL;
+    Zstr p   = buf.data;
+    Zstr end = buf.data ? buf.data + buf.length : NULL;
     while (p && p < end) {
         // Skip leading horizontal whitespace.
         while (p < end && is_hspace(*p))
@@ -274,7 +274,7 @@ static void parse_hosts_table(HostsTable *table, Allocator *alloc) {
         }
 
         // First token: IP literal.
-        const char *ip_start = p;
+        Zstr ip_start = p;
         while (p < end && !is_hspace(*p) && *p != '\n')
             ++p;
         u64 ip_len = (u64)(p - ip_start);
@@ -308,7 +308,7 @@ static void parse_hosts_table(HostsTable *table, Allocator *alloc) {
                 ++p;
             if (p >= end || *p == '\n' || *p == '#')
                 break;
-            const char *nm_start = p;
+            Zstr nm_start = p;
             while (p < end && !is_hspace(*p) && *p != '\n' && *p != '#')
                 ++p;
             u64 nm_len = (u64)(p - nm_start);
@@ -355,8 +355,8 @@ static void parse_resolv_conf(DnsAddrs *out, Allocator *alloc) {
     static const char NS_KEYWORD[] = "nameserver";
     u64               kw_len       = sizeof(NS_KEYWORD) - 1;
 
-    const char *p   = buf.data;
-    const char *end = buf.data ? buf.data + buf.length : NULL;
+    Zstr p   = buf.data;
+    Zstr end = buf.data ? buf.data + buf.length : NULL;
     while (p && p < end) {
         while (p < end && is_hspace(*p))
             ++p;
@@ -374,7 +374,7 @@ static void parse_resolv_conf(DnsAddrs *out, Allocator *alloc) {
             p += kw_len;
             while (p < end && is_hspace(*p))
                 ++p;
-            const char *ip_start = p;
+            Zstr ip_start = p;
             while (p < end && !is_hspace(*p) && *p != '\n' && *p != '#')
                 ++p;
             u64  ip_len = (u64)(p - ip_start);
@@ -442,7 +442,7 @@ void DnsResolverDeinit(DnsResolver *self) {
 // ---------------------------------------------------------------------------
 
 // Strip trailing dot, lowercase, write into `out` (caller-managed Str).
-static void normalize_hostname(const char *name, Str *out) {
+static void normalize_hostname(Zstr name, Str *out) {
     if (!name) {
         return;
     }
@@ -572,7 +572,7 @@ static bool try_one_query(
     return found;
 }
 
-bool dns_resolve_5_zstr(DnsResolver *self, const char *hostname, u16 port, SocketKind kind, DnsAddrs *out) {
+bool dns_resolve_5_zstr(DnsResolver *self, Zstr hostname, u16 port, SocketKind kind, DnsAddrs *out) {
     (void)kind; // protocol byte doesn't affect resolution
     if (!self || !hostname || !out) {
         return false;
@@ -585,7 +585,7 @@ bool dns_resolve_5_zstr(DnsResolver *self, const char *hostname, u16 port, Socke
     // check above guarantees we stay inside the cap.
     char buf[256];
     if (ZstrLen(hostname) >= sizeof(buf)) {
-        LOG_ERROR("DnsResolve: hostname \"{}\" exceeds 255 bytes", (const char *)hostname);
+        LOG_ERROR("DnsResolve: hostname \"{}\" exceeds 255 bytes", (Zstr)hostname);
         return false;
     }
     HeapAllocator spill = HeapAllocatorInit();
@@ -632,12 +632,12 @@ next_qtype:;
     }
 
     if (!found) {
-        LOG_ERROR("DnsResolve: no A/AAAA records found for \"{}\"", (const char *)hostname);
+        LOG_ERROR("DnsResolve: no A/AAAA records found for \"{}\"", (Zstr)hostname);
     }
     return found;
 }
 
-bool dns_resolve_4_vec_zstr(DnsResolver *self, const char *spec, SocketKind kind, DnsAddrs *out) {
+bool dns_resolve_4_vec_zstr(DnsResolver *self, Zstr spec, SocketKind kind, DnsAddrs *out) {
     if (!self || !spec || !out) {
         return false;
     }
@@ -665,12 +665,12 @@ bool dns_resolve_4_vec_zstr(DnsResolver *self, const char *spec, SocketKind kind
         }
     }
     if (colon_at >= spec_len) {
-        LOG_ERROR("DnsResolve: spec \"{}\" has no \":port\"", (const char *)spec);
+        LOG_ERROR("DnsResolve: spec \"{}\" has no \":port\"", (Zstr)spec);
         return false;
     }
     char host[256];
     if (colon_at >= sizeof(host)) {
-        LOG_ERROR("DnsResolve: host portion of \"{}\" exceeds 255 bytes", (const char *)spec);
+        LOG_ERROR("DnsResolve: host portion of \"{}\" exceeds 255 bytes", (Zstr)spec);
         return false;
     }
     MemCopy(host, spec, colon_at);
@@ -680,19 +680,19 @@ bool dns_resolve_4_vec_zstr(DnsResolver *self, const char *spec, SocketKind kind
     for (u64 i = colon_at + 1; i < spec_len; ++i) {
         char c = spec[i];
         if (c < '0' || c > '9') {
-            LOG_ERROR("DnsResolve: non-numeric port in \"{}\"", (const char *)spec);
+            LOG_ERROR("DnsResolve: non-numeric port in \"{}\"", (Zstr)spec);
             return false;
         }
         u32 next = (u32)port * 10u + (u32)(c - '0');
         if (next > 0xFFFFu) {
-            LOG_ERROR("DnsResolve: port in \"{}\" out of range", (const char *)spec);
+            LOG_ERROR("DnsResolve: port in \"{}\" out of range", (Zstr)spec);
             return false;
         }
         port = (u16)next;
     }
     // A bare "host:" with no digits after the colon is malformed.
     if (colon_at + 1 == spec_len) {
-        LOG_ERROR("DnsResolve: empty port in \"{}\"", (const char *)spec);
+        LOG_ERROR("DnsResolve: empty port in \"{}\"", (Zstr)spec);
         return false;
     }
 
@@ -713,7 +713,7 @@ bool dns_resolve_4_vec_str(DnsResolver *self, const Str *spec, SocketKind kind, 
     return dns_resolve_4_vec_zstr(self, spec->data, kind, out);
 }
 
-bool DnsResolve_4_one(DnsResolver *self, const char *spec, SocketKind kind, SocketAddr *out) {
+bool DnsResolve_4_one(DnsResolver *self, Zstr spec, SocketKind kind, SocketAddr *out) {
     if (!self || !spec || !out) {
         return false;
     }

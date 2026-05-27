@@ -198,7 +198,7 @@ static void heap_remove_at(void *arr, u32 *len_ptr, u32 idx, u32 entry_size) {
 }
 
 static u32 heap_find_by_page(const void *arr, u32 len, u32 entry_size, void *page_addr) {
-    const char *base = (const char *)arr;
+    Zstr base = (Zstr)arr;
     u64         key  = (u64)page_addr;
     u32         lo = 0, hi = len;
     while (lo < hi) {

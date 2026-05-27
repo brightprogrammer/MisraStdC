@@ -71,7 +71,7 @@ typedef bool (*MapPredicateFn)(const void *key, const void *value, void *ctx);
 /// TAGS: Map, Policy, Hashing, Probing, Configuration
 ///
 typedef struct {
-    Zstr                    name;
+    Zstr name;
     MapPolicyShouldRehashFn should_rehash;
     MapPolicyNextCapacityFn next_capacity;
     MapPolicyFirstIndexFn   first_index;

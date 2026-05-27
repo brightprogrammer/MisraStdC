@@ -192,7 +192,7 @@ static bool parse_cie(BufIter *body, u64 cie_offset, DwarfCie *out) {
     }
     out->version = version;
 
-    const char *augmentation = BufReadCstr(body);
+    Zstr augmentation = BufReadCstr(body);
     if (!augmentation)
         return false;
 
@@ -239,7 +239,7 @@ static bool parse_cie(BufIter *body, u64 cie_offset, DwarfCie *out) {
             return false;
         size aug_end_pos = body->pos + aug_len;
 
-        for (const char *a = augmentation + 1; *a; ++a) {
+        for (Zstr a = augmentation + 1; *a; ++a) {
             switch (*a) {
                 case 'L' : {
                     u8 lsda_enc = 0;

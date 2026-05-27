@@ -108,13 +108,13 @@ static HttpRequestMethod http_request_method_from_str(const Str *mstr) {
     return HTTP_REQUEST_METHOD_UNKNOWN;
 }
 
-const char *http_request_parse_zstr(HttpRequest *req, Zstr in) {
+Zstr http_request_parse_zstr(HttpRequest *req, Zstr in) {
     if (!req || !req->allocator || !in) {
         LOG_FATAL("invalid arguments");
     }
 
     Allocator  *alloc   = req->allocator;
-    const char *cursor  = in;
+    Zstr cursor  = in;
     Str         method  = StrInit(alloc);
     Str         version = StrInit(alloc);
 
@@ -142,7 +142,7 @@ const char *http_request_parse_zstr(HttpRequest *req, Zstr in) {
     }
 
     while (true) {
-        const char *line_start = cursor;
+        Zstr line_start = cursor;
 
         if (0 == ZstrCompareN(cursor, "\r\n", 2)) {
             cursor += 2;
@@ -167,7 +167,7 @@ const char *http_request_parse_zstr(HttpRequest *req, Zstr in) {
     return cursor;
 }
 
-const char *http_request_parse_str(HttpRequest *req, const Str *in) {
+Zstr http_request_parse_str(HttpRequest *req, const Str *in) {
     if (!req || !in) {
         LOG_FATAL("invalid arguments");
     }
@@ -190,7 +190,7 @@ void HttpRequestDeinit(HttpRequest *req) {
 // HttpResponse: lookup tables
 // ---------------------------------------------------------------------------
 
-const char *HttpResponseCodeToZstr(HttpResponseCode code) {
+Zstr HttpResponseCodeToZstr(HttpResponseCode code) {
     switch (code) {
         case HTTP_RESPONSE_CODE_CONTINUE :
             return "100 Continue";
@@ -321,7 +321,7 @@ const char *HttpResponseCodeToZstr(HttpResponseCode code) {
     }
 }
 
-const char *HttpContentTypeToZstr(HttpContentType type) {
+Zstr HttpContentTypeToZstr(HttpContentType type) {
     switch (type) {
         case HTTP_CONTENT_TYPE_TEXT_PLAIN :
             return "text/plain";
@@ -434,12 +434,12 @@ Str http_response_serialize(const HttpResponse *response, Allocator *alloc) {
         LOG_FATAL("HttpResponseSerialize: response is NULL");
     }
 
-    const char *response_code = HttpResponseCodeToZstr(response->status_code);
+    Zstr response_code = HttpResponseCodeToZstr(response->status_code);
     if (!response_code) {
         LOG_ERROR("HttpResponseSerialize: invalid/unknown response code {}", (u32)response->status_code);
         return out;
     }
-    const char *content_type = HttpContentTypeToZstr(response->content_type);
+    Zstr content_type = HttpContentTypeToZstr(response->content_type);
     if (!content_type) {
         LOG_ERROR("HttpResponseSerialize: invalid/unknown content type {}", (u32)response->content_type);
         return out;

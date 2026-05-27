@@ -7,6 +7,7 @@
 #ifndef MISRA_STD_CONTAINER_STR_OPS_H
 #define MISRA_STD_CONTAINER_STR_OPS_H
 
+#include "Private.h"
 #include "Type.h"
 #include <Misra/Std/Utility/StrIter.h>
 #include <Misra/Std/Zstr.h>
@@ -132,202 +133,164 @@ extern "C" {
 ///
 #define StrFindCstr(str, key, key_len) ZstrFindSubstringN((str)->data, (key), (key_len))
 
-    ///
-    /// Check if string contains another Str.
-    ///
-    /// s[in]   : Str object to search in.
-    /// key[in] : Str object to search for.
-    ///
-    /// SUCCESS : Returns `true` when a match exists.
-    /// FAILURE : Returns `false`.
-    ///
-    /// TAGS: Str, Contains, Search
-    ///
-    bool StrContains(const Str *s, const Str *key);
+///
+/// Find the index of the first occurrence of a key inside a `Str`.
+///
+/// Three call shapes via `MISRA_OVERLOAD` + `_Generic` on `key`:
+///   `StrIndexOf(s, key)`              -- `key` is `Str *` or `Zstr`.
+///   `StrIndexOf(s, key, key_len)`     -- `key` is a fixed-length view
+///                                        (`Zstr`, `size`).
+/// An empty key matches at position 0.
+///
+/// s[in]       : Str object to search in.
+/// key[in]     : Substring to search for (`Str *` / `Zstr`).
+/// key_len[in] : Length of `key` when using the 3-arg fixed-length form.
+///
+/// SUCCESS : Returns the zero-based index of the first match. The
+///           string is not modified.
+/// FAILURE : Returns `SIZE_MAX` when no match is found. The string is
+///           not modified.
+///
+/// TAGS: Str, IndexOf, Search
+///
+#define StrIndexOf(...) MISRA_OVERLOAD(StrIndexOf, __VA_ARGS__)
+#define StrIndexOf_2(s, key)                                                                                           \
+    _Generic(                                                                                                          \
+        (key),                                                                                                         \
+        Str *: str_index_of_str ((s), (const Str *)(key)),                                                             \
+        Zstr:  str_index_of_zstr((s), (Zstr)(key))                                                                     \
+    )
+#define StrIndexOf_3(s, key, key_len) str_index_of_cstr((s), (Zstr)(key), (key_len))
 
-    ///
-    /// Find the index of first occurrence of a null-terminated string.
-    ///
-    /// s[in]   : Str object to search in.
-    /// key[in] : Null-terminated string to search for.
-    ///
-    /// SUCCESS : Returns the zero-based index of the first match. The string is not modified.
-    /// FAILURE : Returns `SIZE_MAX` when no match is found. The string is not modified.
-    ///
-    /// TAGS: Str, IndexOf, Search
-    ///
-    size StrIndexOfZstr(const Str *s, Zstr key);
+///
+/// Check whether a `Str` contains a key.
+///
+/// Three call shapes via `MISRA_OVERLOAD` + `_Generic` on `key`:
+///   `StrContains(s, key)`              -- `key` is `Str *` or `Zstr`.
+///   `StrContains(s, key, key_len)`     -- `key` is a fixed-length view
+///                                         (`Zstr`, `size`).
+/// An empty key trivially matches.
+///
+/// s[in]       : Str object to search in.
+/// key[in]     : Substring to search for (`Str *` / `Zstr`).
+/// key_len[in] : Length of `key` when using the 3-arg fixed-length form.
+///
+/// SUCCESS : Returns `true` when a match exists. The string is not
+///           modified.
+/// FAILURE : Returns `false`. The string is not modified.
+///
+/// TAGS: Str, Contains, Search
+///
+#define StrContains(...) MISRA_OVERLOAD(StrContains, __VA_ARGS__)
+#define StrContains_2(s, key)                                                                                          \
+    _Generic(                                                                                                          \
+        (key),                                                                                                         \
+        Str *: str_contains_str ((s), (const Str *)(key)),                                                             \
+        Zstr:  str_contains_zstr((s), (Zstr)(key))                                                                     \
+    )
+#define StrContains_3(s, key, key_len) str_contains_cstr((s), (Zstr)(key), (key_len))
 
-    ///
-    /// Find the index of first occurrence of a fixed-length string.
-    ///
-    /// s[in]       : Str object to search in.
-    /// key[in]     : String to search for.
-    /// key_len[in] : Length of searched string.
-    ///
-    /// SUCCESS : Returns the zero-based index of the first match. The string is not modified.
-    /// FAILURE : Returns `SIZE_MAX` when no match is found. The string is not modified.
-    ///
-    /// TAGS: Str, IndexOf, Search
-    ///
-    size StrIndexOfCstr(const Str *s, Zstr key, size key_len);
+//
+// Prefix/Suffix Operations
+//
 
-    ///
-    /// Find the index of first occurrence of another Str.
-    ///
-    /// s[in]   : Str object to search in.
-    /// key[in] : Str object to search for.
-    ///
-    /// SUCCESS : Returns the zero-based index of the first match. The string is not modified.
-    /// FAILURE : Returns `SIZE_MAX` when no match is found. The string is not modified.
-    ///
-    /// TAGS: Str, IndexOf, Search
-    ///
-    size StrIndexOf(const Str *s, const Str *key);
+///
+/// Check whether a `Str` starts with a prefix.
+///
+/// Three call shapes via `MISRA_OVERLOAD` + `_Generic` on `prefix`:
+///   `StrStartsWith(s, prefix)`                -- `prefix` is `Str *`
+///                                                or `Zstr`.
+///   `StrStartsWith(s, prefix, prefix_len)`    -- `prefix` is a
+///                                                fixed-length view
+///                                                (`Zstr`, `size`).
+///
+/// s[in]          : Str to check.
+/// prefix[in]     : Candidate prefix (`Str *` / `Zstr`).
+/// prefix_len[in] : Length of `prefix` when using the 3-arg
+///                  fixed-length form.
+///
+/// SUCCESS : Returns `true` when `s` starts with `prefix`. The string
+///           is not modified.
+/// FAILURE : Returns `false`. The string is not modified.
+///
+/// TAGS: Str, StartsWith, Prefix
+///
+#define StrStartsWith(...) MISRA_OVERLOAD(StrStartsWith, __VA_ARGS__)
+#define StrStartsWith_2(s, prefix)                                                                                     \
+    _Generic(                                                                                                          \
+        (prefix),                                                                                                      \
+        Str *: str_starts_with_str ((s), (const Str *)(prefix)),                                                       \
+        Zstr:  str_starts_with_zstr((s), (Zstr)(prefix))                                                               \
+    )
+#define StrStartsWith_3(s, prefix, prefix_len) str_starts_with_cstr((s), (Zstr)(prefix), (prefix_len))
 
-    ///
-    /// Check if string contains a null-terminated string.
-    ///
-    /// s[in]   : Str object to search in.
-    /// key[in] : Null-terminated string to search for.
-    ///
-    /// SUCCESS : Returns `true` when a match exists.
-    /// FAILURE : Returns `false`.
-    ///
-    /// TAGS: Str, Contains, Search
-    ///
-    bool StrContainsZstr(const Str *s, Zstr key);
+///
+/// Check whether a `Str` ends with a suffix.
+///
+/// Three call shapes via `MISRA_OVERLOAD` + `_Generic` on `suffix`:
+///   `StrEndsWith(s, suffix)`                -- `suffix` is `Str *`
+///                                              or `Zstr`.
+///   `StrEndsWith(s, suffix, suffix_len)`    -- `suffix` is a
+///                                              fixed-length view
+///                                              (`Zstr`, `size`).
+///
+/// s[in]          : Str to check.
+/// suffix[in]     : Candidate suffix (`Str *` / `Zstr`).
+/// suffix_len[in] : Length of `suffix` when using the 3-arg
+///                  fixed-length form.
+///
+/// SUCCESS : Returns `true` when `s` ends with `suffix`. The string is
+///           not modified.
+/// FAILURE : Returns `false`. The string is not modified.
+///
+/// TAGS: Str, EndsWith, Suffix
+///
+#define StrEndsWith(...) MISRA_OVERLOAD(StrEndsWith, __VA_ARGS__)
+#define StrEndsWith_2(s, suffix)                                                                                       \
+    _Generic(                                                                                                          \
+        (suffix),                                                                                                      \
+        Str *: str_ends_with_str ((s), (const Str *)(suffix)),                                                         \
+        Zstr:  str_ends_with_zstr((s), (Zstr)(suffix))                                                                 \
+    )
+#define StrEndsWith_3(s, suffix, suffix_len) str_ends_with_cstr((s), (Zstr)(suffix), (suffix_len))
 
-    ///
-    /// Check if string contains a fixed-length string.
-    ///
-    /// s[in]       : Str object to search in.
-    /// key[in]     : String to search for.
-    /// key_len[in] : Length of searched string.
-    ///
-    /// SUCCESS : Returns `true` when a match exists.
-    /// FAILURE : Returns `false`.
-    ///
-    /// TAGS: Str, Contains, Search
-    ///
-    bool StrContainsCstr(const Str *s, Zstr key, size key_len);
+//
+// Replace Operations
+//
 
-    //
-    // Prefix/Suffix Operations
-    //
-
-    ///
-    /// Check if string starts with a null-terminated string (Zstr).
-    ///
-    /// s[in]     : Str to check.
-    /// prefix[in]: Null-terminated prefix string.
-    ///
-    /// SUCCESS : Returns `true` when `s` starts with `prefix`.
-    /// FAILURE : Returns `false`. The string is not modified.
-    ///
-    bool StrStartsWithZstr(const Str *s, Zstr prefix);
-
-    ///
-    /// Check if string ends with a null-terminated string (Zstr).
-    ///
-    /// s[in]     : Str to check.
-    /// suffix[in]: Null-terminated suffix string.
-    ///
-    /// SUCCESS : Returns `true` when `s` ends with `suffix`.
-    /// FAILURE : Returns `false`. The string is not modified.
-    ///
-    bool StrEndsWithZstr(const Str *s, Zstr suffix);
-
-    ///
-    /// Check if string starts with a fixed-length C-style string (Cstr).
-    ///
-    /// s[in]         : Str to check.
-    /// prefix[in]    : Pointer to prefix character array.
-    /// prefix_len[in]: Length of prefix.
-    ///
-    /// SUCCESS : Returns `true` when `s` starts with `prefix`.
-    /// FAILURE : Returns `false`. The string is not modified.
-    ///
-    bool StrStartsWithCstr(const Str *s, Zstr prefix, size prefix_len);
-
-    ///
-    /// Check if string ends with a fixed-length C-style string (Cstr).
-    ///
-    /// s[in]         : Str to check.
-    /// suffix[in]    : Pointer to suffix character array.
-    /// suffix_len[in]: Length of suffix.
-    ///
-    /// SUCCESS : Returns `true` when `s` ends with `suffix`.
-    /// FAILURE : Returns `false`. The string is not modified.
-    ///
-    bool StrEndsWithCstr(const Str *s, Zstr suffix, size suffix_len);
-
-    ///
-    /// Check if string starts with another Str object.
-    ///
-    /// s[in]     : Str to check.
-    /// prefix[in]: Str to check as prefix.
-    ///
-    /// SUCCESS : Returns `true` when `s` starts with `prefix`.
-    /// FAILURE : Returns `false`. The string is not modified.
-    ///
-    bool StrStartsWith(const Str *s, const Str *prefix);
-
-    ///
-    /// Check if string ends with another Str object.
-    ///
-    /// s[in]     : Str to check.
-    /// suffix[in]: Str to check as suffix.
-    ///
-    /// SUCCESS : Returns `true` when `s` ends with `suffix`.
-    /// FAILURE : Returns `false`. The string is not modified.
-    ///
-    bool StrEndsWith(const Str *s, const Str *suffix);
-
-    //
-    // Replace Operations
-    //
-
-    ///
-    /// Replace occurrences of a null-terminated string (Zstr) in string.
-    ///
-    /// s[in,out]      : Str to modify.
-    /// match[in]      : Null-terminated match string.
-    /// replacement[in]: Null-terminated replacement string.
-    /// count[in]      : Maximum number of replacements. -1 means replace all occurences.
-    ///
-    /// SUCCESS : Modifies `s` in place.
-    /// FAILURE : No replacement if `match` not found.
-    ///
-    void StrReplaceZstr(Str *s, Zstr match, Zstr replacement, size count);
-
-    ///
-    /// Replace occurrences of a fixed-length string (Cstr) in string.
-    ///
-    /// s[in,out]         : Str to modify.
-    /// match[in]         : Match string pointer.
-    /// match_len[in]     : Length of match string.
-    /// replacement[in]   : Replacement string pointer.
-    /// replacement_len[in]: Length of replacement string.
-    /// count[in]         : Maximum number of replacements. -1 means replace all occurences.
-    ///
-    /// SUCCESS : Modifies `s` in place.
-    /// FAILURE : No replacement if `match` not found.
-    ///
-    void StrReplaceCstr(Str *s, Zstr match, size match_len, Zstr replacement, size replacement_len, size count);
-
-    ///
-    /// Replace occurrences of a Str in string with another Str.
-    ///
-    /// s[in,out]     : Str to modify.
-    /// match[in]     : Str to match.
-    /// replacement[in]: Str to replace with.
-    /// count[in]     : Maximum number of replacements. -1 means replace all occurences.
-    ///
-    /// SUCCESS : Modifies `s` in place.
-    /// FAILURE : No replacement if `match` not found.
-    ///
-    void StrReplace(Str *s, const Str *match, const Str *replacement, size count);
+///
+/// Replace occurrences of `match` in `s` with `replacement`.
+///
+/// Three call shapes via `MISRA_OVERLOAD` + `_Generic` on `match`:
+///   `StrReplace(s, match, replacement, count)`
+///       -- `match` and `replacement` are both `Str *` or both `Zstr`.
+///   `StrReplace(s, match, match_len, replacement, replacement_len, count)`
+///       -- `match` / `replacement` are fixed-length views
+///          (`Zstr`, `size`).
+/// `count = -1` requests replace-all; otherwise at most `count`
+/// occurrences are replaced.
+///
+/// s[in,out]           : Str to modify in place.
+/// match[in]           : Pattern to find (`Str *` / `Zstr`).
+/// match_len[in]       : Length of `match` for the 6-arg form.
+/// replacement[in]     : Replacement bytes (`Str *` / `Zstr`).
+/// replacement_len[in] : Length of `replacement` for the 6-arg form.
+/// count[in]           : Maximum number of replacements; `-1` for all.
+///
+/// SUCCESS : Modifies `s` in place. Returns no value.
+/// FAILURE : `s` is left unchanged when `match` does not occur in `s`.
+///
+/// TAGS: Str, Replace
+///
+#define StrReplace(...) MISRA_OVERLOAD(StrReplace, __VA_ARGS__)
+#define StrReplace_4(s, match, replacement, count)                                                                     \
+    _Generic(                                                                                                          \
+        (match),                                                                                                       \
+        Str *: str_replace_str ((s), (const Str *)(match), (const Str *)(replacement), (count)),                       \
+        Zstr:  str_replace_zstr((s), (Zstr)(match), (Zstr)(replacement), (count))                                      \
+    )
+#define StrReplace_6(s, match, match_len, replacement, replacement_len, count)                                         \
+    str_replace_cstr((s), (Zstr)(match), (match_len), (Zstr)(replacement), (replacement_len), (count))
 
     //
     // Split Operations
@@ -351,7 +314,7 @@ extern "C" {
     StrIters str_split_to_iters_zstr(Str *s, Zstr key);
     StrIters str_split_to_iters_str(Str *s, const Str *key);
 #define StrSplitToIters(s, key)                                                                                                                                  \
-    _Generic((key), Str *: str_split_to_iters_str, const Str *: str_split_to_iters_str, char *: str_split_to_iters_zstr, const char *: str_split_to_iters_zstr)( \
+    _Generic((key), Str *: str_split_to_iters_str, Zstr: str_split_to_iters_zstr)( \
         (s),                                                                                                                                                     \
         (key)                                                                                                                                                    \
     )
@@ -374,7 +337,7 @@ extern "C" {
     Strs str_split_zstr(Str *s, Zstr key);
     Strs str_split_str(Str *s, const Str *key);
 #define StrSplit(s, key)                                                                                                     \
-    _Generic((key), Str *: str_split_str, const Str *: str_split_str, char *: str_split_zstr, const char *: str_split_zstr)( \
+    _Generic((key), Str *: str_split_str, Zstr: str_split_zstr)( \
         (s),                                                                                                                 \
         (key)                                                                                                                \
     )

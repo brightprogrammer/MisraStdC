@@ -22,6 +22,15 @@ foreach arg : [
     '-Wmaybe-uninitialized',
     '-Werror=uninitialized',
     '-Werror=maybe-uninitialized',
+    # Force string literals to type `const char *` (a.k.a. Zstr), not
+    # bare `char *`. Required by the project convention that Zstr is
+    # the ONLY C-string type -- no bare `char *` or `const char *`
+    # appears anywhere, including `_Generic` arms. Under this flag
+    # `_Generic((literal), Zstr: ...)` matches literals directly and
+    # `_Generic` dispatch on string types never needs a `char *` arm.
+    # MSVC / clang-cl counterpart is `/Zc:strictStrings` (set in the
+    # MSVC branch below).
+    '-Wwrite-strings',
 ]
     if cc.has_argument(arg)
         common_c_args += arg
@@ -29,6 +38,12 @@ foreach arg : [
 endforeach
 if cc.get_id() == 'msvc' or cc.get_id() == 'clang-cl'
     common_c_args += '/wd4090'
+    # MSVC / clang-cl counterpart of `-Wwrite-strings`: makes string
+    # literals 'array of const char' so the same `_Generic` arms
+    # (Zstr only, no `char *`) match cleanly. Implied by `/permissive-`,
+    # but we set it explicitly so the dispatch convention does not
+    # depend on whether `/permissive-` is in effect.
+    common_c_args += '/Zc:strictStrings'
 endif
 
 math_dep = cc.find_library('m', required: false)

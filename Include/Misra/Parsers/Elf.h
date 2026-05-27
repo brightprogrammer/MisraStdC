@@ -122,7 +122,7 @@ typedef struct ElfSection {
 /// `.strtab` (for `symbols`) or `.dynstr` (for `dynamic_symbols`).
 ///
 typedef struct ElfSymbol {
-    Zstr          name;
+    Zstr name;
     ElfSymbolBind bind;
     ElfSymbolType type;
     u16           section_index;
@@ -183,7 +183,7 @@ typedef struct Elf {
     ElfSymbols  dynamic_symbols;
     const u8   *build_id;
     u32         build_id_size;
-    Zstr        debuglink_name;
+    Zstr debuglink_name;
     u32         debuglink_crc;
 } Elf;
 
@@ -191,7 +191,7 @@ typedef struct Elf {
 /// Open and parse an ELF file from disk.
 ///
 /// out[out]   : Populated on success.
-/// path[in]   : Filesystem path. Prefer `Str *`; `const char *` accepted.
+/// path[in]   : Filesystem path. Prefer `Str *`; `Zstr` (NUL-terminated) accepted.
 /// alloc[in]  : Allocator for the read-in byte buffer and the section /
 ///              symbol vectors. Must outlive the `Elf`.
 ///
@@ -207,16 +207,14 @@ bool elf_open(Elf *out, Zstr path, Allocator *alloc);
 #define ElfOpen_2(out, path)                                                                                           \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: elf_open((out), ((Str *)(path))->data, MisraScope),                                                     \
-        char *: elf_open((out), (const char *)(path), MisraScope),                                                     \
-        const char *: elf_open((out), (const char *)(path), MisraScope)                                                \
+        Str *: elf_open((out), (Zstr)StrBegin((Str *)(path)), MisraScope),                                             \
+        Zstr:  elf_open((out), (Zstr)(path), MisraScope)                                                               \
     )
 #define ElfOpen_3(out, path, alloc)                                                                                    \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: elf_open((out), ((Str *)(path))->data, ALLOCATOR_OF(alloc)),                                            \
-        char *: elf_open((out), (const char *)(path), ALLOCATOR_OF(alloc)),                                            \
-        const char *: elf_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                       \
+        Str *: elf_open((out), (Zstr)StrBegin((Str *)(path)), ALLOCATOR_OF(alloc)),                                    \
+        Zstr:  elf_open((out), (Zstr)(path), ALLOCATOR_OF(alloc))                                                      \
     )
 
 ///

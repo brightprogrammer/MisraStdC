@@ -42,7 +42,7 @@ void LogWrite(LogMessageType type, Zstr tag, u64 line, Zstr msg) {
         tag = "misra";
     }
 
-    static const char *NAMES[] = {
+    static Zstr NAMES[] = {
         [LOG_MESSAGE_TYPE_FATAL] = "FATAL",
         [LOG_MESSAGE_TYPE_ERROR] = "ERROR",
         [LOG_MESSAGE_TYPE_INFO]  = "INFO",
@@ -51,7 +51,7 @@ void LogWrite(LogMessageType type, Zstr tag, u64 line, Zstr msg) {
     HeapAllocator h    = HeapAllocatorInit();
     Allocator    *a    = ALLOCATOR_OF(&h);
     Str           full = StrInit(a);
-    StrAppendFmt(&full, "[{}] [{}:{}] {}\n", (const char *)NAMES[type], (const char *)tag, line, (const char *)msg);
+    StrAppendFmt(&full, "[{}] [{}:{}] {}\n", (Zstr)NAMES[type], (Zstr)tag, line, (Zstr)msg);
 
     File out = (type == LOG_MESSAGE_TYPE_INFO) ? FileFromFd(1) : FileFromFd(2);
     (void)FileWrite(&out, full.data, full.length);

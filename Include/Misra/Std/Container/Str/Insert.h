@@ -37,73 +37,55 @@ extern "C" {
 #define StrMustInsertCharAt(str, chr, idx) VecMustInsertR((str), (chr), (idx))
 
 ///
-/// Insert a counted byte range from a C buffer at the given position.
+/// Insert a contiguous run of characters into `str` at position `idx`,
+/// shifting the trailing tail right. Three shapes are accepted via
+/// arg-count + `_Generic` dispatch:
 ///
-/// str[in,out] : Str handle.
-/// cstr[in]    : Source byte buffer. Must be non-NULL when `len > 0`.
-/// idx[in]     : Position in [0, length].
-/// len[in]     : Number of bytes to insert.
+///   `StrInsert(str, src:Str *, idx)`           - copies all of `src`'s chars
+///   `StrInsert(str, zstr:Zstr, idx)`           - copies up to the NUL terminator
+///   `StrInsert(str, cstr:Zstr, idx, cstr_len)` - copies exactly `cstr_len` bytes
+///
+/// str[in,out]  : Destination Str.
+/// src/zstr/cstr: Source bytes (Str / Zstr / raw counted view).
+/// idx[in]      : Position in [0, length].
+/// cstr_len[in] : Number of bytes (Cstr form only).
+///
+/// SUCCESS : Returns `true`; bytes are inserted, trailing characters are
+///           shifted right by the inserted length.
+/// FAILURE : Returns `false` on allocation failure. `str` is unchanged.
+///
+/// TAGS: Str, Insert, Range
+///
+#define StrInsert(...) MISRA_OVERLOAD(StrInsert, __VA_ARGS__)
+#define StrInsert_3(str, src, idx)                                                                                     \
+    _Generic(                                                                                                          \
+        (src),                                                                                                         \
+        Str *: VecInsertRangeR((str), (Zstr)StrBegin((Str *)(src)), (idx), StrLen((Str *)(src))),                      \
+        Zstr:  VecInsertRangeR((str), (Zstr)(src), (idx), ZstrLen((Zstr)(src)))                                        \
+    )
+#define StrInsert_4(str, cstr, idx, cstr_len) VecInsertRangeR((str), (cstr), (idx), (cstr_len))
+
+///
+/// Aborting variant of `StrInsert`. Same shapes; calls `LOG_FATAL` on
+/// allocation failure instead of returning `false`.
 ///
 /// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
 ///
-/// TAGS: Str, Insert, Cstr, Range
+/// TAGS: Str, Insert, Range, Must, Abort
 ///
-#define StrInsertCstr(str, cstr, idx, len) VecInsertRangeR((str), (cstr), (idx), (len))
-
-///
-/// Aborting variant of `StrInsertCstr`.
-///
-/// TAGS: Str, Insert, Cstr, Range, Must, Abort
-///
-#define StrMustInsertCstr(str, cstr, idx, len) VecMustInsertRangeR((str), (cstr), (idx), (len))
-
-///
-/// Insert a null-terminated C string at the given position. Length is derived
-/// from `ZstrLen(zstr)`.
-///
-/// str[in,out] : Str handle.
-/// zstr[in]    : Null-terminated source string.
-/// idx[in]     : Position in [0, length].
-///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
-///
-/// TAGS: Str, Insert, Zstr
-///
-#define StrInsertZstr(str, zstr, idx) StrInsertCstr((str), (zstr), (idx), ZstrLen(zstr))
-
-///
-/// Aborting variant of `StrInsertZstr`.
-///
-/// TAGS: Str, Insert, Zstr, Must, Abort
-///
-#define StrMustInsertZstr(str, zstr, idx) StrMustInsertCstr((str), (zstr), (idx), ZstrLen(zstr))
-
-///
-/// Insert the contents of `str2` into `str` at the given position.
-///
-/// str[in,out] : Str handle to insert into.
-/// str2[in]    : Source Str (read-only).
-/// idx[in]     : Position in [0, length].
-///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
-///
-/// TAGS: Str, Insert, Str
-///
-#define StrInsert(str, str2, idx) StrInsertCstr((str), (str2)->data, (idx), (str2)->length)
-
-///
-/// Aborting variant of `StrInsert`.
-///
-/// TAGS: Str, Insert, Str, Must, Abort
-///
-#define StrMustInsert(str, str2, idx) StrMustInsertCstr((str), (str2)->data, (idx), (str2)->length)
+#define StrMustInsert(...) MISRA_OVERLOAD(StrMustInsert, __VA_ARGS__)
+#define StrMustInsert_3(str, src, idx)                                                                                 \
+    _Generic(                                                                                                          \
+        (src),                                                                                                         \
+        Str *: VecMustInsertRangeR((str), (Zstr)StrBegin((Str *)(src)), (idx), StrLen((Str *)(src))),                  \
+        Zstr:  VecMustInsertRangeR((str), (Zstr)(src), (idx), ZstrLen((Zstr)(src)))                                    \
+    )
+#define StrMustInsert_4(str, cstr, idx, cstr_len) VecMustInsertRangeR((str), (cstr), (idx), (cstr_len))
 
 ///
 /// Push a counted byte range into the string at an arbitrary position.
-/// Equivalent to `StrInsertCstr` with the argument order suited for streaming
+/// Equivalent to `StrInsert` 4-arg (Cstr) form with the argument order suited for streaming
 /// emitters that keep `(cstr, len, pos)` triples around.
 ///
 /// SUCCESS : Returns `true`.

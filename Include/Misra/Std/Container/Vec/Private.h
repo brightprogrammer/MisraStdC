@@ -21,8 +21,8 @@ extern "C" {
     bool reserve_pow2_vec(GenericVec *vec, size item_size, size n);
     bool reduce_space_vec(GenericVec *vec, size item_size);
     bool clone_vec(GenericVec *dst, const GenericVec *src, size item_size);
-    bool insert_range_into_vec(GenericVec *vec, const char *item_data, size item_size, size idx, size count);
-    bool insert_range_fast_into_vec(GenericVec *vec, const char *item_data, size item_size, size idx, size count);
+    bool insert_range_into_vec(GenericVec *vec, const u8 *item_data, size item_size, size idx, size count);
+    bool insert_range_fast_into_vec(GenericVec *vec, const u8 *item_data, size item_size, size idx, size count);
     void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size start, size count);
     void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size start, size count);
     void qsort_vec(GenericVec *vec, size item_size, GenericCompare comp);

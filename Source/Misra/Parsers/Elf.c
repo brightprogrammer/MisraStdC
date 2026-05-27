@@ -89,7 +89,7 @@ enum {
 // Helpers
 // ---------------------------------------------------------------------------
 
-static const char *elf_str_at(const Elf *self, u64 strtab_offset, u64 strtab_size, u32 idx) {
+static Zstr elf_str_at(const Elf *self, u64 strtab_offset, u64 strtab_size, u32 idx) {
     if ((u64)idx >= strtab_size) {
         return "";
     }
@@ -97,7 +97,7 @@ static const char *elf_str_at(const Elf *self, u64 strtab_offset, u64 strtab_siz
     // tail; returning the raw pointer would let later C-string code
     // read past the strtab. Scan forward; if no NUL is found inside
     // [idx, strtab_size), return an empty string.
-    const char *base = (const char *)(BufData(&self->data) + strtab_offset);
+    Zstr base = (Zstr)(BufData(&self->data) + strtab_offset);
     for (u64 p = idx; p < strtab_size; ++p) {
         if (base[p] == '\0') {
             return base + idx;
@@ -387,7 +387,7 @@ static void elf_decode_debug_link(Elf *self, const ElfSection *dl) {
     if (!elf_range_ok(self, dl->offset, dl->size) || dl->size < 5) {
         return;
     }
-    const char *base = (const char *)(BufData(&self->data) + dl->offset);
+    Zstr base = (Zstr)(BufData(&self->data) + dl->offset);
     // filename runs up to (and including) the NUL; CRC follows in the
     // last 4 bytes of the section, after alignment padding.
     u64 max_name = dl->size > 4 ? dl->size - 4 : 0;

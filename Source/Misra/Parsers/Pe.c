@@ -482,7 +482,7 @@ static void pe_decode_codeview(PeContext *ctx) {
         }
         if (!terminated)
             continue;
-        cv->pdb_path = (const char *)path_start;
+        cv->pdb_path = (Zstr)path_start;
         cv->present  = true;
         return; // first CodeView entry wins
     }

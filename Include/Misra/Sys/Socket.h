@@ -144,7 +144,7 @@ bool socket_addr_parse_zstr(SocketAddr *out, Zstr spec, SocketKind kind);
 ///
 bool socket_addr_parse_str(SocketAddr *out, const Str *spec, SocketKind kind);
 #define SocketAddrParse(out, spec, kind)                                                                                                                      \
-    _Generic((spec), Str *: socket_addr_parse_str, const Str *: socket_addr_parse_str, char *: socket_addr_parse_zstr, const char *: socket_addr_parse_zstr)( \
+    _Generic((spec), Str *: socket_addr_parse_str, Zstr: socket_addr_parse_zstr)( \
         (out),                                                                                                                                                \
         (spec),                                                                                                                                               \
         (kind)                                                                                                                                                \

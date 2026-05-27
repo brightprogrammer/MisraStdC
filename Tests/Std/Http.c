@@ -18,7 +18,7 @@ bool test_http_request_parse_get_with_headers(void) {
         "body-bytes";
 
     HttpRequest req  = HttpRequestInit(alloc_base);
-    Zstr        next = HttpRequestParse(&req, raw);
+    Zstr next = HttpRequestParse(&req, raw);
 
     bool ok = (next != raw) && (req.method == HTTP_REQUEST_METHOD_GET) && (StrLen(&req.url) == 11) &&
               (ZstrCompare(StrBegin(&req.url), "/index.html") == 0) && (VecLen(&req.headers) == 2) &&

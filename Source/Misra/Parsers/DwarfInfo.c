@@ -182,7 +182,7 @@ typedef struct AttrVal {
     union {
         u64         u;
         i64         i;
-        const char *s;
+        Zstr s;
         u64         off;
     };
 } AttrVal;
@@ -271,7 +271,7 @@ static bool read_form(BufIter *cur, u32 form, u8 addr_size, AttrVal *out) {
             return true;
         }
         case DW_FORM_string : {
-            const char *s = BufReadCstr(cur);
+            Zstr s = BufReadCstr(cur);
             if (!s)
                 return false;
             *out = (AttrVal) {.kind = ATTR_VAL_CSTR, .s = s};
@@ -371,7 +371,7 @@ static bool walk_cu_dies(
         bool        have_name = false, have_low = false, have_high = false;
         u64         low_pc = 0, high_pc = 0;
         bool        high_pc_is_offset = false;
-        const char *name              = NULL;
+        Zstr name              = NULL;
         u64         name_str_off      = 0;
         bool        name_from_strp    = false;
 
@@ -451,9 +451,9 @@ static bool walk_cu_dies(
             if (hi > low_pc) {
                 // Resolve name into the pool now (or later if it came
                 // from .debug_str — same pool either way).
-                const char *src;
+                Zstr src;
                 if (name_from_strp) {
-                    src = (const char *)(debug_str + name_str_off);
+                    src = (Zstr)(debug_str + name_str_off);
                 } else {
                     src = name;
                 }

@@ -45,8 +45,8 @@ static int hex_digit_value(char c) {
 
 // Parse a hex run starting at `*p`. Advances `*p` past the digits.
 // Returns false if no digits are consumed.
-static bool parse_hex_u64(const char **p, const char *end, u64 *out) {
-    const char *s = *p;
+static bool parse_hex_u64(Zstr *p, Zstr end, u64 *out) {
+    Zstr s = *p;
     if (s >= end)
         return false;
     u64 v        = 0;
@@ -66,20 +66,20 @@ static bool parse_hex_u64(const char **p, const char *end, u64 *out) {
     return true;
 }
 
-static bool expect_char(const char **p, const char *end, char c) {
+static bool expect_char(Zstr *p, Zstr end, char c) {
     if (*p >= end || **p != c)
         return false;
     *p += 1;
     return true;
 }
 
-static void skip_ws(const char **p, const char *end) {
+static void skip_ws(Zstr *p, Zstr end) {
     while (*p < end && (**p == ' ' || **p == '\t'))
         ++(*p);
 }
 
 // Read one "non-whitespace blob" (the dev/inode tokens). Just skip it.
-static void skip_token(const char **p, const char *end) {
+static void skip_token(Zstr *p, Zstr end) {
     while (*p < end && **p != ' ' && **p != '\t' && **p != '\n')
         ++(*p);
 }
@@ -89,8 +89,8 @@ static void skip_token(const char **p, const char *end) {
 // ---------------------------------------------------------------------------
 
 static bool parse_one_line(char **cursor_inout, char *end, ProcMapEntry *out) {
-    const char *p          = *cursor_inout;
-    const char *line_start = p;
+    Zstr p          = *cursor_inout;
+    Zstr line_start = p;
 
     u64 start = 0, ende = 0, offset = 0;
     if (!parse_hex_u64(&p, end, &start))
@@ -130,7 +130,7 @@ static bool parse_one_line(char **cursor_inout, char *end, ProcMapEntry *out) {
 
     // path — optional, runs to end-of-line. We replace the newline
     // with \0 in place so the path is a usable C string.
-    const char *path_start = p;
+    Zstr path_start = p;
     while (p < end && *p != '\n')
         ++p;
     char *line_terminator = (char *)p;

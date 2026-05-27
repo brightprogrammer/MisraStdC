@@ -381,7 +381,7 @@ static bool decode_symbols(MachoContext *ctx) {
         if (!name_has_nul)
             continue;
         MachoSymbol sym;
-        sym.name          = (const char *)(str_base + n_strx);
+        sym.name          = (Zstr)(str_base + n_strx);
         sym.value         = n_value;
         sym.type          = n_type;
         sym.section_index = n_sect;

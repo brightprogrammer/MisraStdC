@@ -19,7 +19,7 @@
 // Helpers
 // ---------------------------------------------------------------------------
 
-static bool path_exists(const char *path) {
+static bool path_exists(Zstr path) {
     File f = FileOpen(path, "rb");
     if (!FileIsOpen(&f)) {
         return false;
@@ -28,11 +28,11 @@ static bool path_exists(const char *path) {
     return true;
 }
 
-static const char *basename_of(const char *path) {
+static Zstr basename_of(Zstr path) {
     if (!path)
         return "";
-    const char *base = path;
-    for (const char *p = path; *p; ++p) {
+    Zstr base = path;
+    for (Zstr p = path; *p; ++p) {
         if (*p == '/')
             base = p + 1;
     }
@@ -41,10 +41,10 @@ static const char *basename_of(const char *path) {
 
 // Compose the conventional dSYM location for `binary_path`:
 //   <binary_path>.dSYM/Contents/Resources/DWARF/<basename>
-static bool compose_dsym_path(const char *binary_path, Str *out) {
+static bool compose_dsym_path(Zstr binary_path, Str *out) {
     if (!binary_path)
         return false;
-    const char *base = basename_of(binary_path);
+    Zstr base = basename_of(binary_path);
     if (base[0] == '\0')
         return false;
     out->length = 0;
@@ -58,7 +58,7 @@ static bool compose_dsym_path(const char *binary_path, Str *out) {
 // Cache lifecycle
 // ---------------------------------------------------------------------------
 
-static MachoCacheEntry *cache_find_or_create(MachoCache *self, const char *module_path) {
+static MachoCacheEntry *cache_find_or_create(MachoCache *self, Zstr module_path) {
     for (size i = 0; i < self->entries.length; ++i) {
         MachoCacheEntry *e = &self->entries.data[i];
         if (e->module_path.data && ZstrCompare(e->module_path.data, module_path) == 0) {
@@ -84,7 +84,7 @@ static MachoCacheEntry *cache_find_or_create(MachoCache *self, const char *modul
 static bool entry_open_main(MachoCacheEntry *e, Allocator *alloc) {
     if (e->main_open)
         return true;
-    if (!MachoOpen(&e->main, e->module_path.data, alloc))
+    if (!MachoOpen(&e->main, &e->module_path, alloc))
         return false;
     e->main_open = true;
     return true;
@@ -107,7 +107,7 @@ static bool entry_open_dsym(MachoCacheEntry *e, Allocator *alloc) {
         StrDeinit(&path);
         return false;
     }
-    if (!path_exists(path.data) || !MachoOpen(&e->dsym, path.data, alloc)) {
+    if (!path_exists(StrBegin(&path)) || !MachoOpen(&e->dsym, &path, alloc)) {
         StrDeinit(&path);
         return false;
     }
@@ -180,7 +180,7 @@ bool macho_cache_resolve_zstr(
     const char  *module_path,
     u64          slide,
     u64          runtime_ip,
-    const char **out_name,
+    Zstr *out_name,
     u32         *out_offset
 ) {
     if (!self || !module_path || !out_name)
@@ -237,7 +237,7 @@ bool macho_cache_resolve_str(
     const Str   *module_path,
     u64          slide,
     u64          runtime_ip,
-    const char **out_name,
+    Zstr *out_name,
     u32         *out_offset
 ) {
     if (!module_path) {

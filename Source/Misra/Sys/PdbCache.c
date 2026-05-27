@@ -20,7 +20,7 @@
 // Helpers
 // ---------------------------------------------------------------------------
 
-static bool path_exists(const char *path) {
+static bool path_exists(Zstr path) {
     File f = FileOpen(path, "rb");
     if (!FileIsOpen(&f)) {
         return false;
@@ -32,11 +32,11 @@ static bool path_exists(const char *path) {
 // Return the directory portion of `path` (no trailing separator).
 // Appended into `out`. If `path` has no separator the function leaves
 // `out` empty so the caller can fall back to the same directory.
-static void append_dirname(Str *out, const char *path) {
+static void append_dirname(Str *out, Zstr path) {
     if (!path)
         return;
-    const char *last_sep = NULL;
-    for (const char *p = path; *p; ++p) {
+    Zstr last_sep = NULL;
+    for (Zstr p = path; *p; ++p) {
         if (*p == '/' || *p == '\\')
             last_sep = p;
     }
@@ -49,11 +49,11 @@ static void append_dirname(Str *out, const char *path) {
 
 // Return the basename portion (last component) of `path`. The returned
 // pointer is into `path` itself.
-static const char *basename_of(const char *path) {
+static Zstr basename_of(Zstr path) {
     if (!path)
         return "";
-    const char *base = path;
-    for (const char *p = path; *p; ++p) {
+    Zstr base = path;
+    for (Zstr p = path; *p; ++p) {
         if (*p == '/' || *p == '\\')
             base = p + 1;
     }
@@ -66,7 +66,7 @@ static const char *basename_of(const char *path) {
 //   2. Basename of (1) alongside the PE.
 //
 // On success populates `out_path` (an owned Str the caller frees).
-static bool find_pdb(const Pe *pe, const char *pe_path, Str *out_path) {
+static bool find_pdb(const Pe *pe, Zstr pe_path, Str *out_path) {
     if (!pe->codeview.present || !pe->codeview.pdb_path)
         return false;
 
@@ -77,7 +77,7 @@ static bool find_pdb(const Pe *pe, const char *pe_path, Str *out_path) {
         return true;
 
     // (2) basename alongside PE
-    const char *pdb_base = basename_of(pe->codeview.pdb_path);
+    Zstr pdb_base = basename_of(pe->codeview.pdb_path);
     if (pdb_base[0] == '\0')
         return false;
 
@@ -97,7 +97,7 @@ static bool find_pdb(const Pe *pe, const char *pe_path, Str *out_path) {
 // of the same module doesn't retry the misses.
 static bool entry_open(PdbCacheEntry *entry, Allocator *alloc) {
     if (!entry->pe_open) {
-        if (!PeOpen(&entry->pe, entry->module_path.data, alloc))
+        if (!PeOpen(&entry->pe, &entry->module_path, alloc))
             return false;
         entry->pe_open = true;
     }
@@ -109,7 +109,7 @@ static bool entry_open(PdbCacheEntry *entry, Allocator *alloc) {
         StrDeinit(&pdb_path);
         return false;
     }
-    bool ok = PdbOpen(&entry->pdb, pdb_path.data, alloc);
+    bool ok = PdbOpen(&entry->pdb, &pdb_path, alloc);
     StrDeinit(&pdb_path);
     if (!ok)
         return false;
@@ -127,7 +127,7 @@ static bool entry_open(PdbCacheEntry *entry, Allocator *alloc) {
 }
 
 // Find an existing entry for `module_path` or create a fresh one.
-static PdbCacheEntry *cache_find_or_open(PdbCache *self, const char *module_path) {
+static PdbCacheEntry *cache_find_or_open(PdbCache *self, Zstr module_path) {
     for (size i = 0; i < self->entries.length; ++i) {
         PdbCacheEntry *e = &self->entries.data[i];
         if (e->module_path.data && ZstrCompare(e->module_path.data, module_path) == 0) {
@@ -181,7 +181,7 @@ bool pdb_cache_resolve_zstr(
     const char  *module_path,
     u64          module_base,
     u64          runtime_ip,
-    const char **out_name,
+    Zstr *out_name,
     u32         *out_offset
 ) {
     if (!self || !module_path || !out_name)
@@ -216,7 +216,7 @@ bool pdb_cache_resolve_str(
     const Str   *module_path,
     u64          module_base,
     u64          runtime_ip,
-    const char **out_name,
+    Zstr *out_name,
     u32         *out_offset
 ) {
     if (!module_path) {

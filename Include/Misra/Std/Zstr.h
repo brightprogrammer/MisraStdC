@@ -14,10 +14,18 @@
 #include <Misra/Types.h>
 
 /// Read-only NUL-terminated C string -- the project name for what
-/// libc calls `const char *`. The whole codebase uses this typedef;
-/// raw `char *` / `const char *` appear only inside `_Generic` dispatch
-/// arms where string literals and `const`-returning callers each need
-/// their own match.
+/// libc spells `const char *`. Zstr is the ONLY C-string type in
+/// the codebase: raw `char *` and `const char *` do not appear
+/// anywhere as spellings, including in `_Generic` dispatch arms.
+/// The build enables `-Wwrite-strings` (gcc/clang/clang-cl) and
+/// `/Zc:strictStrings` (msvc) so string literals carry type
+/// `const char *` (= `Zstr`), which lets `_Generic((literal),
+/// Zstr: ...)` match literals directly without a bare-`char *` arm.
+///
+/// `Cstr` is not a type but a naming-suffix for the `(Zstr, size)`
+/// form -- a non-NUL-terminated view, or a NUL-terminated string
+/// truncated at an explicit length. See `StrStartsWith` for the
+/// canonical Cstr / Zstr / unsuffixed-Str overload family.
 typedef const char *Zstr;
 typedef Vec(Zstr) Zstrs;
 

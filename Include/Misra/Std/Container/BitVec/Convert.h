@@ -70,13 +70,13 @@ extern "C" {
     bool bitvec_try_from_str_str(BitVec *out, const Str *str, Allocator *alloc);
 #define BitVecTryFromStr(...) MISRA_OVERLOAD(BitVecTryFromStr, __VA_ARGS__)
 #define BitVecTryFromStr_2(out, str)                                                                                                                                 \
-    _Generic((str), Str *: bitvec_try_from_str_str, const Str *: bitvec_try_from_str_str, char *: bitvec_try_from_str_zstr, const char *: bitvec_try_from_str_zstr)( \
+    _Generic((str), Str *: bitvec_try_from_str_str, char *: bitvec_try_from_str_zstr, Zstr : bitvec_try_from_str_zstr)( \
         (out),                                                                                                                                                       \
         (str),                                                                                                                                                       \
         MisraScope                                                                                                                                                   \
     )
 #define BitVecTryFromStr_3(out, str, alloc)                                                                                                                          \
-    _Generic((str), Str *: bitvec_try_from_str_str, const Str *: bitvec_try_from_str_str, char *: bitvec_try_from_str_zstr, const char *: bitvec_try_from_str_zstr)( \
+    _Generic((str), Str *: bitvec_try_from_str_str, char *: bitvec_try_from_str_zstr, Zstr : bitvec_try_from_str_zstr)( \
         (out),                                                                                                                                                       \
         (str),                                                                                                                                                       \
         ALLOCATOR_OF(alloc)                                                                                                                                          \
@@ -97,12 +97,12 @@ extern "C" {
     BitVec bitvec_from_str_str(const Str *str, Allocator *alloc);
 #define BitVecFromStr(...) MISRA_OVERLOAD(BitVecFromStr, __VA_ARGS__)
 #define BitVecFromStr_1(str)                                                                                                                         \
-    _Generic((str), Str *: bitvec_from_str_str, const Str *: bitvec_from_str_str, char *: bitvec_from_str_zstr, const char *: bitvec_from_str_zstr)( \
+    _Generic((str), Str *: bitvec_from_str_str, char *: bitvec_from_str_zstr, Zstr : bitvec_from_str_zstr)( \
         (str),                                                                                                                                       \
         MisraScope                                                                                                                                   \
     )
 #define BitVecFromStr_2(str, alloc)                                                                                                                  \
-    _Generic((str), Str *: bitvec_from_str_str, const Str *: bitvec_from_str_str, char *: bitvec_from_str_zstr, const char *: bitvec_from_str_zstr)( \
+    _Generic((str), Str *: bitvec_from_str_str, char *: bitvec_from_str_zstr, Zstr : bitvec_from_str_zstr)( \
         (str),                                                                                                                                       \
         ALLOCATOR_OF(alloc)                                                                                                                          \
     )

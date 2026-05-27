@@ -17,6 +17,7 @@
 #include "Str/Convert.h"
 #include "Str/Foreach.h"
 #include "Str/Ops.h"
+#include "Str/Private.h"
 // clang-format on
 
 #endif // MISRA_STD_CONTAINER_STR_H

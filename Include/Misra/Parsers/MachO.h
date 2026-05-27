@@ -126,16 +126,14 @@ bool macho_open(Macho *out, Zstr path, Allocator *alloc);
 #define MachoOpen_2(out, path)                                                                                         \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: macho_open((out), ((Str *)(path))->data, MisraScope),                                                   \
-        char *: macho_open((out), (const char *)(path), MisraScope),                                                   \
-        const char *: macho_open((out), (const char *)(path), MisraScope)                                              \
+        Str *: macho_open((out), (Zstr)StrBegin((Str *)(path)), MisraScope),                                                   \
+        Zstr: macho_open((out), (Zstr)(path), MisraScope)                                              \
     )
 #define MachoOpen_3(out, path, alloc)                                                                                  \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: macho_open((out), ((Str *)(path))->data, ALLOCATOR_OF(alloc)),                                          \
-        char *: macho_open((out), (const char *)(path), ALLOCATOR_OF(alloc)),                                          \
-        const char *: macho_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                     \
+        Str *: macho_open((out), (Zstr)StrBegin((Str *)(path)), ALLOCATOR_OF(alloc)),                                          \
+        Zstr: macho_open((out), (Zstr)(path), ALLOCATOR_OF(alloc))                                     \
     )
 
 ///

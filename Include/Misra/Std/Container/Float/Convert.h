@@ -91,7 +91,7 @@ extern "C" {
     bool float_try_from_str_zstr(Float *out, Zstr text);
     bool float_try_from_str_str(Float *out, const Str *text);
 #define FloatTryFromStr(out, text)                                                                                                                                \
-    _Generic((text), Str *: float_try_from_str_str, const Str *: float_try_from_str_str, char *: float_try_from_str_zstr, const char *: float_try_from_str_zstr)( \
+    _Generic((text), Str *: float_try_from_str_str, char *: float_try_from_str_zstr, Zstr : float_try_from_str_zstr)( \
         (out),                                                                                                                                                    \
         (text)                                                                                                                                                    \
     )
@@ -105,12 +105,12 @@ extern "C" {
     Float float_from_str_str(const Str *text, Allocator *alloc);
 #define FloatFromStr(...) MISRA_OVERLOAD(FloatFromStr, __VA_ARGS__)
 #define FloatFromStr_1(text)                                                                                                                      \
-    _Generic((text), Str *: float_from_str_str, const Str *: float_from_str_str, char *: float_from_str_zstr, const char *: float_from_str_zstr)( \
+    _Generic((text), Str *: float_from_str_str, char *: float_from_str_zstr, Zstr : float_from_str_zstr)( \
         (text),                                                                                                                                   \
         MisraScope                                                                                                                                \
     )
 #define FloatFromStr_2(text, alloc)                                                                                                               \
-    _Generic((text), Str *: float_from_str_str, const Str *: float_from_str_str, char *: float_from_str_zstr, const char *: float_from_str_zstr)( \
+    _Generic((text), Str *: float_from_str_str, char *: float_from_str_zstr, Zstr : float_from_str_zstr)( \
         (text),                                                                                                                                   \
         ALLOCATOR_OF(alloc)                                                                                                                       \
     )

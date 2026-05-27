@@ -169,7 +169,7 @@ static void graph_release_slot(GenericGraph *graph, GenericGraphSlot *slot, size
 static void graph_push_free_index(GenericGraph *graph, u32 index) {
     if (!insert_range_into_vec(
             GENERIC_VEC(&graph->free_indices),
-            (char *)&index,
+            (const u8 *)&index,
             sizeof(u32),
             graph->free_indices.length,
             1
@@ -568,7 +568,7 @@ GraphNodeId graph_push_node(GenericGraph *graph, const void *item_data, size ite
 
     if (!insert_range_into_vec(
             GENERIC_VEC(&graph->slots),
-            (char *)&slot,
+            (const u8 *)&slot,
             sizeof(GenericGraphSlot),
             graph->slots.length,
             1
@@ -721,7 +721,7 @@ bool graph_add_edge(GenericGraph *graph, GraphNodeId from, GraphNodeId to) {
     in_neighbors = graph_in_neighbors_ptr(graph, to);
     if (!insert_range_into_vec(
             GENERIC_VEC(out_neighbors),
-            (char *)&to,
+            (const u8 *)&to,
             sizeof(GraphNodeId),
             out_neighbors->length,
             1
@@ -730,7 +730,7 @@ bool graph_add_edge(GenericGraph *graph, GraphNodeId from, GraphNodeId to) {
     }
     if (!insert_range_into_vec(
             GENERIC_VEC(in_neighbors),
-            (char *)&from,
+            (const u8 *)&from,
             sizeof(GraphNodeId),
             in_neighbors->length,
             1
@@ -848,7 +848,7 @@ bool graph_mark_edge_for_removal(GenericGraph *graph, GraphNodeId from, GraphNod
     pending.to   = to;
     return insert_range_into_vec(
         GENERIC_VEC(&graph->pending_edge_removals),
-        (char *)&pending,
+        (const u8 *)&pending,
         sizeof(GraphPendingEdgeRemoval),
         graph->pending_edge_removals.length,
         1

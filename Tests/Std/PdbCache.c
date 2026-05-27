@@ -295,9 +295,9 @@ bool test_pdb_cache_resolves_via_codeview(void) {
     // RVA 0x1100, ip = module_base + 0x1100.
     const u64 module_base = 0x140000000ull;
     const u64 ip          = module_base + 0x1100;
-    Zstr      name        = NULL;
+    Zstr name        = NULL;
     u32       offset      = 0;
-    bool      ok          = PdbCacheResolve(&cache, pe_path, module_base, ip, &name, &offset);
+    bool      ok          = PdbCacheResolve(&cache, (Zstr)pe_path, module_base, ip, &name, &offset);
     ok                    = ok && name && ZstrCompare(name, "winproc") == 0 && offset == 0;
 
     // Second resolution should hit the cache (not strictly verifiable
@@ -305,14 +305,14 @@ bool test_pdb_cache_resolves_via_codeview(void) {
     const u64 ip2 = ip + 0x10;
     name          = NULL;
     offset        = 0;
-    ok            = ok && PdbCacheResolve(&cache, pe_path, module_base, ip2, &name, &offset);
+    ok            = ok && PdbCacheResolve(&cache, (Zstr)pe_path, module_base, ip2, &name, &offset);
     ok            = ok && name && ZstrCompare(name, "winproc") == 0 && offset == 0x10;
 
     PdbCacheDeinit(&cache);
     DefaultAllocatorDeinit(&alloc);
 
-    FileRemove(pe_path);
-    FileRemove(pdb_path);
+    FileRemove((Zstr)pe_path);
+    FileRemove((Zstr)pdb_path);
     return ok;
 }
 
@@ -326,7 +326,7 @@ bool test_pdb_cache_rejects_unknown_module(void) {
     PdbCache cache;
     PdbCacheInit(&cache, base);
     Zstr name = NULL;
-    bool ok   = !PdbCacheResolve(&cache, missing, 0, 0x1000, &name, NULL);
+    bool ok   = !PdbCacheResolve(&cache, (Zstr)missing, 0, 0x1000, &name, NULL);
     PdbCacheDeinit(&cache);
     DefaultAllocatorDeinit(&alloc);
     return ok;

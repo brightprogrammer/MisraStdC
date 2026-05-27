@@ -93,7 +93,7 @@ bool http_header_init_copy(void *dst, const void *src, const Allocator *alloc);
 HttpHeader *http_headers_find_zstr(HttpHeaders *headers, Zstr key);
 HttpHeader *http_headers_find_str(HttpHeaders *headers, const Str *key);
 #define HttpHeadersFind(headers, key)                                                                                                                        \
-    _Generic((key), Str *: http_headers_find_str, const Str *: http_headers_find_str, char *: http_headers_find_zstr, const char *: http_headers_find_zstr)( \
+    _Generic((key), Str *: http_headers_find_str, Zstr: http_headers_find_zstr)( \
         (headers),                                                                                                                                           \
         (key)                                                                                                                                                \
     )
@@ -248,7 +248,7 @@ typedef struct HttpRequest {
 Zstr http_request_parse_zstr(HttpRequest *req, Zstr in);
 Zstr http_request_parse_str(HttpRequest *req, const Str *in);
 #define HttpRequestParse(req, in)                                                                                                                               \
-    _Generic((in), Str *: http_request_parse_str, const Str *: http_request_parse_str, char *: http_request_parse_zstr, const char *: http_request_parse_zstr)( \
+    _Generic((in), Str *: http_request_parse_str, Zstr: http_request_parse_zstr)( \
         (req),                                                                                                                                                  \
         (in)                                                                                                                                                    \
     )

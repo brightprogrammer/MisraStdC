@@ -252,7 +252,7 @@ static void log_request_summary(Allocator *alloc, Zstr client_addr, Zstr prefix_
         StrPushBackZstr(&raw, prefix_bytes);
 
         HttpRequest req = HttpRequestInit(scope);
-        Zstr        end = HttpRequestParse(&req, StrBegin(&raw));
+        Zstr end = HttpRequestParse(&req, (Zstr)StrBegin(&raw));
         if (end == StrBegin(&raw)) {
             LOG_INFO("[{}] (unparseable request, {} bytes)", client_addr, (u64)prefix_len);
         } else {

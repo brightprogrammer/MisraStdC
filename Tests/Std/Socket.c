@@ -44,7 +44,7 @@ bool test_socket_loopback_round_trip(void) {
     }
     Str        local_str = SocketAddrFormat(&local, a);
     SocketAddr connect_addr;
-    bool       parsed = SocketAddrParse(&connect_addr, StrBegin(&local_str), SOCKET_KIND_TCP);
+    bool       parsed = SocketAddrParse(&connect_addr, (Zstr)StrBegin(&local_str), SOCKET_KIND_TCP);
     StrDeinit(&local_str);
     if (!parsed) {
         ListenerClose(&listener);

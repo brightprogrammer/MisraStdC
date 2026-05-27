@@ -102,13 +102,13 @@ static inline long misra_proc_fork(void) {
     return misra_sys5(MISRA_SYS_clone, 17, 0, 0, 0, 0);
 #    endif
 }
-static inline long misra_proc_execve(const char *path, char *const *argv, char *const *envp) {
+static inline long misra_proc_execve(Zstr path, char *const *argv, char *const *envp) {
     return misra_sys3(MISRA_SYS_execve, (long)(u64)path, (long)(u64)argv, (long)(u64)envp);
 }
 static inline long misra_proc_kill(int pid, int sig) {
     return misra_sys2(MISRA_SYS_kill, (long)pid, (long)sig);
 }
-static inline long misra_proc_readlink(const char *path, char *buf, unsigned long sz) {
+static inline long misra_proc_readlink(Zstr path, char *buf, unsigned long sz) {
 #    if PLATFORM_DARWIN || ARCHITECTURE_X86_64
     return misra_sys3(MISRA_SYS_readlink, (long)(u64)path, (long)(u64)buf, (long)sz);
 #    else
@@ -157,7 +157,7 @@ static inline long misra_proc_waitpid(int pid, int *status, int options) {
 #define READ_END  0
 #define WRITE_END 1
 
-Proc proc_init(const char *filepath, char **argv, char **envp, Allocator *alloc) {
+Proc proc_init(Zstr filepath, char **argv, char **envp, Allocator *alloc) {
     Proc proc = {0};
 #if PLATFORM_UNIX
     (void)alloc; // POSIX path doesn't need an allocator
@@ -718,7 +718,7 @@ Str *GetCurrentExecutablePath(Str *exe_path) {
 // which is fine for our copy-into-Str use here). Same call as
 // Sys/Backtrace already makes per-frame.
 #    if PLATFORM_DARWIN
-    extern const char *_dyld_get_image_name(u32 image_index);
+    extern Zstr _dyld_get_image_name(u32 image_index);
     const char        *exe = _dyld_get_image_name(0);
     if (exe) {
         *exe_path = StrInitFromCstr(exe, ZstrLen(exe), alloc);

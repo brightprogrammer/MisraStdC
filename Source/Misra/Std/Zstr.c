@@ -133,7 +133,7 @@ Zstr zstr_dup(Zstr src, Allocator *alloc) {
 }
 
 bool zstr_init_clone(void *dst_ptr, const void *src_ptr, const Allocator *alloc) {
-    Zstr       *dst = (Zstr *)dst_ptr;
+    Zstr *dst = (Zstr *)dst_ptr;
     const Zstr *src = (const Zstr *)src_ptr;
 
     if (!dst || !src || !*src || !alloc) {
@@ -180,7 +180,7 @@ i64 ZstrToI64(Zstr s, Zstr *endptr) {
     // INT64_MAX for positive, INT64_MAX+1 (= 2^63) for negative.
     // Overflow saturates so callers see a pinned value rather than a
     // silent wrap.
-    Zstr      digit_start = s;
+    Zstr digit_start = s;
     const u64 bound       = neg ? ((u64)1 << 63) : (u64)0x7FFFFFFFFFFFFFFFULL;
     u64       val         = 0;
     bool      saturated   = false;

@@ -79,7 +79,7 @@ int run_test_suite(
     int           normal_count,
     TestFunction *deadend_tests,
     int           deadend_count,
-    Zstr          test_name
+    Zstr test_name
 );
 
 #endif // MISRA_TEST_RUNNER_H

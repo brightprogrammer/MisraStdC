@@ -106,7 +106,7 @@ typedef bool (*TypeSpecificWriter)(Str *o, FmtInfo *fmt_info, void *data);
 ///
 /// TAGS: I/O, Generic, Container
 ///
-typedef const char *(*TypeSpecificReader)(const char *i, FmtInfo *fmt_info, void *data);
+typedef Zstr (*TypeSpecificReader)(Zstr i, FmtInfo *fmt_info, void *data);
 
 ///
 /// Create `TypeSpecificIO` for type T
@@ -131,7 +131,7 @@ typedef struct TypeSpecificIO {
 /// caller-owned zero-terminated string pointer whose storage may already be
 /// managed by a specific allocator.
 ///
-/// value[in,out] : Address of the `char *` / `const char *` variable.
+/// value[in,out] : Address of the `char *` / `Zstr ` variable.
 /// allocator[in] : Allocator responsible for any existing pointed-to storage.
 ///
 /// TAGS: I/O, String, Allocator, Provenance
@@ -162,7 +162,7 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
 /// may already own memory that must be freed or replaced through a specific
 /// allocator.
 ///
-/// zstr[in,out]    : `char *` or `const char *` variable.
+/// zstr[in,out]    : `char *` or `Zstr ` variable.
 /// alloc_ptr[in]   : Allocator responsible for the pointed-to storage.
 ///
 /// SUCCESS: Returns a `TypeSpecificIO` wrapper suitable for `StrReadFmt(...)`
@@ -226,7 +226,7 @@ Float:                                                                          
             TypeSpecificIO: (x),                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, &(x)),                                                                       \
             IOFMT_FLOAT_CASE_(x, &(x)) IOFMT_INT_CASE_(x, &(x)) IOFMT_BITVEC_CASE_(x, &(x))                            \
-                const char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                         \
+                Zstr : TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                         \
             char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                   \
             unsigned char: TO_TYPE_SPECIFIC_IO(u8, &(x)),                                                              \
             unsigned short: TO_TYPE_SPECIFIC_IO(u16, &(x)),                                                            \
@@ -264,7 +264,7 @@ Float:                                                                          
             TypeSpecificIO: (x),                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, (void *)&(x)),                                                               \
             IOFMT_FLOAT_CASE_(x, (void *)&(x)) IOFMT_INT_CASE_(x, (void *)&(x)) IOFMT_BITVEC_CASE_(x, (void *)&(x))    \
-                const char *: TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                                                 \
+                Zstr : TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                                                 \
             char *: TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                                                           \
             unsigned char: TO_TYPE_SPECIFIC_IO(u8, (void *)&(x)),                                                      \
             unsigned short: TO_TYPE_SPECIFIC_IO(u16, (void *)&(x)),                                                    \
@@ -500,7 +500,7 @@ bool float_try_to_scientific_str(
         TypeSpecificIO *UNPL(argv)    = &(varr)[0];                                                                     \
         char          **UNPL(p_input) = (char **)(&(input));                                                            \
         u64             UNPL(argc)    = sizeof(varr) / sizeof(TypeSpecificIO);                                          \
-        const char     *UNPL(out) = str_read_fmt((const char *)*(UNPL(p_input)), (fmtstr), UNPL(argv), UNPL(argc) - 1); \
+        const char     *UNPL(out) = str_read_fmt((Zstr)*(UNPL(p_input)), (fmtstr), UNPL(argv), UNPL(argc) - 1); \
         (*UNPL(p_input))          = (char *)(UNPL(out)) ? (char *)(UNPL(out)) : (*UNPL(p_input));                       \
     } while (0)
 
@@ -673,9 +673,9 @@ bool _write_i8(Str *o, FmtInfo *fmt_info, i8 *v);
 bool _write_i16(Str *o, FmtInfo *fmt_info, i16 *v);
 bool _write_i32(Str *o, FmtInfo *fmt_info, i32 *v);
 bool _write_i64(Str *o, FmtInfo *fmt_info, i64 *v);
-bool _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s);
+bool _write_Zstr(Str *o, FmtInfo *fmt_info, Zstr *s);
 bool _write_ZstrAlloc(Str *o, FmtInfo *fmt_info, ZstrIOArg *arg);
-bool _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s);
+bool _write_UnsupportedType(Str *o, FmtInfo *fmt_info, Zstr *s);
 bool _write_f32(Str *o, FmtInfo *fmt_info, f32 *v);
 bool _write_f64(Str *o, FmtInfo *fmt_info, f64 *v);
 #if FEATURE_FLOAT
@@ -688,28 +688,28 @@ bool _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv);
 bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value);
 #endif
 
-const char *_read_Str(const char *i, FmtInfo *fmt_info, Str *s);
-const char *_read_u8(const char *i, FmtInfo *fmt_info, u8 *v);
-const char *_read_u16(const char *i, FmtInfo *fmt_info, u16 *v);
-const char *_read_u32(const char *i, FmtInfo *fmt_info, u32 *v);
-const char *_read_u64(const char *i, FmtInfo *fmt_info, u64 *v);
-const char *_read_i8(const char *i, FmtInfo *fmt_info, i8 *v);
-const char *_read_i16(const char *i, FmtInfo *fmt_info, i16 *v);
-const char *_read_i32(const char *i, FmtInfo *fmt_info, i32 *v);
-const char *_read_i64(const char *i, FmtInfo *fmt_info, i64 *v);
-const char *_read_Zstr(const char *i, FmtInfo *fmt_info, const char **v);
-const char *_read_ZstrAlloc(const char *i, FmtInfo *fmt_info, ZstrIOArg *arg);
-const char *_read_UnsupportedType(const char *i, FmtInfo *fmt_info, const char **s);
-const char *_read_f32(const char *i, FmtInfo *fmt_info, f32 *v);
-const char *_read_f64(const char *i, FmtInfo *fmt_info, f64 *v);
+Zstr _read_Str(Zstr i, FmtInfo *fmt_info, Str *s);
+Zstr _read_u8(Zstr i, FmtInfo *fmt_info, u8 *v);
+Zstr _read_u16(Zstr i, FmtInfo *fmt_info, u16 *v);
+Zstr _read_u32(Zstr i, FmtInfo *fmt_info, u32 *v);
+Zstr _read_u64(Zstr i, FmtInfo *fmt_info, u64 *v);
+Zstr _read_i8(Zstr i, FmtInfo *fmt_info, i8 *v);
+Zstr _read_i16(Zstr i, FmtInfo *fmt_info, i16 *v);
+Zstr _read_i32(Zstr i, FmtInfo *fmt_info, i32 *v);
+Zstr _read_i64(Zstr i, FmtInfo *fmt_info, i64 *v);
+Zstr _read_Zstr(Zstr i, FmtInfo *fmt_info, Zstr *v);
+Zstr _read_ZstrAlloc(Zstr i, FmtInfo *fmt_info, ZstrIOArg *arg);
+Zstr _read_UnsupportedType(Zstr i, FmtInfo *fmt_info, Zstr *s);
+Zstr _read_f32(Zstr i, FmtInfo *fmt_info, f32 *v);
+Zstr _read_f64(Zstr i, FmtInfo *fmt_info, f64 *v);
 #if FEATURE_FLOAT
-const char *_read_Float(const char *i, FmtInfo *fmt_info, Float *value);
+Zstr _read_Float(Zstr i, FmtInfo *fmt_info, Float *value);
 #endif
 #if FEATURE_BITVEC
-const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv);
+Zstr _read_BitVec(Zstr i, FmtInfo *fmt_info, BitVec *bv);
 #endif
 #if FEATURE_INT
-const char *_read_Int(const char *i, FmtInfo *fmt_info, Int *value);
+Zstr _read_Int(Zstr i, FmtInfo *fmt_info, Int *value);
 #endif
 
 // ---------------------------------------------------------------------------
@@ -728,10 +728,10 @@ const char *_read_Int(const char *i, FmtInfo *fmt_info, Int *value);
 // must match the spec width.
 // ---------------------------------------------------------------------------
 
-bool buf_read_fmt(BufIter *iter, const char *fmtstr, TypeSpecificIO *argv, u64 argc);
-bool buf_append_fmt(Buf *out, const char *fmtstr, TypeSpecificIO *argv, u64 argc);
-bool buf_write_fmt(Buf *out, const char *fmtstr, TypeSpecificIO *argv, u64 argc);
-bool buf_patch_fmt(Buf *out, size offset, const char *fmtstr, TypeSpecificIO *argv, u64 argc);
+bool buf_read_fmt(BufIter *iter, Zstr fmtstr, TypeSpecificIO *argv, u64 argc);
+bool buf_append_fmt(Buf *out, Zstr fmtstr, TypeSpecificIO *argv, u64 argc);
+bool buf_write_fmt(Buf *out, Zstr fmtstr, TypeSpecificIO *argv, u64 argc);
+bool buf_patch_fmt(Buf *out, size offset, Zstr fmtstr, TypeSpecificIO *argv, u64 argc);
 
 #define BufReadFmt(iter, ...) BufReadFmt_IMPL1((iter), __VA_ARGS__)
 #define BufReadFmt_IMPL1(iter, fmtstr, ...)                                                                            \

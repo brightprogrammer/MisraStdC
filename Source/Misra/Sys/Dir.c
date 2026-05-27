@@ -304,7 +304,7 @@ DirContents dir_get_contents(Zstr path, Allocator *alloc) {
             continue;
         } else {
             Str         entry_path = StrInit(alloc);
-            const char *dir_name   = &entry->d_name[0];
+            Zstr dir_name   = &entry->d_name[0];
             StrAppendFmt(&entry_path, "{}/{}", path, dir_name);
 
             struct stat path_stat;
@@ -513,7 +513,7 @@ i8 dir_create(Zstr path) {
 // Check whether the given path already exists as a directory. Used by
 // DirCreateAll to make EEXIST tolerant (idempotent). Avoids re-walking
 // the existing tree on the second invocation.
-static bool dir_already_exists(const char *path) {
+static bool dir_already_exists(Zstr path) {
 #if PLATFORM_WINDOWS
     DWORD attrs = GetFileAttributesA(path);
     return attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY);
@@ -563,7 +563,7 @@ i8 dir_create_all(Zstr path) {
             char saved = buf[i];
             buf[i]     = 0;
             if (!dir_already_exists(buf)) {
-                if (!DirCreate(buf)) {
+                if (!DirCreate((Zstr)buf)) {
                     // DirCreate logged the syscall error; re-check
                     // in case a concurrent process beat us to it.
                     if (!dir_already_exists(buf)) {

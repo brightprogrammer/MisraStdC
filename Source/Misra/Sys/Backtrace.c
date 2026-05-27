@@ -70,11 +70,11 @@ static bool vec_sink(void *user, void *ip) {
 // Helpers used by formatters
 // ---------------------------------------------------------------------------
 
-static const char *basename_of(const char *path) {
+static Zstr basename_of(Zstr path) {
     if (!path)
         return "?";
-    const char *slash = path;
-    for (const char *p = path; *p; ++p) {
+    Zstr slash = path;
+    for (Zstr p = path; *p; ++p) {
         if (*p == '/' || *p == '\\')
             slash = p + 1;
     }
@@ -186,7 +186,7 @@ static void format_walk_win(Str *out, const StackFrame *frames, size count, Allo
     for (size i = 0; i < count; ++i) {
         DWORD64     ip       = (DWORD64)(u64)frames[i].ip;
         bool        named    = false;
-        const char *sym_name = NULL;
+        Zstr sym_name = NULL;
         u32         sym_off  = 0;
 
 #    if FEATURE_PARSER_PDB
@@ -204,7 +204,7 @@ static void format_walk_win(Str *out, const StackFrame *frames, size count, Allo
         if (!named && g_dbghelp_initialized) {
             DWORD64 d_off = 0;
             if (SymFromAddr(proc, ip, &d_off, sym)) {
-                sym_name = (const char *)sym->Name;
+                sym_name = (Zstr)sym->Name;
                 sym_off  = (u32)d_off;
                 named    = true;
             }
@@ -218,7 +218,7 @@ static void format_walk_win(Str *out, const StackFrame *frames, size count, Allo
 
         DWORD line_disp = 0;
         if (g_dbghelp_initialized && SymGetLineFromAddr64(proc, ip, &line_disp, &line) && line.FileName) {
-            const char *fname = basename_of(line.FileName);
+            Zstr fname = basename_of(line.FileName);
             StrAppendFmt(out, " ({}:{})", fname, (u32)line.LineNumber);
         }
         StrPushBack(out, '\n');
@@ -263,7 +263,7 @@ void format_stack_trace_vec(Str *out, const StackFrames *frames, Allocator *allo
 // dyld public API surface (libdyld.dylib, ABI-stable).
 extern u32         _dyld_image_count(void);
 extern const void *_dyld_get_image_header(u32 image_index);
-extern const char *_dyld_get_image_name(u32 image_index);
+extern Zstr _dyld_get_image_name(u32 image_index);
 extern i64         _dyld_get_image_vmaddr_slide(u32 image_index);
 
 // Mach-O constants we look at.
@@ -357,7 +357,7 @@ bool capture_stack_trace_vec(StackFrames *out, size skip_frames) {
 }
 
 #    if FEATURE_PARSER_MACHO
-static bool dyld_image_for_ip(void *ip, const char **out_path, u64 *out_slide) {
+static bool dyld_image_for_ip(void *ip, Zstr *out_path, u64 *out_slide) {
     u64 ipx = (u64)ip;
     u32 n   = _dyld_image_count();
     for (u32 i = 0; i < n; ++i) {
@@ -395,9 +395,9 @@ static void format_walk_mac(Str *out, const StackFrame *frames, size count, Allo
 
     for (size i = 0; i < count; ++i) {
         u64         ip       = (u64)frames[i].ip;
-        const char *sym_name = NULL;
+        Zstr sym_name = NULL;
         u32         sym_off  = 0;
-        const char *mod_path = NULL;
+        Zstr mod_path = NULL;
         bool        named    = false;
 
 #    if FEATURE_PARSER_MACHO
@@ -410,10 +410,10 @@ static void format_walk_mac(Str *out, const StackFrame *frames, size count, Allo
 #    endif
 
         if (named) {
-            const char *mod = basename_of(mod_path);
+            Zstr mod = basename_of(mod_path);
             StrAppendFmt(out, "  #{} {}!{}+{x} [{x}]\n", (u32)i, mod, sym_name, (u64)sym_off, ip);
         } else if (mod_path) {
-            const char *mod = basename_of(mod_path);
+            Zstr mod = basename_of(mod_path);
             StrAppendFmt(out, "  #{} {}+? [{x}]\n", (u32)i, mod, ip);
         } else {
             StrAppendFmt(out, "  #{} {x}\n", (u32)i, ip);
@@ -496,16 +496,16 @@ bool capture_stack_trace_vec(StackFrames *out, size skip_frames) {
 
 static void emit_resolved_line(Str *out, u32 idx, const ResolvedSymbol *r, void *ip) {
     if (r->symbol_name) {
-        const char *mod = basename_of(r->module_path);
+        Zstr mod = basename_of(r->module_path);
         StrAppendFmt(out, "  #{} {}!{}+{x} [{x}]", idx, mod, r->symbol_name, r->offset, (u64)ip);
     } else if (r->module_path) {
-        const char *mod = basename_of(r->module_path);
+        Zstr mod = basename_of(r->module_path);
         StrAppendFmt(out, "  #{} {}+{x} [{x}]", idx, mod, r->offset, (u64)ip);
     } else {
         StrAppendFmt(out, "  #{} {x}", idx, (u64)ip);
     }
     if (r->source_file) {
-        const char *file = basename_of(r->source_file);
+        Zstr file = basename_of(r->source_file);
         if (r->source_line > 0) {
             StrAppendFmt(out, " ({}:{})", file, r->source_line);
         } else {

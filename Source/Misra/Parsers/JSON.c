@@ -490,7 +490,7 @@ StrIter JReadBool(StrIter si, bool *b) {
     char c;
     if (StrIterRemainingLength(&si) >= 4) {
         if (StrIterPeek(&si, &c) && c == 't') {
-            const char *pos = StrIterPos(&si);
+            Zstr pos = StrIterPos(&si);
             if (pos && ZstrCompareN(pos, "true", 4) == 0) {
                 StrIterMustMove(&si, 4);
                 *b = true;
@@ -502,7 +502,7 @@ StrIter JReadBool(StrIter si, bool *b) {
 
         if (StrIterRemainingLength(&si) >= 5) {
             if (StrIterPeek(&si, &c) && c == 'f') {
-                const char *pos = StrIterPos(&si);
+                Zstr pos = StrIterPos(&si);
                 if (pos && ZstrCompareN(pos, "false", 5) == 0) {
                     StrIterMustMove(&si, 5);
                     *b = false;
@@ -540,7 +540,7 @@ StrIter JReadNull(StrIter si, bool *is_null) {
     char c;
     if (StrIterRemainingLength(&si) >= 4) {
         if (StrIterPeek(&si, &c) && c == 'n') {
-            const char *pos = StrIterPos(&si);
+            Zstr pos = StrIterPos(&si);
             if (pos && ZstrCompareN(pos, "null", 4) == 0) {
                 StrIterMustMove(&si, 4);
                 *is_null = true;

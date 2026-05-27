@@ -5,6 +5,7 @@
 /// Str implementation
 
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Container/Str/Private.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Std/Container/Vec/Private.h>
 #include <Misra/Std/Log.h>
@@ -142,7 +143,7 @@ bool str_init_copy(void *dst_ptr, const void *src_ptr, const Allocator *alloc) {
     dst->copy_init   = src->copy_init;
     dst->copy_deinit = src->copy_deinit;
 
-    if (!insert_range_into_vec(GENERIC_VEC(dst), src->data, sizeof(char), 0, src->length)) {
+    if (!insert_range_into_vec(GENERIC_VEC(dst), (const u8 *)src->data, sizeof(char), 0, src->length)) {
         return false;
     }
 
@@ -202,12 +203,12 @@ i32 str_compare(const void *lhs, const void *rhs) {
     return 0;
 }
 
-static StrIters str_split_to_iters_impl(Str *s, const char *key, size keylen) {
+static StrIters str_split_to_iters_impl(Str *s, Zstr key, size keylen) {
     ValidateStr(s);
 
     StrIters sv   = (StrIters)VecInit(s->allocator);
-    Zstr     prev = s->data;
-    Zstr     end  = s->data + s->length;
+    Zstr prev = s->data;
+    Zstr end  = s->data + s->length;
 
     while (prev <= end) {
         Zstr next = ZstrFindSubstringN(prev, key, keylen);
@@ -236,7 +237,7 @@ StrIters str_split_to_iters_str(Str *s, const Str *key) {
     return str_split_to_iters_impl(s, key->data, key->length);
 }
 
-static Strs str_split_impl(Str *s, const char *key, size keylen) {
+static Strs str_split_impl(Str *s, Zstr key, size keylen) {
     ValidateStr(s);
 
     Strs sv        = (Strs)VecInit(s->allocator);
@@ -275,7 +276,7 @@ Strs str_split_str(Str *s, const Str *key) {
     return str_split_impl(s, key->data, key->length);
 }
 
-static size str_index_of_cstr(const Str *s, Zstr key, size key_len) {
+size str_index_of_cstr(const Str *s, Zstr key, size key_len) {
     Zstr found = NULL;
 
     ValidateStr(s);
@@ -296,21 +297,7 @@ static size str_index_of_cstr(const Str *s, Zstr key, size key_len) {
     return found ? (size)(found - s->data) : SIZE_MAX;
 }
 
-bool StrContains(const Str *s, const Str *key) {
-    if (!key) {
-        LOG_FATAL("Invalid arguments");
-    }
-
-    ValidateStr(key);
-
-    if (key->length == 0) {
-        return true;
-    }
-
-    return StrContainsCstr(s, key->data, key->length);
-}
-
-size StrIndexOfZstr(const Str *s, Zstr key) {
+size str_index_of_zstr(const Str *s, Zstr key) {
     if (!key) {
         LOG_FATAL("Invalid arguments");
     }
@@ -318,11 +305,7 @@ size StrIndexOfZstr(const Str *s, Zstr key) {
     return str_index_of_cstr(s, key, ZstrLen(key));
 }
 
-size StrIndexOfCstr(const Str *s, Zstr key, size key_len) {
-    return str_index_of_cstr(s, key, key_len);
-}
-
-size StrIndexOf(const Str *s, const Str *key) {
+size str_index_of_str(const Str *s, const Str *key) {
     if (!key) {
         LOG_FATAL("Invalid arguments");
     }
@@ -336,12 +319,26 @@ size StrIndexOf(const Str *s, const Str *key) {
     return str_index_of_cstr(s, key->data, key->length);
 }
 
-bool StrContainsZstr(const Str *s, Zstr key) {
-    return StrIndexOfZstr(s, key) != SIZE_MAX;
+bool str_contains_cstr(const Str *s, Zstr key, size key_len) {
+    return str_index_of_cstr(s, key, key_len) != SIZE_MAX;
 }
 
-bool StrContainsCstr(const Str *s, Zstr key, size key_len) {
-    return StrIndexOfCstr(s, key, key_len) != SIZE_MAX;
+bool str_contains_zstr(const Str *s, Zstr key) {
+    return str_index_of_zstr(s, key) != SIZE_MAX;
+}
+
+bool str_contains_str(const Str *s, const Str *key) {
+    if (!key) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    ValidateStr(key);
+
+    if (key->length == 0) {
+        return true;
+    }
+
+    return str_contains_cstr(s, key->data, key->length);
 }
 
 // Helper function to check if char is in strip_chars
@@ -391,38 +388,37 @@ static inline bool ends_with(Zstr data, size data_len, Zstr suffix, size suffix_
     return data_len >= suffix_len && MemCompare(data + data_len - suffix_len, suffix, suffix_len) == 0;
 }
 
-bool StrStartsWithZstr(const Str *s, Zstr prefix) {
+bool str_starts_with_zstr(const Str *s, Zstr prefix) {
     ValidateStr(s);
     return starts_with(s->data, s->length, prefix, ZstrLen(prefix));
 }
 
-bool StrEndsWithZstr(const Str *s, Zstr suffix) {
+bool str_ends_with_zstr(const Str *s, Zstr suffix) {
     ValidateStr(s);
     return ends_with(s->data, s->length, suffix, ZstrLen(suffix));
 }
 
-bool StrStartsWithCstr(const Str *s, Zstr prefix, size prefix_len) {
+bool str_starts_with_cstr(const Str *s, Zstr prefix, size prefix_len) {
     ValidateStr(s);
     return starts_with(s->data, s->length, prefix, prefix_len);
 }
 
-bool StrEndsWithCstr(const Str *s, Zstr suffix, size suffix_len) {
+bool str_ends_with_cstr(const Str *s, Zstr suffix, size suffix_len) {
     ValidateStr(s);
     return ends_with(s->data, s->length, suffix, suffix_len);
 }
 
-bool StrStartsWith(const Str *s, const Str *prefix) {
+bool str_starts_with_str(const Str *s, const Str *prefix) {
     ValidateStr(s);
     return starts_with(s->data, s->length, prefix->data, prefix->length);
 }
 
-bool StrEndsWith(const Str *s, const Str *suffix) {
+bool str_ends_with_str(const Str *s, const Str *suffix) {
     ValidateStr(s);
     return ends_with(s->data, s->length, suffix->data, suffix->length);
 }
 
-// Helper: replace in-place all `match` → `replacement` up to `count`
-static void str_replace(Str *s, Zstr match, size match_len, Zstr replacement, size replacement_len, size count) {
+void str_replace_cstr(Str *s, Zstr match, size match_len, Zstr replacement, size replacement_len, size count) {
     ValidateStr(s);
     size i        = 0;
     size replaced = 0;
@@ -430,7 +426,7 @@ static void str_replace(Str *s, Zstr match, size match_len, Zstr replacement, si
     while (i + match_len <= s->length && replaced < count) {
         if (MemCompare(s->data + i, match, match_len) == 0) {
             StrDeleteRange(s, i, match_len);
-            StrInsertCstr(s, replacement, i, replacement_len);
+            StrInsert(s, replacement, i, replacement_len);
             i        += replacement_len;
             replaced += 1;
         } else {
@@ -439,19 +435,14 @@ static void str_replace(Str *s, Zstr match, size match_len, Zstr replacement, si
     }
 }
 
-void StrReplaceZstr(Str *s, Zstr match, Zstr replacement, size count) {
+void str_replace_zstr(Str *s, Zstr match, Zstr replacement, size count) {
     ValidateStr(s);
-    str_replace(s, match, ZstrLen(match), replacement, ZstrLen(replacement), count);
+    str_replace_cstr(s, match, ZstrLen(match), replacement, ZstrLen(replacement), count);
 }
 
-void StrReplaceCstr(Str *s, Zstr match, size match_len, Zstr replacement, size replacement_len, size count) {
+void str_replace_str(Str *s, const Str *match, const Str *replacement, size count) {
     ValidateStr(s);
-    str_replace(s, match, match_len, replacement, replacement_len, count);
-}
-
-void StrReplace(Str *s, const Str *match, const Str *replacement, size count) {
-    ValidateStr(s);
-    str_replace(s, match->data, match->length, replacement->data, replacement->length, count);
+    str_replace_cstr(s, match->data, match->length, replacement->data, replacement->length, count);
 }
 
 // Helper function to convert a single digit to character

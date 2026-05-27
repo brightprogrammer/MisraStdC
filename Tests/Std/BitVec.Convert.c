@@ -71,7 +71,7 @@ bool test_bitvec_from_string(void) {
     WriteFmt("Testing BitVecFromStr\n");
 
     // Convert from string
-    Zstr   str = "1011";
+    Zstr str = "1011";
     BitVec bv;
     bool   ok = BitVecTryFromStr(&bv, str, ALLOCATOR_OF(&alloc));
 
@@ -533,7 +533,7 @@ bool test_bitvec_conversion_comprehensive(void) {
 
     // Test specific bit patterns with exact expectations
     struct {
-        Zstr   pattern;
+        Zstr pattern;
         u64    expected_value;
         u8     expected_bytes[8];
         size_t byte_count;
