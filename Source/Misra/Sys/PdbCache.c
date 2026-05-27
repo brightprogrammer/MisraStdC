@@ -152,15 +152,6 @@ static PdbCacheEntry *cache_find_or_open(PdbCache *self, Zstr module_path) {
 // Public API
 // ---------------------------------------------------------------------------
 
-bool pdb_cache_init(PdbCache *out, Allocator *alloc) {
-    if (!out || !alloc)
-        return false;
-    MemSet(out, 0, sizeof(*out));
-    out->allocator = alloc;
-    out->entries   = VecInitT(out->entries, alloc);
-    return true;
-}
-
 void PdbCacheDeinit(PdbCache *self) {
     if (!self)
         return;

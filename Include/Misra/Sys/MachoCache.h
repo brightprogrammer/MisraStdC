@@ -48,19 +48,21 @@ typedef struct MachoCache {
 } MachoCache;
 
 ///
-/// Initialise an empty Mach-O symbol cache.
+/// Initialise an empty Mach-O symbol cache. The allocator argument
+/// is optional inside a `Scope` block (defaults to `MisraScope`) and
+/// backs both the entries Vec and every Mach-O / DWARF table the
+/// cache grows lazily.
 ///
-/// out[out]   : Cache to initialise.
-/// alloc[in]  : Allocator used for the entries vector and for
-///              every Mach-O / DWARF table the cache grows lazily.
+/// SUCCESS : Yields a `MachoCache` whose `entries` Vec is empty and
+///           ready for use.
+/// FAILURE : Cannot fail at construction; first allocator OOM
+///           surfaces from later `entries` growth.
 ///
-/// SUCCESS : Returns true. `out` is a usable empty cache.
-/// FAILURE : Returns false on allocator OOM. `out` is left zeroed.
+/// TAGS: Sys, MachO, Cache, Init, Lifecycle
 ///
-bool macho_cache_init(MachoCache *out, Allocator *alloc);
-#define MachoCacheInit(...)          MISRA_OVERLOAD(MachoCacheInit, __VA_ARGS__)
-#define MachoCacheInit_1(out)        macho_cache_init((out), MisraScope)
-#define MachoCacheInit_2(out, alloc) macho_cache_init((out), ALLOCATOR_OF(alloc))
+#define MachoCacheInit(...)         MISRA_OVERLOAD(MachoCacheInit, __VA_ARGS__)
+#define MachoCacheInit_0()          MachoCacheInit_1(MisraScope)
+#define MachoCacheInit_1(alloc_ptr) ((MachoCache) {.allocator = ALLOCATOR_OF(alloc_ptr), .entries = VecInit_1(alloc_ptr)})
 
 ///
 /// Release every cached Mach-O / DWARF table and the entries vector.

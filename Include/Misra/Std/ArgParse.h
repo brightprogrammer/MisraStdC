@@ -137,23 +137,28 @@ extern "C" {
     } ArgParse;
 
     ///
-    /// Create a parser. Registers `-h` / `--help` automatically. The
-    /// `name` and `about` pointers are borrowed -- they must outlive
-    /// the parser (string literals are the typical case).
+    /// Create a parser. The `name` and `about` pointers are borrowed --
+    /// they must outlive the parser (string literals are the typical
+    /// case). The `-h` / `--help` flag is registered lazily on the
+    /// first `ArgParseRun` / `ArgParseHelp` call.
     ///
     /// Two call shapes, like `StrInit` / `VecInitT`:
     ///   `ArgParseInit(name, about)`        -- uses the surrounding
     ///                                          `Scope`'s allocator.
     ///   `ArgParseInit(name, about, alloc)` -- explicit allocator.
     ///
-    /// SUCCESS: Returns an initialized parser.
-    /// FAILURE: Aborts via `LOG_FATAL` on allocator OOM.
+    /// SUCCESS: Yields an initialized parser. The `specs` Vec is empty;
+    ///          add specs with `ArgParseAddPositional` / etc.
+    /// FAILURE: Cannot fail at construction; first allocator OOM
+    ///          surfaces from later spec-Vec growth.
     ///
-    ArgParse arg_parse_init(Zstr name, Zstr about, Allocator *alloc);
-
-#define ArgParseInit(...)                      MISRA_OVERLOAD(ArgParseInit, __VA_ARGS__)
-#define ArgParseInit_2(name, about)            arg_parse_init((name), (about), MisraScope)
-#define ArgParseInit_3(name, about, alloc_ptr) arg_parse_init((name), (about), ALLOCATOR_OF(alloc_ptr))
+#define ArgParseInit(...)                     MISRA_OVERLOAD(ArgParseInit, __VA_ARGS__)
+#define ArgParseInit_2(prog_name, prog_about) ArgParseInit_3((prog_name), (prog_about), MisraScope)
+#define ArgParseInit_3(prog_name, prog_about, alloc_ptr)                                                               \
+    ((ArgParse) {.alloc = ALLOCATOR_OF(alloc_ptr),                                                                     \
+                 .name  = (prog_name),                                                                                 \
+                 .about = (prog_about),                                                                                \
+                 .specs = VecInit_1(alloc_ptr)})
 
     ///
     /// Release the spec Vec. Safe on a fully-initialised parser; not

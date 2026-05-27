@@ -177,8 +177,8 @@ static void format_walk_win(Str *out, const StackFrame *frames, size count, Allo
     line.SizeOfStruct = sizeof(line);
 
 #    if FEATURE_PARSER_PDB
-    PdbCache pdb_cache;
-    bool     pdb_cache_ok = alloc && PdbCacheInit(&pdb_cache, alloc);
+    bool     pdb_cache_ok = (alloc != NULL);
+    PdbCache pdb_cache    = pdb_cache_ok ? PdbCacheInit(alloc) : (PdbCache) {0};
 #    else
     (void)alloc;
 #    endif
@@ -389,8 +389,8 @@ static bool dyld_image_for_ip(void *ip, Zstr *out_path, u64 *out_slide) {
 
 static void format_walk_mac(Str *out, const StackFrame *frames, size count, Allocator *alloc) {
 #    if FEATURE_PARSER_MACHO
-    MachoCache cache;
-    bool       cache_ok = alloc && MachoCacheInit(&cache, alloc);
+    bool       cache_ok = (alloc != NULL);
+    MachoCache cache    = cache_ok ? MachoCacheInit(alloc) : (MachoCache) {0};
 #    else
     (void)alloc;
 #    endif

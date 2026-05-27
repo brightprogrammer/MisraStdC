@@ -185,8 +185,7 @@ bool test_macho_cache_resolves_via_main_symtab(void) {
         return false;
     }
 
-    MachoCache cache;
-    MachoCacheInit(&cache, base);
+    MachoCache cache = MachoCacheInit(base);
 
     // slide chosen so runtime_ip - slide = 0x100000110 (10 bytes past
     // function start)
@@ -225,8 +224,7 @@ bool test_macho_cache_falls_through_to_dsym(void) {
         return false;
     }
 
-    MachoCache cache;
-    MachoCacheInit(&cache, base);
+    MachoCache cache = MachoCacheInit(base);
 
     const u64 slide      = 0;
     const u64 runtime_ip = 0x100000208ull; // 8 bytes into dsym_only_fn
@@ -264,8 +262,7 @@ bool test_macho_cache_rejects_uuid_mismatch(void) {
     write_file(bin_path, bin_buf, bin_size);
     write_file(dsym_path, dsym_buf, dsym_size);
 
-    MachoCache cache;
-    MachoCacheInit(&cache, base);
+    MachoCache cache = MachoCacheInit(base);
 
     Zstr name = NULL;
     bool ok   = !MachoCacheResolve(&cache, bin_path, 0, 0x100000208ull, &name, NULL);

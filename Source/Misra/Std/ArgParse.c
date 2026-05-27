@@ -461,19 +461,6 @@ void arg_register(
 /* Lifecycle + run                                                     */
 /* ------------------------------------------------------------------ */
 
-ArgParse arg_parse_init(Zstr name, Zstr about, Allocator *alloc) {
-    if (!name)
-        LOG_FATAL("ArgParseInit: name is required");
-    if (!alloc)
-        LOG_FATAL("ArgParseInit: allocator is required");
-    ArgParse p = {0};
-    p.alloc    = alloc;
-    p.name     = name;
-    p.about    = about;
-    p.specs    = VecInitT(p.specs, alloc);
-    return p;
-}
-
 void ArgParseDeinit(ArgParse *self) {
     if (!self)
         return;

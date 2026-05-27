@@ -285,11 +285,7 @@ bool test_pdb_cache_resolves_via_codeview(void) {
         return false;
     }
 
-    PdbCache cache;
-    if (!PdbCacheInit(&cache, base)) {
-        DefaultAllocatorDeinit(&alloc);
-        return false;
-    }
+    PdbCache cache = PdbCacheInit(base);
 
     // module_base = 0x140000000 -> RVA = (ip - base). For func at
     // RVA 0x1100, ip = module_base + 0x1100.
@@ -323,8 +319,7 @@ bool test_pdb_cache_rejects_unknown_module(void) {
     char missing[1024];
     tmp_path_join(missing, sizeof(missing), "misra_pdbcache_missing_xyz.exe");
 
-    PdbCache cache;
-    PdbCacheInit(&cache, base);
+    PdbCache cache = PdbCacheInit(base);
     Zstr name = NULL;
     bool ok   = !PdbCacheResolve(&cache, (Zstr)missing, 0, 0x1000, &name, NULL);
     PdbCacheDeinit(&cache);

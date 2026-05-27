@@ -47,15 +47,19 @@ typedef struct PdbCache {
 } PdbCache;
 
 ///
-/// Initialize an empty cache.
+/// Initialize an empty cache. The allocator argument is optional
+/// inside a `Scope` block (defaults to `MisraScope`).
 ///
-/// SUCCESS : Returns true; `out` is zeroed and ready for `Resolve`.
-/// FAILURE : Returns false on NULL arg.
+/// SUCCESS : Yields a `PdbCache` whose `entries` Vec is empty and
+///           ready for `Resolve`.
+/// FAILURE : Cannot fail at construction; first allocator OOM
+///           surfaces from later `entries` growth.
 ///
-bool pdb_cache_init(PdbCache *out, Allocator *alloc);
-#define PdbCacheInit(...)          MISRA_OVERLOAD(PdbCacheInit, __VA_ARGS__)
-#define PdbCacheInit_1(out)        pdb_cache_init((out), MisraScope)
-#define PdbCacheInit_2(out, alloc) pdb_cache_init((out), ALLOCATOR_OF(alloc))
+/// TAGS: Sys, PDB, Cache, Init, Lifecycle
+///
+#define PdbCacheInit(...)        MISRA_OVERLOAD(PdbCacheInit, __VA_ARGS__)
+#define PdbCacheInit_0()         PdbCacheInit_1(MisraScope)
+#define PdbCacheInit_1(alloc_ptr) ((PdbCache) {.allocator = ALLOCATOR_OF(alloc_ptr), .entries = VecInit_1(alloc_ptr)})
 
 ///
 /// Tear down the cache, releasing every cached `Pe` and `Pdb`.

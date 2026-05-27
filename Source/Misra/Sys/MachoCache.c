@@ -149,15 +149,6 @@ static bool entry_build_dwarf(MachoCacheEntry *e, Allocator *alloc) {
 // Public API
 // ---------------------------------------------------------------------------
 
-bool macho_cache_init(MachoCache *out, Allocator *alloc) {
-    if (!out || !alloc)
-        return false;
-    MemSet(out, 0, sizeof(*out));
-    out->allocator = alloc;
-    out->entries   = VecInitT(out->entries, alloc);
-    return true;
-}
-
 void MachoCacheDeinit(MachoCache *self) {
     if (!self)
         return;
