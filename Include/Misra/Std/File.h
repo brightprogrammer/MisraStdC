@@ -1,4 +1,4 @@
-/// file      : misra/std/file.h
+/// file      : std/file.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -8,7 +8,6 @@
 #define MISRA_STD_FILE_H
 
 
-// decompiler
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Container/Str.h>
@@ -80,21 +79,24 @@ File file_open(Zstr path, Zstr mode);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: file_open((Zstr)StrBegin((Str *)(path)), (mode)),                                                       \
-        Zstr:  file_open((Zstr)(path), (mode)),                                                                         \
-        char *: file_open((Zstr)(path), (mode))                                                                         \
+        Zstr: file_open((Zstr)(path), (mode)),                                                                         \
+        char *: file_open((Zstr)(path), (mode))                                                                        \
     )
 
 ///
-/// Borrow a file handle wrapping an already-open fd / HANDLE. The
-/// returned File has `owns = false` so `FileClose` is a no-op on it.
-/// Use for wrapping the well-known standard streams or fds you got
-/// from elsewhere.
+/// Borrow a POSIX fd into a `File`. The returned File has `owns = false`
+/// so `FileClose` is a no-op on it. Use for wrapping the well-known
+/// standard streams or fds you got from elsewhere.
 ///
-/// SUCCESS : Returns a `File` whose underlying handle aliases `fd` and
-///           whose `owns` flag is false. `FileIsOpen` is true unless
-///           `fd` was negative.
-/// FAILURE : Function cannot fail; an invalid `fd` produces a `File`
-///           that simply reports as not-open.
+/// SUCCESS : POSIX -- returns a `File` whose underlying handle aliases
+///           `fd` and whose `owns` flag is false; `FileIsOpen` is true
+///           unless `fd` was negative.
+/// FAILURE : POSIX cannot fail; an invalid `fd` produces a `File` that
+///           simply reports as not-open. Windows has no fd concept;
+///           `FileFromFd` always returns an `INVALID_HANDLE_VALUE`
+///           File regardless of the `fd` value -- use `FileStdin` /
+///           `FileStdout` / `FileStderr` for the standard streams on
+///           Windows.
 ///
 /// TAGS: File, FromFd, Wrap, FileDescriptor
 ///
@@ -138,7 +140,7 @@ bool FileClose(File *f);
 bool FileIsOpen(const File *f);
 
 ///
-/// Read bytes from a file. Two arities via `MISRA_OVERLOAD`:
+/// Read bytes from a file. Two arities via `OVERLOAD`:
 ///
 ///   `FileRead(f, buf, n)`  - low-level: up to `n` bytes into `buf`.
 ///                            Short reads are normal at EOF and on
@@ -170,7 +172,7 @@ bool FileIsOpen(const File *f);
 i64 file_read(File *f, void *buf, u64 n);
 i64 file_read_to_str(File *f, Str *out);
 i64 file_read_to_buf(File *f, Buf *out);
-#define FileRead(...) MISRA_OVERLOAD(FileRead, __VA_ARGS__)
+#define FileRead(...) OVERLOAD(FileRead, __VA_ARGS__)
 #define FileRead_2(f, out)                                                                                             \
     _Generic((out), Buf *: file_read_to_buf((f), (Buf *)(out)), Str *: file_read_to_str((f), (Str *)(out)))
 #define FileRead_3(f, buf, n) file_read((f), (buf), (n))
@@ -201,14 +203,14 @@ i64 file_read_and_close_to_str(Zstr path, Str *out);
         Buf *: _Generic(                                                                                               \
             (path),                                                                                                    \
             Str *: file_read_and_close_to_buf((Zstr)StrBegin((Str *)(path)), (Buf *)(out)),                            \
-            Zstr:  file_read_and_close_to_buf((Zstr)(path), (Buf *)(out)),                                              \
-            char *: file_read_and_close_to_buf((Zstr)(path), (Buf *)(out))                                              \
+            Zstr: file_read_and_close_to_buf((Zstr)(path), (Buf *)(out)),                                              \
+            char *: file_read_and_close_to_buf((Zstr)(path), (Buf *)(out))                                             \
         ),                                                                                                             \
         Str *: _Generic(                                                                                               \
             (path),                                                                                                    \
             Str *: file_read_and_close_to_str((Zstr)StrBegin((Str *)(path)), (Str *)(out)),                            \
-            Zstr:  file_read_and_close_to_str((Zstr)(path), (Str *)(out)),                                              \
-            char *: file_read_and_close_to_str((Zstr)(path), (Str *)(out))                                              \
+            Zstr: file_read_and_close_to_str((Zstr)(path), (Str *)(out)),                                              \
+            char *: file_read_and_close_to_str((Zstr)(path), (Str *)(out))                                             \
         )                                                                                                              \
     )
 
@@ -231,7 +233,7 @@ i64 FileWrite(File *f, const void *buf, u64 n);
 
 ///
 /// Open `path` for write (truncating), write all of `out`, close.
-/// Two arities via `MISRA_OVERLOAD`:
+/// Two arities via `OVERLOAD`:
 ///   - `FileWriteAndClose(path, container)` -- `container` is `Buf *`
 ///     or `Str *`; writes its full `length`.
 ///   - `FileWriteAndClose(path, buf, n)`    -- explicit `void *buf`
@@ -245,29 +247,29 @@ i64 FileWrite(File *f, const void *buf, u64 n);
 i64 file_write_and_close_from_buf(Zstr path, const Buf *in);
 i64 file_write_and_close_from_str(Zstr path, const Str *in);
 i64 file_write_and_close_from_bytes(Zstr path, const void *buf, u64 n);
-#define FileWriteAndClose(...) MISRA_OVERLOAD(FileWriteAndClose, __VA_ARGS__)
+#define FileWriteAndClose(...) OVERLOAD(FileWriteAndClose, __VA_ARGS__)
 #define FileWriteAndClose_2(path, container)                                                                           \
     _Generic(                                                                                                          \
         (container),                                                                                                   \
         Buf *: _Generic(                                                                                               \
             (path),                                                                                                    \
             Str *: file_write_and_close_from_buf((Zstr)StrBegin((Str *)(path)), (const Buf *)(container)),             \
-            Zstr:  file_write_and_close_from_buf((Zstr)(path), (const Buf *)(container)),                               \
-            char *: file_write_and_close_from_buf((Zstr)(path), (const Buf *)(container))                               \
+            Zstr: file_write_and_close_from_buf((Zstr)(path), (const Buf *)(container)),                               \
+            char *: file_write_and_close_from_buf((Zstr)(path), (const Buf *)(container))                              \
         ),                                                                                                             \
         Str *: _Generic(                                                                                               \
             (path),                                                                                                    \
             Str *: file_write_and_close_from_str((Zstr)StrBegin((Str *)(path)), (const Str *)(container)),             \
-            Zstr:  file_write_and_close_from_str((Zstr)(path), (const Str *)(container)),                               \
-            char *: file_write_and_close_from_str((Zstr)(path), (const Str *)(container))                               \
+            Zstr: file_write_and_close_from_str((Zstr)(path), (const Str *)(container)),                               \
+            char *: file_write_and_close_from_str((Zstr)(path), (const Str *)(container))                              \
         )                                                                                                              \
     )
 #define FileWriteAndClose_3(path, buf, n)                                                                              \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: file_write_and_close_from_bytes((Zstr)StrBegin((Str *)(path)), (buf), (n)),                             \
-        Zstr:  file_write_and_close_from_bytes((Zstr)(path), (buf), (n)),                                               \
-        char *: file_write_and_close_from_bytes((Zstr)(path), (buf), (n))                                               \
+        Zstr: file_write_and_close_from_bytes((Zstr)(path), (buf), (n)),                                               \
+        char *: file_write_and_close_from_bytes((Zstr)(path), (buf), (n))                                              \
     )
 
 ///
@@ -350,7 +352,7 @@ i32 FileFd(const File *f);
 /// TAGS: File, Temp
 ///
 File file_open_temp(Str *out_path, Allocator *alloc);
-#define FileOpenTemp(...)               MISRA_OVERLOAD(FileOpenTemp, __VA_ARGS__)
+#define FileOpenTemp(...)               OVERLOAD(FileOpenTemp, __VA_ARGS__)
 #define FileOpenTemp_1(out_path)        file_open_temp((out_path), MisraScope)
 #define FileOpenTemp_2(out_path, alloc) file_open_temp((out_path), ALLOCATOR_OF(alloc))
 

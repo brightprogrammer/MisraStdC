@@ -1,5 +1,5 @@
 /// file      : std/container/bitvec.c
-/// author    : Generated following Misra project patterns
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Bit vector implementation - efficient storage for boolean values
@@ -193,7 +193,7 @@ void BitVecShrinkToFit(BitVec *bv) {
 
     u64 new_byte_size = BYTES_FOR_BITS(bv->length);
     if (new_byte_size == bv->byte_size) {
-        // Just update capacity, no need to realloc
+        // Just update capacity, no need to remap
         bv->capacity = bv->length;
         return;
     }
@@ -269,7 +269,7 @@ BitVec BitVecClone(BitVec *bv) {
     return clone;
 }
 
-bool BitVecGet(BitVec *bitvec, u64 idx) {
+bool BitVecGet(const BitVec *bitvec, u64 idx) {
     ValidateBitVec(bitvec);
     if (idx >= bitvec->length) {
         LOG_FATAL("Index {} exceeds bitvector length {}", idx, bitvec->length);
@@ -539,7 +539,7 @@ u64 BitVecRemoveAll(BitVec *bv, bool value) {
     return removed_count;
 }
 
-u64 BitVecCountOnes(BitVec *bitvec) {
+u64 BitVecCountOnes(const BitVec *bitvec) {
     ValidateBitVec(bitvec);
     if (!bitvec->data)
         return 0;
@@ -552,7 +552,7 @@ u64 BitVecCountOnes(BitVec *bitvec) {
     return count;
 }
 
-u64 BitVecCountZeros(BitVec *bitvec) {
+u64 BitVecCountZeros(const BitVec *bitvec) {
     ValidateBitVec(bitvec);
     return bitvec->length - BitVecCountOnes(bitvec);
 }
@@ -623,7 +623,7 @@ void BitVecNot(BitVec *result, BitVec *bitvec) {
 }
 
 // Comparison functions
-bool BitVecEquals(BitVec *bv1, BitVec *bv2) {
+bool BitVecEquals(const BitVec *bv1, const BitVec *bv2) {
     ValidateBitVec(bv1);
     ValidateBitVec(bv2);
 
@@ -634,7 +634,7 @@ bool BitVecEquals(BitVec *bv1, BitVec *bv2) {
     return BitVecEqualsRange(bv1, 0, bv2, 0, bv1->length);
 }
 
-bool BitVecEqualsRange(BitVec *bv1, u64 start1, BitVec *bv2, u64 start2, u64 len) {
+bool BitVecEqualsRange(const BitVec *bv1, u64 start1, const BitVec *bv2, u64 start2, u64 len) {
     ValidateBitVec(bv1);
     ValidateBitVec(bv2);
 
@@ -678,7 +678,7 @@ u64 bitvec_hash(BitVec *bv, u32 size) {
     return hash;
 }
 
-int BitVecCompare(BitVec *bv1, BitVec *bv2) {
+int BitVecCompare(const BitVec *bv1, const BitVec *bv2) {
     ValidateBitVec(bv1);
     ValidateBitVec(bv2);
 
@@ -700,7 +700,7 @@ int BitVecCompare(BitVec *bv1, BitVec *bv2) {
     }
 }
 
-int BitVecCompareRange(BitVec *bv1, u64 start1, BitVec *bv2, u64 start2, u64 len) {
+int BitVecCompareRange(const BitVec *bv1, u64 start1, const BitVec *bv2, u64 start2, u64 len) {
     ValidateBitVec(bv1);
     ValidateBitVec(bv2);
 
@@ -726,7 +726,7 @@ int BitVecCompareRange(BitVec *bv1, u64 start1, BitVec *bv2, u64 start2, u64 len
 
 
 
-int BitVecNumericalCompare(BitVec *bv1, BitVec *bv2) {
+int BitVecNumericalCompare(const BitVec *bv1, const BitVec *bv2) {
     ValidateBitVec(bv1);
     ValidateBitVec(bv2);
 
@@ -747,7 +747,7 @@ int BitVecNumericalCompare(BitVec *bv1, BitVec *bv2) {
     return 0; // Equal
 }
 
-int BitVecWeightCompare(BitVec *bv1, BitVec *bv2) {
+int BitVecWeightCompare(const BitVec *bv1, const BitVec *bv2) {
     ValidateBitVec(bv1);
     ValidateBitVec(bv2);
 
@@ -763,7 +763,7 @@ int BitVecWeightCompare(BitVec *bv1, BitVec *bv2) {
     }
 }
 
-int BitVecSignedCompare(BitVec *bv1, BitVec *bv2) {
+int BitVecSignedCompare(const BitVec *bv1, const BitVec *bv2) {
     ValidateBitVec(bv1);
     ValidateBitVec(bv2);
 
@@ -791,7 +791,7 @@ int BitVecSignedCompare(BitVec *bv1, BitVec *bv2) {
     return result;
 }
 
-bool BitVecIsSubset(BitVec *bv1, BitVec *bv2) {
+bool BitVecIsSubset(const BitVec *bv1, const BitVec *bv2) {
     ValidateBitVec(bv1);
     ValidateBitVec(bv2);
 
@@ -811,11 +811,11 @@ bool BitVecIsSubset(BitVec *bv1, BitVec *bv2) {
     return true;
 }
 
-bool BitVecIsSuperset(BitVec *bv1, BitVec *bv2) {
+bool BitVecIsSuperset(const BitVec *bv1, const BitVec *bv2) {
     return BitVecIsSubset(bv2, bv1);
 }
 
-bool BitVecDisjoint(BitVec *bv1, BitVec *bv2) {
+bool BitVecDisjoint(const BitVec *bv1, const BitVec *bv2) {
     ValidateBitVec(bv1);
     ValidateBitVec(bv2);
 
@@ -831,14 +831,14 @@ bool BitVecDisjoint(BitVec *bv1, BitVec *bv2) {
     return true;
 }
 
-bool BitVecOverlaps(BitVec *bv1, BitVec *bv2) {
+bool BitVecOverlaps(const BitVec *bv1, const BitVec *bv2) {
     return !BitVecDisjoint(bv1, bv2);
 }
 
 
 
 
-bool BitVecIsSorted(BitVec *bv) {
+bool BitVecIsSorted(const BitVec *bv) {
     ValidateBitVec(bv);
 
     // Sorted means all 0s come before all 1s
@@ -859,7 +859,7 @@ bool BitVecIsSorted(BitVec *bv) {
 }
 
 // Conversion functions
-Allocator *BitVecGetAllocator(BitVec *bv) {
+Allocator *BitVecGetAllocator(const BitVec *bv) {
     ValidateBitVec(bv);
     return bv->allocator;
 }
@@ -1043,7 +1043,7 @@ BitVec bitvec_from_bytes(const u8 *bytes, u64 bit_len, Allocator *alloc) {
     return result;
 }
 
-u64 BitVecToInteger(BitVec *bv) {
+u64 BitVecToInteger(const BitVec *bv) {
     ValidateBitVec(bv);
     if (bv->length == 0) {
         return 0;
@@ -1225,7 +1225,7 @@ void BitVecReverse(BitVec *bv) {
 
 // Missing Access functions implementation
 
-u64 BitVecFind(BitVec *bv, bool value) {
+u64 BitVecFind(const BitVec *bv, bool value) {
     ValidateBitVec(bv);
 
     for (u64 i = 0; i < bv->length; i++) {
@@ -1236,7 +1236,7 @@ u64 BitVecFind(BitVec *bv, bool value) {
     return SIZE_MAX; // Not found
 }
 
-u64 BitVecFindLast(BitVec *bv, bool value) {
+u64 BitVecFindLast(const BitVec *bv, bool value) {
     ValidateBitVec(bv);
 
     if (bv->length == 0) {
@@ -1253,7 +1253,7 @@ u64 BitVecFindLast(BitVec *bv, bool value) {
     return SIZE_MAX; // Not found
 }
 
-bool BitVecAll(BitVec *bv, bool value) {
+bool BitVecAll(const BitVec *bv, bool value) {
     ValidateBitVec(bv);
 
     for (u64 i = 0; i < bv->length; i++) {
@@ -1264,16 +1264,16 @@ bool BitVecAll(BitVec *bv, bool value) {
     return true; // All match (or empty bitvector)
 }
 
-bool BitVecAny(BitVec *bv, bool value) {
+bool BitVecAny(const BitVec *bv, bool value) {
     ValidateBitVec(bv);
     return BitVecFind(bv, value) != SIZE_MAX;
 }
 
-bool BitVecNone(BitVec *bv, bool value) {
+bool BitVecNone(const BitVec *bv, bool value) {
     return !BitVecAny(bv, value);
 }
 
-u64 BitVecLongestRun(BitVec *bv, bool value) {
+u64 BitVecLongestRun(const BitVec *bv, bool value) {
     ValidateBitVec(bv);
 
     if (bv->length == 0) {
@@ -1984,7 +1984,7 @@ void ValidateBitVec(const BitVec *bv) {
         LOG_FATAL("Invalid bitvec object: NULL.");
     }
     if ((bv)->__magic != BITVEC_MAGIC) {
-        LOG_FATAL("Invalid bitvec. Either uninitialized or curropted!");
+        LOG_FATAL("Invalid bitvec. Either uninitialized or corrupted!");
     }
     if ((bv)->length > (bv)->capacity) {
         LOG_FATAL("Invalid bitvec object: length > capacity.");

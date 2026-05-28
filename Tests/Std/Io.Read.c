@@ -18,12 +18,12 @@
 #define DOUBLE_EPSILON 1e-12
 
 // Helper function for comparing floats with epsilon
-static bool float_equals(float a, float b) {
+static bool float_equals(f32 a, f32 b) {
     return F64Abs(a - b) < FLOAT_EPSILON;
 }
 
 // Helper function for comparing doubles with epsilon
-static bool double_equals(double a, double b) {
+static bool double_equals(f64 a, f64 b) {
     return F64Abs(a - b) < DOUBLE_EPSILON;
 }
 

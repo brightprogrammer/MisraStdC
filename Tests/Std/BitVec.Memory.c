@@ -205,6 +205,9 @@ bool test_bitvec_clone_inherits_allocator_config(void) {
     WriteFmt("Testing BitVecClone allocator inheritance\n");
 
     DefaultAllocator alloc = DefaultAllocatorInit();
+    // intentional bypass: no public setter on `Allocator` for effort /
+    // retry_limit -- pre-seeded directly so the inheritance path below
+    // can be observed end-to-end.
     alloc.base.effort      = ALLOCATOR_EFFORT_RETRY_FALLBACK;
     alloc.base.retry_limit = 9;
 

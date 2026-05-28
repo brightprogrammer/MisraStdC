@@ -1,5 +1,5 @@
 /// file      : std/container/int/init.h
-/// author    : Generated following Misra project patterns
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Initialization helpers for Int.
@@ -27,7 +27,7 @@
 ///
 /// TAGS: Int, Init, Zero, Construct
 ///
-#define IntInit(...)             MISRA_OVERLOAD(IntInit, __VA_ARGS__)
+#define IntInit(...)             OVERLOAD(IntInit, __VA_ARGS__)
 #define IntInit_0()              ((Int) {.bits = BitVecInit_1(MisraScope)})
 #define IntInit_1(allocator_ptr) ((Int) {.bits = BitVecInit_1(allocator_ptr)})
 

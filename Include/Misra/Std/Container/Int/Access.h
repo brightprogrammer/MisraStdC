@@ -1,5 +1,5 @@
 /// file      : std/container/int/access.h
-/// author    : Generated following Misra project patterns
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Numeric state inspection helpers for Int.
@@ -26,7 +26,7 @@ extern "C" {
     ///
     /// TAGS: Int, Access, BitLength
     ///
-    u64 IntBitLength(Int *value);
+    u64 IntBitLength(const Int *value);
 
     ///
     /// Number of bytes required to store the integer (ceil of bit length over
@@ -40,7 +40,7 @@ extern "C" {
     ///
     /// TAGS: Int, Access, ByteLength
     ///
-    u64 IntByteLength(Int *value);
+    u64 IntByteLength(const Int *value);
 
     ///
     /// Try to compute `floor(log2(value))`.
@@ -52,7 +52,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Log2, Access
     ///
-    bool IntTryLog2(Int *value, u64 *out);
+    bool IntTryLog2(const Int *value, u64 *out);
 
     ///
     /// Compute `floor(log2(value))`.
@@ -66,7 +66,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Log2, Access
     ///
-    u64 IntLog2WithError(Int *value, bool *error);
+    u64 IntLog2WithError(const Int *value, bool *error);
 
     ///
     /// Number of trailing zero bits (equivalent to the largest power of two
@@ -80,7 +80,7 @@ extern "C" {
     ///
     /// TAGS: Int, Access, TrailingZeros
     ///
-    u64 IntTrailingZeroCount(Int *value);
+    u64 IntTrailingZeroCount(const Int *value);
 
     ///
     /// Test whether the integer equals zero.
@@ -92,7 +92,7 @@ extern "C" {
     ///
     /// TAGS: Int, Access, Predicate, IsZero
     ///
-    bool IntIsZero(Int *value);
+    bool IntIsZero(const Int *value);
 
     ///
     /// Test whether the integer equals one.
@@ -104,7 +104,7 @@ extern "C" {
     ///
     /// TAGS: Int, Access, Predicate, IsOne
     ///
-    bool IntIsOne(Int *value);
+    bool IntIsOne(const Int *value);
 
     ///
     /// Test whether the integer's value is even.
@@ -116,7 +116,7 @@ extern "C" {
     ///
     /// TAGS: Int, Access, Predicate, IsEven
     ///
-    bool IntIsEven(Int *value);
+    bool IntIsEven(const Int *value);
 
     ///
     /// Test whether the integer's value is odd.
@@ -128,7 +128,7 @@ extern "C" {
     ///
     /// TAGS: Int, Access, Predicate, IsOdd
     ///
-    bool IntIsOdd(Int *value);
+    bool IntIsOdd(const Int *value);
 
     ///
     /// Test whether the integer's magnitude fits in a 64-bit unsigned value.
@@ -140,7 +140,7 @@ extern "C" {
     ///
     /// TAGS: Int, Access, Predicate, FitsU64
     ///
-    bool IntFitsU64(Int *value);
+    bool IntFitsU64(const Int *value);
 
     ///
     /// Test whether the integer is a power of two (1, 2, 4, 8, ...).
@@ -152,13 +152,13 @@ extern "C" {
     ///
     /// TAGS: Int, Access, Predicate, PowerOfTwo
     ///
-    bool IntIsPowerOfTwo(Int *value);
+    bool IntIsPowerOfTwo(const Int *value);
 
 #ifdef __cplusplus
 }
 #endif
 
-static inline u64 int_log2_no_error(Int *value) {
+static inline u64 int_log2_no_error(const Int *value) {
     return IntLog2WithError(value, NULL);
 }
 

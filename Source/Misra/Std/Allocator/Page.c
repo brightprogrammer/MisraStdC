@@ -11,7 +11,7 @@
 /// allocator's own bookkeeping, where wrong values are structurally
 /// impossible.
 ///
-/// The descriptor table itself is managed via `page_map` / `page_unmap`
+/// The descriptor table itself is managed via `os_page_map` / `os_page_unmap`
 /// directly, NOT through the public Allocator dispatch -- that would
 /// recurse. The table's own mmap length is stored on the allocator
 /// (entries_bytes) so Deinit can release it.
@@ -20,6 +20,16 @@
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 #include <Misra/Sys.h>
+
+#include "_Os.h"
+
+#if PLATFORM_WINDOWS
+#    define PAGE_ALLOCATOR_WINDOWS 1
+#    include <windows.h>
+#else
+#    include <sys/mman.h>
+#    include "../../_Syscall.h"
+#endif
 
 
 // Relational invariants beyond the type-confusion magic check.
@@ -30,20 +40,19 @@
 // allocated. `entries_bytes` records the rounded mmap length of the
 // table itself so PageAllocatorDeinit can unmap it -- it's zero
 // exactly when `entries` is NULL.
-static void page_validate_self(const Allocator *self) {
-    if (!self) {
+static void page_validate_self(const PageAllocator *pg) {
+    if (!pg) {
         LOG_FATAL("PageAllocator: NULL self");
     }
-    if (self->__magic != PAGE_ALLOCATOR_MAGIC) {
+    if (pg->base.__magic != PAGE_ALLOCATOR_MAGIC) {
         LOG_FATAL("type-confusion: allocator passed to page_allocator_* is not a PageAllocator");
     }
-    if (!self->allocate || !self->resize || !self->remap || !self->deallocate) {
+    if (!pg->base.allocate || !pg->base.resize || !pg->base.remap || !pg->base.deallocate) {
         LOG_FATAL("PageAllocator: vtable function pointer is NULL");
     }
-    if (self->alignment == 0 || (self->alignment & (self->alignment - 1)) != 0) {
-        LOG_FATAL("PageAllocator: alignment {} is not a positive power of two", (u64)self->alignment);
+    if (pg->base.alignment == 0 || (pg->base.alignment & (pg->base.alignment - 1)) != 0) {
+        LOG_FATAL("PageAllocator: alignment {} is not a positive power of two", (u64)pg->base.alignment);
     }
-    const PageAllocator *pg = (const PageAllocator *)self;
     if (pg->len > pg->cap) {
         LOG_FATAL("PageAllocator: len {} exceeds cap {}", (u64)pg->len, (u64)pg->cap);
     }
@@ -88,45 +97,11 @@ static void page_validate_self(const Allocator *self) {
     }
 }
 
-#if PLATFORM_WINDOWS
-#    define PAGE_ALLOCATOR_WINDOWS 1
-#    include <windows.h>
-#else
-#    define PAGE_ALLOCATOR_POSIX 1
-#    include <sys/mman.h>
-#    if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
-#        define MAP_ANONYMOUS MAP_ANON
-#    endif
-#endif
-
-// Linux/macOS guarantee these page sizes on the arches we support, so
-// we can answer the query without a libc call (`sysconf(_SC_PAGESIZE)`
-// or `getpagesize()`). Apple Silicon (arm64 darwin) uses 16 KiB
-// pages; everything else on our matrix uses 4 KiB.
-static size page_query_page_size(void) {
-#if defined(PAGE_ALLOCATOR_WINDOWS)
-    // kernel32 -- not libc.
-    SYSTEM_INFO info;
-    GetSystemInfo(&info);
-    if (!info.dwPageSize) {
-        return 4096;
-    }
-    return (size)info.dwPageSize;
-#elif PLATFORM_DARWIN && ARCHITECTURE_AARCH64
-    return 16384;
-#else
-    // Linux/macOS-x86_64/arm64-linux all use 4 KiB. If a future port
-    // lands on a kernel that disagrees, this assumption needs to move
-    // to a runtime query.
-    return 4096;
-#endif
-}
-
 size PageAllocatorPageSize(PageAllocator *self) {
     if (self && self->cached_page_size) {
         return self->cached_page_size;
     }
-    size ps = page_query_page_size();
+    size ps = os_page_size();
     if (self) {
         self->cached_page_size = ps;
     }
@@ -149,44 +124,6 @@ static size page_effective_alignment(PageAllocator *self) {
     return requested;
 }
 
-#include "../../_Syscall.h"
-
-// Linux: mmap/munmap/mprotect via direct syscall (kernel returns
-// negative values < 4096 as -errno; anything else is the success
-// value). macOS / BSD: libSystem wrappers. Windows: kernel32.
-
-static void *page_map(size bytes) {
-#if defined(PAGE_ALLOCATOR_WINDOWS)
-    return VirtualAlloc(NULL, (SIZE_T)bytes, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-#elif FEATURE_DIRECT_SYSCALL
-    long ret = misra_sys6(MISRA_SYS_mmap, 0, (long)bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if ((unsigned long)ret >= (unsigned long)-4095) {
-        return NULL;
-    }
-    return (void *)ret;
-#else
-    void *ptr = mmap(NULL, (size_t)bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (ptr == MAP_FAILED) {
-        return NULL;
-    }
-    return ptr;
-#endif
-}
-
-static void page_unmap(void *ptr, size bytes) {
-    if (!ptr || !bytes) {
-        return;
-    }
-#if defined(PAGE_ALLOCATOR_WINDOWS)
-    (void)bytes;
-    VirtualFree(ptr, 0, MEM_RELEASE);
-#elif FEATURE_DIRECT_SYSCALL
-    (void)misra_sys2(MISRA_SYS_munmap, (long)(u64)ptr, (long)bytes);
-#else
-    munmap(ptr, (size_t)bytes);
-#endif
-}
-
 static size page_rounded_size(PageAllocator *self, size bytes) {
     size align     = page_effective_alignment(self);
     size page_size = PageAllocatorPageSize(self);
@@ -198,7 +135,7 @@ static size page_rounded_size(PageAllocator *self, size bytes) {
 
 // ---------------------------------------------------------------------------
 // Descriptor-table management. The table is itself a page-backed region
-// allocated via `page_map` (not through the public Allocator dispatch --
+// allocated via `os_page_map` (not through the public Allocator dispatch --
 // that would recurse). Geometric growth: first grow fills exactly one
 // OS page; doublings thereafter.
 
@@ -247,13 +184,13 @@ static bool page_table_grow_into(PageAllocator *page,
     if (!new_rounded) {
         return false;
     }
-    PageEntry *new_table = (PageEntry *)page_map(new_rounded);
+    PageEntry *new_table = (PageEntry *)os_page_map(new_rounded);
     if (!new_table) {
         return false;
     }
     if (*arr_p) {
         MemCopy(new_table, *arr_p, (size)*len_p * sizeof(PageEntry));
-        page_unmap(*arr_p, *bytes_p);
+        os_page_unmap(*arr_p, *bytes_p);
     }
     *arr_p   = new_table;
     *bytes_p = new_rounded;
@@ -356,13 +293,12 @@ static bool page_free_insert_sorted(PageAllocator *page, void *ptr, size bytes) 
 // ---------------------------------------------------------------------------
 // Public alloc / resize / remap / free.
 
-void *page_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
+void *page_allocator_allocate(PageAllocator *self, size bytes, i8 zeroed) {
     page_validate_self(self);
     if (!bytes) {
         return NULL;
     }
-    PageAllocator *page    = (PageAllocator *)self;
-    size           rounded = page_rounded_size(page, bytes);
+    size rounded = page_rounded_size(self, bytes);
 
     // Reuse first: if we've previously handed out a region of exactly
     // this rounded size and the user freed it, take it back instead of
@@ -372,15 +308,15 @@ void *page_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     // table). If the caller asked for zeroed memory, we explicitly
     // zero the page here; a fresh mmap from the kernel is already
     // zero, so the non-reuse path skips this.
-    u32 hit = page_free_find_size_match(page, rounded);
+    u32 hit = page_free_find_size_match(self, rounded);
     if (hit != (u32)-1) {
-        void *ptr = page->free_entries[hit].ptr;
-        if (!page_table_insert_sorted(page, &page->entries, &page->len, &page->cap,
-                                      &page->entries_bytes, ptr, rounded)) {
+        void *ptr = self->free_entries[hit].ptr;
+        if (!page_table_insert_sorted(self, &self->entries, &self->len, &self->cap,
+                                      &self->entries_bytes, ptr, rounded)) {
             // Failed to register in the live table; leave the entry on
             // the free list and fall through to mmap.
         } else {
-            page_table_remove_sorted_at(page->free_entries, &page->free_len, hit);
+            page_table_remove_sorted_at(self->free_entries, &self->free_len, hit);
             if (zeroed) {
                 MemSet(ptr, 0, rounded);
             }
@@ -389,14 +325,14 @@ void *page_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     }
 
     // Cache miss -- ask the kernel.
-    void *ptr = page_map(rounded);
+    void *ptr = os_page_map(rounded);
     if (!ptr) {
         return NULL;
     }
-    if (!page_table_insert_sorted(page, &page->entries, &page->len, &page->cap,
-                                  &page->entries_bytes, ptr, rounded)) {
+    if (!page_table_insert_sorted(self, &self->entries, &self->len, &self->cap,
+                                  &self->entries_bytes, ptr, rounded)) {
         // Table grow failed: don't strand the user mmap we just made.
-        page_unmap(ptr, rounded);
+        os_page_unmap(ptr, rounded);
         return NULL;
     }
     // OS-mapped pages are kernel-zeroed, no need to honour `zeroed`
@@ -411,23 +347,21 @@ void *page_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
 // on macOS we don't have it, on Linux it can fail anyway if a
 // neighbouring VMA blocks growth. Either way, we don't attempt it --
 // the caller can fall back to remap, which alloc+copy+frees.
-i8 page_allocator_resize(Allocator *self, void *ptr, size new_size) {
+i8 page_allocator_resize(PageAllocator *self, void *ptr, size new_size) {
     page_validate_self(self);
-    PageAllocator *page = (PageAllocator *)self;
-    u32            idx  = page_find_idx(page, ptr);
+    u32 idx = page_find_idx(self, ptr);
     if (idx == (u32)-1) {
         // Unknown pointer -- resize can't succeed without knowing the
         // real mapping length; let the caller fall back to remap.
         return 0;
     }
-    size old_rounded = page->entries[idx].bytes;
-    size new_rounded = page_rounded_size(page, new_size);
+    size old_rounded = self->entries[idx].bytes;
+    size new_rounded = page_rounded_size(self, new_size);
     return old_rounded == new_rounded ? 1 : 0;
 }
 
-void *page_allocator_remap(Allocator *self, void *ptr, size new_size) {
+void *page_allocator_remap(PageAllocator *self, void *ptr, size new_size) {
     page_validate_self(self);
-    PageAllocator *page = (PageAllocator *)self;
 
     if (new_size == 0) {
         if (ptr) {
@@ -439,13 +373,13 @@ void *page_allocator_remap(Allocator *self, void *ptr, size new_size) {
         return page_allocator_allocate(self, new_size, true);
     }
 
-    u32 idx = page_find_idx(page, ptr);
+    u32 idx = page_find_idx(self, ptr);
     if (idx == (u32)-1) {
         LOG_FATAL("page_remap: foreign or already-freed ptr {x}", (u64)ptr);
         return NULL;
     }
-    size old_rounded = page->entries[idx].bytes;
-    size new_rounded = page_rounded_size(page, new_size);
+    size old_rounded = self->entries[idx].bytes;
+    size new_rounded = page_rounded_size(self, new_size);
     if (old_rounded == new_rounded) {
         return ptr;
     }
@@ -459,13 +393,12 @@ void *page_allocator_remap(Allocator *self, void *ptr, size new_size) {
     return fresh;
 }
 
-size page_allocator_deallocate(Allocator *self, void *ptr) {
+size page_allocator_deallocate(PageAllocator *self, void *ptr) {
     page_validate_self(self);
     if (!ptr) {
         return 0;
     }
-    PageAllocator *page = (PageAllocator *)self;
-    u32            idx  = page_find_idx(page, ptr);
+    u32 idx = page_find_idx(self, ptr);
     if (idx == (u32)-1) {
         // Missing from entries[] -- either foreign or already on the
         // free_entries[] retention list. We don't distinguish: the
@@ -475,19 +408,42 @@ size page_allocator_deallocate(Allocator *self, void *ptr) {
         LOG_FATAL("page_free: foreign or already-freed ptr {x}", (u64)ptr);
         return 0;
     }
-    size bytes = page->entries[idx].bytes;
+    size bytes = self->entries[idx].bytes;
     // Retention: move the entry from entries[] to free_entries[]
     // rather than munmap. Next allocate() of this rounded size will
     // pop it back without a syscall. The freed page's bytes are NOT
     // touched -- allocator state lives in the sibling table.
-    if (!page_free_insert_sorted(page, ptr, bytes)) {
+    if (!page_free_insert_sorted(self, ptr, bytes)) {
         // Free-list grow failed: fall back to munmap so we don't strand
         // the mapping. Rare path (only on extreme address-space
         // pressure for the free-list metadata buffer itself).
-        page_unmap(ptr, bytes);
+        os_page_unmap(ptr, bytes);
     }
-    page_table_remove_sorted_at(page->entries, &page->len, idx);
+    page_table_remove_sorted_at(self->entries, &self->len, idx);
     return bytes;
+}
+
+size PageAllocatorFootprintBytes(const PageAllocator *self) {
+    if (!self) {
+        return 0;
+    }
+    // Live regions still owned by the user.
+    size total = 0;
+    for (u32 i = 0; i < self->len; i++) {
+        total += self->entries[i].bytes;
+    }
+    // Retained regions: user freed them, but the allocator's release
+    // policy keeps the mmap around until Deinit so the kernel still
+    // counts them as part of this process's address space.
+    for (u32 i = 0; i < self->free_len; i++) {
+        total += self->free_entries[i].bytes;
+    }
+    // The descriptor tables themselves are page-mapped via os_page_map
+    // (see page_table_grow_into) and live for the allocator's lifetime,
+    // so they belong in the kernel-visible footprint too.
+    total += self->entries_bytes;
+    total += self->free_entries_bytes;
+    return total;
 }
 
 void PageAllocatorDeinit(PageAllocator *self) {
@@ -497,19 +453,19 @@ void PageAllocatorDeinit(PageAllocator *self) {
     // Anything still in `entries` is a caller leak (forgot to Free).
     // Release the kernel mappings so they don't outlive the allocator.
     for (u32 i = 0; i < self->len; i++) {
-        page_unmap(self->entries[i].ptr, self->entries[i].bytes);
+        os_page_unmap(self->entries[i].ptr, self->entries[i].bytes);
     }
     // Retained-but-unowned regions: deinit is the only point where the
     // OS gets these pages back. Without this loop the process would
     // leak every region the allocator had ever held.
     for (u32 i = 0; i < self->free_len; i++) {
-        page_unmap(self->free_entries[i].ptr, self->free_entries[i].bytes);
+        os_page_unmap(self->free_entries[i].ptr, self->free_entries[i].bytes);
     }
     if (self->entries) {
-        page_unmap(self->entries, self->entries_bytes);
+        os_page_unmap(self->entries, self->entries_bytes);
     }
     if (self->free_entries) {
-        page_unmap(self->free_entries, self->free_entries_bytes);
+        os_page_unmap(self->free_entries, self->free_entries_bytes);
     }
     MemSet(self, 0, sizeof(*self));
 }
@@ -560,13 +516,13 @@ bool PageProtect(void *ptr, size bytes, PageProtection prot) {
 #    if FEATURE_DIRECT_SYSCALL
     long ret = misra_sys3(MISRA_SYS_mprotect, (long)(u64)ptr, (long)bytes, (long)posix_prot);
     if (ret != 0) {
-        LOG_ERROR("PageProtect: mprotect failed (errno {})", (i32)-ret);
+        LOG_SYS_ERROR(ErrnoOf((i32)ret), "PageProtect: mprotect failed");
         return false;
     }
 #    else
     if (mprotect(ptr, (size_t)bytes, posix_prot) != 0) {
         // libc path (macOS / non-direct-syscall): mprotect returns -1
-        // and sets errno; ErrnoOf falls through to reading it here.
+        // and the system error is recovered through ErrnoOf below.
         LOG_SYS_ERROR(ErrnoOf(-1), "PageProtect: mprotect failed");
         return false;
     }

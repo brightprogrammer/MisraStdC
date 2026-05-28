@@ -1,4 +1,4 @@
-/// file      : std/graph.c
+/// file      : std/container/graph.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -98,13 +98,13 @@ static const GenericGraphSlot *graph_require_live_slot_const(const GenericGraph 
 static GraphNode graph_validate_node_handle(GraphNode node) {
     GenericGraph *graph;
 
-    graph = GENERIC_GRAPH(node.__graph);
+    graph = GENERIC_GRAPH(node._graph_);
     if (!graph) {
         LOG_FATAL("invalid graph node handle");
     }
 
     ValidateGraph(graph);
-    graph_validate_node_id(graph, node.__id);
+    graph_validate_node_id(graph, node._id_);
     return node;
 }
 
@@ -306,6 +306,13 @@ void validate_graph(const GenericGraph *graph) {
 
     if (graph->__magic != GRAPH_MAGIC) {
         LOG_FATAL("Graph is uninitialized or corrupted");
+    }
+
+    // Graph has no stack-init form, so a NULL allocator on a magic-OK
+    // handle means corruption between init and use. Surface it before
+    // dereferencing the method table.
+    if (!graph->allocator) {
+        LOG_FATAL("Graph allocator pointer is NULL");
     }
 
     if (!graph->allocator->allocate || !graph->allocator->resize || !graph->allocator->remap ||
@@ -626,8 +633,8 @@ GraphNode graph_get_node(GenericGraph *graph, GraphNodeId node_id) {
     ValidateGraph(graph);
     graph_validate_node_id(graph, node_id);
 
-    node.__graph = graph;
-    node.__id    = node_id;
+    node._graph_ = graph;
+    node._id_    = node_id;
     return node;
 }
 
@@ -638,11 +645,11 @@ void *graph_node_ptr_at(GenericGraph *graph, GraphNodeId node_id) {
 void *graph_node_data_ptr_checked(GenericGraph *graph, GraphNode node) {
     GraphNode validated = graph_validate_node_handle(node);
 
-    if (GENERIC_GRAPH(validated.__graph) != graph) {
+    if (GENERIC_GRAPH(validated._graph_) != graph) {
         LOG_FATAL("graph node handle does not belong to the provided graph");
     }
 
-    return graph_node_ptr_at(graph, validated.__id);
+    return graph_node_ptr_at(graph, validated._id_);
 }
 
 GraphNeighbors *graph_out_neighbors_ptr(GenericGraph *graph, GraphNodeId node_id) {
@@ -743,8 +750,8 @@ u64 graph_node_visit(GraphNode node) {
     GenericGraphSlot *slot;
 
     node  = graph_validate_node_handle(node);
-    graph = GENERIC_GRAPH(node.__graph);
-    slot  = graph_require_live_slot(graph, node.__id);
+    graph = GENERIC_GRAPH(node._graph_);
+    slot  = graph_require_live_slot(graph, node._id_);
 
     if (slot->visit_count == UINT64_MAX) {
         LOG_FATAL("graph node visit count overflow");
@@ -759,8 +766,8 @@ void graph_node_unvisit(GraphNode node) {
     GenericGraphSlot *slot;
 
     node  = graph_validate_node_handle(node);
-    graph = GENERIC_GRAPH(node.__graph);
-    slot  = graph_require_live_slot(graph, node.__id);
+    graph = GENERIC_GRAPH(node._graph_);
+    slot  = graph_require_live_slot(graph, node._id_);
 
     slot->visit_count = 0;
 }
@@ -770,8 +777,8 @@ u64 graph_node_visit_count(GraphNode node) {
     const GenericGraphSlot *slot;
 
     node  = graph_validate_node_handle(node);
-    graph = GENERIC_GRAPH(node.__graph);
-    slot  = graph_require_live_slot_const(graph, node.__id);
+    graph = GENERIC_GRAPH(node._graph_);
+    slot  = graph_require_live_slot_const(graph, node._id_);
     return slot->visit_count;
 }
 
@@ -784,8 +791,8 @@ bool graph_mark_node_for_deletion(GraphNode node) {
     GenericGraphSlot *slot;
 
     node  = graph_validate_node_handle(node);
-    graph = GENERIC_GRAPH(node.__graph);
-    slot  = graph_require_live_slot(graph, node.__id);
+    graph = GENERIC_GRAPH(node._graph_);
+    slot  = graph_require_live_slot(graph, node._id_);
 
     if (graph_slot_is_marked(slot)) {
         return false;
@@ -801,8 +808,8 @@ bool graph_node_marked_for_deletion(GraphNode node) {
     const GenericGraphSlot *slot;
 
     node  = graph_validate_node_handle(node);
-    graph = GENERIC_GRAPH(node.__graph);
-    slot  = graph_require_live_slot_const(graph, node.__id);
+    graph = GENERIC_GRAPH(node._graph_);
+    slot  = graph_require_live_slot_const(graph, node._id_);
 
     return graph_slot_is_marked(slot);
 }
@@ -812,8 +819,8 @@ bool graph_unmark_node_for_deletion(GraphNode node) {
     GenericGraphSlot *slot;
 
     node  = graph_validate_node_handle(node);
-    graph = GENERIC_GRAPH(node.__graph);
-    slot  = graph_require_live_slot(graph, node.__id);
+    graph = GENERIC_GRAPH(node._graph_);
+    slot  = graph_require_live_slot(graph, node._id_);
 
     if (!graph_slot_is_marked(slot)) {
         return false;
@@ -958,8 +965,8 @@ bool graph_node_iter_next(GenericGraphNodeIter *iter, GraphNode *out_node) {
         iter->slot_index        += 1;
 
         if (graph_slot_is_occupied(slot)) {
-            out_node->__graph = iter->graph;
-            out_node->__id    = graph_make_node_id(index, slot->generation);
+            out_node->_graph_ = iter->graph;
+            out_node->_id_    = graph_make_node_id(index, slot->generation);
             return true;
         }
     }
@@ -972,10 +979,10 @@ GenericGraphNeighborIter graph_neighbor_iter_begin(GraphNode node) {
     GenericGraph            *graph;
 
     node  = graph_validate_node_handle(node);
-    graph = GENERIC_GRAPH(node.__graph);
+    graph = GENERIC_GRAPH(node._graph_);
 
     iter.graph                   = graph;
-    iter.source_id               = node.__id;
+    iter.source_id               = node._id_;
     iter.neighbor_index          = 0;
     iter.expected_mutation_epoch = graph->mutation_epoch;
     return iter;
@@ -1006,8 +1013,8 @@ bool graph_neighbor_iter_next(GenericGraphNeighborIter *iter, GraphNode *out_nod
 
         graph_validate_node_id(iter->graph, neighbor_id);
 
-        out_node->__graph = iter->graph;
-        out_node->__id    = neighbor_id;
+        out_node->_graph_ = iter->graph;
+        out_node->_id_    = neighbor_id;
         return true;
     }
 
@@ -1019,10 +1026,10 @@ GenericGraphPredecessorIter graph_predecessor_iter_begin(GraphNode node) {
     GenericGraph               *graph;
 
     node  = graph_validate_node_handle(node);
-    graph = GENERIC_GRAPH(node.__graph);
+    graph = GENERIC_GRAPH(node._graph_);
 
     iter.graph                   = graph;
-    iter.target_id               = node.__id;
+    iter.target_id               = node._id_;
     iter.predecessor_index       = 0;
     iter.expected_mutation_epoch = graph->mutation_epoch;
     return iter;
@@ -1053,8 +1060,8 @@ bool graph_predecessor_iter_next(GenericGraphPredecessorIter *iter, GraphNode *o
 
         graph_validate_node_id(iter->graph, predecessor_id);
 
-        out_node->__graph = iter->graph;
-        out_node->__id    = predecessor_id;
+        out_node->_graph_ = iter->graph;
+        out_node->_id_    = predecessor_id;
         return true;
     }
 

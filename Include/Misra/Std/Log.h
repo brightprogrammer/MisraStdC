@@ -27,8 +27,8 @@ void Abort(void);
 ///
 /// ...[in] : Format string and arguments following printf-style syntax.
 ///
-/// SUCCESS: Message logged and program aborted via abort()
-/// FAILURE: Logging may fail silently, but abort() will still execute
+/// SUCCESS: Message logged and program aborted via `Abort()`
+/// FAILURE: Logging may fail silently, but `Abort()` will still execute
 ///
 /// TAGS: Logging, Macro, Fatal, System
 ///
@@ -37,34 +37,54 @@ void Abort(void);
         HeapAllocator UNPL(log_alloc) = HeapAllocatorInit();                                                           \
         Str           UNPL(m)         = StrInit(&UNPL(log_alloc));                                                     \
         StrAppendFmt(&UNPL(m), __VA_ARGS__);                                                                           \
-        LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, StrBegin(&UNPL(m)));                                            \
+        LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, StrBegin(&UNPL(m)));                                      \
         StrDeinit(&UNPL(m));                                                                                           \
         HeapAllocatorDeinit(&UNPL(log_alloc));                                                                         \
         Abort();                                                                                                       \
     } while (0)
 
 ///
-/// Writes an error-level log message.
+/// Writes an error-level log message. Format string + args follow the
+/// `StrAppendFmt` placeholder vocabulary; the line lands on fd 2.
+///
+/// ...[in] : Format string and arguments.
+///
+/// SUCCESS : Message formatted via a stack-local `HeapAllocator` and
+///           written to the diagnostic channel.
+/// FAILURE : Formatter / `FileWrite` errors are dropped silently; the
+///           caller continues regardless (LOG_ERROR is best-effort).
+///
+/// TAGS: Logging, Macro, Error
 ///
 #define LOG_ERROR(...)                                                                                                 \
     do {                                                                                                               \
         HeapAllocator UNPL(log_alloc) = HeapAllocatorInit();                                                           \
         Str           UNPL(m)         = StrInit(&UNPL(log_alloc));                                                     \
         StrAppendFmt(&UNPL(m), __VA_ARGS__);                                                                           \
-        LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, StrBegin(&UNPL(m)));                                            \
+        LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, StrBegin(&UNPL(m)));                                      \
         StrDeinit(&UNPL(m));                                                                                           \
         HeapAllocatorDeinit(&UNPL(log_alloc));                                                                         \
     } while (0)
 
 ///
-/// Writes an informational log message.
+/// Writes an informational log message. Format string + args follow
+/// the `StrAppendFmt` placeholder vocabulary; the line lands on fd 1.
+///
+/// ...[in] : Format string and arguments.
+///
+/// SUCCESS : Message formatted via a stack-local `HeapAllocator` and
+///           written to the normal output channel.
+/// FAILURE : Formatter / `FileWrite` errors are dropped silently; the
+///           caller continues regardless (LOG_INFO is best-effort).
+///
+/// TAGS: Logging, Macro, Info
 ///
 #define LOG_INFO(...)                                                                                                  \
     do {                                                                                                               \
         HeapAllocator UNPL(log_alloc) = HeapAllocatorInit();                                                           \
         Str           UNPL(m)         = StrInit(&UNPL(log_alloc));                                                     \
         StrAppendFmt(&UNPL(m), __VA_ARGS__);                                                                           \
-        LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, StrBegin(&UNPL(m)));                                             \
+        LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, StrBegin(&UNPL(m)));                                       \
         StrDeinit(&UNPL(m));                                                                                           \
         HeapAllocatorDeinit(&UNPL(log_alloc));                                                                         \
     } while (0)
@@ -81,6 +101,17 @@ void Abort(void);
 /// Use `ErrnoOf(ret)` from `<Misra/Sys.h>` to convert a syscall
 /// return value to an errno code in a platform-portable way.
 ///
+/// eno[in] : System error code.
+/// ...[in] : Format string and arguments.
+///
+/// SUCCESS : Message + decoded error description appended; line
+///           written to fd 2; `Abort()` invoked. Never returns on
+///           the success path either.
+/// FAILURE : Formatter / `FileWrite` errors are dropped; `Abort()`
+///           still executes.
+///
+/// TAGS: Logging, Macro, Fatal, System, Errno
+///
 #define LOG_SYS_FATAL(eno, ...)                                                                                        \
     do {                                                                                                               \
         i32           UNPL(sys_eno)   = (i32)(eno);                                                                    \
@@ -91,7 +122,7 @@ void Abort(void);
             StrError(UNPL(sys_eno), &UNPL(syserr));                                                                    \
             StrAppendFmt(&UNPL(m), " : {}", UNPL(syserr));                                                             \
         }                                                                                                              \
-        LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, StrBegin(&UNPL(m)));                                            \
+        LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, StrBegin(&UNPL(m)));                                      \
         StrDeinit(&UNPL(m));                                                                                           \
         HeapAllocatorDeinit(&UNPL(log_alloc));                                                                         \
         Abort();                                                                                                       \
@@ -101,6 +132,14 @@ void Abort(void);
 /// Writes an error-level log message with the caller-supplied system
 /// error code explained. See `LOG_SYS_FATAL` for the errno-passing
 /// rationale.
+///
+/// eno[in] : System error code.
+/// ...[in] : Format string and arguments.
+///
+/// SUCCESS : Message + decoded error description written to fd 2.
+/// FAILURE : Formatter / `FileWrite` errors are dropped silently.
+///
+/// TAGS: Logging, Macro, Error, System, Errno
 ///
 #define LOG_SYS_ERROR(eno, ...)                                                                                        \
     do {                                                                                                               \
@@ -112,14 +151,23 @@ void Abort(void);
             StrError(UNPL(sys_eno), &UNPL(syserr));                                                                    \
             StrAppendFmt(&UNPL(m), " : {}", UNPL(syserr));                                                             \
         }                                                                                                              \
-        LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, StrBegin(&UNPL(m)));                                            \
+        LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, StrBegin(&UNPL(m)));                                      \
         StrDeinit(&UNPL(m));                                                                                           \
         HeapAllocatorDeinit(&UNPL(log_alloc));                                                                         \
     } while (0)
 
 ///
 /// Writes an informational log message with the caller-supplied system
-/// error code explained.
+/// error code explained. See `LOG_SYS_FATAL` for the errno-passing
+/// rationale.
+///
+/// eno[in] : System error code.
+/// ...[in] : Format string and arguments.
+///
+/// SUCCESS : Message + decoded error description written to fd 1.
+/// FAILURE : Formatter / `FileWrite` errors are dropped silently.
+///
+/// TAGS: Logging, Macro, Info, System, Errno
 ///
 #define LOG_SYS_INFO(eno, ...)                                                                                         \
     do {                                                                                                               \
@@ -131,7 +179,7 @@ void Abort(void);
             StrError(UNPL(sys_eno), &UNPL(syserr));                                                                    \
             StrAppendFmt(&UNPL(m), " : {}", UNPL(syserr));                                                             \
         }                                                                                                              \
-        LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, StrBegin(&UNPL(m)));                                             \
+        LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, StrBegin(&UNPL(m)));                                       \
         StrDeinit(&UNPL(m));                                                                                           \
         HeapAllocatorDeinit(&UNPL(log_alloc));                                                                         \
     } while (0)

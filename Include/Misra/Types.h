@@ -12,7 +12,9 @@
 // build time and installed alongside the rest of the public headers.
 #include <Misra/Config.h>
 
-// take an 8 character string and
+// Pack an 8-character tag string into a u64 sentinel used as the
+// `__magic` field on containers/allocators for runtime type-discrimination
+// and uninitialised-object detection.
 #define MAKE_NEW_MAGIC_VALUE(s)                                                                                        \
     ((((u64)(s[0]) << 56) ^ ((u64)(s[1]) << 48) ^ ((u64)(s[2]) << 40) ^ ((u64)(s[3]) << 32) ^ ((u64)(s[4]) << 24) ^    \
       ((u64)(s[5]) << 16) ^ ((u64)(s[6]) << 8) ^ ((u64)(s[7]))))
@@ -136,7 +138,7 @@ typedef i8 bool;
 #    endif
 
 #    ifndef NULL
-#        define NULL 0
+#        define NULL ((void *)0)
 #    endif
 #endif
 
@@ -575,7 +577,7 @@ struct check_type_eq<true> {
 /// FAILURE: Function cannot fail - pure bitwise operation.
 ///
 /// TAGS: Endianness, Bitwise, Conversion
-#define INVERT_ENDIANNESS2(x) ((((u16)x) >> 8) & 0xff) | ((((u16)x) & 0xff) << 8)
+#define INVERT_ENDIANNESS2(x) (((((u16)(x)) >> 8) & 0xff) | ((((u16)(x)) & 0xff) << 8))
 
 ///
 /// Inverts endianness of 32-bit (4-byte) value.
@@ -587,7 +589,7 @@ struct check_type_eq<true> {
 ///
 /// TAGS: Endianness, Bitwise, Conversion
 #define INVERT_ENDIANNESS4(x)                                                                                          \
-    (INVERT_ENDIANNESS2(((u32)x) & 0xffff) << 16) | INVERT_ENDIANNESS2((((u32)x) >> 16) & 0xffff)
+    (((u32)INVERT_ENDIANNESS2(((u32)(x)) & 0xffff) << 16) | (u32)INVERT_ENDIANNESS2((((u32)(x)) >> 16) & 0xffff))
 
 ///
 /// Inverts endianness of 64-bit (8-byte) value.
@@ -599,7 +601,8 @@ struct check_type_eq<true> {
 ///
 /// TAGS: Endianness, Bitwise, Conversion
 #define INVERT_ENDIANNESS8(x)                                                                                          \
-    (INVERT_ENDIANNESS4(((u64)x) & 0xffffffff) << 32) | INVERT_ENDIANNESS4((((u64)x) >> 32) & 0xffffffff)
+    (((u64)INVERT_ENDIANNESS4(((u64)(x)) & 0xffffffff) << 32) |                                                        \
+     (u64)INVERT_ENDIANNESS4((((u64)(x)) >> 32) & 0xffffffff))
 
 ///
 /// Compile-time endianness detection.
@@ -815,7 +818,7 @@ struct check_type_eq<true> {
 /// FAILURE: No-op when using MSVC compiler.
 ///
 /// TAGS: Compiler, Compatibility, Validation
-#    define FORMAT_STRING(fmt_pos, va_arg_pos) __attribute((format(printf, fmt_pos, va_arg_pos)))
+#    define FORMAT_STRING(fmt_pos, va_arg_pos) __attribute__((format(printf, fmt_pos, va_arg_pos)))
 #endif
 
 ///
@@ -887,31 +890,31 @@ struct check_type_eq<true> {
 /// Count the number of arguments in a variadic macro pack, 0 through 16.
 /// Requires `__VA_OPT__` (C23 / current GCC, clang, MSVC).
 ///
-/// Usage: `MISRA_NARG(a, b, c)` -> `3`, `MISRA_NARG()` -> `0`.
+/// Usage: `NARG(a, b, c)` -> `3`, `NARG()` -> `0`.
 ///
-#define MISRA_NARG(...)                                                                                                \
-    MISRA_NARG_IMPL(0 __VA_OPT__(, ) __VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
-#define MISRA_NARG_IMPL(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, N, ...) N
+#define NARG(...)                                                                                                \
+    NARG_IMPL(0 __VA_OPT__(, ) __VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define NARG_IMPL(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, N, ...) N
 
 ///
 /// Variadic macro overload by argument count. Dispatches a call
-/// `MISRA_OVERLOAD(Name, ...)` to `Name_<N>(...)` where N is the
-/// argument count returned by `MISRA_NARG`. The caller is responsible
+/// `OVERLOAD(Name, ...)` to `Name_<N>(...)` where N is the
+/// argument count returned by `NARG`. The caller is responsible
 /// for defining each overload (`Name_0`, `Name_1`, ...) that they
 /// want to accept.
 ///
 /// Usage:
 ///
-///   #define MyInit(...)   MISRA_OVERLOAD(MyInit, __VA_ARGS__)
+///   #define MyInit(...)   OVERLOAD(MyInit, __VA_ARGS__)
 ///   #define MyInit_0()    MyInit_1(MisraScope)
 ///   #define MyInit_1(p)   { ..., .allocator = ALLOCATOR_OF(p) }
 ///
-/// Two indirections so `MISRA_NARG` fully expands before the `##`
-/// concatenation in `MISRA_OVERLOAD__`.
+/// Two indirections so `NARG` fully expands before the `##`
+/// concatenation in `OVERLOAD__`.
 ///
-#define MISRA_OVERLOAD(name, ...)      MISRA_OVERLOAD_(name, MISRA_NARG(__VA_ARGS__), __VA_ARGS__)
-#define MISRA_OVERLOAD_(name, N, ...)  MISRA_OVERLOAD__(name, N, __VA_ARGS__)
-#define MISRA_OVERLOAD__(name, N, ...) CONCAT(name##_, N)(__VA_ARGS__)
+#define OVERLOAD(name, ...)      OVERLOAD_(name, NARG(__VA_ARGS__), __VA_ARGS__)
+#define OVERLOAD_(name, N, ...)  OVERLOAD__(name, N, __VA_ARGS__)
+#define OVERLOAD__(name, N, ...) CONCAT(name##_, N)(__VA_ARGS__)
 
 
 #endif // MISRA_TYPES_H

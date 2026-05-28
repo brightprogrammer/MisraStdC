@@ -20,14 +20,14 @@
 ///
 /// Alloc is O(N slabs) worst case (linear scan of bitmaps until a free
 /// bit is found), O(1) when the first slab has space. Growing the
-/// allocator means asking PageAllocator for one more OS page and
-/// inserting it sorted into `slabs[]`.
+/// allocator means asking the kernel for one more OS page and
+/// inserting it sorted into `slabs[]`. SlabAllocator talks to the kernel
+/// directly; there is no embedded PageAllocator.
 
 #ifndef MISRA_STD_ALLOCATOR_SLAB_H
 #define MISRA_STD_ALLOCATOR_SLAB_H
 
 #include <Misra/Std/Allocator.h>
-#include <Misra/Std/Allocator/Page.h>
 
 ///
 /// Per-type magic for `SlabAllocator`. Stamped into
@@ -73,14 +73,68 @@ extern "C" {
         // For slot_size >= 64 and PAGE_SIZE = 4096 this is 1, so the
         // multiply degenerates to a no-op.
         u8 bitmap_words_per_slab;
-
-        PageAllocator page;
     } SlabAllocator;
 
-    void *slab_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
-    i8    slab_allocator_resize(Allocator *self, void *ptr, size new_size);
-    void *slab_allocator_remap(Allocator *self, void *ptr, size new_size);
-    size  slab_allocator_deallocate(Allocator *self, void *ptr);
+    ///
+    /// Allocate one fixed-size slot. `bytes` must fit within the slab's
+    /// configured `slot_size` (caught at the validator on first use).
+    /// Scans the bitmap of each live slab for the first free bit; if
+    /// every slab is full, asks the kernel for one more OS page and
+    /// inserts it sorted into `slabs[]`.
+    ///
+    /// SUCCESS: Returns a writable, `slot_size`-aligned pointer to a
+    ///          fresh slot. Zeroed when `zeroed` is non-zero.
+    /// FAILURE: Returns NULL when no free slot exists and the grow
+    ///          path (kernel page-mapping call or descriptor /
+    ///          bitmap-table grow) fails.
+    ///
+    /// TAGS: Allocator, Slab, Memory, Allocation
+    ///
+    void *slab_allocator_allocate(SlabAllocator *self, size bytes, i8 zeroed);
+
+    ///
+    /// In-place resize. Every slot has the same fixed size, so a
+    /// resize succeeds iff `new_size` still fits in `slot_size`.
+    ///
+    /// SUCCESS: Returns 1 when `new_size <= slot_size`. The pointer
+    ///          stays valid; no slab state changes.
+    /// FAILURE: Returns 0 when `new_size > slot_size`. The slot is
+    ///          unchanged; the caller can move to a different slab.
+    ///
+    /// TAGS: Allocator, Slab, Memory, InPlace
+    ///
+    i8    slab_allocator_resize(SlabAllocator *self, void *ptr, size new_size);
+
+    ///
+    /// Resize a slab allocation with relocation allowed. Because every
+    /// slab has one fixed slot size, any request that does not fit in
+    /// `slot_size` cannot be served by the same allocator and the call
+    /// fails; callers that need a different size class must route to a
+    /// different `SlabAllocator`.
+    ///
+    /// SUCCESS: Returns `ptr` unchanged when `new_size <= slot_size`.
+    ///          When `ptr` is NULL this behaves like
+    ///          `slab_allocator_allocate(self, new_size, 0)`.
+    /// FAILURE: Returns NULL when `new_size > slot_size`. The old
+    ///          allocation is left untouched.
+    ///
+    /// TAGS: Allocator, Slab, Memory, Reallocation
+    ///
+    void *slab_allocator_remap(SlabAllocator *self, void *ptr, size new_size);
+
+    ///
+    /// Free a slot. Binary-searches `slabs[]` for the page that
+    /// contains `ptr`, computes the in-slab slot index by shift, and
+    /// clears the bitmap bit. No chunk-list walk, no per-slab header.
+    ///
+    /// SUCCESS: Returns `slot_size` (what stats accounting sees).
+    /// FAILURE: Aborts via `LOG_FATAL` when `ptr` is foreign to this
+    ///          slab, mis-aligned within its page, or its bitmap bit
+    ///          is already clear (double-free).
+    ///
+    /// TAGS: Allocator, Slab, Memory, Deallocation
+    ///
+    size  slab_allocator_deallocate(SlabAllocator *self, void *ptr);
 
     ///
     /// Release every slab page and the bitmaps buffer owned by `self`,
@@ -111,8 +165,8 @@ extern "C" {
 ///
 /// This is the policy that lets callers write `SlabAllocatorInit(
 /// sizeof(MyType))` for arbitrary type sizes -- e.g. a 28-byte
-/// struct goes into 32-byte slots, like the way glibc rounds a
-/// 2-byte malloc up to its 24-byte minimum chunk.
+/// struct goes into 32-byte slots: the next power of two at or
+/// above the requested size is the effective slot size.
 ///
 /// s[in] : Requested slot size in bytes.
 ///
@@ -170,13 +224,27 @@ extern "C" {
 /// since the minimum slot size is also 16 and every slot is naturally
 /// MAX_ALIGN-aligned within its OS page.
 ///
+/// `slot_size_bytes` MUST be side-effect-free -- the macro expands it
+/// through `SLAB_ROUNDUP_POW2` and `SLAB_SHIFT_FROM_SIZE`, each of
+/// which evaluates its argument many times in a ternary cascade.
+/// Pass a literal or a const local; do NOT pass `expr++` or a
+/// function call.
+///
+/// SUCCESS: Returns a fully-initialised `SlabAllocator` value. No
+///          OS calls happen at init; the first allocation triggers
+///          the first kernel page map.
+/// FAILURE: Cannot fail at macro-expansion time. A bad `slot_size_bytes`
+///          is caught on first allocation by the validator.
+///
+/// TAGS: Allocator, Slab, Init
+///
 #define SlabAllocatorInit(slot_size_bytes)                                                                             \
     ((SlabAllocator) {                                                                                                 \
         .base =                                                                                                        \
-            {.allocate    = slab_allocator_allocate,                                                                   \
-                   .resize      = slab_allocator_resize,                                                                     \
-                   .remap       = slab_allocator_remap,                                                                      \
-                   .deallocate  = slab_allocator_deallocate,                                                                 \
+            {.allocate    = (AllocatorAllocateFn)slab_allocator_allocate,                                              \
+                   .resize      = (AllocatorResizeFn)slab_allocator_resize,                                                  \
+                   .remap       = (AllocatorRemapFn)slab_allocator_remap,                                                    \
+                   .deallocate  = (AllocatorDeallocateFn)slab_allocator_deallocate,                                          \
                    .alignment   = 16,                                                                                        \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \
@@ -188,7 +256,6 @@ extern "C" {
         .slot_size             = SLAB_ROUNDUP_POW2(slot_size_bytes),                                             \
         .slot_size_shift       = (u8)SLAB_SHIFT_FROM_SIZE(SLAB_ROUNDUP_POW2(slot_size_bytes)),             \
         .bitmap_words_per_slab = 0,                                                                                    \
-        .page                  = PageAllocatorInit()                                                                   \
     })
 
 ///
@@ -198,13 +265,26 @@ extern "C" {
 /// page guarantees only `MAX_ALIGN` so over-strong alignment is
 /// the caller's responsibility to honour at use.
 ///
+/// `slot_size_bytes` and `alignment_value` MUST both be side-effect-free.
+/// Both expand through ternary cascades that evaluate the argument
+/// many times. Pass literals or const locals.
+///
+/// SUCCESS: Returns a fully-initialised `SlabAllocator` value with
+///          the requested slot size and alignment floor recorded in
+///          the base.
+/// FAILURE: Cannot fail at macro-expansion time. Invalid slot size /
+///          alignment combinations are caught on first allocation
+///          by the validator.
+///
+/// TAGS: Allocator, Slab, Init, Alignment
+///
 #define SlabAllocatorInitAligned(slot_size_bytes, alignment_value)                                                     \
     ((SlabAllocator) {                                                                                                 \
         .base =                                                                                                        \
-            {.allocate    = slab_allocator_allocate,                                                                   \
-                   .resize      = slab_allocator_resize,                                                                     \
-                   .remap       = slab_allocator_remap,                                                                      \
-                   .deallocate  = slab_allocator_deallocate,                                                                 \
+            {.allocate    = (AllocatorAllocateFn)slab_allocator_allocate,                                              \
+                   .resize      = (AllocatorResizeFn)slab_allocator_resize,                                                  \
+                   .remap       = (AllocatorRemapFn)slab_allocator_remap,                                                    \
+                   .deallocate  = (AllocatorDeallocateFn)slab_allocator_deallocate,                                          \
                    .alignment   = (alignment_value) ? (alignment_value) : 16,                                                \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \
@@ -216,7 +296,6 @@ extern "C" {
         .slot_size             = SLAB_ROUNDUP_POW2(slot_size_bytes),                                             \
         .slot_size_shift       = (u8)SLAB_SHIFT_FROM_SIZE(SLAB_ROUNDUP_POW2(slot_size_bytes)),             \
         .bitmap_words_per_slab = 0,                                                                                    \
-        .page                  = PageAllocatorInit()                                                                   \
     })
 
 #endif // MISRA_STD_ALLOCATOR_SLAB_H

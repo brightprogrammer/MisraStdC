@@ -5,11 +5,8 @@
 
 #include "../Util/TestRunner.h"
 
-static BufIter from(const u8 *p, size n) {
-    BufIter it = {.data = p, .length = n, .pos = 0, .alignment = 1, .dir = 1};
-    return it;
-}
-
+// No public reverse-iter constructor yet; open-coded until a
+// BufIterFromMemoryRev (or similar) is added.
 static BufIter from_rev(const u8 *p, size n) {
     BufIter it = {.data = p, .length = n, .pos = n - 1, .alignment = 1, .dir = -1};
     return it;
@@ -17,7 +14,7 @@ static BufIter from_rev(const u8 *p, size n) {
 
 bool test_iter_remaining_forward(void) {
     const u8 buf[3] = {1, 2, 3};
-    BufIter  it     = from(buf, 3);
+    BufIter  it     = BufIterFromMemory(buf, 3);
     if (IterRemainingLength(&it) != 3) {
         return false;
     }
@@ -49,7 +46,7 @@ bool test_iter_remaining_reverse(void) {
 
 bool test_iter_read_forward(void) {
     const u8 buf[3] = {10, 20, 30};
-    BufIter  it     = from(buf, 3);
+    BufIter  it     = BufIterFromMemory(buf, 3);
     u8       v      = 0;
     if (!IterRead(&it, &v) || v != 10) {
         return false;
@@ -81,7 +78,7 @@ bool test_iter_read_reverse(void) {
 
 bool test_iter_read_eof_leaves_state(void) {
     const u8 buf[1] = {7};
-    BufIter  it     = from(buf, 1);
+    BufIter  it     = BufIterFromMemory(buf, 1);
     u8       v      = 0;
     IterRead(&it, &v); // consume sole element
     size pos_before = it.pos;
@@ -96,7 +93,7 @@ bool test_iter_read_eof_leaves_state(void) {
 
 bool test_iter_peek_in_range(void) {
     const u8 buf[4] = {5, 6, 7, 8};
-    BufIter  it     = from(buf, 4);
+    BufIter  it     = BufIterFromMemory(buf, 4);
     IterMove(&it, 2); // pos == 2
     u8 v;
     if (!IterPeekAt(&it, 0, &v) || v != 7) {
@@ -113,7 +110,7 @@ bool test_iter_peek_in_range(void) {
 
 bool test_iter_peek_out_of_range(void) {
     const u8 buf[2] = {1, 2};
-    BufIter  it     = from(buf, 2);
+    BufIter  it     = BufIterFromMemory(buf, 2);
     u8       v      = 0xAA;
     if (IterPeekAt(&it, 2, &v)) {
         return false; // out of range
@@ -129,7 +126,7 @@ bool test_iter_peek_out_of_range(void) {
 
 bool test_iter_move_forward_basic(void) {
     const u8 buf[5] = {0};
-    BufIter  it     = from(buf, 5);
+    BufIter  it     = BufIterFromMemory(buf, 5);
     if (!IterMove(&it, 3) || it.pos != 3) {
         return false;
     }
@@ -141,7 +138,7 @@ bool test_iter_move_forward_basic(void) {
 
 bool test_iter_move_forward_to_exhausted(void) {
     const u8 buf[3] = {0};
-    BufIter  it     = from(buf, 3);
+    BufIter  it     = BufIterFromMemory(buf, 3);
     if (!IterMove(&it, 3) || it.pos != 3) {
         return false;
     }
@@ -150,7 +147,7 @@ bool test_iter_move_forward_to_exhausted(void) {
 
 bool test_iter_move_forward_overflow(void) {
     const u8 buf[3] = {0};
-    BufIter  it     = from(buf, 3);
+    BufIter  it     = BufIterFromMemory(buf, 3);
     size     before = it.pos;
     if (IterMove(&it, 4)) {
         return false; // 4 > length
@@ -160,7 +157,7 @@ bool test_iter_move_forward_overflow(void) {
 
 bool test_iter_move_forward_underflow(void) {
     const u8 buf[3] = {0};
-    BufIter  it     = from(buf, 3);
+    BufIter  it     = BufIterFromMemory(buf, 3);
     if (IterMove(&it, -1)) {
         return false;
     }
@@ -204,7 +201,7 @@ bool test_iter_move_reverse_overflow(void) {
 
 bool test_iter_next_prev(void) {
     const u8 buf[3] = {0};
-    BufIter  it     = from(buf, 3);
+    BufIter  it     = BufIterFromMemory(buf, 3);
     if (!IterNext(&it) || it.pos != 1) {
         return false;
     }

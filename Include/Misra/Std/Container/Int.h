@@ -1,5 +1,5 @@
 /// file      : std/container/int.h
-/// author    : Generated following Misra project patterns
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Arbitrary-precision unsigned integer API built on top of BitVec.

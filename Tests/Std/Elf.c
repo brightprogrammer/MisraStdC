@@ -17,7 +17,7 @@ bool test_elf_self_exe_parse(void) {
         return false;
     }
 
-    bool ok = elf.header.class == ELF_CLASS_64 && elf.header.data == ELF_DATA_LSB &&
+    bool ok = elf.header.elf_class == ELF_CLASS_64 && elf.header.data == ELF_DATA_LSB &&
               (elf.header.type == ELF_TYPE_EXEC || elf.header.type == ELF_TYPE_DYN) && VecLen(&elf.sections) > 0;
 
     // A test binary built with sanitizers should have both static and

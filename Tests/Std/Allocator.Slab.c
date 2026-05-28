@@ -1,10 +1,12 @@
-/// file      : Tests/Std/Allocator.Slab.c
+/// file      : tests/std/allocator.slab.c
 ///
 /// State-machine + edge-case tests for SlabAllocator.
 ///
-/// Each chunk is page-backed and laid out as
-///   [ header | bitmap | pad | slot 0 | ... | slot N-1 ]
-/// Header + bitmap are allocator-owned metadata. Slots are user data.
+/// Each slab is exactly one OS page of pure user slots -- no header,
+/// no in-page bitmap. Per-slab bitmaps live in a single packed buffer
+/// owned by the allocator; slot lookup on free is bsearch over
+/// `slabs[]` keyed by `ptr & ~(PAGE_SIZE-1)`, then a bit-clear in the
+/// matching bitmap word.
 ///
 /// Slot state machine:
 ///     FREE -- Alloc --> IN_USE -- Free --> FREE
@@ -12,8 +14,8 @@
 ///     post: bit:=1      post: bit:=0
 ///
 /// Rejection edges (Free must reject without writing through ptr):
-///   - foreign pointer    (outside every chunk's slot region)
-///   - misaligned pointer (not at slot boundary inside its chunk)
+///   - foreign pointer    (ptr's page base not in any slab)
+///   - misaligned pointer (not at slot boundary inside its slab)
 ///   - double-free        (bit already 0)
 
 #include <Misra/Std/Allocator.h>

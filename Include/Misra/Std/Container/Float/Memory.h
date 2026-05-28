@@ -1,5 +1,5 @@
 /// file      : std/container/float/memory.h
-/// author    : Generated following Misra project patterns
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Copy-oriented helpers for Float.
@@ -30,7 +30,7 @@ extern "C" {
     ///
     /// TAGS: Float, Memory, Clone, Copy
     ///
-    bool FloatTryClone(Float *out, Float *value);
+    bool FloatTryClone(Float *out, const Float *value);
 
     ///
     /// Create a deep copy of a floating-point value.
@@ -51,7 +51,7 @@ extern "C" {
     ///
     /// TAGS: Float, Memory, Clone, Copy
     ///
-    Float FloatClone(Float *value);
+    Float FloatClone(const Float *value);
 
 #ifdef __cplusplus
 }

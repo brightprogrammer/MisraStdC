@@ -1,4 +1,4 @@
-/// file      : Source/Misra/Std/Prng.c
+/// file      : std/prng.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///

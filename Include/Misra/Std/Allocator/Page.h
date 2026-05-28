@@ -19,7 +19,7 @@
 /// Per-type magic for `PageAllocator`. Stamped into
 /// `Allocator.base.__magic` by `PageAllocatorInit*`. The page
 /// implementation functions validate this exact value so a
-/// `HeapAllocator` / `ArenaAllocator` / `PoolAllocator` reinterpreted
+/// `HeapAllocator` / `ArenaAllocator` / `SlabAllocator` reinterpreted
 /// as a `PageAllocator *` is rejected at runtime as type-confusion.
 ///
 #define PAGE_ALLOCATOR_MAGIC MAKE_NEW_MAGIC_VALUE("pageallc")
@@ -88,23 +88,71 @@ extern "C" {
         size       free_entries_bytes;
     } PageAllocator;
 
-    void *page_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
-    i8    page_allocator_resize(Allocator *self, void *ptr, size new_size);
-    void *page_allocator_remap(Allocator *self, void *ptr, size new_size);
+    ///
+    /// Reserve a page-rounded region from the OS (or pop one of matching
+    /// size off the retention pool). The returned pointer is the mmap'd
+    /// base address; the rounded byte count is recorded in the
+    /// allocator's descriptor table so free can recover it.
+    ///
+    /// SUCCESS: Returns a writable, page-aligned pointer to at least
+    ///          `bytes` bytes. Zeroed when `zeroed` is non-zero; for
+    ///          fresh kernel mappings the kernel already returned
+    ///          zero pages, so the allocator skips the redundant
+    ///          memset.
+    /// FAILURE: Returns NULL when `mmap` / `VirtualAlloc` fails or
+    ///          the descriptor table can't grow.
+    ///
+    /// TAGS: Allocator, Page, Memory, Allocation
+    ///
+    void *page_allocator_allocate(PageAllocator *self, size bytes, i8 zeroed);
+
+    ///
+    /// Try to grow / shrink a page-backed region in place. Page-backed
+    /// allocations span whole pages, so an in-place change is only
+    /// possible when the new size still rounds to the same page count.
+    ///
+    /// SUCCESS: Returns 1 when the new size lands within the
+    ///          already-mapped page count. The pointer stays valid for
+    ///          `new_size` bytes.
+    /// FAILURE: Returns 0 when the new size needs more (or fewer) pages
+    ///          than the existing mapping; the caller can fall back to
+    ///          `page_allocator_remap`.
+    ///
+    /// TAGS: Allocator, Page, Memory, InPlace
+    ///
+    i8    page_allocator_resize(PageAllocator *self, void *ptr, size new_size);
+
+    ///
+    /// Resize a page-backed region with relocation allowed. May allocate
+    /// a fresh mapping, copy the old contents, and release the old one.
+    ///
+    /// SUCCESS: Returns the (possibly moved) pointer. When `ptr` is NULL
+    ///          this behaves like `page_allocator_allocate(self, new_size, 0)`.
+    /// FAILURE: Returns NULL when the underlying mapping cannot be
+    ///          obtained. The old allocation is left untouched.
+    ///
+    /// TAGS: Allocator, Page, Memory, Reallocation
+    ///
+    void *page_allocator_remap(PageAllocator *self, void *ptr, size new_size);
 
     ///
     /// Free a region previously returned by
-    /// `AllocatorAlloc(&page.base, ...)`. The byte count to munmap is
+    /// `AllocatorAlloc(&page, ...)`. The byte count to munmap is
     /// recovered from the allocator's internal descriptor table -- the
     /// caller does NOT pass a size.
     ///
     /// SUCCESS: Returns the rounded mmap length that was released
-    ///          (page-aligned, what stats accounting sees). The kernel
-    ///          mapping is gone.
+    ///          (page-aligned, what stats accounting sees). The
+    ///          region moves to the allocator's internal retention
+    ///          pool and is reused on a same-size allocation;
+    ///          actual `munmap` happens only if the retention pool
+    ///          itself can't grow.
     /// FAILURE: Aborts via `LOG_FATAL` when `ptr` is foreign to this
     ///          allocator or has already been freed.
     ///
-    size page_allocator_deallocate(Allocator *self, void *ptr);
+    /// TAGS: Allocator, Page, Memory, Deallocation
+    ///
+    size page_allocator_deallocate(PageAllocator *self, void *ptr);
 
     ///
     /// Page-level memory protection bits. The actual OS permissions are
@@ -162,6 +210,26 @@ extern "C" {
     size PageAllocatorPageSize(PageAllocator *self);
 
     ///
+    /// Total bytes currently mapped by this `PageAllocator`. Sums every
+    /// live region in `entries[]`, every retained region parked in
+    /// `free_entries[]` (still mmap'd until `PageAllocatorDeinit`),
+    /// plus the descriptor tables themselves (`entries_bytes` and
+    /// `free_entries_bytes`). This is the kernel's view: what would
+    /// disappear from the process address space if the allocator were
+    /// torn down right now. Useful for bench / observability code that
+    /// needs total mapped footprint without poking at the internal
+    /// fields directly.
+    ///
+    /// self[in] : PageAllocator instance, or NULL.
+    ///
+    /// SUCCESS: Returns the total mapped byte count. No state is touched.
+    /// FAILURE: Returns 0 when `self` is NULL.
+    ///
+    /// TAGS: Allocator, Page, Query
+    ///
+    size PageAllocatorFootprintBytes(const PageAllocator *self);
+
+    ///
     /// Tear down a `PageAllocator`. Any region still tracked in `entries`
     /// (a caller leak, e.g. forgot to `AllocatorFree`) is munmapped so
     /// the kernel doesn't keep the mapping around. The descriptor table
@@ -184,21 +252,40 @@ extern "C" {
 #endif
 
 ///
+/// Live mapped-region count. The number of `PageEntry` descriptors
+/// currently tracking an OS mapping handed out by this allocator and
+/// not yet freed. Retained (user-freed but not yet returned to the OS)
+/// regions live in `free_entries[]` and are NOT counted here. Useful
+/// for sizing decisions and for tests that need to observe alloc /
+/// free behaviour.
+///
+/// TAGS: Allocator, Page, Query
+///
+#define PageAllocatorEntryCount(p) ((void)0, (p)->len)
+
+///
 /// Initialize a `PageAllocator` with default settings (alignment = 1, the
 /// natural page-grain alignment of `mmap`/`VirtualAlloc`). Use as a
 /// designated-initializer:
 ///
 ///     PageAllocator page = PageAllocatorInit();
-///     void *p = AllocatorAlloc(&page.base, 64 * 1024, true);
-///     AllocatorFree(&page.base, p);
+///     void *p = AllocatorAlloc(&page, 64 * 1024, true);
+///     AllocatorFree(&page, p);
+///
+/// SUCCESS: Returns a fully-initialised `PageAllocator` value. No
+///          OS calls happen at init; the first allocation triggers
+///          the first kernel page map.
+/// FAILURE: Cannot fail at macro-expansion time.
+///
+/// TAGS: Allocator, Page, Init
 ///
 #define PageAllocatorInit()                                                                                            \
     ((PageAllocator) {                                                                                                 \
         .base =                                                                                                        \
-            {.allocate    = page_allocator_allocate,                                                                   \
-                   .resize      = page_allocator_resize,                                                                     \
-                   .remap       = page_allocator_remap,                                                                      \
-                   .deallocate  = page_allocator_deallocate,                                                                 \
+            {.allocate    = (AllocatorAllocateFn)page_allocator_allocate,                                              \
+                   .resize      = (AllocatorResizeFn)page_allocator_resize,                                                 \
+                   .remap       = (AllocatorRemapFn)page_allocator_remap,                                                   \
+                   .deallocate  = (AllocatorDeallocateFn)page_allocator_deallocate,                                         \
                    .alignment   = 1,                                                                                         \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \
@@ -219,13 +306,19 @@ extern "C" {
 /// memory is naturally page-aligned, so requests below the page size are
 /// rounded up. Stronger-than-page alignment is best-effort.
 ///
+/// SUCCESS: Returns a fully-initialised `PageAllocator` value with
+///          the requested alignment floor recorded in `base.alignment`.
+/// FAILURE: Cannot fail at macro-expansion time.
+///
+/// TAGS: Allocator, Page, Init, Alignment
+///
 #define PageAllocatorInitAligned(N)                                                                                    \
     ((PageAllocator) {                                                                                                 \
         .base =                                                                                                        \
-            {.allocate    = page_allocator_allocate,                                                                   \
-                   .resize      = page_allocator_resize,                                                                     \
-                   .remap       = page_allocator_remap,                                                                      \
-                   .deallocate  = page_allocator_deallocate,                                                                 \
+            {.allocate    = (AllocatorAllocateFn)page_allocator_allocate,                                              \
+                   .resize      = (AllocatorResizeFn)page_allocator_resize,                                                 \
+                   .remap       = (AllocatorRemapFn)page_allocator_remap,                                                   \
+                   .deallocate  = (AllocatorDeallocateFn)page_allocator_deallocate,                                         \
                    .alignment   = (N) ? (N) : 1,                                                                             \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \

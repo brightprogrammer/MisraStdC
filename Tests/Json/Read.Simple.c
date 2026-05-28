@@ -495,7 +495,7 @@ bool test_simple_product_with_tags(void) {
 }
 
 // Main function that runs all simple tests
-int main(int argc, char *argv[]) {
+int main(void) {
     // Array of test functions
     TestFunction tests[] = {
         test_simple_string_parsing,

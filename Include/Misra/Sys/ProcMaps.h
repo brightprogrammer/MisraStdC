@@ -1,4 +1,4 @@
-/// file      : ProcMaps.h
+/// file      : sys/proc_maps.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -61,7 +61,7 @@ typedef struct ProcMaps {
 /// TAGS: Sys, Linux, ProcMaps
 ///
 bool proc_maps_load(ProcMaps *out, Allocator *alloc);
-#define ProcMapsLoad(...)          MISRA_OVERLOAD(ProcMapsLoad, __VA_ARGS__)
+#define ProcMapsLoad(...)          OVERLOAD(ProcMapsLoad, __VA_ARGS__)
 #define ProcMapsLoad_1(out)        proc_maps_load((out), MisraScope)
 #define ProcMapsLoad_2(out, alloc) proc_maps_load((out), ALLOCATOR_OF(alloc))
 
@@ -83,6 +83,8 @@ void ProcMapsDeinit(ProcMaps *self);
 ///
 /// SUCCESS : Returns a pointer to the matching entry inside `self`.
 /// FAILURE : Returns NULL if `addr` is not in any mapping.
+///
+/// TAGS: Sys, ProcMaps, Find, Lookup
 ///
 const ProcMapEntry *ProcMapsFindByAddr(const ProcMaps *self, u64 addr);
 

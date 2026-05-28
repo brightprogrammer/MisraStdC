@@ -124,62 +124,67 @@ static bool debug_check_canary(const u8 *trail, size n) {
 // entry, against the now-stable `self`.
 // ---------------------------------------------------------------------------
 
-static DebugAllocator *debug_validate_self(const Allocator *self) {
+static void debug_validate_self(const DebugAllocator *self) {
     if (!self) {
         LOG_FATAL("DebugAllocator: NULL self");
     }
-    if (self->__magic != DEBUG_ALLOCATOR_MAGIC) {
+    if (self->base.__magic != DEBUG_ALLOCATOR_MAGIC) {
         LOG_FATAL("type-confusion: allocator passed to debug_allocator_* is not a DebugAllocator");
     }
-    if (!self->allocate || !self->resize || !self->remap || !self->deallocate) {
+    if (!self->base.allocate || !self->base.resize || !self->base.remap || !self->base.deallocate) {
         LOG_FATAL("DebugAllocator: vtable function pointer is NULL");
     }
-    if (self->alignment == 0 || (self->alignment & (self->alignment - 1)) != 0) {
-        LOG_FATAL("DebugAllocator: alignment {} is not a positive power of two", (u64)self->alignment);
+    if (self->base.alignment == 0 || (self->base.alignment & (self->base.alignment - 1)) != 0) {
+        LOG_FATAL("DebugAllocator: alignment {} is not a positive power of two", (u64)self->base.alignment);
     }
-    DebugAllocator *dbg = (DebugAllocator *)self;
     // Embedded backing allocators must themselves be sane. We don't
     // call their full validators here (they have side effects via
     // _validate_self in their own dispatch) but the magic check is
     // already strong enough to catch corruption.
-    if (dbg->heap.base.__magic != HEAP_ALLOCATOR_MAGIC) {
+    // Mask HEAP_MAGIC_VALIDATED_BIT before comparing -- HeapAllocator's
+    // validator caches its deep-check result in that bit (see Heap.h).
+    // The bit is part of the cache state, not the allocator's identity.
+    if ((self->heap.base.__magic & ~HEAP_MAGIC_VALIDATED_BIT) != HEAP_ALLOCATOR_MAGIC) {
         LOG_FATAL("DebugAllocator: embedded heap has bad magic");
     }
-    if (dbg->meta.base.__magic != HEAP_ALLOCATOR_MAGIC) {
+    if ((self->meta.base.__magic & ~HEAP_MAGIC_VALIDATED_BIT) != HEAP_ALLOCATOR_MAGIC) {
         LOG_FATAL("DebugAllocator: embedded meta has bad magic");
     }
-    if (dbg->page.base.__magic != PAGE_ALLOCATOR_MAGIC) {
+    if (self->page.base.__magic != PAGE_ALLOCATOR_MAGIC) {
         LOG_FATAL("DebugAllocator: embedded page has bad magic");
     }
-    if (dbg->live.__magic != MAP_MAGIC) {
+    if (self->live.__magic != MAP_MAGIC) {
         LOG_FATAL("DebugAllocator: live map has bad magic");
     }
-    if (dbg->freed.__magic != VEC_MAGIC) {
+    if (self->freed.__magic != VEC_MAGIC) {
         LOG_FATAL("DebugAllocator: freed vec has bad magic");
     }
     // bytes_in_use must be consistent with live: if live is non-empty
     // bytes_in_use is non-zero; conversely zero live entries means
     // every byte has been returned.
-    if (MapPairCount(&dbg->live) == 0 && dbg->bytes_in_use != 0) {
-        LOG_FATAL("DebugAllocator: bytes_in_use {} with no live records", (u64)dbg->bytes_in_use);
+    if (MapPairCount(&self->live) == 0 && self->bytes_in_use != 0) {
+        LOG_FATAL("DebugAllocator: bytes_in_use {} with no live records", (u64)self->bytes_in_use);
     }
     u64 cur_tid = debug_current_tid();
-    if (dbg->creator_tid != cur_tid) {
+    if (self->creator_tid != cur_tid) {
         LOG_FATAL(
             "DebugAllocator: cross-thread use detected (created on {x}, called from {x}). "
             "Each thread must use its own DebugAllocator instance.",
-            dbg->creator_tid,
+            self->creator_tid,
             cur_tid
         );
     }
     // intentional bypass: Debug allocator swap; no public MapSetAllocator mutator.
-    if (!dbg->live.allocator) {
-        dbg->live.allocator = ALLOCATOR_OF(&dbg->meta);
+    // Cast away const to write through the lazy-bind fields; the mutation is
+    // observably a no-op once bound (writes the same pointer on every entry
+    // after the first). The underlying storage is the allocator's own map/vec
+    // fields which it owns.
+    if (!self->live.allocator) {
+        ((DebugAllocator *)(void *)self)->live.allocator = ALLOCATOR_OF(&((DebugAllocator *)(void *)self)->meta);
     }
-    if (!dbg->freed.allocator) {
-        dbg->freed.allocator = ALLOCATOR_OF(&dbg->meta);
+    if (!self->freed.allocator) {
+        ((DebugAllocator *)(void *)self)->freed.allocator = ALLOCATOR_OF(&((DebugAllocator *)(void *)self)->meta);
     }
-    return dbg;
 }
 
 // ---------------------------------------------------------------------------
@@ -205,18 +210,20 @@ static const DebugFreedEntry *debug_freed_find(const DebugAllocator *dbg, void *
 // allocate / reallocate / deallocate
 // ---------------------------------------------------------------------------
 
-void *debug_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
-    DebugAllocator *dbg = debug_validate_self(self);
+void *debug_allocator_allocate(DebugAllocator *self, size bytes, i8 zeroed) {
+    debug_validate_self(self);
     if (!bytes)
         return NULL;
 
-    size canary = dbg->config.detect_overflow ? dbg->config.canary_bytes : 0;
+    size canary = self->config.detect_overflow ? self->config.canary_bytes : 0;
     size padded = bytes + canary;
-    // force_page_backing routes through the internal PageAllocator;
-    // normal mode through the internal HeapAllocator. Either way the
-    // backing storage is owned by `self`.
-    Allocator *src    = dbg->config.force_page_backing ? ALLOCATOR_OF(&dbg->page) : ALLOCATOR_OF(&dbg->heap);
-    void      *user_p = AllocatorAlloc(src, padded, zeroed);
+    // force_page_backing routes through the embedded PageAllocator;
+    // normal mode through the embedded HeapAllocator. Branching on the
+    // typed call directly keeps both arms on the typed-dispatch path
+    // (no upcast to `Allocator *`, no AllocatorAlloc_dyn).
+    void *user_p = self->config.force_page_backing
+                       ? AllocatorAlloc(&self->page, padded, zeroed)
+                       : AllocatorAlloc(&self->heap, padded, zeroed);
     if (!user_p)
         return NULL;
 
@@ -227,19 +234,20 @@ void *debug_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     MemSet(&rec, 0, sizeof(rec));
     rec.requested_size = bytes;
     rec.padded_size    = padded;
-    if (dbg->config.capture_traces && dbg->config.trace_depth > 0) {
-        u32 depth = dbg->config.trace_depth;
+    if (self->config.capture_traces && self->config.trace_depth > 0) {
+        u32 depth = self->config.trace_depth;
         if (depth > DEBUG_ALLOCATOR_MAX_TRACE)
             depth = DEBUG_ALLOCATOR_MAX_TRACE;
         rec.alloc_trace_n = (u32)CaptureStackTrace(rec.alloc_trace, depth, 2);
     }
 
-    if (!MapInsertR(&dbg->live, user_p, rec)) {
-        AllocatorFree(src, user_p);
+    if (!MapInsertR(&self->live, user_p, rec)) {
+        if (self->config.force_page_backing) AllocatorFree(&self->page, user_p);
+        else                                 AllocatorFree(&self->heap, user_p);
         LOG_ERROR("DebugAllocator: failed to record allocation in live map");
         return NULL;
     }
-    dbg->bytes_in_use += (u64)bytes;
+    self->bytes_in_use += (u64)bytes;
     return user_p;
 }
 
@@ -249,14 +257,14 @@ static void debug_emit_trace(const StackFrame *frames, size count, Zstr label, A
         return;
     }
     Str rendered = StrInit(meta);
-#if !defined(MISRA_LOG_NO_BACKTRACE) || !MISRA_LOG_NO_BACKTRACE
+#if !defined(LOG_NO_BACKTRACE) || !LOG_NO_BACKTRACE
     FormatStackTrace(&rendered, frames, count, meta);
 #else
     // Same rationale as LogWrite's FATAL gate (see Log.c). Symbolicating
     // every leak/double-free trace costs ~10 s per call on macOS under
     // ASan because MachoCache re-parses Mach-O + dSYM + DWARF per
     // backtrace. The test harness (which is the only caller of this
-    // path that opts into MISRA_LOG_NO_BACKTRACE) only checks that
+    // path that opts into LOG_NO_BACKTRACE) only checks that
     // traces were captured (`trace_n > 0`), not that they symbolicate,
     // so emit raw IPs in this build.
     for (size i = 0; i < count; ++i) {
@@ -273,28 +281,27 @@ static void debug_emit_trace(const StackFrame *frames, size count, Zstr label, A
 // (when freed history has the original trace) and forwarded to the
 // underlying HeapAllocator (which LOG_FATALs with its bitmap-state
 // diagnostic for the cases freed history can't recognize).
-size debug_allocator_deallocate(Allocator *self, void *ptr) {
-    DebugAllocator *dbg = debug_validate_self(self);
+size debug_allocator_deallocate(DebugAllocator *self, void *ptr) {
+    debug_validate_self(self);
     if (!ptr)
         return 0;
 
-    Allocator   *src      = dbg->config.force_page_backing ? ALLOCATOR_OF(&dbg->page) : ALLOCATOR_OF(&dbg->heap);
-    DebugRecord *live_rec = MapGetFirstPtr(&dbg->live, ptr);
+    DebugRecord *live_rec = MapGetFirstPtr(&self->live, ptr);
 
     if (!live_rec) {
         // Pointer is not in our live set. Scan the freed-history Vec
         // and emit the original alloc + first-free traces if we have
         // them, then abort -- the freed-history hit is conclusive
         // evidence of a double-free.
-        const DebugFreedEntry *fe = debug_freed_find(dbg, ptr);
+        const DebugFreedEntry *fe = debug_freed_find(self, ptr);
         if (fe) {
             LOG_ERROR(
                 "DebugAllocator: DOUBLE FREE of {x} (originally {} bytes); original alloc + first-free traces:",
                 (u64)ptr,
                 (u64)fe->requested_size
             );
-            debug_emit_trace(fe->alloc_trace, fe->alloc_trace_n, "alloc", ALLOCATOR_OF(&dbg->meta));
-            debug_emit_trace(fe->free_trace, fe->free_trace_n, "first-free", ALLOCATOR_OF(&dbg->meta));
+            debug_emit_trace(fe->alloc_trace, fe->alloc_trace_n, "alloc", ALLOCATOR_OF(&self->meta));
+            debug_emit_trace(fe->free_trace, fe->free_trace_n, "first-free", ALLOCATOR_OF(&self->meta));
             LOG_FATAL("DebugAllocator: double-free of {x}", (u64)ptr);
             return 0;
         }
@@ -303,57 +310,61 @@ size debug_allocator_deallocate(Allocator *self, void *ptr) {
         // let its state-machine diagnostic fire -- Heap LOG_FATALs
         // with "foreign ptr"; PageAllocator does the same via its
         // entries-table lookup.
-        AllocatorFree(src, ptr);
+        if (self->config.force_page_backing) AllocatorFree(&self->page, ptr);
+        else                                 AllocatorFree(&self->heap, ptr);
         return 0;
     }
 
-    if (dbg->config.detect_overflow && dbg->config.canary_bytes) {
+    if (self->config.detect_overflow && self->config.canary_bytes) {
         const u8 *trail = (const u8 *)ptr + live_rec->requested_size;
-        if (!debug_check_canary(trail, dbg->config.canary_bytes)) {
-            dbg->overflows += 1;
+        if (!debug_check_canary(trail, self->config.canary_bytes)) {
+            self->overflows += 1;
             LOG_ERROR(
                 "DebugAllocator: BUFFER OVERFLOW past {x} ({} bytes requested)",
                 (u64)ptr,
                 (u64)live_rec->requested_size
             );
-            debug_emit_trace(live_rec->alloc_trace, live_rec->alloc_trace_n, "alloc", ALLOCATOR_OF(&dbg->meta));
+            debug_emit_trace(live_rec->alloc_trace, live_rec->alloc_trace_n, "alloc", ALLOCATOR_OF(&self->meta));
         }
     }
 
     // Append to freed history BEFORE removing from live -- captures
     // alloc_trace from live_rec and a fresh free_trace from this
     // call site. Unbounded; gated by track_freed_history config.
-    if (dbg->config.track_freed_history) {
+    if (self->config.track_freed_history) {
         DebugFreedEntry entry;
         entry.ptr            = ptr;
         entry.requested_size = live_rec->requested_size;
         entry.alloc_trace_n  = live_rec->alloc_trace_n;
         MemCopy(entry.alloc_trace, live_rec->alloc_trace, (size)live_rec->alloc_trace_n * sizeof(StackFrame));
         entry.free_trace_n = 0;
-        if (dbg->config.capture_traces && dbg->config.trace_depth > 0) {
-            u32 depth = dbg->config.trace_depth;
+        if (self->config.capture_traces && self->config.trace_depth > 0) {
+            u32 depth = self->config.trace_depth;
             if (depth > DEBUG_ALLOCATOR_MAX_TRACE)
                 depth = DEBUG_ALLOCATOR_MAX_TRACE;
             entry.free_trace_n = (u32)CaptureStackTrace(entry.free_trace, depth, 3);
         }
-        VecPushBack(&dbg->freed, entry);
+        VecPushBack(&self->freed, entry);
     }
 
-    size requested     = live_rec->requested_size;
-    size padded        = live_rec->padded_size;
-    dbg->bytes_in_use -= (u64)requested;
-    MapRemoveFirst(&dbg->live, ptr);
+    size requested      = live_rec->requested_size;
+    size padded         = live_rec->padded_size;
+    self->bytes_in_use -= (u64)requested;
+    MapRemoveFirst(&self->live, ptr);
 
-    if (dbg->config.force_page_backing) {
+    if (self->config.force_page_backing) {
         // Don't release the page. mprotect it PROT_NONE so any UAF
         // read/write traps with SIGSEGV at the moment of the bug.
-        size page_size = PageAllocatorPageSize(&dbg->page);
+        size page_size = PageAllocatorPageSize(&self->page);
         size rounded   = (padded + page_size - 1) & ~(page_size - 1);
         if (!PageProtect(ptr, rounded, PAGE_PROT_NONE)) {
             LOG_ERROR("DebugAllocator: PageProtect(PROT_NONE) failed on {x}", (u64)ptr);
         }
     } else {
-        AllocatorFree(src, ptr);
+        // The outer `if (force_page_backing)` already handled the
+        // page-backed branch; here force_page_backing is false, so the
+        // backing is unconditionally the embedded heap.
+        AllocatorFree(&self->heap, ptr);
     }
     return requested;
 }
@@ -366,15 +377,15 @@ size debug_allocator_deallocate(Allocator *self, void *ptr) {
 // useful sense. Refuse and force the caller through remap, which
 // does the clean alloc-fresh + copy + free dance with full canary +
 // live-map maintenance.
-i8 debug_allocator_resize(Allocator *self, void *ptr, size new_size) {
-    (void)debug_validate_self(self);
+i8 debug_allocator_resize(DebugAllocator *self, void *ptr, size new_size) {
+    debug_validate_self(self);
     (void)ptr;
     (void)new_size;
     return 0;
 }
 
-void *debug_allocator_remap(Allocator *self, void *ptr, size new_size) {
-    DebugAllocator *dbg = debug_validate_self(self);
+void *debug_allocator_remap(DebugAllocator *self, void *ptr, size new_size) {
+    debug_validate_self(self);
     if (new_size == 0) {
         debug_allocator_deallocate(self, ptr);
         return NULL;
@@ -385,14 +396,14 @@ void *debug_allocator_remap(Allocator *self, void *ptr, size new_size) {
     // Look up the original requested size from the live map to bound
     // the copy. If ptr is not in the live map, forward to deallocate
     // which emits the double-free / foreign-ptr diagnostic and aborts.
-    DebugRecord *rec = MapGetFirstPtr(&dbg->live, ptr);
+    DebugRecord *rec = MapGetFirstPtr(&self->live, ptr);
     if (!rec) {
         debug_allocator_deallocate(self, ptr); // aborts
         return NULL;
     }
     size old_requested = rec->requested_size;
-    // alloc-fresh + memcpy + free, keeping canary + record invariants
-    // simple. The cost in debug mode is fine.
+    // alloc-fresh + `MemCopy` + free, keeping canary + record
+    // invariants simple. The cost in debug mode is fine.
     void *fresh = debug_allocator_allocate(self, new_size, false);
     if (!fresh)
         return NULL;
@@ -440,7 +451,14 @@ void DebugAllocatorDeinit(DebugAllocator *self) {
 
     HeapAllocatorDeinit(&self->meta);
     HeapAllocatorDeinit(&self->heap);
-    // PageAllocator has no per-instance state; nothing to deinit.
+    // PageAllocatorDeinit is deliberately NOT called. When
+    // force_page_backing is true, allocs were never returned via
+    // page_allocator_deallocate -- they were PROT_NONE'd in place as
+    // UAF traps. Calling Deinit would unmap those traps. The
+    // descriptor-table mmaps inside `self->page` are intentionally
+    // leaked along with the trapped pages; this is the documented
+    // trade-off of the mode. When force_page_backing is false
+    // `self->page` was never used and has no live state to release.
 
     MemSet(self, 0, sizeof(*self));
 }
@@ -467,6 +485,12 @@ size DebugAllocatorOverflows(const DebugAllocator *self) {
     return (size)self->overflows;
 }
 
+size DebugAllocatorFreedCount(const DebugAllocator *self) {
+    if (!self)
+        return 0;
+    return VecLen(&self->freed);
+}
+
 void DebugAllocatorReportLeaks(DebugAllocator *self, Str *out) {
     if (!self || !out)
         return;
@@ -477,7 +501,7 @@ void DebugAllocatorReportLeaks(DebugAllocator *self, Str *out) {
     MapForeachPairPtr(&self->live, key_ptr, val_ptr) {
         StrAppendFmt(out, "  leak: {x} ({} bytes)\n", (u64)*key_ptr, (u64)val_ptr->requested_size);
         if (val_ptr->alloc_trace_n > 0) {
-#if !defined(MISRA_LOG_NO_BACKTRACE) || !MISRA_LOG_NO_BACKTRACE
+#if !defined(LOG_NO_BACKTRACE) || !LOG_NO_BACKTRACE
             FormatStackTrace(out, val_ptr->alloc_trace, val_ptr->alloc_trace_n, ALLOCATOR_OF(&self->meta));
 #else
             for (size i = 0; i < val_ptr->alloc_trace_n; ++i) {

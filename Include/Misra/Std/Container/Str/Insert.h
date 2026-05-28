@@ -59,7 +59,7 @@ extern "C" {
 ///
 /// Insert MANY characters into `str` at position `idx`. R-form (copy);
 /// the source bytes are read-only / borrowed. Two arities via
-/// `MISRA_OVERLOAD`:
+/// `OVERLOAD`:
 ///
 ///   `StrInsertMany(str, zstr, idx)`            - 3 args; `zstr` is
 ///                                                NUL-terminated; length
@@ -80,7 +80,7 @@ extern "C" {
 ///
 /// TAGS: Str, Insert, Range, Zstr, Cstr
 ///
-#define StrInsertMany(...) MISRA_OVERLOAD(StrInsertMany, __VA_ARGS__)
+#define StrInsertMany(...) OVERLOAD(StrInsertMany, __VA_ARGS__)
 #define StrInsertMany_3(str, zstr, idx)                                                                            \
     _Generic((zstr), Zstr: VecInsertRangeR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))), char *: VecInsertRangeR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))))
 #define StrInsertMany_4(str, cstr, cstr_len, idx)                                                                  \
@@ -95,7 +95,7 @@ extern "C" {
 ///
 /// TAGS: Str, Insert, Range, Zstr, Cstr, Must, Abort
 ///
-#define StrMustInsertMany(...) MISRA_OVERLOAD(StrMustInsertMany, __VA_ARGS__)
+#define StrMustInsertMany(...) OVERLOAD(StrMustInsertMany, __VA_ARGS__)
 #define StrMustInsertMany_3(str, zstr, idx)                                                                        \
     _Generic((zstr), Zstr: VecMustInsertRangeR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))), char *: VecMustInsertRangeR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))))
 #define StrMustInsertMany_4(str, cstr, cstr_len, idx)                                                              \
@@ -113,7 +113,7 @@ extern "C" {
 ///
 /// TAGS: Str, Insert, Range, Zstr, Cstr, Fast, Unordered
 ///
-#define StrInsertManyFast(...) MISRA_OVERLOAD(StrInsertManyFast, __VA_ARGS__)
+#define StrInsertManyFast(...) OVERLOAD(StrInsertManyFast, __VA_ARGS__)
 #define StrInsertManyFast_3(str, zstr, idx)                                                                        \
     _Generic((zstr), Zstr: VecInsertRangeFastR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))), char *: VecInsertRangeFastR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))))
 #define StrInsertManyFast_4(str, cstr, cstr_len, idx)                                                              \
@@ -127,7 +127,7 @@ extern "C" {
 ///
 /// TAGS: Str, Insert, Range, Zstr, Cstr, Fast, Unordered, Must, Abort
 ///
-#define StrMustInsertManyFast(...) MISRA_OVERLOAD(StrMustInsertManyFast, __VA_ARGS__)
+#define StrMustInsertManyFast(...) OVERLOAD(StrMustInsertManyFast, __VA_ARGS__)
 #define StrMustInsertManyFast_3(str, zstr, idx)                                                                    \
     _Generic((zstr), Zstr: VecMustInsertRangeFastR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))), char *: VecMustInsertRangeFastR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))))
 #define StrMustInsertManyFast_4(str, cstr, cstr_len, idx)                                                          \
@@ -186,7 +186,7 @@ extern "C" {
 
 ///
 /// Append MANY characters to the end of `str`. R-form (the source bytes
-/// are read-only / borrowed). Two arities via `MISRA_OVERLOAD`:
+/// are read-only / borrowed). Two arities via `OVERLOAD`:
 ///
 ///   `StrPushBackMany(str, zstr)`            - 2 args; `zstr` is
 ///                                             NUL-terminated.
@@ -202,7 +202,7 @@ extern "C" {
 ///
 /// TAGS: Str, PushBack, Range, Zstr, Cstr
 ///
-#define StrPushBackMany(...) MISRA_OVERLOAD(StrPushBackMany, __VA_ARGS__)
+#define StrPushBackMany(...) OVERLOAD(StrPushBackMany, __VA_ARGS__)
 #define StrPushBackMany_2(str, zstr)                                                                               \
     _Generic((zstr), Zstr: VecPushBackArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))), char *: VecPushBackArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
 #define StrPushBackMany_3(str, cstr, cstr_len)                                                                     \
@@ -216,7 +216,7 @@ extern "C" {
 ///
 /// TAGS: Str, PushBack, Range, Zstr, Cstr, Must, Abort
 ///
-#define StrMustPushBackMany(...) MISRA_OVERLOAD(StrMustPushBackMany, __VA_ARGS__)
+#define StrMustPushBackMany(...) OVERLOAD(StrMustPushBackMany, __VA_ARGS__)
 #define StrMustPushBackMany_2(str, zstr)                                                                           \
     _Generic((zstr), Zstr: VecMustPushBackArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))), char *: VecMustPushBackArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
 #define StrMustPushBackMany_3(str, cstr, cstr_len)                                                                 \
@@ -282,7 +282,7 @@ extern "C" {
 ///
 /// TAGS: Str, PushFront, Range, Zstr, Cstr
 ///
-#define StrPushFrontMany(...) MISRA_OVERLOAD(StrPushFrontMany, __VA_ARGS__)
+#define StrPushFrontMany(...) OVERLOAD(StrPushFrontMany, __VA_ARGS__)
 #define StrPushFrontMany_2(str, zstr)                                                                              \
     _Generic((zstr), Zstr: VecPushFrontArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))), char *: VecPushFrontArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
 #define StrPushFrontMany_3(str, cstr, cstr_len)                                                                    \
@@ -296,7 +296,7 @@ extern "C" {
 ///
 /// TAGS: Str, PushFront, Range, Zstr, Cstr, Must, Abort
 ///
-#define StrMustPushFrontMany(...) MISRA_OVERLOAD(StrMustPushFrontMany, __VA_ARGS__)
+#define StrMustPushFrontMany(...) OVERLOAD(StrMustPushFrontMany, __VA_ARGS__)
 #define StrMustPushFrontMany_2(str, zstr)                                                                          \
     _Generic((zstr), Zstr: VecMustPushFrontArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))), char *: VecMustPushFrontArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
 #define StrMustPushFrontMany_3(str, cstr, cstr_len)                                                                \
@@ -314,7 +314,7 @@ extern "C" {
 ///
 /// TAGS: Str, PushFront, Range, Zstr, Cstr, Fast, Unordered
 ///
-#define StrPushFrontManyFast(...) MISRA_OVERLOAD(StrPushFrontManyFast, __VA_ARGS__)
+#define StrPushFrontManyFast(...) OVERLOAD(StrPushFrontManyFast, __VA_ARGS__)
 #define StrPushFrontManyFast_2(str, zstr)                                                                          \
     _Generic((zstr), Zstr: VecPushFrontArrFastR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))), char *: VecPushFrontArrFastR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
 #define StrPushFrontManyFast_3(str, cstr, cstr_len)                                                                \
@@ -328,7 +328,7 @@ extern "C" {
 ///
 /// TAGS: Str, PushFront, Range, Zstr, Cstr, Fast, Unordered, Must, Abort
 ///
-#define StrMustPushFrontManyFast(...) MISRA_OVERLOAD(StrMustPushFrontManyFast, __VA_ARGS__)
+#define StrMustPushFrontManyFast(...) OVERLOAD(StrMustPushFrontManyFast, __VA_ARGS__)
 #define StrMustPushFrontManyFast_2(str, zstr)                                                                      \
     _Generic((zstr), Zstr: VecMustPushFrontArrFastR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))), char *: VecMustPushFrontArrFastR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
 #define StrMustPushFrontManyFast_3(str, cstr, cstr_len)                                                            \

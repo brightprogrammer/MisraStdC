@@ -1,4 +1,4 @@
-/// file      : Pdb.c
+/// file      : parsers/pdb.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -649,9 +649,9 @@ static bool parse_pdb_functions(Pdb *self) {
     for (size i = 0; i < VecLen(&pending); ++i) {
         const PendingPub *pp = VecPtrAt(&pending, i);
         PdbFunction       f  = {
-                  .rva  = pp->rva,
-                  .size = 0,
-                  .name = StrBegin(&name_pool) + pp->name_offset_in_pool,
+                   .rva  = pp->rva,
+                   .size = 0,
+                   .name = StrBegin(&name_pool) + pp->name_offset_in_pool,
         };
         if (i + 1 < VecLen(&pending)) {
             // Although `pending` is sorted ascending by rva, treat the
@@ -697,8 +697,9 @@ static bool parse_pdb_functions(Pdb *self) {
 // Lifecycle
 // ---------------------------------------------------------------------------
 
-// L-value form. `data` is `u8 **` -- ownership of the pointer moves
-// from caller to parser. On exit `*data == NULL` (success or failure).
+// L-value form. Takes the caller's `Buf` by pointer, snapshots it,
+// then MemSets the caller's view. On exit `*in` is zeroed (success
+// or failure); allocator and bytes are carried by `taken`.
 bool PdbOpenFromMemory(Pdb *out, Buf *in) {
     if (!out || !in || !in->data || !in->allocator) {
         LOG_FATAL("PdbOpenFromMemory: NULL argument (contract violation)");

@@ -1,8 +1,8 @@
-/// file      : PdbCache.c
+/// file      : sys/pdb_cache.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// PdbCache implementation. See PdbCache.h for the contract; this file
+/// PdbCache implementation. See `Misra/Sys/PdbCache.h` for the contract; this file
 /// just sequences PE-open -> CodeView extraction -> PDB-path discovery
 /// -> PDB-open -> RVA lookup, and caches results so each subsequent
 /// frame in the same module doesn't pay for the open again.
@@ -11,7 +11,6 @@
 
 #include <Misra/Std.h>
 #include <Misra/Std/Container/Str.h>
-#include <Misra/Std/File.h>
 #include <Misra/Std/File.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>

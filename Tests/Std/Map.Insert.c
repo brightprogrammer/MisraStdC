@@ -126,7 +126,7 @@ static bool test_map_ensure_ptr(void) {
     result    = result && (MapPairCount(&map) == 1);
     result    = result && (MapValueCountForKey(&map, 8) == 1);
 
-    value_ptr = MapGetOrInsertPtr(&map, 8, 800);
+    value_ptr = MapEnsurePtr(&map, 8, 800);
     result    = result && value_ptr && (*value_ptr == 80);
     result    = result && (MapPairCount(&map) == 1);
     result    = result && (MapValueCountForKey(&map, 8) == 1);

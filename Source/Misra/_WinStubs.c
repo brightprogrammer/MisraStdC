@@ -1,4 +1,4 @@
-/// file      : Source/Misra/_WinStubs.c
+/// file      : _winstubs.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -55,7 +55,7 @@ typedef void          *BCRYPT_ALG_HANDLE;
 #    define DECLSPEC __declspec(dllimport)
 #    define WINAPI   __stdcall
 DECLSPEC NTSTATUS WINAPI BCryptGenRandom(BCRYPT_ALG_HANDLE hAlgorithm, PUCHAR pbBuffer, ULONG cbBuffer, ULONG dwFlags);
-#    define MISRA_BCRYPT_USE_SYSTEM_PREFERRED_RNG 0x00000002UL
+#    define BCRYPT_USE_SYSTEM_PREFERRED_RNG 0x00000002UL
 
 // kernel32 entropy-mix sources for the BCrypt-failed fallback. None
 // are CSPRNG-quality individually; XORed together they at least vary
@@ -76,12 +76,8 @@ __attribute__((used)) unsigned long long __security_cookie = 0x00002B992DDFA232U
 // pre-seeded value. Excluding it closes the bootstrap loop.
 __attribute__((no_stack_protector, used)) void __security_init_cookie(void) {
     unsigned long long cookie = 0;
-    NTSTATUS           s      = BCryptGenRandom(
-        ((BCRYPT_ALG_HANDLE)0),
-        (PUCHAR)&cookie,
-        (ULONG)sizeof cookie,
-        MISRA_BCRYPT_USE_SYSTEM_PREFERRED_RNG
-    );
+    NTSTATUS           s =
+        BCryptGenRandom(((BCRYPT_ALG_HANDLE)0), (PUCHAR)&cookie, (ULONG)sizeof cookie, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
     if (s < 0) {
         // BCrypt unavailable -- fall back to ASLR + PID + TID + tick.
         // Not CSPRNG-quality, but varies per-run and across machines.
@@ -130,11 +126,12 @@ __attribute__((used)) int _fltused = 0x9875;
 
 // (4) UCRT <stdio.h> inline-function fallout. <stdio.h> has __inline
 //     defs of sprintf/snprintf/_vsnprintf_l that bottom out at
-//     __stdio_common_vsprintf (dllimport). Any TU that includes
-//     <stdio.h> (even transitively, via Misra/Std/Log.h) instantiates
-//     the inlines, so the linker sees calls to it even though our
-//     code never actually calls sprintf. Provide a stub that returns
-//     -1 (sprintf's encoding-error convention).
+//     __stdio_common_vsprintf (dllimport). Any TU that pulls <stdio.h>
+//     (e.g. test/bench harnesses that include it explicitly, or a
+//     misbehaving downstream consumer) instantiates the inlines, so
+//     the linker sees calls to it even though libmisra_std itself
+//     never calls sprintf. Provide a stub that returns -1 (sprintf's
+//     encoding-error convention).
 //
 //     dllimport convention: the linker looks for __imp_<symbol>
 //     as a function pointer. Provide that.

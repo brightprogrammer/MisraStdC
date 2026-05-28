@@ -1,6 +1,6 @@
-/// file      : Remove.h
+/// file      : std/container/list/remove.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
-/// copyright : Copyright (c) 2025, Siddharth Mishra, All rights reserved.
+/// This is free and unencumbered software released into the public domain.
 ///
 /// List remove helpers
 ///
@@ -44,7 +44,7 @@
 ///
 /// TAGS: List, Remove, Pop, Front
 ///
-#define ListPopFront(l, val) ListRemove((l), (val), 0);
+#define ListPopFront(l, val) ListRemove((l), (val), 0)
 
 ///
 /// Remove the last element of the list and optionally store its value.

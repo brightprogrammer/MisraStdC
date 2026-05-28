@@ -1,4 +1,4 @@
-/// file      : Pe.c
+/// file      : parsers/pe.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -13,8 +13,12 @@
 ///   - `<winnt.h>` IMAGE_* structure definitions
 ///   - LLVM's `Object/COFF.h` for the reader-side conventions
 
-#include <Misra/Std/Container/Buf.h>
 #include <Misra/Parsers/Pe.h>
+#include <Misra/Std.h>
+#include <Misra/Std/Container/Buf.h>
+#include <Misra/Std/File.h>
+#include <Misra/Std/Log.h>
+#include <Misra/Std/Memory.h>
 
 // ---------------------------------------------------------------------------
 // On-disk record layouts (LE)
@@ -110,10 +114,6 @@
     "{<8r}{<8r}" /* heap_reserve, heap_commit   */                                                                     \
     "{<4r}"      /* loader_flags               */                                                                      \
     "{<4r}"      /* number_of_rva_and_sizes    */
-#include <Misra/Std.h>
-#include <Misra/Std/File.h>
-#include <Misra/Std/Log.h>
-#include <Misra/Std/Memory.h>
 
 // ---------------------------------------------------------------------------
 // Spec constants
@@ -566,7 +566,7 @@ void PeDeinit(Pe *self) {
     MemSet(self, 0, sizeof(*self));
 }
 
-const PeSection *PeFindSection(const Pe *self, Zstr name) {
+const PeSection *pe_find_section_zstr(const Pe *self, Zstr name) {
     if (!self || !name)
         return NULL;
     for (size i = 0; i < VecLen(&self->sections); ++i) {
@@ -576,6 +576,12 @@ const PeSection *PeFindSection(const Pe *self, Zstr name) {
         }
     }
     return NULL;
+}
+
+const PeSection *pe_find_section_str(const Pe *self, const Str *name) {
+    if (!self || !name)
+        return NULL;
+    return pe_find_section_zstr(self, StrBegin(name));
 }
 
 bool PeRvaToOffset(const Pe *self, u32 rva, u64 *out_offset) {

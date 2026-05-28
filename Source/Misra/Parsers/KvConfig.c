@@ -1,8 +1,14 @@
+/// file      : parsers/kvconfig.c
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
+/// This is free and unencumbered software released into the public domain.
+///
+/// Key-value configuration parser: `key = value` lines into a Map(Str, Str).
+
 #include <Misra/Parsers/KvConfig.h>
-#include <Misra/Std/Zstr.h>
 #include <Misra/Std/Container/Map/Private.h>
-#include <Misra/Std/Memory.h>
 #include <Misra/Std/Log.h>
+#include <Misra/Std/Memory.h>
+#include <Misra/Std/Zstr.h>
 
 
 static bool kvconfig_is_space(char c) {
@@ -37,7 +43,7 @@ static bool kvconfig_parse_bool_value(const Str *value, bool *out) {
 
 static bool kvconfig_parse_i64_value(const Str *value, i64 *out) {
     Zstr endptr = NULL;
-    long long parsed;
+    i64  parsed;
 
     if (!out) {
         LOG_FATAL("Expected valid integer output pointer");
@@ -49,13 +55,13 @@ static bool kvconfig_parse_i64_value(const Str *value, i64 *out) {
         return false;
     }
 
-    *out = (i64)parsed;
+    *out = parsed;
     return true;
 }
 
 static bool kvconfig_parse_f64_value(const Str *value, f64 *out) {
     Zstr endptr = NULL;
-    double parsed;
+    f64  parsed;
 
     if (!out) {
         LOG_FATAL("Expected valid float output pointer");

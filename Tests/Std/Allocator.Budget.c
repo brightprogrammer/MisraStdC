@@ -1,4 +1,4 @@
-/// file      : Tests/Std/Allocator.Budget.c
+/// file      : tests/std/allocator.budget.c
 ///
 /// State-machine + edge-case tests for BudgetAllocator.
 ///
@@ -82,8 +82,8 @@ static bool test_fails_when_empty(void) {
     BudgetAllocator bp       = BudgetAllocatorInit(buf, sizeof(buf), sizeof(Node));
     Allocator      *alloc    = ALLOCATOR_OF(&bp);
 
-    bool ok = bp.slot_count > 0;
-    for (size i = 0; ok && i < bp.slot_count; i++) {
+    bool ok = BudgetAllocatorSlotCount(&bp) > 0;
+    for (size i = 0; ok && i < BudgetAllocatorSlotCount(&bp); i++) {
         if (!AllocatorAlloc(alloc, sizeof(Node), false))
             ok = false;
     }
@@ -197,6 +197,10 @@ static bool test_reject_pointer_before_slot_region(void) {
     BudgetAllocator bp        = BudgetAllocatorInit(buf, sizeof(buf), sizeof(Node));
     Allocator      *alloc     = ALLOCATOR_OF(&bp);
 
+    // intentional bypass: the bitmap pointer is private allocator
+    // metadata with no public accessor (and should not get one --
+    // exposing it would invite misuse); the test needs a non-NULL
+    // pointer in the bitmap region to exercise the foreign-ptr check.
     AllocatorFree(alloc, bp.bitmap); // bitmap region -> LOG_FATAL
     return false;
 }

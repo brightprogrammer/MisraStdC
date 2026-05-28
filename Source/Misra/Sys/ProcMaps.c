@@ -1,4 +1,4 @@
-/// file      : ProcMaps.c
+/// file      : sys/proc_maps.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -17,9 +17,6 @@
 ///
 /// Paths can contain spaces — we treat everything after the inode
 /// field's trailing whitespace as the path, up to the line terminator.
-
-#define _DEFAULT_SOURCE
-#define _POSIX_C_SOURCE 200809L
 
 #include <Misra/Sys/ProcMaps.h>
 

@@ -135,7 +135,7 @@
 ///
 /// TAGS: Graph, Node, Id, Handle
 ///
-#define GraphNodeGetId(node) ((void)0, (node).__id)
+#define GraphNodeGetId(node) ((void)0, (node)._id_)
 
 ///
 /// Get the slot index encoded in a traversal handle.

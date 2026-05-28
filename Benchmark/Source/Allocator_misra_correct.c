@@ -24,7 +24,6 @@
 
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Allocator/Heap.h>
-#include <Misra/Std/Allocator/Page.h>
 #include <Misra/Std/Allocator/Slab.h>
 
 // MODE_NONE = pre-init / post-teardown. MODE_HEAP / MODE_SLAB choose
@@ -165,21 +164,9 @@ uint64_t bench_live_bytes(void) {
 }
 
 uint64_t bench_footprint_bytes(void) {
-    // Both HeapAllocator and SlabAllocator embed a PageAllocator at
-    // the same field name. The exact mmap footprint is the sum of
-    // PageEntry.bytes across its entries[] vector. Zero process
-    // noise from gbench, std::vectors, libstdc++, etc.
-    const PageAllocator *p;
-    if (g_mode == MODE_SLAB) {
-        p = &g_slab.page;
-    } else if (g_mode == MODE_HEAP) {
-        p = &g_heap.page;
-    } else {
-        return 0;
-    }
-    uint64_t total = 0;
-    for (u32 i = 0; i < p->len; i++) {
-        total += (uint64_t)p->entries[i].bytes;
-    }
-    return total;
+    // HeapAllocator and SlabAllocator no longer embed a PageAllocator;
+    // each talks to the kernel directly. Footprint measurement via the
+    // PageAllocator entries[] vector is no longer available here.
+    (void)g_mode;
+    return 0;
 }

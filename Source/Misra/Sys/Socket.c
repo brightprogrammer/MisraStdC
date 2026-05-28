@@ -1,4 +1,4 @@
-/// file      : Socket.c
+/// file      : sys/socket.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -15,11 +15,6 @@
 /// require adding that fallback for failed `connect()` detection.
 
 #include <Misra/Config.h>
-
-#if !PLATFORM_WINDOWS
-#    define _DEFAULT_SOURCE
-#    define _POSIX_C_SOURCE 200809L
-#endif
 
 #include <Misra/Sys/Socket.h>
 
@@ -95,51 +90,14 @@ static bool ensure_winsock(void) {
 #    include "../_Syscall.h"
 
 #    if FEATURE_DIRECT_SYSCALL
-// Linux: direct-syscall wrappers for the BSD-sockets primitives used
-// below. `recv` / `send` are mapped onto `recvfrom` / `sendto` with
-// the addr arguments cleared since the kernel offers no separate
-// syscall for them. macOS / BSD keep libSystem; Windows is in the
-// other half of this file.
-
-static inline long misra_sock_socket(int domain, int type, int protocol) {
-    return misra_sys3(MISRA_SYS_socket, (long)domain, (long)type, (long)protocol);
-}
-static inline long misra_sock_bind(int fd, const void *addr, unsigned addrlen) {
-    return misra_sys3(MISRA_SYS_bind, (long)fd, (long)(u64)addr, (long)addrlen);
-}
-static inline long misra_sock_connect(int fd, const void *addr, unsigned addrlen) {
-    return misra_sys3(MISRA_SYS_connect, (long)fd, (long)(u64)addr, (long)addrlen);
-}
-static inline long misra_sock_listen(int fd, int backlog) {
-    return misra_sys2(MISRA_SYS_listen, (long)fd, (long)backlog);
-}
-static inline long misra_sock_accept(int fd, void *addr, void *addrlen) {
-    return misra_sys3(MISRA_SYS_accept, (long)fd, (long)(u64)addr, (long)(u64)addrlen);
-}
-static inline long misra_sock_recv(int fd, void *buf, unsigned long n, int flags) {
-    return misra_sys6(MISRA_SYS_recvfrom, (long)fd, (long)(u64)buf, (long)n, (long)flags, 0, 0);
-}
-static inline long misra_sock_send(int fd, const void *buf, unsigned long n, int flags) {
-    return misra_sys6(MISRA_SYS_sendto, (long)fd, (long)(u64)buf, (long)n, (long)flags, 0, 0);
-}
-static inline long misra_sock_setsockopt(int fd, int level, int optname, const void *optval, unsigned optlen) {
-    return misra_sys5(MISRA_SYS_setsockopt, (long)fd, (long)level, (long)optname, (long)(u64)optval, (long)optlen);
-}
-static inline long misra_sock_getsockname(int fd, void *addr, void *addrlen) {
-    return misra_sys3(MISRA_SYS_getsockname, (long)fd, (long)(u64)addr, (long)(u64)addrlen);
-}
-static inline long misra_sock_close(int fd) {
-    return misra_sys1(MISRA_SYS_close, (long)fd);
-}
-static inline long misra_sock_fcntl(int fd, int cmd, long arg) {
-    return misra_sys3(MISRA_SYS_fcntl, (long)fd, (long)cmd, arg);
-}
-static inline long misra_sock_poll(void *pfds, unsigned long nfds, int timeout_ms) {
+// `poll` is the only POSIX socket primitive that needs more than a
+// direct misra_sys* call: Linux aarch64 dropped the legacy `poll`
+// syscall in favor of `ppoll(fds, nfds, ts, sigmask, sizeof(sigmask))`.
+// Darwin and Linux x86_64 keep the legacy 3-arg shape.
+static inline long sock_poll(void *pfds, unsigned long nfds, int timeout_ms) {
 #        if PLATFORM_DARWIN || ARCHITECTURE_X86_64
-    // Darwin has SYS_poll (#230); Linux x86_64 has SYS_poll (#7). Same shape.
     return misra_sys3(MISRA_SYS_poll, (long)(u64)pfds, (long)nfds, (long)timeout_ms);
 #        else
-    // Linux aarch64 dropped poll for ppoll(fds, nfds, ts, sigmask, sizeof(sigmask)).
     struct {
         long sec;
         long nsec;
@@ -153,19 +111,6 @@ static inline long misra_sock_poll(void *pfds, unsigned long nfds, int timeout_m
     return misra_sys5(MISRA_SYS_ppoll, (long)(u64)pfds, (long)nfds, (long)(u64)ts_ptr, 0, 0);
 #        endif
 }
-
-#        define socket(d, t, p)              ((i32)misra_sock_socket((d), (t), (p)))
-#        define bind(fd, a, l)               ((int)misra_sock_bind((fd), (a), (unsigned)(l)))
-#        define connect(fd, a, l)            ((int)misra_sock_connect((fd), (a), (unsigned)(l)))
-#        define listen(fd, b)                ((int)misra_sock_listen((fd), (b)))
-#        define accept(fd, a, l)             ((i32)misra_sock_accept((fd), (a), (l)))
-#        define recv(fd, b, n, f)            ((long)misra_sock_recv((fd), (b), (unsigned long)(n), (f)))
-#        define send(fd, b, n, f)            ((long)misra_sock_send((fd), (b), (unsigned long)(n), (f)))
-#        define setsockopt(fd, lv, on, v, l) ((int)misra_sock_setsockopt((fd), (lv), (on), (v), (unsigned)(l)))
-#        define getsockname(fd, a, l)        ((int)misra_sock_getsockname((fd), (a), (l)))
-#        define close(fd)                    ((int)misra_sock_close(fd))
-#        define fcntl(fd, cmd, arg)          ((int)misra_sock_fcntl((fd), (cmd), (long)(arg)))
-#        define poll(pfds, n, t)             ((int)misra_sock_poll((pfds), (unsigned long)(n), (t)))
 #    endif
 
 // POSIX side: SockFd is a thin alias for `int`. No conversion needed.
@@ -797,7 +742,7 @@ static bool plat_set_nonblocking(SockFd s, bool nonblock) {
 // direct-syscall the value is just -1 and ErrnoOf falls back to
 // reading errno; both paths land at the same log shape.
 static SockFd plat_socket(int af, int type, int proto) {
-    long ret = socket(af, type, proto);
+    long ret = misra_sys3(MISRA_SYS_socket, (long)af, (long)type, (long)proto);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "socket() failed");
         return SOCKET_FD_INVALID;
@@ -806,7 +751,7 @@ static SockFd plat_socket(int af, int type, int proto) {
 }
 
 static bool plat_bind(SockFd s, const void *addr, u32 len) {
-    long ret = bind(sf_to_int(s), (const struct sockaddr *)addr, (socklen_t)len);
+    long ret = misra_sys3(MISRA_SYS_bind, (long)sf_to_int(s), (long)(u64)(const struct sockaddr *)addr, (long)(socklen_t)len);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "bind() failed");
         return false;
@@ -815,7 +760,7 @@ static bool plat_bind(SockFd s, const void *addr, u32 len) {
 }
 
 static bool plat_listen(SockFd s, int backlog) {
-    long ret = listen(sf_to_int(s), backlog);
+    long ret = misra_sys2(MISRA_SYS_listen, (long)sf_to_int(s), (long)backlog);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "listen() failed");
         return false;
@@ -825,7 +770,7 @@ static bool plat_listen(SockFd s, int backlog) {
 
 static SockFd plat_accept(SockFd s, void *addr, u32 *len_io) {
     socklen_t sl  = (socklen_t)*len_io;
-    long      ret = accept(sf_to_int(s), (struct sockaddr *)addr, &sl);
+    long      ret = misra_sys3(MISRA_SYS_accept, (long)sf_to_int(s), (long)(u64)(struct sockaddr *)addr, (long)(u64)&sl);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "accept() failed");
         return SOCKET_FD_INVALID;
@@ -835,7 +780,7 @@ static SockFd plat_accept(SockFd s, void *addr, u32 *len_io) {
 }
 
 static bool plat_connect(SockFd s, const void *addr, u32 len) {
-    long ret = connect(sf_to_int(s), (const struct sockaddr *)addr, (socklen_t)len);
+    long ret = misra_sys3(MISRA_SYS_connect, (long)sf_to_int(s), (long)(u64)(const struct sockaddr *)addr, (long)(socklen_t)len);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "connect() failed");
         return false;
@@ -844,7 +789,7 @@ static bool plat_connect(SockFd s, const void *addr, u32 len) {
 }
 
 static i64 plat_recv(SockFd s, void *buf, size n) {
-    long ret = recv(sf_to_int(s), buf, (size)n, 0);
+    long ret = misra_sys6(MISRA_SYS_recvfrom, (long)sf_to_int(s), (long)(u64)buf, (long)(size)n, 0, 0, 0);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "recv() failed");
         return -1;
@@ -853,7 +798,7 @@ static i64 plat_recv(SockFd s, void *buf, size n) {
 }
 
 static i64 plat_send(SockFd s, const void *buf, size n) {
-    long ret = send(sf_to_int(s), buf, (size)n, MSG_NOSIGNAL);
+    long ret = misra_sys6(MISRA_SYS_sendto, (long)sf_to_int(s), (long)(u64)buf, (long)(size)n, (long)MSG_NOSIGNAL, 0, 0);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "send() failed");
         return -1;
@@ -862,7 +807,7 @@ static i64 plat_send(SockFd s, const void *buf, size n) {
 }
 
 static bool plat_setsockopt(SockFd s, int level, int optname, const void *optval, u32 optlen) {
-    long ret = setsockopt(sf_to_int(s), level, optname, optval, (socklen_t)optlen);
+    long ret = misra_sys5(MISRA_SYS_setsockopt, (long)sf_to_int(s), (long)level, (long)optname, (long)(u64)optval, (long)(socklen_t)optlen);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "setsockopt() failed");
         return false;
@@ -872,7 +817,7 @@ static bool plat_setsockopt(SockFd s, int level, int optname, const void *optval
 
 static bool plat_getsockname(SockFd s, void *addr, u32 *len_io) {
     socklen_t sl  = (socklen_t)*len_io;
-    long      ret = getsockname(sf_to_int(s), (struct sockaddr *)addr, &sl);
+    long      ret = misra_sys3(MISRA_SYS_getsockname, (long)sf_to_int(s), (long)(u64)(struct sockaddr *)addr, (long)(u64)&sl);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "getsockname() failed");
         return false;
@@ -884,14 +829,14 @@ static bool plat_getsockname(SockFd s, void *addr, u32 *len_io) {
 static void plat_close(SockFd s) {
     if (s == SOCKET_FD_INVALID)
         return;
-    long ret = close(sf_to_int(s));
+    long ret = misra_sys1(MISRA_SYS_close, (long)sf_to_int(s));
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "close() failed");
     }
 }
 
 static bool plat_set_nonblocking(SockFd s, bool nonblock) {
-    long flags = fcntl(sf_to_int(s), F_GETFL, 0);
+    long flags = misra_sys3(MISRA_SYS_fcntl, (long)sf_to_int(s), (long)F_GETFL, 0);
     if (flags < 0) {
         LOG_SOCK_ERROR(flags, "fcntl(F_GETFL) failed");
         return false;
@@ -901,7 +846,7 @@ static bool plat_set_nonblocking(SockFd s, bool nonblock) {
     } else {
         flags &= ~O_NONBLOCK;
     }
-    long ret = fcntl(sf_to_int(s), F_SETFL, flags);
+    long ret = misra_sys3(MISRA_SYS_fcntl, (long)sf_to_int(s), (long)F_SETFL, flags);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "fcntl(F_SETFL) failed");
         return false;
@@ -1152,7 +1097,7 @@ i32 SocketPoll(SocketPollItem *items, u32 count, i32 timeout_ms) {
     bool           used_heap = false;
     if (count > STACK_MAX) {
         halloc = HeapAllocatorInit();
-        pfds   = (plat_pollfd_t *)AllocatorAlloc(ALLOCATOR_OF(&halloc), sizeof(plat_pollfd_t) * count, true);
+        pfds   = (plat_pollfd_t *)AllocatorAlloc(&halloc, sizeof(plat_pollfd_t) * count, true);
         if (!pfds) {
             HeapAllocatorDeinit(&halloc);
             LOG_ERROR("SocketPoll: heap allocation for pollfd array failed");
@@ -1193,7 +1138,7 @@ i32 SocketPoll(SocketPollItem *items, u32 count, i32 timeout_ms) {
     // through here, so check whichever signal is meaningful for the
     // platform without going through `errno` if we don't have to.
     do {
-        ret = poll(pfds, (nfds_t)count, timeout_ms);
+        ret = sock_poll(pfds, (unsigned long)count, timeout_ms);
 #    if FEATURE_DIRECT_SYSCALL
     } while (ret == -EINTR);
 #    else
@@ -1221,7 +1166,7 @@ i32 SocketPoll(SocketPollItem *items, u32 count, i32 timeout_ms) {
     }
 
     if (used_heap) {
-        AllocatorFree(ALLOCATOR_OF(&halloc), pfds);
+        AllocatorFree(&halloc, pfds);
         HeapAllocatorDeinit(&halloc);
     }
     return ret;

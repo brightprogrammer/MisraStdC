@@ -222,22 +222,22 @@ bool test_str_split(void) {
     result         = result && (VecLen(&iters) == 3);
 
     if (VecLen(&iters) >= 3) {
-        // Check first iterator (StrIter fields are Iter contract, not Str/Vec internals).
+        // .length goes through StrIterLength; .data has no accessor
+        // (the base-pointer of an Iter range is the Iter contract --
+        // direct read is the documented usage for view types).
         StrIter *iter1       = VecPtrAt(&iters, 0);
         char     buffer1[10] = {0};
-        MemCopy(buffer1, iter1->data, iter1->length);
+        MemCopy(buffer1, iter1->data, StrIterLength(iter1));
         result = result && (ZstrCompare(buffer1, "Hello") == 0);
 
-        // Check second iterator
         StrIter *iter2       = VecPtrAt(&iters, 1);
         char     buffer2[10] = {0};
-        MemCopy(buffer2, iter2->data, iter2->length);
+        MemCopy(buffer2, iter2->data, StrIterLength(iter2));
         result = result && (ZstrCompare(buffer2, "World") == 0);
 
-        // Check third iterator
         StrIter *iter3       = VecPtrAt(&iters, 2);
         char     buffer3[10] = {0};
-        MemCopy(buffer3, iter3->data, iter3->length);
+        MemCopy(buffer3, iter3->data, StrIterLength(iter3));
         result = result && (ZstrCompare(buffer3, "Test") == 0);
     }
 

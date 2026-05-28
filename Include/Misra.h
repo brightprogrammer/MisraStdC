@@ -25,9 +25,18 @@
 #    include <Misra/Parsers/Http.h>
 #endif
 
-// Note: Parsers/Elf.h is intentionally NOT pulled through the umbrella.
-// `Bin/ElfInfo.c` still has its own local copy of the ELF constants
-// and the names collide. Include `Misra/Parsers/Elf.h` directly when
-// you want the parser. Tracked in FUTURE-PLANS.md.
+#if FEATURE_PARSER_DNS
+#    include <Misra/Parsers/Dns.h>
+#endif
+
+// Note: the binary-format parsers
+// (`Parsers/Elf.h`, `Parsers/Dwarf.h`, `Parsers/MachO.h`,
+// `Parsers/Pe.h`, `Parsers/Pdb.h`) are intentionally NOT pulled
+// through the umbrella. Downstream tools (and any TU) that maintain
+// their own ELF / DWARF / Mach-O / PE / PDB constants would collide
+// with the public-API names. Include the relevant header directly
+// when you want the parser. Same carve-out applies to the
+// SymbolResolver / Backtrace / PdbCache / MachoCache headers under
+// `Misra/Sys/` -- see the note there.
 
 #endif // MISRA_H

@@ -16,12 +16,20 @@ of the codebase to see them in action.
 - **No project prefix on identifiers.** The include path
   (`<Misra/Std/Container/Buf.h>`) already names the namespace; adding
   `Misra` / `MISRA_` / `misra_` to every symbol is noise. The `MISRA_`
-  prefix is reserved for four things only: include guards, `FEATURE_*`
-  build-config flags surfaced by `meson.build`, `_MAGIC` struct
-  sentinels (e.g. `HEAP_ALLOCATOR_MAGIC`, `VEC_MAGIC`), and
-  direct-syscall wrappers and constants in `Source/Misra/_Syscall.h` /
-  `Bin/Beam.c` (collision-avoidance with libc's `SYS_*` / `sys_*`
-  syscall vocabulary).
+  prefix itself is reserved for two narrow uses only:
+  - **Include guards** on public headers (`MISRA_STD_CONTAINER_BUF_H`,
+    `MISRA_SYS_PROC_H`, etc.). The path-derived guard name keeps them
+    collision-free in downstream projects.
+  - **`MISRA_SYS_*` direct-syscall kernel-ABI constants** in
+    `Source/Misra/_Syscall.h` only (collision-avoidance with libc's
+    `SYS_*` / `sys_*` syscall vocabulary).
+
+  Two other UPPER_SNAKE name families are project-controlled but do NOT
+  carry the `MISRA_` prefix and live elsewhere:
+  - **`FEATURE_*`** build-config flags emitted by `meson.build` /
+    `Config.h` (`FEATURE_PARSER_JSON`, `FEATURE_ALLOC_DEBUG`, ...).
+  - **`*_MAGIC`** struct sentinels (`HEAP_ALLOCATOR_MAGIC`, `VEC_MAGIC`,
+    ...) defined per-type next to the struct they tag.
 - **Short names where the include path already disambiguates.** `Buf`,
   `Str`, `Vec`, `Elf` — not `MisraBuf`, not `ElfFile`.
 - **Tool binaries** ship with a single short word as their name
@@ -77,7 +85,7 @@ of the codebase to see them in action.
 
 - **`FooInit` is a macro**, not a function. It expands to a designated-
   initializer struct literal (`VecInit`, `StrInit`, `HeapAllocatorInit`).
-  It cannot fail. Use `MISRA_OVERLOAD` for arg-count dispatch.
+  It cannot fail. Use `OVERLOAD` for arg-count dispatch.
 - **`FooDeinit` is a function**, and the only way to release `Foo`.
 - **`Init` + `Deinit`, never `Create` / `Destroy`.** Any `Create` /
   `Destroy` pair you see is a leftover; new code should not copy it.
@@ -141,7 +149,7 @@ of the codebase to see them in action.
   `.length` and `.data`. The canonical shape is the `Cstr` / `Zstr` /
   unsuffixed-Str naming pattern as **private snake_case backends in
   a `Private.h`** (one file per namespace) plus a **single public
-  `PascalCase` macro** on top, dispatching via `MISRA_OVERLOAD`
+  `PascalCase` macro** on top, dispatching via `OVERLOAD`
   (arg count for the Cstr variant) and `_Generic` (`Str *` vs `Zstr`):
 
   ```c
@@ -151,7 +159,7 @@ of the codebase to see them in action.
   bool str_starts_with_cstr (const Str *s, Zstr prefix, size prefix_len);
 
   // Public — Std/Container/Str/Ops.h (single unified entry point).
-  #define StrStartsWith(...) MISRA_OVERLOAD(StrStartsWith, __VA_ARGS__)
+  #define StrStartsWith(...) OVERLOAD(StrStartsWith, __VA_ARGS__)
   #define StrStartsWith_2(s, prefix)                                       \
       _Generic((prefix),                                                   \
           Str *:  str_starts_with_str ((s), (const Str *)(prefix)),        \
@@ -180,7 +188,13 @@ of the codebase to see them in action.
   shouldn't be — adjusting state has invariants the mutators enforce.
   Intentional-corruption tests that need to bypass an invariant (to
   verify that a validator catches it) write the field directly, with
-  an inline comment noting the bypass.
+  an inline comment opening with the canonical phrase
+  `// intentional bypass:` followed by *why* no public accessor /
+  mutator covers the case. The phrase is grep-able; a stray field
+  write without it is a review finding. See
+  `Tests/Std/Allocator.Heap.c`, `Tests/Std/BitVec.Convert.c`,
+  `Tests/Std/Graph.Init.c`, and the other `Tests/Std/*` Deadend
+  fixtures for the established shape.
 - **Container key types ship `*_hash` and `*_compare`.** Any type
   meant to be a `Map` key (or `Vec`/`List` element with comparison
   semantics) must expose two snake_case helpers in the
@@ -207,6 +221,20 @@ of the codebase to see them in action.
 - **Allocators fail loud.** Bad free, foreign pointer, state-machine
   violation → `LOG_FATAL` with a backtrace. Soft no-op returns hide bugs;
   this project would rather you crash on the spot.
+- **Typed-direct dispatch skips stats accounting.** The
+  `AllocatorAlloc` / `AllocatorResize` / `AllocatorRemap` /
+  `AllocatorFree` `_Generic` macros route a typed pointer
+  (`HeapAllocator *`, `ArenaAllocator *`, ...) straight to the
+  concrete `*_allocator_*` backend — no `ValidateAllocator`, no retry
+  loop, **and no `AllocatorStats` updates**. The accounting only
+  happens on the `Allocator *` arm via `AllocatorAlloc_dyn` (and
+  friends), which is also the path downstream out-of-tree backends
+  use. Callers that need `AllocatorGetStats` to reflect their
+  traffic must route through `ALLOCATOR_OF(&typed)` so the dispatch
+  lands on the dyn wrapper; the typed-direct path is the fast lane
+  and trades visibility for the lower per-call cost. Documented on
+  each `AllocatorAlloc*` / `AllocatorResize*` / `AllocatorRemap*` /
+  `AllocatorFree*` macro in `<Misra/Std/Allocator.h>`.
 - **Stack-promote transient containers** with `*InitStack` (`StrInitStack`,
   `VecInitStack`, ...) -- see the dedicated section below.
 
@@ -318,15 +346,28 @@ of the codebase to see them in action.
 
   For functions that already have an arg-count variant of the API
   (`*Cstr` form taking `(Zstr, size)`), combine the type dispatch
-  above with `MISRA_OVERLOAD` for arg count — see the
+  above with `OVERLOAD` for arg count — see the
   *StrStartsWith family* example next to the `Cstr` / `Zstr` /
   unsuffixed-Str description in the *API shape* section.
-- **Don't reach into a wrapped type's fields from outside its `.c`
-  file.** Go through the public accessor macros: `BufLength` / `BufData`
-  / `BufAllocator` (`<Misra/Std/Container/Buf.h>`), `StrLen` / `StrBegin`
-  (`<Misra/Std/Container/Str/Access.h>`), and the corresponding `Vec`
-  ones. Direct field access is reserved for the container's own
-  implementation.
+- **Don't reach into a wrapped type's fields from outside its
+  namespace.** Go through the public accessor macros: `BufLength` /
+  `BufData` / `BufAllocator` (`<Misra/Std/Container/Buf.h>`), `StrLen`
+  / `StrBegin` (`<Misra/Std/Container/Str/Access.h>`), and the
+  corresponding `Vec` ones.
+  - **Same-namespace public macros may touch their own type's fields
+    directly.** `VecPushBack` reading `(v)->length`, `MapCompact`
+    reading `(m)->policy`, `ListForeach` reading `(l)->tail` etc. are
+    NOT violations -- they are part of the same container's public
+    macro layer, just split across the header for inlining. The rule
+    is "don't reach in from OUTSIDE the namespace," not "the macro
+    body must call an accessor that wraps the same field read."
+  - **Tests are allowed to read fields directly when no public
+    accessor covers the invariant**, BUT prefer the public API
+    wherever it exists. Tests double as usage examples; a test that
+    open-codes field reads when an accessor would do the same job
+    models bad usage. If a test repeatedly needs a state observation
+    that no accessor exposes, add the accessor (it is presumably
+    useful to non-test consumers too).
 - **`_Generic` arm bodies must have uniform shape.** C11 type-checks
   *every* arm's body (not just the selected one). An arm that
   dereferences (`((T *)(val))->field`) and an arm that treats `val`
@@ -341,6 +382,117 @@ of the codebase to see them in action.
   `*InsertMany` for range). The unified-macro-with-mixed-shapes
   pattern only works when every arm body has the same pointer-deref
   or pointer-cast shape.
+
+## Type lattice
+
+Several library boundaries pair a concrete struct with an embedded base
+struct (e.g. `HeapAllocator` contains `Allocator base` at offset 0; same
+shape for `PageAllocator`, `ArenaAllocator`, `SlabAllocator`,
+`BudgetAllocator`, `DebugAllocator`). These pairs form a lattice with the
+concrete type at the bottom and the type-erased base at the top.
+
+**Movement is one-way: down only.** Code is allowed to specialise a
+generic pointer into a concrete one (`(HeapAllocator *)self` at a vtable
+entry, or at the boundary where a `void *` arrives from an external
+module). Code is **not allowed** to generalise a concrete pointer back to
+its base mid-flow. Once the type is concrete, it stays concrete until the
+caller passes it across a genuinely type-erased boundary.
+
+- **Forbidden: `.base` shuffles in internal callers.**
+
+      // wrong -- specialise (have HeapAllocator *) -> generalise to
+      //         &heap->page.base (Allocator *) -> let _Generic re-erase
+      //         to AllocatorAlloc_dyn -> vtable indirect -> typed func.
+      AllocatorAlloc(&heap->page.base, n, false);
+
+      // right -- stay specialised end-to-end.
+      page_allocator_allocate(&heap->page, n, false);
+
+- **Forbidden: typed entry points that take the generic.** If
+  `xx_allocator_allocate` knows it always receives an `XxAllocator *`,
+  its signature must say so:
+
+      // wrong -- generic in, immediate cast back to specific.
+      void *xx_allocator_allocate(Allocator *self, size n, i8 z) {
+          XxAllocator *x = (XxAllocator *)self;
+          ...
+      }
+
+      // right -- typed self, no cast inside, no .base in caller.
+      void *xx_allocator_allocate(XxAllocator *self, size n, i8 z) {
+          ...
+      }
+
+- **Vtable install does the cast, never a thunk symbol.** Function-
+  pointer casts at compound-literal vtable initialisation are the one
+  legitimate up-cast in the codebase — they live exactly at the
+  type-erasure boundary and turn into zero machine instructions:
+
+      // right -- cast at install.
+      #define XxAllocatorInit() ((XxAllocator) {       \
+          .base = {                                    \
+              .allocate   = (AllocatorAllocateFn)   xx_allocator_allocate,   \
+              .resize     = (AllocatorResizeFn)     xx_allocator_resize,     \
+              .remap      = (AllocatorRemapFn)      xx_allocator_remap,      \
+              .deallocate = (AllocatorDeallocateFn) xx_allocator_deallocate, \
+              ...                                                            \
+          }, ...                                                             \
+      })
+
+  Do not introduce an `xx_allocator_allocate_dyn(Allocator *)` thunk that
+  wraps `xx_allocator_allocate(XxAllocator *)`. The vtable install is
+  already an up-cast — adding a thunk is a redundant up-cast plus a real
+  symbol the linker has to carry.
+
+- **`_Generic` dispatch macros never re-erase.** The `AllocatorAlloc` /
+  `AllocatorResize` / `AllocatorRemap` / `AllocatorFree` macros hand the
+  caller's pointer straight to the chosen arm. They do **not** insert
+  `(Allocator *)(self)` between `_Generic` and the call — the typed arm
+  expects the typed pointer, the `Allocator *` arm receives an already-
+  `Allocator *` argument from the caller.
+
+- **Type erasure is a design problem, not a tool.** This convention has
+  no "exception" clause. Every `Allocator *` (or other base-typed value)
+  flowing through the codebase is a place where the compiler has *less*
+  information than the human who wrote the call. There is no list of
+  "places where erasure is fine" — there are only places where the
+  current code happens to be erased, and the question is whether that
+  should still be true.
+
+  Before introducing any new type-erased field, parameter, container
+  element, or callback signature: stop, and discuss it with whoever owns
+  the affected design. Bring concrete answers to: which concrete types
+  flow through this site, why a typed (or `_Generic`-dispatched, or
+  parametrically-generated) shape doesn't fit, what the alternative
+  shapes were and why they were rejected. Document the outcome of that
+  discussion alongside the field/parameter. If the answer is "I wasn't
+  sure," the answer is not erasure — the answer is to keep asking.
+
+  The dyn-dispatch path through `AllocatorAlloc_dyn` exists for one
+  specific reason: **out-of-tree extensibility.** A downstream consumer
+  who defines their own `MyAllocator` cannot add an arm to the
+  library's `_Generic` macros — so the catch-all `Allocator *:
+  AllocatorAlloc_dyn` arm handles their typed pointer (after a one-step
+  upcast at the call site) by going through the vtable they installed
+  in their own `MyAllocatorInit`. The dyn path is the extension seam,
+  not a sanctioned fallback for in-tree code. Every in-tree allocator
+  has its own `_Generic` arm; an in-tree caller that ends up on the dyn
+  arm is, by definition, doing something wrong.
+
+**Why:** every up-cast discards information the compiler already had.
+Best case the optimizer recovers it after inlining; common case it falls
+through to the slower `_dyn` arm (`ValidateAllocator` + vtable indirect)
+or pays for a tautological cast at function entry. But the bigger cost
+is that the human reader, the static analyser, the IDE jump-to-definition
+and the type checker all lose the same information the compiler does.
+Erasure is cheap to type and expensive to live with; it is worth the
+up-front design conversation every single time.
+
+The lattice rule generalises beyond allocators. Any time the codebase
+introduces a concrete-vs-base pair (containers with a base, parsers with
+a base context, etc.), the same constraint applies: down-cast only at
+the vtable install. There is no other place this convention sanctions an
+up-cast.
 
 ## Macro hygiene
 
@@ -370,7 +522,7 @@ of the codebase to see them in action.
   a function and forwards its arguments unchanged is deadweight —
   delete the macro and let users call `foo` directly. Reach for a
   macro only when you're doing something a function call can't:
-  stamping `__LINE__` (`UNPL`), arg-count dispatch (`MISRA_OVERLOAD`),
+  stamping `__LINE__` (`UNPL`), arg-count dispatch (`OVERLOAD`),
   `_Generic` type dispatch, generating a `for`-chain body, etc.
   Think of macros as a code generator, not as the default ergonomics
   layer.
@@ -386,6 +538,33 @@ of the codebase to see them in action.
   enforces that. The alias's doc reframes the contract in the
   specialised vocabulary (string / character) rather than echoing the
   generic one (vector / element).
+- **Local stamping macros are how repetitive type-instantiated bodies
+  earn their keep.** When the same function body needs to exist for
+  several concrete types -- and there is no way to share the body
+  through a runtime helper because the type appears in the signature
+  / cast / parser pick / bound check -- write the body once as a
+  `_MAKE_FOO(NAME, T, ...)` macro at the top of the `.c`, stamp the
+  instantiations underneath, and `#undef` the macro on the very next
+  line so it cannot leak out of the file. The macro is parameterised
+  over real type information (`T`, picked parser, bound-check block),
+  not just a name -- that's the difference from an alias wrapper.
+  Canonical reference: `_MAKE_READ_TXT_INT` + `_U_BOUND` / `_I_BOUND`
+  in `Source/Misra/Std/Io.c`, which stamps `_read_u16` /
+  `_read_u32` / `_read_u64` / `_read_i8..i64` with the right parser
+  and the right post-parse bound check. The pattern is:
+
+      #define _MAKE_FOO(NAME, T, ...)                                  \
+          T fn_##NAME(...) { /* body uses T, parser, bound check */ }
+
+      _MAKE_FOO(u16, u16, ...)
+      _MAKE_FOO(u32, u32, ...)
+      ...
+      #undef _MAKE_FOO
+
+  Keep the macro `.c`-local; never expose a stamping macro as a public
+  API. If a caller would need to stamp their own, the abstraction
+  belongs as a `_Generic` dispatch or a typed helper, not as a public
+  stamp macro.
 
 ## Sub-range iteration
 
@@ -480,8 +659,10 @@ of the codebase to see them in action.
   exercise the validators by violating an invariant — bypassing
   capacity bookkeeping, scrambling a magic value, overrunning a buffer.
   These tests write fields directly because that's the whole point of
-  the test; mark each such site with an inline comment so it doesn't
-  get swept on the next pass.
+  the test; open each such site with the canonical
+  `// intentional bypass:` comment (same phrase used by the
+  non-Deadend tests in *Accessor macros are read-only* above) so it
+  stays grep-able and doesn't get swept on the next pass.
 - **Fixture-local owned storage** (e.g. `Vec.Complex.c`'s `char *name`
   / `int *values` inside a `ComplexItem` that exercises
   `VecInitWithDeepCopy` callbacks) is fine as raw pointers because the

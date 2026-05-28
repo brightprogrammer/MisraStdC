@@ -1,5 +1,5 @@
 /// file      : std/container/bitvec/pattern.h
-/// author    : Generated following Misra project patterns
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Pattern matching and search operations for bitvectors.
@@ -129,7 +129,7 @@ extern "C" {
     u64  bitvec_find_all_pattern_raw(BitVec *bv, BitVec *pattern, size *results, u64 max_results);
     bool bitvec_find_all_pattern_vec(BitVec *bv, BitVec *pattern, BitVecMatchIndices *out);
 
-#define BitVecFindAllPattern(...)                         MISRA_OVERLOAD(BitVecFindAllPattern, __VA_ARGS__)
+#define BitVecFindAllPattern(...)                         OVERLOAD(BitVecFindAllPattern, __VA_ARGS__)
 #define BitVecFindAllPattern_4(bv, pattern, results, max) bitvec_find_all_pattern_raw((bv), (pattern), (results), (max))
 #define BitVecFindAllPattern_3(bv, pattern, out_vec)      bitvec_find_all_pattern_vec((bv), (pattern), (out_vec))
 

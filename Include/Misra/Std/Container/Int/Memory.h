@@ -1,5 +1,5 @@
 /// file      : std/container/int/memory.h
-/// author    : Generated following Misra project patterns
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Copy-oriented helpers for Int.
@@ -30,7 +30,7 @@ extern "C" {
     ///
     /// TAGS: Int, Memory, Clone, Copy
     ///
-    bool IntTryClone(Int *out, Int *value);
+    bool IntTryClone(Int *out, const Int *value);
 
     ///
     /// Create a deep copy of an integer.
@@ -51,7 +51,7 @@ extern "C" {
     ///
     /// TAGS: Int, Memory, Clone, Copy
     ///
-    Int IntClone(Int *value);
+    Int IntClone(const Int *value);
 
 #ifdef __cplusplus
 }

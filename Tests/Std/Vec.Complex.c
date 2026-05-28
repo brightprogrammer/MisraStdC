@@ -99,11 +99,12 @@ void ComplexItemDeinit(ComplexItem *item) {
 }
 
 // Helper function to create a ComplexItem.
-// This fixture intentionally uses libc `malloc`/`free` for both `name` and
-// `values` so the test owns the entire allocation lifecycle through libc.
-// `ZstrDup` is not used here because it routes through the library's
-// allocator, which (since Stage 3) no longer uses libc - that would mean
-// pointers handed to libc `free` below would not be libc-managed.
+// This fixture uses `fixture_malloc` / `fixture_free` (a separate, test-owned
+// HeapAllocator) for both `name` and `values` so the test owns the entire
+// allocation lifecycle. The library's containers are exercised elsewhere in
+// the file with the standard Misra `Allocator *` plumbing; this fixture
+// only proves the container's deep-copy hooks call user destructors against
+// independently-allocated payloads.
 ComplexItem InitComplexItem(Zstr name, int *values, size num_values) {
     ComplexItem item = {0};
 
@@ -918,7 +919,7 @@ int main(void) {
     int total_tests = sizeof(tests) / sizeof(tests[0]);
 
     // Run all tests using the centralized test driver
-    int __rc = run_test_suite(tests, total_tests, NULL, 0, "Vec.Complex");
+    int rc = run_test_suite(tests, total_tests, NULL, 0, "Vec.Complex");
     DefaultAllocatorDeinit(&alloc);
-    return __rc;
+    return rc;
 }

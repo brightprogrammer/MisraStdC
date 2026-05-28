@@ -68,9 +68,9 @@ static bool test_map_try_get_ptr(void) {
     MapSetOnlyR(&map, 11, 110);
     MapInsertR(&map, 11, 111);
 
-    int *value  = MapTryGetPtr(&map, 11);
+    int *value  = MapGetFirstPtr(&map, 11);
     bool result = value && (*value == 110);
-    result      = result && (MapTryGetPtr(&map, 999) == NULL);
+    result      = result && (MapGetFirstPtr(&map, 999) == NULL);
 
     MapDeinit(&map);
     DefaultAllocatorDeinit(&alloc);

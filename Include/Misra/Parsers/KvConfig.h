@@ -14,6 +14,12 @@
 #include <Misra/Std/Zstr.h>
 #include <Misra/Types.h>
 
+// `KvConfig` is `Map(Str, Str)`. Because `Map(...)` expands to a fresh
+// anonymous struct each time, the typedef must live in exactly one
+// translation-unit-visible spot so the public header and the
+// implementation agree on the layout.
+typedef Map(Str, Str) KvConfig;
+
 ///
 /// Key-value configuration map.
 ///
@@ -35,7 +41,6 @@
 ///
 /// TAGS: Parser, Config, KeyValue, Map
 ///
-typedef Map(Str, Str) KvConfig;
 
 ///
 /// Initialize a `KvConfig` object with deep-copy ownership for both keys and values.
@@ -48,7 +53,7 @@ typedef Map(Str, Str) KvConfig;
 ///
 /// TAGS: KvConfig, Init, API
 ///
-#define KvConfigInit(...) MISRA_OVERLOAD(KvConfigInit, __VA_ARGS__)
+#define KvConfigInit(...) OVERLOAD(KvConfigInit, __VA_ARGS__)
 #define KvConfigInit_0()  KvConfigInit_1(MisraScope)
 #define KvConfigInit_1(allocator_ptr)                                                                                  \
     MapInitFull_9(                                                                                                     \
@@ -203,8 +208,6 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg);
 ///
 /// TAGS: KvConfig, Get, API
 ///
-Str kvconfig_get_zstr(KvConfig *cfg, Zstr key);
-Str kvconfig_get_str(KvConfig *cfg, const Str *key);
 #define KvConfigGet(cfg, key)                                                                                                            \
     _Generic((key), Str *: kvconfig_get_str, Zstr: kvconfig_get_zstr, char *: kvconfig_get_zstr)( \
         (cfg),                                                                                                                           \
@@ -222,8 +225,6 @@ Str kvconfig_get_str(KvConfig *cfg, const Str *key);
 ///
 /// TAGS: KvConfig, Get, Pointer
 ///
-Str *kvconfig_get_ptr_zstr(KvConfig *cfg, Zstr key);
-Str *kvconfig_get_ptr_str(KvConfig *cfg, const Str *key);
 #define KvConfigGetPtr(cfg, key)                                                                                                                         \
     _Generic((key), Str *: kvconfig_get_ptr_str, Zstr: kvconfig_get_ptr_zstr, char *: kvconfig_get_ptr_zstr)( \
         (cfg),                                                                                                                                           \
@@ -241,8 +242,6 @@ Str *kvconfig_get_ptr_str(KvConfig *cfg, const Str *key);
 ///
 /// TAGS: KvConfig, Contains, API
 ///
-bool kvconfig_contains_zstr(KvConfig *cfg, Zstr key);
-bool kvconfig_contains_str(KvConfig *cfg, const Str *key);
 #define KvConfigContains(cfg, key)                                                                                                                           \
     _Generic((key), Str *: kvconfig_contains_str, Zstr: kvconfig_contains_zstr, char *: kvconfig_contains_zstr)( \
         (cfg),                                                                                                                                               \
@@ -263,8 +262,6 @@ bool kvconfig_contains_str(KvConfig *cfg, const Str *key);
 ///
 /// TAGS: KvConfig, Get, Bool
 ///
-bool kvconfig_get_bool_zstr(KvConfig *cfg, Zstr key, bool *value);
-bool kvconfig_get_bool_str(KvConfig *cfg, const Str *key, bool *value);
 #define KvConfigGetBool(cfg, key, value)                                                                                                                     \
     _Generic((key), Str *: kvconfig_get_bool_str, Zstr: kvconfig_get_bool_zstr, char *: kvconfig_get_bool_zstr)( \
         (cfg),                                                                                                                                               \
@@ -284,8 +281,6 @@ bool kvconfig_get_bool_str(KvConfig *cfg, const Str *key, bool *value);
 ///
 /// TAGS: KvConfig, Get, I64
 ///
-bool kvconfig_get_i64_zstr(KvConfig *cfg, Zstr key, i64 *value);
-bool kvconfig_get_i64_str(KvConfig *cfg, const Str *key, i64 *value);
 #define KvConfigGetI64(cfg, key, value)                                                                                                                  \
     _Generic((key), Str *: kvconfig_get_i64_str, Zstr: kvconfig_get_i64_zstr, char *: kvconfig_get_i64_zstr)( \
         (cfg),                                                                                                                                           \
@@ -305,13 +300,39 @@ bool kvconfig_get_i64_str(KvConfig *cfg, const Str *key, i64 *value);
 ///
 /// TAGS: KvConfig, Get, F64
 ///
-bool kvconfig_get_f64_zstr(KvConfig *cfg, Zstr key, f64 *value);
-bool kvconfig_get_f64_str(KvConfig *cfg, const Str *key, f64 *value);
 #define KvConfigGetF64(cfg, key, value)                                                                                                                  \
     _Generic((key), Str *: kvconfig_get_f64_str, Zstr: kvconfig_get_f64_zstr, char *: kvconfig_get_f64_zstr)( \
         (cfg),                                                                                                                                           \
         (key),                                                                                                                                           \
         (value)                                                                                                                                          \
     )
+
+// ---------------------------------------------------------------------------
+// Private backends.
+//
+// The declarations below are the snake_case implementations the public
+// `_Generic`-dispatched macros above forward to. They are NOT part of the
+// public API — call the macros, not these functions directly. Kept in this
+// file so the dispatch arms can resolve them by name in the same TU; grouped
+// here, after the public surface, to keep the public surface readable.
+// ---------------------------------------------------------------------------
+
+Str kvconfig_get_zstr(KvConfig *cfg, Zstr key);
+Str kvconfig_get_str(KvConfig *cfg, const Str *key);
+
+Str *kvconfig_get_ptr_zstr(KvConfig *cfg, Zstr key);
+Str *kvconfig_get_ptr_str(KvConfig *cfg, const Str *key);
+
+bool kvconfig_contains_zstr(KvConfig *cfg, Zstr key);
+bool kvconfig_contains_str(KvConfig *cfg, const Str *key);
+
+bool kvconfig_get_bool_zstr(KvConfig *cfg, Zstr key, bool *value);
+bool kvconfig_get_bool_str(KvConfig *cfg, const Str *key, bool *value);
+
+bool kvconfig_get_i64_zstr(KvConfig *cfg, Zstr key, i64 *value);
+bool kvconfig_get_i64_str(KvConfig *cfg, const Str *key, i64 *value);
+
+bool kvconfig_get_f64_zstr(KvConfig *cfg, Zstr key, f64 *value);
+bool kvconfig_get_f64_str(KvConfig *cfg, const Str *key, f64 *value);
 
 #endif // MISRA_PARSERS_KVCONFIG_H

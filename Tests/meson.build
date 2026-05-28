@@ -390,22 +390,28 @@ if opt_parser_pdb
         test(test_name, test_exe)
     endforeach
 
-    foreach test_info : pdb_cache_tests
-        test_name = test_info[0]
-        test_src = test_info[1]
+    # PdbCache test uses FileWrite (in `file`) and FileRemove (in
+    # `sys_dir` -- it's a path-keyed unlink) to drop a fixture PE+PDB
+    # pair on disk. Gate on both so the minimal build (which turns
+    # `sys_dir` off) doesn't try to compile against missing symbols.
+    if opt_file and opt_sys_dir
+        foreach test_info : pdb_cache_tests
+            test_name = test_info[0]
+            test_src = test_info[1]
 
-        test_exe = executable(
-            test_name,
-            files(test_src),
-            link_with: [misra_std_no_backtrace],
-            dependencies: [test_util_dep_no_backtrace],
-            c_args: test_args,
-            include_directories: inc_misra,
-            install: false
-        )
+            test_exe = executable(
+                test_name,
+                files(test_src),
+                link_with: [misra_std_no_backtrace],
+                dependencies: [test_util_dep_no_backtrace],
+                c_args: test_args,
+                include_directories: inc_misra,
+                install: false
+            )
 
-        test(test_name, test_exe)
-    endforeach
+            test(test_name, test_exe)
+        endforeach
+    endif
 endif
 
 # Same model: synthetic Mach-O blob, no actual macOS host needed.
@@ -428,12 +434,12 @@ if opt_parser_macho
     endforeach
 
     # MachoCache test builds a dSYM bundle directory tree via
-    # `system("mkdir -p ...")` / `rm -rf ...`. Those are POSIX shell
-    # idioms; cmd.exe on Windows doesn't speak them. Gate the test
-    # to non-Windows -- the MachoCache code itself is portable C99,
-    # but the dSYM concept is macOS-only, so Windows coverage adds
-    # little.
-    if host_machine.system() != 'windows'
+    # `DirCreateAll` / `DirRemoveAll` and drops fixture blobs with
+    # `FileWrite` / `FileRemove`. Gate on `sys_dir` + `file` so the
+    # minimal build (which turns both off) doesn't try to compile
+    # against missing symbols. Also gate to non-Windows: the dSYM
+    # concept is macOS-only, so Windows coverage adds little.
+    if host_machine.system() != 'windows' and opt_sys_dir and opt_file
         foreach test_info : macho_cache_tests
             test_name = test_info[0]
             test_src = test_info[1]

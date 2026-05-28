@@ -1,4 +1,4 @@
-/// file      : std/container/vec/private.h
+/// file      : std/container/vec/ops.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///

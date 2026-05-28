@@ -1,4 +1,4 @@
-/// file      : Source/Misra/_Freestanding.c
+/// file      : _freestanding.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -184,16 +184,17 @@ __attribute__((weak, used, noreturn)) void __stack_chk_fail(void) {
 
 // ---------------------------------------------------------------------------
 // setjmp / longjmp -- callee-saved register snapshot + restore. The
-// jmp_buf layout is project-internal (Tests/Util/TestRunner.c). Both
-// `_setjmp` and `setjmp` resolve to the same code because glibc's
-// `setjmp` adds signal-mask save/restore on top of `_setjmp`, but the
-// project test harness only needs the bare control-flow form.
+// jmp_buf layout is project-internal (Tests/Util/TestRunner.c): 64
+// bytes on x86_64 (rbx, rbp, r12-r15, rsp, rip), 104 bytes on aarch64
+// (x19-x28, fp/x29, lr/x30, sp). `_setjmp` aliases `setjmp` because
+// glibc's `setjmp` adds signal-mask save/restore on top of `_setjmp`,
+// but the project test harness only needs the bare control-flow form.
 //
 // Linux-only: on Darwin the test runner currently still links
 // libSystem's _setjmp/_longjmp. Symbol mangling differs (Mach-O wants
 // `_setjmp` as the asm symbol -- which is what naked C declarations
 // produce -- but Darwin's libSystem also exports a 16-byte-aligned
-// jmp_buf that wouldn't match our 56-byte layout) so a separate Mac
+// jmp_buf that wouldn't match our layout) so a separate Mac
 // trampoline + alignment shim is needed if we ever pursue it.
 // ---------------------------------------------------------------------------
 
@@ -258,22 +259,7 @@ __attribute__((naked, used)) int setjmp(void *env) {
         "ret\n"
     );
 }
-__attribute__((naked, used)) int _setjmp(void *env) {
-    __asm__(
-        "mov %rbx,  0(%rdi)\n"
-        "mov %rbp,  8(%rdi)\n"
-        "mov %r12, 16(%rdi)\n"
-        "mov %r13, 24(%rdi)\n"
-        "mov %r14, 32(%rdi)\n"
-        "mov %r15, 40(%rdi)\n"
-        "lea 8(%rsp), %rax\n"
-        "mov %rax, 48(%rdi)\n"
-        "mov (%rsp), %rax\n"
-        "mov %rax, 56(%rdi)\n"
-        "xor %eax, %eax\n"
-        "ret\n"
-    );
-}
+int _setjmp(void *env) __attribute__((alias("setjmp")));
 
 __attribute__((naked, used, noreturn)) void longjmp(void *env, int val) {
     __asm__(
@@ -310,20 +296,7 @@ __attribute__((naked, used)) int setjmp(void *env) {
         "ret\n"
     );
 }
-__attribute__((naked, used)) int _setjmp(void *env) {
-    __asm__(
-        "stp x19, x20, [x0,  #0]\n"
-        "stp x21, x22, [x0, #16]\n"
-        "stp x23, x24, [x0, #32]\n"
-        "stp x25, x26, [x0, #48]\n"
-        "stp x27, x28, [x0, #64]\n"
-        "stp x29, x30, [x0, #80]\n"
-        "mov x1, sp\n"
-        "str x1,       [x0, #96]\n"
-        "mov w0, #0\n"
-        "ret\n"
-    );
-}
+int _setjmp(void *env) __attribute__((alias("setjmp")));
 
 __attribute__((naked, used, noreturn)) void longjmp(void *env, int val) {
     __asm__(

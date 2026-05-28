@@ -1,5 +1,5 @@
 /// file      : std/container/int/math.h
-/// author    : Generated following Misra project patterns
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Arithmetic and number-theoretic helpers for Int.
@@ -61,7 +61,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Add
     ///
-    bool int_add(Int *result, Int *a, Int *b);
+    bool int_add(Int *result, const Int *a, const Int *b);
     ///
     /// Subtract one integer from another.
     ///
@@ -79,7 +79,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Subtract
     ///
-    bool int_sub(Int *result, Int *a, Int *b);
+    bool int_sub(Int *result, const Int *a, const Int *b);
     ///
     /// Multiply two integers.
     ///
@@ -96,7 +96,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Multiply
     ///
-    bool int_mul(Int *result, Int *a, Int *b);
+    bool int_mul(Int *result, const Int *a, const Int *b);
     ///
     /// Square an integer.
     ///
@@ -112,7 +112,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Square
     ///
-    bool IntSquare(Int *result, Int *value);
+    bool IntSquare(Int *result, const Int *value);
     ///
     /// Raise an integer to an arbitrary-precision power.
     ///
@@ -129,7 +129,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Power, Exponentiation
     ///
-    bool int_pow(Int *result, Int *base, Int *exponent);
+    bool int_pow(Int *result, const Int *base, const Int *exponent);
     ///
     /// Divide one integer by another using floor division.
     ///
@@ -147,7 +147,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Divide, Quotient
     ///
-    bool int_div(Int *result, Int *dividend, Int *divisor);
+    bool int_div(Int *result, const Int *dividend, const Int *divisor);
     ///
     /// Divide one integer by another only when the division is exact.
     ///
@@ -163,7 +163,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, DivideExact
     ///
-    bool int_div_exact(Int *result, Int *dividend, Int *divisor);
+    bool int_div_exact(Int *result, const Int *dividend, const Int *divisor);
     ///
     /// Compute `dividend mod divisor`.
     ///
@@ -181,7 +181,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Modulo
     ///
-    bool int_mod(Int *result, Int *dividend, Int *divisor);
+    bool int_mod(Int *result, const Int *dividend, const Int *divisor);
     ///
     /// Compute quotient and remainder in one call.
     ///
@@ -200,7 +200,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Divide, Modulo
     ///
-    bool int_div_mod(Int *quotient, Int *remainder, Int *dividend, Int *divisor);
+    bool int_div_mod(Int *quotient, Int *remainder, const Int *dividend, const Int *divisor);
     ///
     /// Compute the greatest common divisor of two integers.
     ///
@@ -217,7 +217,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, GCD, NumberTheory
     ///
-    bool IntGCD(Int *result, Int *a, Int *b);
+    bool IntGCD(Int *result, const Int *a, const Int *b);
     ///
     /// Compute the least common multiple of two integers.
     ///
@@ -234,7 +234,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, LCM, NumberTheory
     ///
-    bool IntLCM(Int *result, Int *a, Int *b);
+    bool IntLCM(Int *result, const Int *a, const Int *b);
     ///
     /// Compute the integer `degree`-th root of a value (floor).
     ///
@@ -251,7 +251,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Root, NumberTheory
     ///
-    bool IntRoot(Int *result, Int *value, u64 degree);
+    bool IntRoot(Int *result, const Int *value, u64 degree);
     ///
     /// Compute an integer root and the leftover remainder.
     ///
@@ -270,7 +270,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Root, Remainder
     ///
-    bool IntRootRem(Int *root, Int *remainder, Int *value, u64 degree);
+    bool IntRootRem(Int *root, Int *remainder, const Int *value, u64 degree);
     ///
     /// Compute the integer square root (floor).
     ///
@@ -285,7 +285,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Sqrt
     ///
-    bool IntSqrt(Int *result, Int *value);
+    bool IntSqrt(Int *result, const Int *value);
     ///
     /// Compute the integer square root and remainder.
     ///
@@ -303,7 +303,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Sqrt, Remainder
     ///
-    bool IntSqrtRem(Int *root, Int *remainder, Int *value);
+    bool IntSqrtRem(Int *root, Int *remainder, const Int *value);
     ///
     /// Test whether a value is a perfect square.
     ///
@@ -317,7 +317,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, PerfectSquare, Predicate
     ///
-    bool IntIsPerfectSquare(Int *value);
+    bool IntIsPerfectSquare(const Int *value);
     ///
     /// Test whether a value is a perfect power.
     ///
@@ -331,7 +331,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, PerfectPower, Predicate
     ///
-    bool IntIsPerfectPower(Int *value);
+    bool IntIsPerfectPower(const Int *value);
     ///
     /// Compute the Jacobi symbol `(a/n)`.
     ///
@@ -352,7 +352,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Jacobi, NumberTheory
     ///
-    bool IntTryJacobi(int *out, Int *a, Int *n);
+    bool IntTryJacobi(int *out, const Int *a, const Int *n);
 
     ///
     /// Compute the Jacobi symbol `(a/n)` with explicit failure channel.
@@ -372,7 +372,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Jacobi, NumberTheory
     ///
-    int IntJacobiWithError(Int *a, Int *n, bool *error);
+    int IntJacobiWithError(const Int *a, const Int *n, bool *error);
     ///
     /// Compute `(value^2) mod modulus`.
     ///
@@ -389,7 +389,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Modular, Square
     ///
-    bool IntSquareMod(Int *result, Int *value, Int *modulus);
+    bool IntSquareMod(Int *result, const Int *value, const Int *modulus);
     ///
     /// Compute `(a + b) mod modulus`.
     ///
@@ -407,7 +407,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Modular, Add
     ///
-    bool IntModAdd(Int *result, Int *a, Int *b, Int *modulus);
+    bool IntModAdd(Int *result, const Int *a, const Int *b, const Int *modulus);
     ///
     /// Compute `(a - b) mod modulus`.
     ///
@@ -426,7 +426,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Modular, Subtract
     ///
-    bool IntModSub(Int *result, Int *a, Int *b, Int *modulus);
+    bool IntModSub(Int *result, const Int *a, const Int *b, const Int *modulus);
     ///
     /// Compute `(a * b) mod modulus`.
     ///
@@ -444,7 +444,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Modular, Multiply
     ///
-    bool IntModMul(Int *result, Int *a, Int *b, Int *modulus);
+    bool IntModMul(Int *result, const Int *a, const Int *b, const Int *modulus);
     ///
     /// Compute modular division `a / b (mod modulus)`.
     ///
@@ -461,7 +461,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Modular, Divide
     ///
-    bool IntModDiv(Int *result, Int *a, Int *b, Int *modulus);
+    bool IntModDiv(Int *result, const Int *a, const Int *b, const Int *modulus);
     ///
     /// Compute `(base^exponent) mod modulus`.
     ///
@@ -479,7 +479,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Modular, Power
     ///
-    bool int_pow_mod(Int *result, Int *base, Int *exponent, Int *modulus);
+    bool int_pow_mod(Int *result, const Int *base, const Int *exponent, const Int *modulus);
     ///
     /// Compute the multiplicative inverse of a value modulo `modulus`.
     ///
@@ -495,7 +495,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Modular, Inverse
     ///
-    bool IntModInv(Int *result, Int *value, Int *modulus);
+    bool IntModInv(Int *result, const Int *value, const Int *modulus);
     ///
     /// Compute a modular square root.
     ///
@@ -511,7 +511,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Modular, Sqrt
     ///
-    bool IntModSqrt(Int *result, Int *value, Int *modulus);
+    bool IntModSqrt(Int *result, const Int *value, const Int *modulus);
     ///
     /// Perform a probabilistic primality test.
     ///
@@ -529,7 +529,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Prime, Predicate
     ///
-    bool IntIsProbablePrimeWithError(Int *value, bool *error);
+    bool IntIsProbablePrimeWithError(const Int *value, bool *error);
     ///
     /// Find the next probable prime greater than or equal to a value.
     ///
@@ -547,9 +547,9 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Prime, Search
     ///
-    bool IntNextPrime(Int *result, Int *value);
+    bool IntNextPrime(Int *result, const Int *value);
 
-    static inline bool int_is_probable_prime_no_error(Int *value) {
+    static inline bool int_is_probable_prime_no_error(const Int *value) {
         return IntIsProbablePrimeWithError(value, NULL);
     }
 
@@ -579,150 +579,6 @@ extern "C" {
     INT_IS_PROBABLE_PRIME_SELECT(__VA_ARGS__, IntIsProbablePrimeWithError, int_is_probable_prime_no_error)(__VA_ARGS__)
 
 #ifndef __cplusplus
-#    define INT_ADD_DISPATCH(rhs)                                                                                      \
-        _Generic(                                                                                                      \
-            (rhs),                                                                                                     \
-            Int *: int_add,                                                                                            \
-            unsigned char: int_add_u64,                                                                                \
-            unsigned short: int_add_u64,                                                                               \
-            unsigned int: int_add_u64,                                                                                 \
-            unsigned long: int_add_u64,                                                                                \
-            unsigned long long: int_add_u64,                                                                           \
-            signed char: int_add_i64,                                                                                  \
-            signed short: int_add_i64,                                                                                 \
-            signed int: int_add_i64,                                                                                   \
-            signed long: int_add_i64,                                                                                  \
-            signed long long: int_add_i64                                                                              \
-        )
-
-#    define INT_SUB_DISPATCH(rhs)                                                                                      \
-        _Generic(                                                                                                      \
-            (rhs),                                                                                                     \
-            Int *: int_sub,                                                                                            \
-            unsigned char: int_sub_u64,                                                                                \
-            unsigned short: int_sub_u64,                                                                               \
-            unsigned int: int_sub_u64,                                                                                 \
-            unsigned long: int_sub_u64,                                                                                \
-            unsigned long long: int_sub_u64,                                                                           \
-            signed char: int_sub_i64,                                                                                  \
-            signed short: int_sub_i64,                                                                                 \
-            signed int: int_sub_i64,                                                                                   \
-            signed long: int_sub_i64,                                                                                  \
-            signed long long: int_sub_i64                                                                              \
-        )
-
-#    define INT_MUL_DISPATCH(rhs)                                                                                      \
-        _Generic(                                                                                                      \
-            (rhs),                                                                                                     \
-            Int *: int_mul,                                                                                            \
-            unsigned char: int_mul_u64,                                                                                \
-            unsigned short: int_mul_u64,                                                                               \
-            unsigned int: int_mul_u64,                                                                                 \
-            unsigned long: int_mul_u64,                                                                                \
-            unsigned long long: int_mul_u64,                                                                           \
-            signed char: int_mul_i64,                                                                                  \
-            signed short: int_mul_i64,                                                                                 \
-            signed int: int_mul_i64,                                                                                   \
-            signed long: int_mul_i64,                                                                                  \
-            signed long long: int_mul_i64                                                                              \
-        )
-
-#    define INT_POW_DISPATCH(exponent)                                                                                 \
-        _Generic(                                                                                                      \
-            (exponent),                                                                                                \
-            Int *: int_pow,                                                                                            \
-            unsigned char: int_pow_u64,                                                                                \
-            unsigned short: int_pow_u64,                                                                               \
-            unsigned int: int_pow_u64,                                                                                 \
-            unsigned long: int_pow_u64,                                                                                \
-            unsigned long long: int_pow_u64,                                                                           \
-            signed char: int_pow_i64,                                                                                  \
-            signed short: int_pow_i64,                                                                                 \
-            signed int: int_pow_i64,                                                                                   \
-            signed long: int_pow_i64,                                                                                  \
-            signed long long: int_pow_i64                                                                              \
-        )
-
-#    define INT_DIV_DISPATCH(divisor)                                                                                  \
-        _Generic(                                                                                                      \
-            (divisor),                                                                                                 \
-            Int *: int_div,                                                                                            \
-            unsigned char: int_div_u64,                                                                                \
-            unsigned short: int_div_u64,                                                                               \
-            unsigned int: int_div_u64,                                                                                 \
-            unsigned long: int_div_u64,                                                                                \
-            unsigned long long: int_div_u64,                                                                           \
-            signed char: int_div_i64,                                                                                  \
-            signed short: int_div_i64,                                                                                 \
-            signed int: int_div_i64,                                                                                   \
-            signed long: int_div_i64,                                                                                  \
-            signed long long: int_div_i64                                                                              \
-        )
-
-#    define INT_DIV_EXACT_DISPATCH(divisor)                                                                            \
-        _Generic(                                                                                                      \
-            (divisor),                                                                                                 \
-            Int *: int_div_exact,                                                                                      \
-            unsigned char: int_div_exact_u64,                                                                          \
-            unsigned short: int_div_exact_u64,                                                                         \
-            unsigned int: int_div_exact_u64,                                                                           \
-            unsigned long: int_div_exact_u64,                                                                          \
-            unsigned long long: int_div_exact_u64,                                                                     \
-            signed char: int_div_exact_i64,                                                                            \
-            signed short: int_div_exact_i64,                                                                           \
-            signed int: int_div_exact_i64,                                                                             \
-            signed long: int_div_exact_i64,                                                                            \
-            signed long long: int_div_exact_i64                                                                        \
-        )
-
-#    define INT_MOD_DISPATCH(divisor)                                                                                  \
-        _Generic(                                                                                                      \
-            (divisor),                                                                                                 \
-            Int *: int_mod,                                                                                            \
-            unsigned char: int_mod_u64_into,                                                                           \
-            unsigned short: int_mod_u64_into,                                                                          \
-            unsigned int: int_mod_u64_into,                                                                            \
-            unsigned long: int_mod_u64_into,                                                                           \
-            unsigned long long: int_mod_u64_into,                                                                      \
-            signed char: int_mod_i64_into,                                                                             \
-            signed short: int_mod_i64_into,                                                                            \
-            signed int: int_mod_i64_into,                                                                              \
-            signed long: int_mod_i64_into,                                                                             \
-            signed long long: int_mod_i64_into                                                                         \
-        )
-
-#    define INT_DIVMOD_DISPATCH(divisor)                                                                               \
-        _Generic(                                                                                                      \
-            (divisor),                                                                                                 \
-            Int *: int_div_mod,                                                                                        \
-            unsigned char: int_div_mod_u64,                                                                            \
-            unsigned short: int_div_mod_u64,                                                                           \
-            unsigned int: int_div_mod_u64,                                                                             \
-            unsigned long: int_div_mod_u64,                                                                            \
-            unsigned long long: int_div_mod_u64,                                                                       \
-            signed char: int_div_mod_i64,                                                                              \
-            signed short: int_div_mod_i64,                                                                             \
-            signed int: int_div_mod_i64,                                                                               \
-            signed long: int_div_mod_i64,                                                                              \
-            signed long long: int_div_mod_i64                                                                          \
-        )
-
-#    define INT_POWMOD_DISPATCH(exponent)                                                                              \
-        _Generic(                                                                                                      \
-            (exponent),                                                                                                \
-            Int *: int_pow_mod,                                                                                        \
-            unsigned char: int_pow_u64_mod,                                                                            \
-            unsigned short: int_pow_u64_mod,                                                                           \
-            unsigned int: int_pow_u64_mod,                                                                             \
-            unsigned long: int_pow_u64_mod,                                                                            \
-            unsigned long long: int_pow_u64_mod,                                                                       \
-            signed char: int_pow_i64_mod,                                                                              \
-            signed short: int_pow_i64_mod,                                                                             \
-            signed int: int_pow_i64_mod,                                                                               \
-            signed long: int_pow_i64_mod,                                                                              \
-            signed long long: int_pow_i64_mod                                                                          \
-        )
-
 ///
 /// Generic addition convenience macro.
 /// Dispatches on the type of `b` to the matching `IntAdd*` overload.
@@ -740,7 +596,21 @@ extern "C" {
 ///
 /// TAGS: Int, Math, Add, Generic
 ///
-#    define IntAdd(result, a, b) INT_ADD_DISPATCH(b)((result), (a), (b))
+#    define IntAdd(result, a, b)                                                                                                  \
+        _Generic(                                                                                                      \
+            (b),                                                                                                    \
+            Int *: int_add,                                                                              \
+            unsigned char: int_add_u64,                                                                              \
+            unsigned short: int_add_u64,                                                                              \
+            unsigned int: int_add_u64,                                                                              \
+            unsigned long: int_add_u64,                                                                              \
+            unsigned long long: int_add_u64,                                                                              \
+            signed char: int_add_i64,                                                                              \
+            signed short: int_add_i64,                                                                              \
+            signed int: int_add_i64,                                                                              \
+            signed long: int_add_i64,                                                                              \
+            signed long long: int_add_i64                                                                              \
+        )((result), (a), (b))
 ///
 /// Generic subtraction convenience macro.
 /// Dispatches on the type of `b` to the matching `IntSub*` overload.
@@ -758,7 +628,21 @@ extern "C" {
 ///
 /// TAGS: Int, Math, Subtract, Generic
 ///
-#    define IntSub(result, a, b) INT_SUB_DISPATCH(b)((result), (a), (b))
+#    define IntSub(result, a, b)                                                                                                  \
+        _Generic(                                                                                                      \
+            (b),                                                                                                    \
+            Int *: int_sub,                                                                              \
+            unsigned char: int_sub_u64,                                                                              \
+            unsigned short: int_sub_u64,                                                                              \
+            unsigned int: int_sub_u64,                                                                              \
+            unsigned long: int_sub_u64,                                                                              \
+            unsigned long long: int_sub_u64,                                                                              \
+            signed char: int_sub_i64,                                                                              \
+            signed short: int_sub_i64,                                                                              \
+            signed int: int_sub_i64,                                                                              \
+            signed long: int_sub_i64,                                                                              \
+            signed long long: int_sub_i64                                                                              \
+        )((result), (a), (b))
 ///
 /// Generic multiplication convenience macro.
 ///
@@ -775,7 +659,21 @@ extern "C" {
 ///
 /// TAGS: Int, Math, Multiply, Generic
 ///
-#    define IntMul(result, a, b) INT_MUL_DISPATCH(b)((result), (a), (b))
+#    define IntMul(result, a, b)                                                                                                  \
+        _Generic(                                                                                                      \
+            (b),                                                                                                    \
+            Int *: int_mul,                                                                              \
+            unsigned char: int_mul_u64,                                                                              \
+            unsigned short: int_mul_u64,                                                                              \
+            unsigned int: int_mul_u64,                                                                              \
+            unsigned long: int_mul_u64,                                                                              \
+            unsigned long long: int_mul_u64,                                                                              \
+            signed char: int_mul_i64,                                                                              \
+            signed short: int_mul_i64,                                                                              \
+            signed int: int_mul_i64,                                                                              \
+            signed long: int_mul_i64,                                                                              \
+            signed long long: int_mul_i64                                                                              \
+        )((result), (a), (b))
 ///
 /// Generic exponentiation convenience macro.
 ///
@@ -793,7 +691,21 @@ extern "C" {
 ///
 /// TAGS: Int, Math, Power, Generic
 ///
-#    define IntPow(result, base, exponent) INT_POW_DISPATCH(exponent)((result), (base), (exponent))
+#    define IntPow(result, base, exponent)                                                                                                  \
+        _Generic(                                                                                                      \
+            (exponent),                                                                                                    \
+            Int *: int_pow,                                                                              \
+            unsigned char: int_pow_u64,                                                                              \
+            unsigned short: int_pow_u64,                                                                              \
+            unsigned int: int_pow_u64,                                                                              \
+            unsigned long: int_pow_u64,                                                                              \
+            unsigned long long: int_pow_u64,                                                                              \
+            signed char: int_pow_i64,                                                                              \
+            signed short: int_pow_i64,                                                                              \
+            signed int: int_pow_i64,                                                                              \
+            signed long: int_pow_i64,                                                                              \
+            signed long long: int_pow_i64                                                                              \
+        )((result), (base), (exponent))
 ///
 /// Generic division convenience macro.
 ///
@@ -811,7 +723,21 @@ extern "C" {
 ///
 /// TAGS: Int, Math, Divide, Generic
 ///
-#    define IntDiv(result, dividend, divisor) INT_DIV_DISPATCH(divisor)((result), (dividend), (divisor))
+#    define IntDiv(result, dividend, divisor)                                                                                                  \
+        _Generic(                                                                                                      \
+            (divisor),                                                                                                    \
+            Int *: int_div,                                                                              \
+            unsigned char: int_div_u64,                                                                              \
+            unsigned short: int_div_u64,                                                                              \
+            unsigned int: int_div_u64,                                                                              \
+            unsigned long: int_div_u64,                                                                              \
+            unsigned long long: int_div_u64,                                                                              \
+            signed char: int_div_i64,                                                                              \
+            signed short: int_div_i64,                                                                              \
+            signed int: int_div_i64,                                                                              \
+            signed long: int_div_i64,                                                                              \
+            signed long long: int_div_i64                                                                              \
+        )((result), (dividend), (divisor))
 ///
 /// Generic exact-division convenience macro.
 ///
@@ -827,7 +753,21 @@ extern "C" {
 ///
 /// TAGS: Int, Math, DivideExact, Generic
 ///
-#    define IntDivExact(result, dividend, divisor) INT_DIV_EXACT_DISPATCH(divisor)((result), (dividend), (divisor))
+#    define IntDivExact(result, dividend, divisor)                                                                                                  \
+        _Generic(                                                                                                      \
+            (divisor),                                                                                                    \
+            Int *: int_div_exact,                                                                              \
+            unsigned char: int_div_exact_u64,                                                                              \
+            unsigned short: int_div_exact_u64,                                                                              \
+            unsigned int: int_div_exact_u64,                                                                              \
+            unsigned long: int_div_exact_u64,                                                                              \
+            unsigned long long: int_div_exact_u64,                                                                              \
+            signed char: int_div_exact_i64,                                                                              \
+            signed short: int_div_exact_i64,                                                                              \
+            signed int: int_div_exact_i64,                                                                              \
+            signed long: int_div_exact_i64,                                                                              \
+            signed long long: int_div_exact_i64                                                                              \
+        )((result), (dividend), (divisor))
 ///
 /// Generic modulo convenience macro.
 ///
@@ -845,7 +785,21 @@ extern "C" {
 ///
 /// TAGS: Int, Math, Modulo, Generic
 ///
-#    define IntMod(result, dividend, divisor) INT_MOD_DISPATCH(divisor)((result), (dividend), (divisor))
+#    define IntMod(result, dividend, divisor)                                                                                                  \
+        _Generic(                                                                                                      \
+            (divisor),                                                                                                    \
+            Int *: int_mod,                                                                              \
+            unsigned char: int_mod_u64_into,                                                                              \
+            unsigned short: int_mod_u64_into,                                                                              \
+            unsigned int: int_mod_u64_into,                                                                              \
+            unsigned long: int_mod_u64_into,                                                                              \
+            unsigned long long: int_mod_u64_into,                                                                              \
+            signed char: int_mod_i64_into,                                                                              \
+            signed short: int_mod_i64_into,                                                                              \
+            signed int: int_mod_i64_into,                                                                              \
+            signed long: int_mod_i64_into,                                                                              \
+            signed long long: int_mod_i64_into                                                                              \
+        )((result), (dividend), (divisor))
 ///
 /// Generic quotient-and-remainder convenience macro.
 ///
@@ -866,8 +820,21 @@ extern "C" {
 ///
 /// TAGS: Int, Math, Divide, Modulo, Generic
 ///
-#    define IntDivMod(quotient, remainder, dividend, divisor)                                                          \
-        INT_DIVMOD_DISPATCH(divisor)((quotient), (remainder), (dividend), (divisor))
+#    define IntDivMod(quotient, remainder, dividend, divisor)                                                         \
+        _Generic(                                                                                                      \
+            (divisor),                                                                                                 \
+            Int *: int_div_mod,                                                                                        \
+            unsigned char: int_div_mod_u64,                                                                            \
+            unsigned short: int_div_mod_u64,                                                                           \
+            unsigned int: int_div_mod_u64,                                                                             \
+            unsigned long: int_div_mod_u64,                                                                            \
+            unsigned long long: int_div_mod_u64,                                                                       \
+            signed char: int_div_mod_i64,                                                                              \
+            signed short: int_div_mod_i64,                                                                             \
+            signed int: int_div_mod_i64,                                                                               \
+            signed long: int_div_mod_i64,                                                                              \
+            signed long long: int_div_mod_i64                                                                          \
+        )((quotient), (remainder), (dividend), (divisor))
 ///
 /// Generic modular exponentiation convenience macro.
 ///
@@ -888,11 +855,24 @@ extern "C" {
 ///
 /// TAGS: Int, Math, Modular, Power, Generic
 ///
-#    define IntPowMod(result, base, exponent, modulus)                                                                 \
-        INT_POWMOD_DISPATCH(exponent)((result), (base), (exponent), (modulus))
+#    define IntPowMod(result, base, exponent, modulus)                                                                \
+        _Generic(                                                                                                      \
+            (exponent),                                                                                                \
+            Int *: int_pow_mod,                                                                                        \
+            unsigned char: int_pow_u64_mod,                                                                            \
+            unsigned short: int_pow_u64_mod,                                                                           \
+            unsigned int: int_pow_u64_mod,                                                                             \
+            unsigned long: int_pow_u64_mod,                                                                            \
+            unsigned long long: int_pow_u64_mod,                                                                       \
+            signed char: int_pow_i64_mod,                                                                              \
+            signed short: int_pow_i64_mod,                                                                             \
+            signed int: int_pow_i64_mod,                                                                               \
+            signed long: int_pow_i64_mod,                                                                              \
+            signed long long: int_pow_i64_mod                                                                          \
+        )((result), (base), (exponent), (modulus))
 #endif
 
-    static inline int int_jacobi_no_error(Int *a, Int *n) {
+    static inline int int_jacobi_no_error(const Int *a, const Int *n) {
         return IntJacobiWithError(a, n, NULL);
     }
 

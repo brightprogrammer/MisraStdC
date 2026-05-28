@@ -1,6 +1,6 @@
-/// file      : Type.h
+/// file      : std/container/list/type.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
-/// copyright : Copyright (c) 2025, Siddharth Mishra, All rights reserved.
+/// This is free and unencumbered software released into the public domain.
 ///
 /// Define list type.
 ///
@@ -110,7 +110,7 @@ typedef struct {
         u64               __magic;                                                                                     \
     }
 
-// magic bytes to give only 1 in a 2^64 chance for un-initialized or curropted list objects to be considered valid
+// magic bytes to give only 1 in a 2^64 chance for un-initialized or corrupted list objects to be considered valid
 // if the magic bytes of a list does not match this value then it's considered corrupted or un-initialized.
 // this will mean that there's a bug in application and ValidateList will immediately abort!
 #define LIST_MAGIC MAKE_NEW_MAGIC_VALUE("listimpl")

@@ -1,4 +1,4 @@
-/// file      : PdbCache.h
+/// file      : sys/pdb_cache.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -57,7 +57,7 @@ typedef struct PdbCache {
 ///
 /// TAGS: Sys, PDB, Cache, Init, Lifecycle
 ///
-#define PdbCacheInit(...)        MISRA_OVERLOAD(PdbCacheInit, __VA_ARGS__)
+#define PdbCacheInit(...)        OVERLOAD(PdbCacheInit, __VA_ARGS__)
 #define PdbCacheInit_0()         PdbCacheInit_1(MisraScope)
 #define PdbCacheInit_1(alloc_ptr) ((PdbCache) {.allocator = ALLOCATOR_OF(alloc_ptr), .entries = VecInit_1(alloc_ptr)})
 
@@ -91,6 +91,8 @@ void PdbCacheDeinit(PdbCache *self);
 /// FAILURE : Returns false if the module can't be opened, no PDB
 ///           pairs with it, or the RVA falls outside every public
 ///           function.
+///
+/// TAGS: Sys, PDB, Cache, Resolve
 ///
 bool pdb_cache_resolve_zstr(
     PdbCache *self,

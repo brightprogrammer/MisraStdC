@@ -81,9 +81,5 @@ uint64_t bench_live_bytes(void) {
 
 uint64_t bench_footprint_bytes(void) {
     if (!g_page_live) return 0;
-    uint64_t total = 0;
-    for (u32 i = 0; i < g_page.len; i++) {
-        total += (uint64_t)g_page.entries[i].bytes;
-    }
-    return total;
+    return (uint64_t)PageAllocatorFootprintBytes(&g_page);
 }

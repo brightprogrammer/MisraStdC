@@ -118,12 +118,12 @@ extern "C" {
     ///
     bool dns_build_query_zstr(DnsWireBuf *out, u16 id, Zstr name, DnsType type);
     bool dns_build_query_str(DnsWireBuf *out, u16 id, const Str *name, DnsType type);
-#define DnsBuildQuery(out, id, name, type)                                                                                                            \
-    _Generic((name), Str *: dns_build_query_str, Zstr: dns_build_query_zstr, char *: dns_build_query_zstr)( \
-        (out),                                                                                                                                        \
-        (id),                                                                                                                                         \
-        (name),                                                                                                                                       \
-        (type)                                                                                                                                        \
+#define DnsBuildQuery(out, id, name, type)                                                                             \
+    _Generic((name), Str *: dns_build_query_str, Zstr: dns_build_query_zstr, char *: dns_build_query_zstr)(            \
+        (out),                                                                                                         \
+        (id),                                                                                                          \
+        (name),                                                                                                        \
+        (type)                                                                                                         \
     )
 
     ///
@@ -144,7 +144,26 @@ extern "C" {
     ///
     bool DnsParseResponse(DnsResponse *out, const u8 *buf, u64 len, Allocator *alloc);
 
+    ///
+    /// Release every owned string / Vec inside a parsed `DnsResponse`.
+    ///
+    /// SUCCESS : Returns to the caller. `*self` is zeroed.
+    /// FAILURE : Function cannot fail. NULL `self` is a no-op.
+    ///
+    /// TAGS: Dns, Parser, Deinit, Lifecycle
+    ///
     void DnsResponseDeinit(DnsResponse *self);
+
+    ///
+    /// Release the owned string / Vec slots inside a single `DnsRecord`.
+    /// Used both by `DnsResponseDeinit` (per-record) and by callers that
+    /// build records by hand.
+    ///
+    /// SUCCESS : Returns to the caller. `*self` is zeroed.
+    /// FAILURE : Function cannot fail. NULL `self` is a no-op.
+    ///
+    /// TAGS: Dns, Parser, Deinit, Lifecycle
+    ///
     void DnsRecordDeinit(DnsRecord *self);
 
 #ifdef __cplusplus

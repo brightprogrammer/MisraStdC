@@ -806,7 +806,7 @@ bool test_edge_cases_roundtrip(void) {
 }
 
 // Main function that runs all round-trip tests
-int main(int argc, char *argv[]) {
+int main(void) {
     // Array of test functions
     TestFunction tests[] = {
         test_simple_roundtrip,

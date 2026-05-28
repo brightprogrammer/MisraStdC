@@ -1,5 +1,5 @@
 /// file      : std/container/bitvec/convert.h
-/// author    : Generated following Misra project patterns
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Conversion operations for bitvectors.
@@ -25,7 +25,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Allocator, Access
     ///
-    Allocator *BitVecGetAllocator(BitVec *bv);
+    Allocator *BitVecGetAllocator(const BitVec *bv);
 
     ///
     /// Convert a bitvector to a string using an explicit allocator.
@@ -68,7 +68,7 @@ extern "C" {
     ///
     bool bitvec_try_from_str_zstr(BitVec *out, Zstr str, Allocator *alloc);
     bool bitvec_try_from_str_str(BitVec *out, const Str *str, Allocator *alloc);
-#define BitVecTryFromStr(...) MISRA_OVERLOAD(BitVecTryFromStr, __VA_ARGS__)
+#define BitVecTryFromStr(...) OVERLOAD(BitVecTryFromStr, __VA_ARGS__)
 #define BitVecTryFromStr_2(out, str)                                                                                                                                 \
     _Generic((str), Str *: bitvec_try_from_str_str, char *: bitvec_try_from_str_zstr, Zstr : bitvec_try_from_str_zstr)( \
         (out),                                                                                                                                                       \
@@ -95,7 +95,7 @@ extern "C" {
     ///
     BitVec bitvec_from_str_zstr(Zstr str, Allocator *alloc);
     BitVec bitvec_from_str_str(const Str *str, Allocator *alloc);
-#define BitVecFromStr(...) MISRA_OVERLOAD(BitVecFromStr, __VA_ARGS__)
+#define BitVecFromStr(...) OVERLOAD(BitVecFromStr, __VA_ARGS__)
 #define BitVecFromStr_1(str)                                                                                                                         \
     _Generic((str), Str *: bitvec_from_str_str, char *: bitvec_from_str_zstr, Zstr : bitvec_from_str_zstr)( \
         (str),                                                                                                                                       \
@@ -143,7 +143,7 @@ extern "C" {
     /// TAGS: BitVec, Convert, Bytes, Allocator
     ///
     bool bitvec_try_from_bytes(BitVec *out, const u8 *bytes, u64 bit_len, Allocator *alloc);
-#define BitVecTryFromBytes(...)                   MISRA_OVERLOAD(BitVecTryFromBytes, __VA_ARGS__)
+#define BitVecTryFromBytes(...)                   OVERLOAD(BitVecTryFromBytes, __VA_ARGS__)
 #define BitVecTryFromBytes_3(out, bytes, bit_len) bitvec_try_from_bytes((out), (bytes), (bit_len), MisraScope)
 #define BitVecTryFromBytes_4(out, bytes, bit_len, alloc)                                                               \
     bitvec_try_from_bytes((out), (bytes), (bit_len), ALLOCATOR_OF(alloc))
@@ -161,7 +161,7 @@ extern "C" {
     /// TAGS: BitVec, Convert, Bytes, Allocator
     ///
     BitVec bitvec_from_bytes(const u8 *bytes, u64 bit_len, Allocator *alloc);
-#define BitVecFromBytes(...)                     MISRA_OVERLOAD(BitVecFromBytes, __VA_ARGS__)
+#define BitVecFromBytes(...)                     OVERLOAD(BitVecFromBytes, __VA_ARGS__)
 #define BitVecFromBytes_2(bytes, bit_len)        bitvec_from_bytes((bytes), (bit_len), MisraScope)
 #define BitVecFromBytes_3(bytes, bit_len, alloc) bitvec_from_bytes((bytes), (bit_len), ALLOCATOR_OF(alloc))
 
@@ -182,7 +182,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Convert, Integer, Export
     ///
-    u64 BitVecToInteger(BitVec *bv);
+    u64 BitVecToInteger(const BitVec *bv);
 
     ///
     /// Build a bitvector from an integer using an explicit allocator.
@@ -198,7 +198,7 @@ extern "C" {
     /// TAGS: BitVec, Convert, Integer, Allocator
     ///
     bool bitvec_try_from_integer(BitVec *out, u64 value, u64 bits, Allocator *alloc);
-#define BitVecTryFromInteger(...)                MISRA_OVERLOAD(BitVecTryFromInteger, __VA_ARGS__)
+#define BitVecTryFromInteger(...)                OVERLOAD(BitVecTryFromInteger, __VA_ARGS__)
 #define BitVecTryFromInteger_3(out, value, bits) bitvec_try_from_integer((out), (value), (bits), MisraScope)
 #define BitVecTryFromInteger_4(out, value, bits, alloc)                                                                \
     bitvec_try_from_integer((out), (value), (bits), ALLOCATOR_OF(alloc))
@@ -216,7 +216,7 @@ extern "C" {
     /// TAGS: BitVec, Convert, Integer, Allocator
     ///
     BitVec bitvec_from_integer(u64 value, u64 bits, Allocator *alloc);
-#define BitVecFromInteger(...)                  MISRA_OVERLOAD(BitVecFromInteger, __VA_ARGS__)
+#define BitVecFromInteger(...)                  OVERLOAD(BitVecFromInteger, __VA_ARGS__)
 #define BitVecFromInteger_2(value, bits)        bitvec_from_integer((value), (bits), MisraScope)
 #define BitVecFromInteger_3(value, bits, alloc) bitvec_from_integer((value), (bits), ALLOCATOR_OF(alloc))
 
@@ -235,7 +235,7 @@ extern "C" {
 ///
 /// TAGS: BitVec, Convert, String
 ///
-#define BitVecTryToStr(...)              MISRA_OVERLOAD(BitVecTryToStr, __VA_ARGS__)
+#define BitVecTryToStr(...)              OVERLOAD(BitVecTryToStr, __VA_ARGS__)
 #define BitVecTryToStr_2(out, bv)        bitvec_try_to_str((out), (bv), BitVecGetAllocator((bv)))
 #define BitVecTryToStr_3(out, bv, alloc) bitvec_try_to_str((out), (bv), (alloc))
 
@@ -250,7 +250,7 @@ extern "C" {
 ///
 /// TAGS: BitVec, Convert, String
 ///
-#define BitVecToStr(...)         MISRA_OVERLOAD(BitVecToStr, __VA_ARGS__)
+#define BitVecToStr(...)         OVERLOAD(BitVecToStr, __VA_ARGS__)
 #define BitVecToStr_1(bv)        bitvec_to_str((bv), BitVecGetAllocator((bv)))
 #define BitVecToStr_2(bv, alloc) bitvec_to_str((bv), (alloc))
 

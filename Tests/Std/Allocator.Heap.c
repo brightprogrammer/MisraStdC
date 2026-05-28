@@ -1,4 +1,4 @@
-/// file      : Tests/Std/Allocator.Heap.c
+/// file      : tests/std/allocator.heap.c
 ///
 /// State-machine + edge-case tests for HeapAllocator.
 ///
@@ -48,8 +48,8 @@ static bool test_basic_alloc_free(void) {
     HeapAllocator heap  = HeapAllocatorInit();
     Allocator    *alloc = ALLOCATOR_OF(&heap);
 
-    u8 *a  = (u8 *)AllocatorAlloc(alloc, 32, true);
-    u8 *b  = (u8 *)AllocatorAlloc(alloc, 128, true);
+    u8  *a  = (u8 *)AllocatorAlloc(alloc, 32, true);
+    u8  *b  = (u8 *)AllocatorAlloc(alloc, 128, true);
     bool ok = (a != NULL) && (b != NULL) && (a != b);
 
     if (ok) {
@@ -168,9 +168,9 @@ static bool test_fill_class_grows_new_page(void) {
         if (!ptrs[i])
             ok = false;
     }
-    // pages_len must be > one batch worth of descriptors -> a second
+    // pages_count must be > one batch worth of descriptors -> a second
     // mmap-grow definitely happened.
-    ok = ok && (heap.pages_len > HEAP_PAGES_PER_OS_PAGE);
+    ok = ok && (HeapAllocatorPageCount(&heap) > HEAP_PAGES_PER_OS_PAGE);
 
     for (u32 i = 0; i < N; i++) {
         if (ptrs[i])
@@ -205,7 +205,7 @@ static bool test_alloc_across_every_sub_bin(void) {
     // distinct class so the unified pages array has >= 8 descriptors
     // after the loop (and possibly more if HEAP_PAGES_PER_OS_PAGE > 1
     // since each grow creates that many siblings).
-    ok = ok && (heap.pages_len >= 8u);
+    ok = ok && (HeapAllocatorPageCount(&heap) >= 8u);
 
     for (u32 i = 0; i < 8; i++) {
         if (ptrs[i])
@@ -229,9 +229,9 @@ static bool test_large_alloc_passthrough(void) {
     if (ok) {
         p[0]     = 0xAB;
         p[n - 1] = 0xCD;
-        ok       = (p[0] == 0xAB) && (p[n - 1] == 0xCD) && (heap.xl_len == 1);
+        ok       = (p[0] == 0xAB) && (p[n - 1] == 0xCD) && (HeapAllocatorXlCount(&heap) == 1);
         AllocatorFree(alloc, p);
-        ok = ok && (heap.xl_len == 0);
+        ok = ok && (HeapAllocatorXlCount(&heap) == 0);
     }
     HeapAllocatorDeinit(&heap);
     return ok;
@@ -259,7 +259,7 @@ static bool test_realloc_same_bin_keeps_pointer(void) {
 
     // 28 and 30 both round up to the 32-byte class in the current
     // bin layout, so realloc must succeed in place.
-    u8 *p  = (u8 *)AllocatorAlloc(alloc, 28, true);
+    u8  *p  = (u8 *)AllocatorAlloc(alloc, 28, true);
     bool ok = (p != NULL);
     if (ok) {
         p[0]      = 'x';
@@ -275,7 +275,7 @@ static bool test_realloc_cross_bin_copies(void) {
     HeapAllocator heap  = HeapAllocatorInit();
     Allocator    *alloc = ALLOCATOR_OF(&heap);
 
-    u8 *p  = (u8 *)AllocatorAlloc(alloc, 16, true);
+    u8  *p  = (u8 *)AllocatorAlloc(alloc, 16, true);
     bool ok = (p != NULL);
     if (ok) {
         p[0]      = 'h';
@@ -301,8 +301,12 @@ static bool test_independent_heaps(void) {
 
     void *a = AllocatorAlloc(alloc1, 32, true);
     void *b = AllocatorAlloc(alloc2, 32, true);
-    bool  ok =
-        (a != NULL) && (b != NULL) && (a != b) && (h1.pages != h2.pages) && (h1.pages_len > 0) && (h2.pages_len > 0);
+    // intentional bypass: no public accessor exposes the bucket-array
+    // pointer (rightly so -- it's internal hash-table storage), but
+    // confirming the two heaps don't share their bookkeeping backing is
+    // the whole point of this test.
+    bool ok = (a != NULL) && (b != NULL) && (a != b) && (h1.pages != h2.pages) && (HeapAllocatorPageCount(&h1) > 0) &&
+              (HeapAllocatorPageCount(&h2) > 0);
 
     AllocatorFree(alloc1, a);
     AllocatorFree(alloc2, b);

@@ -48,11 +48,11 @@ extern int main(int argc, char **argv);
 // invoked with > 256 args or > 8 KiB of args, we silently truncate
 // at the limits. Bin/ tools take a handful of args; not a real
 // limit for the use cases that ship.
-#    define MISRA_START_MAX_ARGS    256
-#    define MISRA_START_CMDLINE_CAP 8192
+#    define START_MAX_ARGS    256
+#    define START_CMDLINE_CAP 8192
 
-static char  g_misra_start_cmdline[MISRA_START_CMDLINE_CAP];
-static char *g_misra_start_argv[MISRA_START_MAX_ARGS];
+static char  g_misra_start_cmdline[START_CMDLINE_CAP];
+static char *g_misra_start_argv[START_MAX_ARGS];
 
 // Tokenise a (mutable) command line string into argv. Rules:
 //   - Whitespace (space, tab) separates args.
@@ -127,7 +127,7 @@ __attribute__((no_stack_protector)) void misra_start(void) {
     }
     g_misra_start_cmdline[i] = 0;
 
-    int argc = parse_cmdline(g_misra_start_cmdline, g_misra_start_argv, MISRA_START_MAX_ARGS);
+    int argc = parse_cmdline(g_misra_start_cmdline, g_misra_start_argv, START_MAX_ARGS);
     int rc   = main(argc, g_misra_start_argv);
     ExitProcess((DWORD)rc);
 }

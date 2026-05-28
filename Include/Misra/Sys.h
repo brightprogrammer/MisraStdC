@@ -35,10 +35,17 @@ typedef u64 ProcId;
 #    include <Misra/Sys/ProcMaps.h>
 #endif
 
-// Sys/SymbolResolver.h is NOT pulled through the umbrella because it
-// transits Parsers/Elf.h, which collides with Bin/ElfInfo.c's local
-// ELF constants. Include `Misra/Sys/SymbolResolver.h` directly when
-// you want the resolver. Tracked in FUTURE-PLANS.md.
+#if FEATURE_SYS_DNS
+#    include <Misra/Sys/Dns.h>
+#endif
+
+// Sys/SymbolResolver.h, Sys/Backtrace.h, Sys/PdbCache.h, and
+// Sys/MachoCache.h are NOT pulled through the umbrella because they
+// transit Parsers/Elf.h / Parsers/Pdb.h / Parsers/Macho.h, whose
+// public-API names can collide with downstream TUs that carry their
+// own ELF / PDB / Mach-O constants. Include those headers directly
+// when you want the resolver, the backtrace formatter, or the
+// PE+PDB / Mach-O symbol caches.
 
 #ifndef SYS_ERROR_STR_MAX_LENGTH
 #    define SYS_ERROR_STR_MAX_LENGTH 128
@@ -113,8 +120,9 @@ Zstr EnvGet(Zstr name);
 /// eno[in]      : Unique error number descriptor.
 /// err_str[out] : Error string will be stored in this.
 ///
-/// SUCCESS : Error string describing last error.
-/// FAILURE : Returns NULL if `err_str` is NULL.
+/// SUCCESS : Returns `err_str` with the error description appended.
+/// FAILURE : Aborts via `ValidateStr` if `err_str` is NULL or
+///           uninitialised (`*err_str` is left in its pre-call state).
 ///
 /// TAGS: System, Error, String
 ///

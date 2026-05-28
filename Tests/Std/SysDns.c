@@ -157,7 +157,7 @@ static bool test_dns_resolve_spec_hostname(void) {
 }
 
 // 4-arg overload (single-addr form): pass `SocketAddr *` instead of
-// `DnsAddrs *` and the macro routes to DnsResolve_4_one.
+// `DnsAddrs *` and the macro routes to dns_resolve_4_one_{zstr,str}.
 static bool test_dns_resolve_spec_single_addr(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     Allocator       *a     = ALLOCATOR_OF(&alloc);

@@ -690,7 +690,7 @@ bool test_boundary_floats(void) {
 }
 
 // Main function that runs all edge case reading tests
-int main(int argc, char *argv[]) {
+int main(void) {
     // Array of test functions
     TestFunction tests[] = {
         test_empty_object_reading,

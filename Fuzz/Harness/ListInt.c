@@ -1,4 +1,4 @@
-/// file      : fuzz/ListIntHarness.c
+/// file      : Fuzz/Harness/ListInt.c
 /// author    : Generated for MisraStdC fuzzing
 /// This is free and unencumbered software released into the public domain.
 ///

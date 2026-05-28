@@ -1,166 +1,83 @@
 # Test Utilities
 
-This directory contains utilities for testing potentially failing or crashing functions safely.
+Helpers for writing tests that exercise paths which `LOG_FATAL` (aka deadend tests). The driver runs every test in the same process and uses MisraStdC's `OnAbort` hook plus `setjmp` / `longjmp` to catch an expected abort and report it as a pass.
 
-## test_deadend Function
+## When to reach for what
 
-The `test_deadend` function allows you to run test functions in separate processes, which is useful for testing operations that might crash, abort, or fail in ways that would normally terminate the test process.
+- **Normal tests**: a function that returns `bool` and never aborts. Add it to a `TestFunction` array and call `simple_test_driver(tests, count)` (or `run_test_suite(...)`).
+- **Deadend tests**: a function whose only useful outcome is that it aborts (calls `LOG_FATAL` because the validator catches an intentionally-corrupted invariant). Add it to a separate array and call `deadend_test_driver(tests, count)`; the driver expects every entry to abort.
+- **Mixed suite**: pass both arrays to `run_test_suite(normal, n_normal, deadend, n_deadend, "MySuite")`.
 
-### Usage
+## How `test_deadend` works
 
-```c
-#include "../Util/TestRunner.h"
-
-// Your test function that might fail or crash
-bool test_that_might_crash(void) {
-    // Some potentially dangerous operation
-    int* null_ptr = NULL;
-    *null_ptr = 42;  // This will crash
-    return true;     // Never reached
-}
-
-int main(void) {
-    // Test a function that should crash, and we expect it to fail
-    if (test_deadend(test_that_might_crash, true)) {
-        printf("PASS - Test crashed as expected\n");
-    } else {
-        printf("FAIL - Test didn't crash as expected\n");
-    }
-    
-    return 0;
-}
-```
-
-### Function Signature
+`test_deadend` runs a single test function and reports whether its outcome matched the expectation:
 
 ```c
 bool test_deadend(TestFunction test_func, bool expect_failure);
 ```
 
-**Parameters:**
-- `test_func`: A function pointer to the test function to execute
-- `expect_failure`: 
-  - `true` if you expect the test to fail (non-zero exit code, crash, abort, etc.)
-  - `false` if you expect the test to succeed (zero exit code)
+- `expect_failure = true`: pass = test aborted via `LOG_FATAL`, fail = test returned without aborting.
+- `expect_failure = false`: pass = test returned `true` without aborting, fail = anything else.
 
-**Returns:**
-- `true` if the test behaved as expected
-- `false` if the test didn't behave as expected
+Internally:
 
-### How It Works
+1. Install a custom abort handler via `OnAbort(test_abort_handler)` (declared in `<Misra/Sys.h>`). The handler sets a captured flag and `longjmp`s back to the driver instead of exiting the process.
+2. `setjmp(g_test_abort_jmp)` to save the resume point.
+3. Run the test function. If it returns normally, control falls through. If it triggers `LOG_FATAL`, the abort handler longjmps back to the `setjmp` site with non-zero.
+4. Reset `OnAbort(NULL)` so subsequent code sees the default abort.
 
-#### On Unix/Linux/macOS
-- Uses `fork()` to create a child process
-- Runs the test function in the child process
-- Parent process waits for child and checks exit status
-- Handles normal exits, signal terminations, and other failure modes
+Because everything runs in one process, a SIGSEGV / SIGBUS in a deadend test still terminates the test binary -- only `LOG_FATAL`-style aborts are recoverable. If a deadend test needs to provoke a real signal (not just a project-level fatal), use a separate test binary instead of `test_deadend`.
 
-#### On Windows
-- Uses structured exception handling (`__try`/`__except`)
-- Catches crashes and exceptions within the same process
-- Less isolation than Unix version but still provides crash protection
-
-### Example Scenarios
-
-#### Testing Expected Failures
+## Example
 
 ```c
-// Test that should fail due to invalid operation
-bool test_invalid_operation(void) {
-    // Some operation that should fail
-    return false;  // Indicates failure
+#include "../Util/TestRunner.h"
+
+static bool good_test(void) {
+    return 1 + 1 == 2;
 }
 
-// Test it with test_deadend expecting failure
-test_deadend(test_invalid_operation, true);  // Should return true
-```
-
-#### Testing Expected Crashes
-
-```c
-// Test that should crash
-bool test_segfault(void) {
-    int* p = NULL;
-    *p = 42;  // Segmentation fault
-    return true;  // Never reached
+static bool bad_test(void) {
+    Vec(int) v = VecInit();
+    int      x = VecAt(&v, 100); // out-of-bounds, LOG_FATAL
+    (void)x;
+    return false; // not reached
 }
 
-// Test it with test_deadend expecting failure
-test_deadend(test_segfault, true);  // Should return true (crash detected)
-```
-
-#### Testing Expected Success
-
-```c
-// Test that should pass
-bool test_normal_operation(void) {
-    int x = 2 + 2;
-    return x == 4;  // Should return true
+int main(void) {
+    TestFunction normal[]  = { good_test };
+    TestFunction deadend[] = { bad_test };
+    return run_test_suite(normal, 1, deadend, 1, "Example");
 }
-
-// Test it with test_deadend expecting success
-test_deadend(test_normal_operation, false);  // Should return true
 ```
 
-### Integration with Meson Build System
+## Build integration
 
-To use test_deadend in your test files, you need to link with the test utilities:
+Tests in `Tests/Std/*.c` already wire the dependency via `meson.build`. For a fresh test:
 
 ```meson
-# In your Tests/meson.build file
 test_exe = executable(
-    'YourTest',
-    files('YourTest.c'),
-    link_with: [misra_std],
-    dependencies: [test_util_dep],  # Add this line
+    'MyTest',
+    files('MyTest.c'),
+    link_with: [misra_std],          # or misra_std_no_backtrace for fatal-heavy
+    dependencies: [test_util_dep],   # or *_no_sanitizers / *_no_backtrace
     c_args: test_args,
     include_directories: inc_misra,
-    install: false
+    install: false,
 )
+test('MyTest', test_exe)
 ```
 
-### Real-World Example
+Three dependency variants exist; pick the one that matches the library link of the test:
 
-See `Tests/Std/Vec.Remove.c` for a real example of how test_deadend is used to test potentially failing vector operations:
+| dependency                          | pairs with                       | when to use                                                     |
+| ---                                 | ---                              | ---                                                             |
+| `test_util_dep`                     | `misra_std`                      | sanitised normal tests                                          |
+| `test_util_dep_no_sanitizers`       | `misra_std_no_sanitizers`        | deadend tests where ASan/UBSan would interfere with the abort   |
+| `test_util_dep_no_backtrace`        | `misra_std_no_backtrace`         | sanitised tests that fire many `LOG_FATAL`s (skip backtrace fmt) |
 
-```c
-// Test that tries to access an invalid index
-bool test_invalid_index_access(void) {
-    typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
-    
-    int val1 = 42, val2 = 43;
-    VecPushBack(&vec, val1);
-    VecPushBack(&vec, val2);
-    
-    // This should fail or crash due to out-of-bounds access
-    int invalid_value = VecAt(&vec, 100);
-    
-    VecDeinit(&vec);
-    return invalid_value == 42;
-}
+## Limitations
 
-// In main():
-if (test_deadend(test_invalid_index_access, true)) {
-    printf("PASS - Invalid access failed as expected\n");
-} else {
-    printf("FAIL - Invalid access should have failed\n");
-}
-```
-
-### Benefits
-
-1. **Safety**: Test potentially crashing code without terminating the test suite
-2. **Isolation**: Each dangerous test runs in its own process
-3. **Comprehensive Testing**: Test both success and failure scenarios
-4. **Cross-Platform**: Works on both Unix-like systems and Windows
-5. **Easy Integration**: Simple function call interface
-
-### Limitations
-
-- **Windows**: Less process isolation compared to Unix systems
-- **Performance**: Creating processes has overhead
-- **Debugging**: Harder to debug code running in child processes
-- **Platform Differences**: Behavior may vary slightly between platforms
-
-Use test_deadend when you need to test operations that might crash, abort, or fail in ways that would normally terminate your test process. 
+- Only `LOG_FATAL` aborts are recoverable -- real signals (`SIGSEGV`, `SIGBUS`) crash the process.
+- A test that aborts inside cleanup code may skip allocator teardown; the longjmp does not unwind C++-style destructors (none here, but worth noting).
+- The driver is single-threaded by design. Tests that need concurrency should not call `test_deadend` from a worker thread; the `OnAbort` slot is process-global.

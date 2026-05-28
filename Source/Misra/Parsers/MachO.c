@@ -1,4 +1,4 @@
-/// file      : MachO.c
+/// file      : parsers/macho.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -463,7 +463,7 @@ void MachoDeinit(Macho *self) {
     MemSet(self, 0, sizeof(*self));
 }
 
-const MachoSection *MachoFindSection(const Macho *self, Zstr segment, Zstr section) {
+const MachoSection *macho_find_section(const Macho *self, Zstr segment, Zstr section) {
     if (!self || !segment || !section)
         return NULL;
     for (size i = 0; i < VecLen(&self->sections); ++i) {

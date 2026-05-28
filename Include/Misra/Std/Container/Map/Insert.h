@@ -1,5 +1,5 @@
 /// file      : std/container/map/insert.h
-/// author    : Generated following Misra project patterns
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Insert and update helpers for Map.
@@ -447,14 +447,6 @@ static inline bool map_set_only_r_impl(
          sizeof(MAP_VALUE_TYPE(m)),                                                                                    \
          offsetof(MAP_ENTRY_TYPE(m), hash)                                                                             \
      ))
-
-///
-/// Alias for `MapEnsurePtr` matching the get-or-insert idiom from other
-/// associative container APIs.
-///
-/// TAGS: Map, Insert, Get
-///
-#define MapGetOrInsertPtr(m, lookup_key, default_value) MapEnsurePtr((m), (lookup_key), (default_value))
 
 ///
 /// Aborting (`Must*`) variants of the fallible Map insertion macros above.

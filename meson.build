@@ -46,8 +46,6 @@ if cc.get_id() == 'msvc' or cc.get_id() == 'clang-cl'
     # CODING-CONVENTIONS.md and Zstr.h for the rule.
 endif
 
-math_dep = cc.find_library('m', required: false)
-
 inc_misra = include_directories('Source', 'Include')
 
 # ---------------------------------------------------------------------------
@@ -192,6 +190,7 @@ misra_std_sources = files(
     'Source/Misra/Std/Memory.c',
     'Source/Misra/Std/Zstr.c',
     'Source/Misra/Std/Allocator.c',
+    'Source/Misra/Std/Allocator/_Os.c',
     'Source/Misra/Std/Allocator/Page.c',
     'Source/Misra/Std/Allocator/Heap.c',
     'Source/Misra/Std/Container/Vec.c',
@@ -249,6 +248,24 @@ have_direct_syscall = have_misra_start or (sys_kernel == 'darwin' and (sys_cpu =
 # Everything below that uses `freestanding` is gating freestanding-
 # specific behaviour, not making a user-visible choice.
 freestanding = get_option('b_sanitize') == 'none'
+
+# `-ffreestanding` (C only). Tells the compiler the program is
+# freestanding; implies `-fno-builtin` and stops the optimizer from
+# rewriting the Mem* byte loops into `call memset`/`memcpy`. Without
+# this, our `_Freestanding.c` shim shadows libc's symbol and the
+# rewritten call recurses infinitely at runtime on -O2+ builds. C
+# only because C++ stdlib (used by the benchmark harness) explicitly
+# refuses to compile under `-ffreestanding`.
+if freestanding and cc.has_argument('-ffreestanding')
+    add_project_arguments('-ffreestanding', language: 'c')
+endif
+
+# x86_64 baseline: AVX2-era ISA (Haswell+, Zen 1+, ~2014). Lets the
+# auto-vectorizer emit 32-byte ymm stores in Mem* loops.
+if host_machine.cpu_family() == 'x86_64' and cc.has_argument('-march=x86-64-v3')
+    add_project_arguments('-march=x86-64-v3', language: 'c')
+    add_project_arguments('-march=x86-64-v3', language: 'cpp')
+endif
 
 # _Freestanding.c: compiler-/harness-emitted symbols (memcpy/memset/
 # memmove/memcmp/bzero, plus setjmp/longjmp on Linux). Cross-platform.
@@ -572,7 +589,7 @@ message('  parser_pe=@0@  parser_pdb=@1@  parser_macho=@2@  parser_dns=@3@'.form
 # against dbghelp for SymFromAddr / SymGetLineFromAddr64. Sys/Socket
 # on Windows pulls in Ws2_32 for Winsock2. Std/Prng's Windows path
 # calls BCryptGenRandom, which lives in bcrypt.dll.
-misra_std_platform_deps = [math_dep]
+misra_std_platform_deps = []
 if opt_sys_backtrace and host_machine.system() == 'windows'
     misra_std_platform_deps += cc.find_library('dbghelp', required: true)
 endif
@@ -604,13 +621,13 @@ misra_std_dep = declare_dependency(
 # sanitisers (the LOG_FATAL longjmp path leaks the per-FATAL
 # HeapAllocator, which ASan loudly reports). Same sources as
 # `misra_std`; sanitisers off via override, plus the same
-# MISRA_LOG_NO_BACKTRACE gate as `misra_std_no_backtrace` because the
+# LOG_NO_BACKTRACE gate as `misra_std_no_backtrace` because the
 # only consumers (bitvec_deadend_tests + their test_util variant) fire
 # many LOG_FATALs per binary and don't need the trace either.
 misra_std_no_sanitizers = static_library(
     'misra_std_no_sanitizers',
     misra_std_sources,
-    c_args: common_c_args + ['-DMISRA_LOG_NO_BACKTRACE=1'],
+    c_args: common_c_args + ['-DLOG_NO_BACKTRACE=1'],
     dependencies: misra_std_platform_deps,
     include_directories: inc_misra,
     install: false,
@@ -618,7 +635,7 @@ misra_std_no_sanitizers = static_library(
 )
 
 # Test-only library variant with `LogWrite`'s FATAL backtrace block
-# compiled out (MISRA_LOG_NO_BACKTRACE). Deadend test binaries link
+# compiled out (LOG_NO_BACKTRACE). Deadend test binaries link
 # this so each `LOG_FATAL` skips the per-frame macOS dSYM/DWARF
 # symbolisation (which Mach-O re-parses every call -- ~99% of wall
 # clock under ASan, see Log.c gate for rationale). Sanitisers stay
@@ -627,7 +644,7 @@ misra_std_no_sanitizers = static_library(
 misra_std_no_backtrace = static_library(
     'misra_std_no_backtrace',
     misra_std_sources,
-    c_args: common_c_args + ['-DMISRA_LOG_NO_BACKTRACE=1'],
+    c_args: common_c_args + ['-DLOG_NO_BACKTRACE=1'],
     dependencies: misra_std_platform_deps,
     include_directories: inc_misra,
     install: false,
@@ -782,6 +799,23 @@ if not opt_parser_elf
 endif
 if not opt_parser_dwarf
     install_subdir_excludes_files += 'Parsers/Dwarf.h'
+endif
+if not opt_parser_pe
+    install_subdir_excludes_files += 'Parsers/Pe.h'
+endif
+if not opt_parser_pdb
+    install_subdir_excludes_files += 'Parsers/Pdb.h'
+    install_subdir_excludes_files += 'Sys/PdbCache.h'
+endif
+if not opt_parser_macho
+    install_subdir_excludes_files += 'Parsers/MachO.h'
+    install_subdir_excludes_files += 'Sys/MachoCache.h'
+endif
+if not opt_parser_dns
+    install_subdir_excludes_files += 'Parsers/Dns.h'
+endif
+if not opt_sys_dns
+    install_subdir_excludes_files += 'Sys/Dns.h'
 endif
 
 install_subdir(

@@ -1,4 +1,4 @@
-/// file      : std/str.c
+/// file      : std/container/str.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -20,7 +20,7 @@
 // target).
 
 // IEEE-754 f64 +Inf and quiet NaN constructed from their bit patterns.
-// Done via a memcpy-style union so we don't depend on the compiler
+// Done via a type-punned union so we don't depend on the compiler
 // folding 1.0/0.0 to a constant.
 static f64 inf_f64(void) {
     union {
@@ -405,6 +405,13 @@ static inline bool is_strip_char(char c, Zstr strip_chars) {
 //                 = 1 means from right
 Str strip_str(Str *s, Zstr chars_to_strip, int split_direction) {
     ValidateStr(s);
+
+    // Empty Str: `s->data` may be NULL or unallocated; forming
+    // `s->data + s->length - 1` would be UB. Return an empty
+    // result bound to the same allocator.
+    if (s->length == 0) {
+        return StrInitFromCstr("", 0, s->allocator);
+    }
 
     Zstr strip_chars = chars_to_strip ? chars_to_strip : " \t\n\r\v\f";
     Zstr start       = s->data;

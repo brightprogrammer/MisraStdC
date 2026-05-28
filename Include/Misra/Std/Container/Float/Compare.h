@@ -1,5 +1,5 @@
 /// file      : std/container/float/compare.h
-/// author    : Generated following Misra project patterns
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Comparison helpers for Float.
@@ -37,8 +37,8 @@ extern "C" {
     ///
     /// TAGS: Float, Compare, Ordering, GenericCompare
     ///
-    int float_compare_with_error(Float *lhs, Float *rhs, bool *error);
-    int float_compare(Float *lhs, Float *rhs);
+    int float_compare_with_error(const Float *lhs, const Float *rhs, bool *error);
+    int float_compare(const Float *lhs, const Float *rhs);
 
     ///
     /// Hash a `Float` for use as a map key. FNV-1a over the significand
@@ -58,45 +58,9 @@ extern "C" {
     ///
     /// TAGS: Float, Hash, GenericHash
     ///
-    u64 float_hash(Float *value, u32 size);
+    u64 float_hash(const Float *value, u32 size);
 
 #ifndef __cplusplus
-#    define FLOAT_COMPARE_DISPATCH(rhs)                                                                                \
-        _Generic(                                                                                                      \
-            (rhs),                                                                                                     \
-            Float *: float_compare,                                                                                    \
-            Int *: float_compare_int,                                                                                  \
-            unsigned char: float_compare_u64,                                                                          \
-            unsigned short: float_compare_u64,                                                                         \
-            unsigned int: float_compare_u64,                                                                           \
-            unsigned long: float_compare_u64,                                                                          \
-            unsigned long long: float_compare_u64,                                                                     \
-            signed char: float_compare_i64,                                                                            \
-            signed short: float_compare_i64,                                                                           \
-            signed int: float_compare_i64,                                                                             \
-            signed long: float_compare_i64,                                                                            \
-            signed long long: float_compare_i64,                                                                       \
-            float: float_compare_f32,                                                                                  \
-            double: float_compare_f64                                                                                  \
-        )
-#    define FLOAT_COMPARE_WITH_ERROR_DISPATCH(rhs)                                                                     \
-        _Generic(                                                                                                      \
-            (rhs),                                                                                                     \
-            Float *: float_compare_with_error,                                                                         \
-            Int *: float_compare_int_with_error,                                                                       \
-            unsigned char: float_compare_u64_with_error,                                                               \
-            unsigned short: float_compare_u64_with_error,                                                              \
-            unsigned int: float_compare_u64_with_error,                                                                \
-            unsigned long: float_compare_u64_with_error,                                                               \
-            unsigned long long: float_compare_u64_with_error,                                                          \
-            signed char: float_compare_i64_with_error,                                                                 \
-            signed short: float_compare_i64_with_error,                                                                \
-            signed int: float_compare_i64_with_error,                                                                  \
-            signed long: float_compare_i64_with_error,                                                                 \
-            signed long long: float_compare_i64_with_error,                                                            \
-            float: float_compare_f32_with_error,                                                                       \
-            double: float_compare_f64_with_error                                                                       \
-        )
 #    define FLOAT_COMPARE_SELECT(_1, _2, _3, NAME, ...) NAME
 
 ///
@@ -119,9 +83,43 @@ extern "C" {
 ///
 /// TAGS: Float, Compare, Ordering, Generic
 ///
-#    define FloatCompare(...)               FLOAT_COMPARE_SELECT(__VA_ARGS__, FloatCompare_3, FloatCompare_2)(__VA_ARGS__)
-#    define FloatCompare_2(lhs, rhs)        FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs))
-#    define FloatCompare_3(lhs, rhs, error) FLOAT_COMPARE_WITH_ERROR_DISPATCH(rhs)((lhs), (rhs), (error))
+#    define FloatCompare(...) FLOAT_COMPARE_SELECT(__VA_ARGS__, FloatCompare_3, FloatCompare_2)(__VA_ARGS__)
+#    define FloatCompare_2(lhs, rhs)                                                                                   \
+        _Generic(                                                                                                      \
+            (rhs),                                                                                                     \
+            Float *: float_compare,                                                                                    \
+            Int *: float_compare_int,                                                                                  \
+            unsigned char: float_compare_u64,                                                                          \
+            unsigned short: float_compare_u64,                                                                         \
+            unsigned int: float_compare_u64,                                                                           \
+            unsigned long: float_compare_u64,                                                                          \
+            unsigned long long: float_compare_u64,                                                                     \
+            signed char: float_compare_i64,                                                                            \
+            signed short: float_compare_i64,                                                                           \
+            signed int: float_compare_i64,                                                                             \
+            signed long: float_compare_i64,                                                                            \
+            signed long long: float_compare_i64,                                                                       \
+            float: float_compare_f32,                                                                                  \
+            double: float_compare_f64                                                                                  \
+        )((lhs), (rhs))
+#    define FloatCompare_3(lhs, rhs, error)                                                                            \
+        _Generic(                                                                                                      \
+            (rhs),                                                                                                     \
+            Float *: float_compare_with_error,                                                                         \
+            Int *: float_compare_int_with_error,                                                                       \
+            unsigned char: float_compare_u64_with_error,                                                               \
+            unsigned short: float_compare_u64_with_error,                                                              \
+            unsigned int: float_compare_u64_with_error,                                                                \
+            unsigned long: float_compare_u64_with_error,                                                               \
+            unsigned long long: float_compare_u64_with_error,                                                          \
+            signed char: float_compare_i64_with_error,                                                                 \
+            signed short: float_compare_i64_with_error,                                                                \
+            signed int: float_compare_i64_with_error,                                                                  \
+            signed long: float_compare_i64_with_error,                                                                 \
+            signed long long: float_compare_i64_with_error,                                                            \
+            float: float_compare_f32_with_error,                                                                       \
+            double: float_compare_f64_with_error                                                                       \
+        )((lhs), (rhs), (error))
 
 ///
 /// Test whether two numeric values compare equal.
@@ -137,7 +135,7 @@ extern "C" {
 ///
 /// TAGS: Float, Compare, Equal, Generic
 ///
-#    define FloatEQ(lhs, rhs) (FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) == 0)
+#    define FloatEQ(lhs, rhs) (FloatCompare_2((lhs), (rhs)) == 0)
 ///
 /// Test whether `lhs` is strictly less than `rhs`.
 ///
@@ -152,7 +150,7 @@ extern "C" {
 ///
 /// TAGS: Float, Compare, LessThan, Generic
 ///
-#    define FloatLT(lhs, rhs) (FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) < 0)
+#    define FloatLT(lhs, rhs) (FloatCompare_2((lhs), (rhs)) < 0)
 ///
 /// Test whether `lhs` is less than or equal to `rhs`.
 ///
@@ -167,7 +165,7 @@ extern "C" {
 ///
 /// TAGS: Float, Compare, LessEqual, Generic
 ///
-#    define FloatLE(lhs, rhs) (FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) <= 0)
+#    define FloatLE(lhs, rhs) (FloatCompare_2((lhs), (rhs)) <= 0)
 ///
 /// Test whether `lhs` is strictly greater than `rhs`.
 ///
@@ -182,7 +180,7 @@ extern "C" {
 ///
 /// TAGS: Float, Compare, GreaterThan, Generic
 ///
-#    define FloatGT(lhs, rhs) (FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) > 0)
+#    define FloatGT(lhs, rhs) (FloatCompare_2((lhs), (rhs)) > 0)
 ///
 /// Test whether `lhs` is greater than or equal to `rhs`.
 ///
@@ -197,7 +195,7 @@ extern "C" {
 ///
 /// TAGS: Float, Compare, GreaterEqual, Generic
 ///
-#    define FloatGE(lhs, rhs) (FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) >= 0)
+#    define FloatGE(lhs, rhs) (FloatCompare_2((lhs), (rhs)) >= 0)
 ///
 /// Test whether two numeric values differ.
 ///
@@ -212,7 +210,7 @@ extern "C" {
 ///
 /// TAGS: Float, Compare, NotEqual, Generic
 ///
-#    define FloatNE(lhs, rhs) (FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) != 0)
+#    define FloatNE(lhs, rhs) (FloatCompare_2((lhs), (rhs)) != 0)
 #endif
 
 #ifdef __cplusplus

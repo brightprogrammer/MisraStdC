@@ -416,14 +416,7 @@ static void print_help(ArgParse *self) {
 /* Registration                                                        */
 /* ------------------------------------------------------------------ */
 
-void arg_register(
-    ArgParse   *self,
-    ArgRole     role,
-    Zstr short_name,
-    Zstr long_name,
-    Zstr help,
-    ArgTarget   target
-) {
+void arg_register(ArgParse *self, ArgRole role, Zstr short_name, Zstr long_name, Zstr help, ArgTarget target) {
     if (!self)
         LOG_FATAL("arg_register: NULL parser");
     if (target.kind == ARG_KIND_INVALID) {
@@ -437,7 +430,7 @@ void arg_register(
     }
     if (role == ARG_ROLE_COUNT && target.kind != ARG_KIND_U8 && target.kind != ARG_KIND_U16 &&
         target.kind != ARG_KIND_U32 && target.kind != ARG_KIND_U64) {
-        LOG_FATAL("arg_register: ArgCount '{}' requires an unsigned-int* target", long_name ? long_name : short_name);
+        LOG_FATAL("arg_register: ArgCount '{}' requires a u8/u16/u32/u64* target", long_name ? long_name : short_name);
     }
     if (role == ARG_ROLE_POSITIONAL && !long_name) {
         LOG_FATAL("arg_register: ArgPositional needs a non-NULL name");
@@ -471,14 +464,14 @@ void ArgParseDeinit(ArgParse *self) {
 // `ARG_RUN_OK` to continue, `ARG_RUN_HELP` if this token was --help,
 // `ARG_RUN_ERROR` on failure (after printing the error).
 static ArgRun handle_option_token(
-    ArgParse   *self,
-    Zstr tok,  // the current argv[i] token
-    int        *i_io, // walked forward by 1 when we consume a value
-    int         argc,
-    char      **argv,
-    File       *err
+    ArgParse *self,
+    Zstr      tok,  // the current argv[i] token
+    int      *i_io, // walked forward by 1 when we consume a value
+    int       argc,
+    char    **argv,
+    File     *err
 ) {
-    bool        is_long  = (tok[0] == '-' && tok[1] == '-');
+    bool is_long  = (tok[0] == '-' && tok[1] == '-');
     Zstr eq       = NULL;
     Zstr inline_v = NULL;
 
@@ -680,7 +673,10 @@ ArgRun ArgParseRun(ArgParse *self, int argc, char **argv) {
                 // (only valid for Flag/Count). Otherwise it's a normal
                 // short option.
                 if (tok[2] != '\0') {
-                    enum { BUNDLE_TRY, BUNDLE_REJECT } decision = BUNDLE_REJECT;
+                    enum {
+                        BUNDLE_TRY,
+                        BUNDLE_REJECT
+                    } decision = BUNDLE_REJECT;
                     StrInitStack(two, 3) {
                         char *data = StrBegin(&two);
                         data[0]    = '-';

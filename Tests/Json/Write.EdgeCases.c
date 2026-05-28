@@ -524,7 +524,7 @@ bool test_single_values_writing(void) {
 }
 
 // Main function that runs all edge case writing tests
-int main(int argc, char *argv[]) {
+int main(void) {
     // Array of test functions
     TestFunction tests[] = {
         test_empty_object_writing,

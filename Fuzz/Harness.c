@@ -1,4 +1,4 @@
-/// file      : fuzz/Harness.c
+/// file      : Fuzz/Harness.c
 /// author    : Generated for MisraStdC fuzzing
 /// This is free and unencumbered software released into the public domain.
 ///

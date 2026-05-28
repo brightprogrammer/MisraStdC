@@ -1,5 +1,5 @@
 /// file      : std/container/bitvec/foreach.h
-/// author    : Generated following Misra project patterns
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Iteration and foreach operations for bitvectors.

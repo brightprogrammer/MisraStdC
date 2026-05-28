@@ -57,7 +57,7 @@ extern "C" {
 ///
 /// Compare a `Str` against another string lexicographically.
 ///
-/// Three call shapes via `MISRA_OVERLOAD` + `_Generic` on `other`:
+/// Three call shapes via `OVERLOAD` + `_Generic` on `other`:
 ///   `StrCmp(s, other)`              -- `other` is `Str *` or `Zstr`.
 ///   `StrCmp(s, other, other_len)`   -- `other` is a fixed-length view
 ///                                      (`Zstr`, `size`).
@@ -74,7 +74,7 @@ extern "C" {
 ///
 /// TAGS: Str, Compare
 ///
-#define StrCmp(...) MISRA_OVERLOAD(StrCmp, __VA_ARGS__)
+#define StrCmp(...) OVERLOAD(StrCmp, __VA_ARGS__)
 #define StrCmp_2(s, other)                                                                                             \
     _Generic(                                                                                                          \
         (other),                                                                                                       \
@@ -88,7 +88,7 @@ extern "C" {
 /// Case-insensitive (ASCII) comparison of a `Str` against another string.
 /// Non-ASCII bytes are compared verbatim; there is no Unicode case folding.
 ///
-/// Three call shapes via `MISRA_OVERLOAD` + `_Generic` on `other`:
+/// Three call shapes via `OVERLOAD` + `_Generic` on `other`:
 ///   `StrCmpIgnoreCase(s, other)`              -- `other` is `Str *` or
 ///                                                `Zstr`.
 ///   `StrCmpIgnoreCase(s, other, other_len)`   -- `other` is a
@@ -105,7 +105,7 @@ extern "C" {
 ///
 /// TAGS: Str, Compare, IgnoreCase
 ///
-#define StrCmpIgnoreCase(...) MISRA_OVERLOAD(StrCmpIgnoreCase, __VA_ARGS__)
+#define StrCmpIgnoreCase(...) OVERLOAD(StrCmpIgnoreCase, __VA_ARGS__)
 #define StrCmpIgnoreCase_2(s, other)                                                                                   \
     _Generic(                                                                                                          \
         (other),                                                                                                       \
@@ -123,7 +123,7 @@ extern "C" {
 /// Find the first occurrence of `key` inside `s` and return a pointer
 /// into `s`'s buffer.
 ///
-/// Three call shapes via `MISRA_OVERLOAD` + `_Generic` on `key`:
+/// Three call shapes via `OVERLOAD` + `_Generic` on `key`:
 ///   `StrFind(s, key)`              -- `key` is `Str *` or `Zstr`.
 ///   `StrFind(s, key, key_len)`     -- `key` is a fixed-length view
 ///                                     (`Zstr`, `size`).
@@ -141,7 +141,7 @@ extern "C" {
 ///
 /// TAGS: Str, Find, Search
 ///
-#define StrFind(...) MISRA_OVERLOAD(StrFind, __VA_ARGS__)
+#define StrFind(...) OVERLOAD(StrFind, __VA_ARGS__)
 #define StrFind_2(s, key)                                                                                              \
     _Generic(                                                                                                          \
         (key),                                                                                                         \
@@ -154,7 +154,7 @@ extern "C" {
 ///
 /// Find the index of the first occurrence of a key inside a `Str`.
 ///
-/// Three call shapes via `MISRA_OVERLOAD` + `_Generic` on `key`:
+/// Three call shapes via `OVERLOAD` + `_Generic` on `key`:
 ///   `StrIndexOf(s, key)`              -- `key` is `Str *` or `Zstr`.
 ///   `StrIndexOf(s, key, key_len)`     -- `key` is a fixed-length view
 ///                                        (`Zstr`, `size`).
@@ -171,7 +171,7 @@ extern "C" {
 ///
 /// TAGS: Str, IndexOf, Search
 ///
-#define StrIndexOf(...) MISRA_OVERLOAD(StrIndexOf, __VA_ARGS__)
+#define StrIndexOf(...) OVERLOAD(StrIndexOf, __VA_ARGS__)
 #define StrIndexOf_2(s, key)                                                                                           \
     _Generic(                                                                                                          \
         (key),                                                                                                         \
@@ -184,7 +184,7 @@ extern "C" {
 ///
 /// Check whether a `Str` contains a key.
 ///
-/// Three call shapes via `MISRA_OVERLOAD` + `_Generic` on `key`:
+/// Three call shapes via `OVERLOAD` + `_Generic` on `key`:
 ///   `StrContains(s, key)`              -- `key` is `Str *` or `Zstr`.
 ///   `StrContains(s, key, key_len)`     -- `key` is a fixed-length view
 ///                                         (`Zstr`, `size`).
@@ -200,7 +200,7 @@ extern "C" {
 ///
 /// TAGS: Str, Contains, Search
 ///
-#define StrContains(...) MISRA_OVERLOAD(StrContains, __VA_ARGS__)
+#define StrContains(...) OVERLOAD(StrContains, __VA_ARGS__)
 #define StrContains_2(s, key)                                                                                          \
     _Generic(                                                                                                          \
         (key),                                                                                                         \
@@ -217,7 +217,7 @@ extern "C" {
 ///
 /// Check whether a `Str` starts with a prefix.
 ///
-/// Three call shapes via `MISRA_OVERLOAD` + `_Generic` on `prefix`:
+/// Three call shapes via `OVERLOAD` + `_Generic` on `prefix`:
 ///   `StrStartsWith(s, prefix)`                -- `prefix` is `Str *`
 ///                                                or `Zstr`.
 ///   `StrStartsWith(s, prefix, prefix_len)`    -- `prefix` is a
@@ -235,7 +235,7 @@ extern "C" {
 ///
 /// TAGS: Str, StartsWith, Prefix
 ///
-#define StrStartsWith(...) MISRA_OVERLOAD(StrStartsWith, __VA_ARGS__)
+#define StrStartsWith(...) OVERLOAD(StrStartsWith, __VA_ARGS__)
 #define StrStartsWith_2(s, prefix)                                                                                     \
     _Generic(                                                                                                          \
         (prefix),                                                                                                      \
@@ -248,7 +248,7 @@ extern "C" {
 ///
 /// Check whether a `Str` ends with a suffix.
 ///
-/// Three call shapes via `MISRA_OVERLOAD` + `_Generic` on `suffix`:
+/// Three call shapes via `OVERLOAD` + `_Generic` on `suffix`:
 ///   `StrEndsWith(s, suffix)`                -- `suffix` is `Str *`
 ///                                              or `Zstr`.
 ///   `StrEndsWith(s, suffix, suffix_len)`    -- `suffix` is a
@@ -266,7 +266,7 @@ extern "C" {
 ///
 /// TAGS: Str, EndsWith, Suffix
 ///
-#define StrEndsWith(...) MISRA_OVERLOAD(StrEndsWith, __VA_ARGS__)
+#define StrEndsWith(...) OVERLOAD(StrEndsWith, __VA_ARGS__)
 #define StrEndsWith_2(s, suffix)                                                                                       \
     _Generic(                                                                                                          \
         (suffix),                                                                                                      \
@@ -283,7 +283,7 @@ extern "C" {
 ///
 /// Replace occurrences of `match` in `s` with `replacement`.
 ///
-/// Three call shapes via `MISRA_OVERLOAD` + `_Generic` on `match`:
+/// Three call shapes via `OVERLOAD` + `_Generic` on `match`:
 ///   `StrReplace(s, match, replacement, count)`
 ///       -- `match` and `replacement` are both `Str *` or both `Zstr`.
 ///   `StrReplace(s, match, match_len, replacement, replacement_len, count)`
@@ -304,7 +304,7 @@ extern "C" {
 ///
 /// TAGS: Str, Replace
 ///
-#define StrReplace(...) MISRA_OVERLOAD(StrReplace, __VA_ARGS__)
+#define StrReplace(...) OVERLOAD(StrReplace, __VA_ARGS__)
 #define StrReplace_4(s, match, replacement, count)                                                                     \
     _Generic(                                                                                                          \
         (match),                                                                                                       \

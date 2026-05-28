@@ -1,4 +1,4 @@
-/// file      : misra/sys/errno.h
+/// file      : sys/errno.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///

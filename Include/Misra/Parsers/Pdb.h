@@ -1,4 +1,4 @@
-/// file      : Pdb.h
+/// file      : parsers/pdb.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -71,9 +71,9 @@ typedef struct PdbInfo {
 /// (mirrors `VecInsertL` / `VecInsertR`).
 ///
 /// FIELDS:
-/// - allocator   : Allocator backing `data` + the functions vec.
-/// - data        : Raw PDB bytes (owned).
-/// - data_size   : Length of `data` in bytes.
+/// - data        : Raw PDB bytes as a `Buf` (owned). Carries its own
+///                 length and allocator -- read via `BufLength` /
+///                 `BufData` / `BufAllocator`.
 /// - block_size  : MSF page size (read from the superblock; usually
 ///                 4096 but can be 512/1024/2048).
 /// - num_streams : Stream count from the directory.
@@ -117,37 +117,40 @@ typedef struct Pdb {
 /// TAGS: Parser, PDB, File
 ///
 bool pdb_open(Pdb *out, Zstr path, Allocator *alloc);
-#define PdbOpen(...) MISRA_OVERLOAD(PdbOpen, __VA_ARGS__)
+#define PdbOpen(...) OVERLOAD(PdbOpen, __VA_ARGS__)
 #define PdbOpen_2(out, path)                                                                                           \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: pdb_open((out), (Zstr)StrBegin((Str *)(path)), MisraScope),                                                     \
-        Zstr: pdb_open((out), (Zstr)(path), MisraScope),                                                \
-        char *: pdb_open((out), (Zstr)(path), MisraScope)                                                \
+        Str *: pdb_open((out), (Zstr)StrBegin((Str *)(path)), MisraScope),                                             \
+        Zstr: pdb_open((out), (Zstr)(path), MisraScope),                                                               \
+        char *: pdb_open((out), (Zstr)(path), MisraScope)                                                              \
     )
 #define PdbOpen_3(out, path, alloc)                                                                                    \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: pdb_open((out), (Zstr)StrBegin((Str *)(path)), ALLOCATOR_OF(alloc)),                                            \
-        Zstr: pdb_open((out), (Zstr)(path), ALLOCATOR_OF(alloc)),                                       \
-        char *: pdb_open((out), (Zstr)(path), ALLOCATOR_OF(alloc))                                       \
+        Str *: pdb_open((out), (Zstr)StrBegin((Str *)(path)), ALLOCATOR_OF(alloc)),                                    \
+        Zstr: pdb_open((out), (Zstr)(path), ALLOCATOR_OF(alloc)),                                                      \
+        char *: pdb_open((out), (Zstr)(path), ALLOCATOR_OF(alloc))                                                     \
     )
 
 ///
 /// Open and parse a PDB from an in-memory byte range -- **L-value /
 /// ownership-transfer form** (mirrors `VecInsertL`).
 ///
-/// `data` is `u8 **`: ownership is moving from caller to parser. On
-/// entry `*data` is the caller's buffer (allocated through `alloc`);
-/// on exit (success OR failure) `*data == NULL`. Calling code:
+/// Takes the caller's `Buf` by pointer. The parser snapshots the Buf
+/// and zeroes the caller's `*in` so any post-call use sees an empty
+/// Buf instead of a stale alias. Allocator comes from the Buf. The
+/// zero-on-take invariant holds on success and failure.
 ///
-///   u8 *buf = my_buffer;
-///   PdbOpenFromMemory(&pdb, &buf, n, &alloc);
-///   // buf == NULL afterwards.
+/// USAGE:
+///   Buf buf = BufInit(&alloc);
+///   FileRead(&f, &buf);
+///   PdbOpenFromMemory(&pdb, &buf);
+///   // buf is now zeroed.
 ///
-/// SUCCESS : Returns true; `out` owns the bytes; `*data == NULL`.
-/// FAILURE : Returns false; the bytes have been freed through `alloc`;
-///           `*data == NULL`; `out` is left zeroed.
+/// SUCCESS : Returns true; `out` owns the bytes; `*in` is zeroed.
+/// FAILURE : Returns false; the bytes have been freed through the Buf's
+///           allocator; `*in` is zeroed; `out` is left zeroed.
 ///
 /// TAGS: Parser, PDB, Memory, Ownership
 ///
@@ -166,7 +169,7 @@ bool PdbOpenFromMemory(Pdb *out, Buf *in);
 /// TAGS: Parser, PDB, Memory, Copy
 ///
 bool pdb_open_from_memory_copy(Pdb *out, const u8 *data, size data_size, Allocator *alloc);
-#define PdbOpenFromMemoryCopy(...)                    MISRA_OVERLOAD(PdbOpenFromMemoryCopy, __VA_ARGS__)
+#define PdbOpenFromMemoryCopy(...)                    OVERLOAD(PdbOpenFromMemoryCopy, __VA_ARGS__)
 #define PdbOpenFromMemoryCopy_3(out, data, data_size) pdb_open_from_memory_copy((out), (data), (data_size), MisraScope)
 #define PdbOpenFromMemoryCopy_4(out, data, data_size, alloc)                                                           \
     pdb_open_from_memory_copy((out), (data), (data_size), ALLOCATOR_OF(alloc))
@@ -189,6 +192,8 @@ void PdbDeinit(Pdb *self);
 /// SUCCESS : Returns a pointer to the matching entry. Valid until
 ///           `PdbDeinit`.
 /// FAILURE : Returns NULL.
+///
+/// TAGS: Parser, PDB, Function, Resolve
 ///
 const PdbFunction *PdbResolveRva(const Pdb *self, u32 rva);
 

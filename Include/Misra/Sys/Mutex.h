@@ -1,4 +1,4 @@
-/// file      : Misra/Sys/Mutex.h
+/// file      : sys/mutex.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -6,7 +6,7 @@
 /// macro; per-platform backends are exposed in the struct so callers
 /// don't need a heap allocation. See `Source/Misra/Sys/Mutex.c` for
 /// the backend selection rationale (futex on Linux, __ulock on macOS,
-/// SRWLOCK on Windows, pthread_mutex_t on other POSIX).
+/// SRWLOCK on Windows).
 
 #ifndef MISRA_SYS_MUTEX_H
 #define MISRA_SYS_MUTEX_H
@@ -20,10 +20,8 @@
 // IMAGE_DEBUG_TYPE_CODEVIEW) into TUs that have their own enums by
 // the same name -- breaks unrelated code. Instead, use a layout-
 // compatible opaque field and cast inside Mutex.c.
-#if PLATFORM_UNIX
+#if FEATURE_DIRECT_SYSCALL
 #    include <stdatomic.h>
-#elif !PLATFORM_WINDOWS
-#    include <pthread.h>
 #endif
 
 #ifdef __cplusplus
@@ -40,13 +38,13 @@ extern "C" {
         // Mutex.c casts &_lock to (SRWLOCK *) for Win32 calls. Zero-init
         // = SRWLOCK_INIT = unlocked.
         void *_lock;
-#elif PLATFORM_UNIX
+#elif FEATURE_DIRECT_SYSCALL
     // Drepper-style 3-state mutex backed by futex (Linux) /
     // __ulock_wait (Darwin). 0 = unlocked, 1 = locked, 2 = locked
     // with waiters.
     _Atomic int _state;
 #else
-    pthread_mutex_t _lock;
+#    error "Mutex: unsupported platform/architecture (no direct-syscall path)"
 #endif
     } Mutex;
 
@@ -68,23 +66,18 @@ extern "C" {
 #if PLATFORM_WINDOWS
 // _lock is a void* layout-compatible with SRWLOCK. NULL = SRWLOCK_INIT.
 #    define MutexInit() ((Mutex) {._lock = NULL})
-#elif PLATFORM_UNIX
+#elif FEATURE_DIRECT_SYSCALL
 // _Atomic int = 0 is "unlocked" in the futex / __ulock state machine.
 #    define MutexInit() ((Mutex) {._state = 0})
-#else
-// PTHREAD_MUTEX_INITIALIZER is a static-init constant expression on
-// every POSIX libc we target.
-#    define MutexInit() ((Mutex) {._lock = PTHREAD_MUTEX_INITIALIZER})
 #endif
 
     ///
-    /// Tear down a mutex. On Windows / direct-syscall paths the kernel
-    /// has no per-mutex resources; the call zeroes the struct. On the
-    /// pthread fallback path, `pthread_mutex_destroy` releases the
-    /// underlying kernel resource.
+    /// Tear down a mutex. The kernel holds no per-mutex resource on
+    /// either backend (SRWLOCK has no destroy; futex/__ulock are just
+    /// addresses watched on demand), so the call only zeroes the struct.
     ///
-    /// SUCCESS: Function returns; struct is uninitialised.
-    /// FAILURE: No-op for NULL.
+    /// SUCCESS : Returns to the caller. `*m` is zeroed.
+    /// FAILURE : Function cannot fail. NULL `m` is a no-op.
     ///
     /// TAGS: Sys, Mutex, Deinit
     ///

@@ -59,6 +59,8 @@ static bool test_list_init_optional_allocator(void) {
 
     typedef List(int) IntList;
     DefaultAllocator alloc = DefaultAllocatorInit();
+    // White-box: no public retry_limit setter on Allocator; we poke the
+    // base field directly to verify the value propagates through ListInit.
     alloc.base.retry_limit = 23;
 
     IntList list_a = ListInit(&alloc);

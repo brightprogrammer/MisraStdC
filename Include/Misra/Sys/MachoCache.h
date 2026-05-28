@@ -1,4 +1,4 @@
-/// file      : MachoCache.h
+/// file      : sys/macho_cache.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -60,7 +60,7 @@ typedef struct MachoCache {
 ///
 /// TAGS: Sys, MachO, Cache, Init, Lifecycle
 ///
-#define MachoCacheInit(...)         MISRA_OVERLOAD(MachoCacheInit, __VA_ARGS__)
+#define MachoCacheInit(...)         OVERLOAD(MachoCacheInit, __VA_ARGS__)
 #define MachoCacheInit_0()          MachoCacheInit_1(MisraScope)
 #define MachoCacheInit_1(alloc_ptr) ((MachoCache) {.allocator = ALLOCATOR_OF(alloc_ptr), .entries = VecInit_1(alloc_ptr)})
 
@@ -94,6 +94,8 @@ void MachoCacheDeinit(MachoCache *self);
 /// SUCCESS : Returns true.
 /// FAILURE : Returns false if the module can't be opened or the IP
 ///           falls outside any symbol / function.
+///
+/// TAGS: Sys, MachO, Cache, Resolve
 ///
 bool macho_cache_resolve_zstr(
     MachoCache *self,

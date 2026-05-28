@@ -1,6 +1,6 @@
-/// file      : Access.h
+/// file      : std/container/list/access.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
-/// copyright : Copyright (c) 2025, Siddharth Mishra, All rights reserved.
+/// This is free and unencumbered software released into the public domain.
 ///
 /// Different list accessor helper macros.
 ///
@@ -308,15 +308,16 @@
 #define ListNodePrev(item) ((TYPE_OF(item))((item) ? (item)->prev : NULL))
 
 ///
-/// Get item relative to given node.
+/// Get the list node at signed offset `ridx` from `base_node`.
+/// Positive `ridx` walks forward through `next` pointers; negative walks
+/// backward through `prev` pointers. `ridx == 0` returns `base_node`.
 ///
-/// item[in] : List node to get previous node of, in the list.
-/// ridx[in] : Relative index +ve or -ve.
+/// base_node[in] : Anchor node.
+/// ridx[in]      : Signed relative offset.
 ///
-/// If relative index exceeds the bounds of list, then NULL is returned.
-///
-/// SUCCESS: Node relative to given `item` in list.
-/// FAILURE: `NULL` or abort
+/// SUCCESS : Returns the node at offset `ridx`.
+/// FAILURE : Returns `NULL` when the offset walks past either end of
+///           the list.
 ///
 /// TAGS: List, Node, Access
 ///

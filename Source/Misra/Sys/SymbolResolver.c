@@ -1,4 +1,4 @@
-/// file      : SymbolResolver.c
+/// file      : sys/symbol_resolver.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -113,8 +113,7 @@ static bool try_open_sidecar(Zstr main_path, const Elf *main, Elf *out, Allocato
 
     // (2-4) debuglink in standard locations
     if (main->debuglink_name && main->debuglink_name[0]) {
-        Zstr cand_dirs[]  = {NULL, "/.debug", NULL};
-        Zstr cand_prefix  = "/usr/lib/debug";
+        Zstr cand_prefix = "/usr/lib/debug";
 
         // (2) {dir}/{name}
         StrResize(&path, 0);
@@ -155,7 +154,6 @@ static bool try_open_sidecar(Zstr main_path, const Elf *main, Elf *out, Allocato
             }
             ElfDeinit(out);
         }
-        (void)cand_dirs; // unused list kept for future variants
     }
 
     StrDeinit(&path);

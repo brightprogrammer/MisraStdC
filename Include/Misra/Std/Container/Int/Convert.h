@@ -1,5 +1,5 @@
 /// file      : std/container/int/convert.h
-/// author    : Generated following Misra project patterns
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Conversion helpers for Int.
@@ -15,21 +15,6 @@ extern "C" {
 #endif
 
 #ifndef __cplusplus
-#    define INT_FROM_DISPATCH(value)                                                                                   \
-        _Generic(                                                                                                      \
-            (value),                                                                                                   \
-            unsigned char: int_from_u64,                                                                               \
-            unsigned short: int_from_u64,                                                                              \
-            unsigned int: int_from_u64,                                                                                \
-            unsigned long: int_from_u64,                                                                               \
-            unsigned long long: int_from_u64,                                                                          \
-            signed char: int_from_i64,                                                                                 \
-            signed short: int_from_i64,                                                                                \
-            signed int: int_from_i64,                                                                                  \
-            signed long: int_from_i64,                                                                                 \
-            signed long long: int_from_i64                                                                             \
-        )
-
 ///
 /// Convert a native integer into an arbitrary-precision integer.
 /// Dispatches on the type of `value`.
@@ -49,7 +34,20 @@ extern "C" {
 ///
 /// TAGS: Int, Convert, Import, Generic
 ///
-#    define IntFrom(value, alloc) INT_FROM_DISPATCH(value)((value), (alloc))
+#    define IntFrom(value, alloc)                                                                                      \
+        _Generic(                                                                                                      \
+            (value),                                                                                                   \
+            unsigned char: int_from_u64,                                                                               \
+            unsigned short: int_from_u64,                                                                              \
+            unsigned int: int_from_u64,                                                                                \
+            unsigned long: int_from_u64,                                                                               \
+            unsigned long long: int_from_u64,                                                                          \
+            signed char: int_from_i64,                                                                                 \
+            signed short: int_from_i64,                                                                                \
+            signed int: int_from_i64,                                                                                  \
+            signed long: int_from_i64,                                                                                 \
+            signed long long: int_from_i64                                                                             \
+        )((value), ALLOCATOR_OF(alloc))
 #endif
 
     ///
@@ -65,7 +63,7 @@ extern "C" {
     ///
     /// TAGS: Int, Convert, U64
     ///
-    bool IntTryToU64(Int *value, u64 *out);
+    bool IntTryToU64(const Int *value, u64 *out);
 
     ///
     /// Convert an integer to `u64`.
@@ -79,7 +77,7 @@ extern "C" {
     ///
     /// TAGS: Int, Convert, U64
     ///
-    u64 IntToU64WithError(Int *value, bool *error);
+    u64 IntToU64WithError(const Int *value, bool *error);
 
     ///
     /// Create an integer from little-endian bytes.
@@ -100,7 +98,7 @@ extern "C" {
     /// TAGS: Int, Convert, Bytes, LE
     ///
     Int int_from_bytes_le(const u8 *bytes, u64 len, Allocator *alloc);
-#define IntFromBytesLE(...)                 MISRA_OVERLOAD(IntFromBytesLE, __VA_ARGS__)
+#define IntFromBytesLE(...)                 OVERLOAD(IntFromBytesLE, __VA_ARGS__)
 #define IntFromBytesLE_2(bytes, len)        int_from_bytes_le((bytes), (len), MisraScope)
 #define IntFromBytesLE_3(bytes, len, alloc) int_from_bytes_le((bytes), (len), ALLOCATOR_OF(alloc))
 
@@ -122,7 +120,7 @@ extern "C" {
     ///
     /// TAGS: Int, Convert, Bytes, LE
     ///
-    u64 IntToBytesLE(Int *value, u8 *bytes, u64 max_len);
+    u64 IntToBytesLE(const Int *value, u8 *bytes, u64 max_len);
 
     ///
     /// Create an integer from big-endian bytes.
@@ -144,7 +142,7 @@ extern "C" {
     /// TAGS: Int, Convert, Bytes, BE
     ///
     Int int_from_bytes_be(const u8 *bytes, u64 len, Allocator *alloc);
-#define IntFromBytesBE(...)                 MISRA_OVERLOAD(IntFromBytesBE, __VA_ARGS__)
+#define IntFromBytesBE(...)                 OVERLOAD(IntFromBytesBE, __VA_ARGS__)
 #define IntFromBytesBE_2(bytes, len)        int_from_bytes_be((bytes), (len), MisraScope)
 #define IntFromBytesBE_3(bytes, len, alloc) int_from_bytes_be((bytes), (len), ALLOCATOR_OF(alloc))
 
@@ -166,7 +164,7 @@ extern "C" {
     ///
     /// TAGS: Int, Convert, Bytes, BE
     ///
-    u64 IntToBytesBE(Int *value, u8 *bytes, u64 max_len);
+    u64 IntToBytesBE(const Int *value, u8 *bytes, u64 max_len);
 
     ///
     /// Parse digits in the given radix into an integer.
@@ -211,7 +209,7 @@ extern "C" {
     ///
     Int int_from_str_radix_zstr(Zstr digits, u8 radix, Allocator *alloc);
     Int int_from_str_radix_str(const Str *digits, u8 radix, Allocator *alloc);
-#define IntFromStrRadix(...) MISRA_OVERLOAD(IntFromStrRadix, __VA_ARGS__)
+#define IntFromStrRadix(...) OVERLOAD(IntFromStrRadix, __VA_ARGS__)
 #define IntFromStrRadix_2(digits, radix)                                                                                                                            \
     _Generic((digits), Str *: int_from_str_radix_str, char *: int_from_str_radix_zstr, Zstr : int_from_str_radix_zstr)( \
         (digits),                                                                                                                                                   \
@@ -243,8 +241,8 @@ extern "C" {
     ///
     /// TAGS: Int, Convert, String, Radix, Allocator
     ///
-    bool int_try_to_str_radix(Str *out, Int *value, u8 radix, bool uppercase, Allocator *alloc);
-    Str  int_to_str_radix(Int *value, u8 radix, bool uppercase, Allocator *alloc);
+    bool int_try_to_str_radix(Str *out, const Int *value, u8 radix, bool uppercase, Allocator *alloc);
+    Str  int_to_str_radix(const Int *value, u8 radix, bool uppercase, Allocator *alloc);
 
     ///
     /// Parse a decimal string into an integer.
@@ -286,7 +284,7 @@ extern "C" {
     ///
     Int int_from_str_zstr(Zstr decimal, Allocator *alloc);
     Int int_from_str_str(const Str *decimal, Allocator *alloc);
-#define IntFromStr(...) MISRA_OVERLOAD(IntFromStr, __VA_ARGS__)
+#define IntFromStr(...) OVERLOAD(IntFromStr, __VA_ARGS__)
 #define IntFromStr_1(decimal)                                                                                                                \
     _Generic((decimal), Str *: int_from_str_str, char *: int_from_str_zstr, Zstr : int_from_str_zstr)( \
         (decimal),                                                                                                                           \
@@ -314,8 +312,8 @@ extern "C" {
     ///
     /// TAGS: Int, Convert, String, Decimal, Allocator
     ///
-    bool int_try_to_str(Str *out, Int *value, Allocator *alloc);
-    Str  int_to_str(Int *value, Allocator *alloc);
+    bool int_try_to_str(Str *out, const Int *value, Allocator *alloc);
+    Str  int_to_str(const Int *value, Allocator *alloc);
 
     ///
     /// Parse a binary string into an integer.
@@ -357,7 +355,7 @@ extern "C" {
     ///
     Int int_from_binary_zstr(Zstr binary, Allocator *alloc);
     Int int_from_binary_str(const Str *binary, Allocator *alloc);
-#define IntFromBinary(...) MISRA_OVERLOAD(IntFromBinary, __VA_ARGS__)
+#define IntFromBinary(...) OVERLOAD(IntFromBinary, __VA_ARGS__)
 #define IntFromBinary_1(binary)                                                                                                                         \
     _Generic((binary), Str *: int_from_binary_str, char *: int_from_binary_zstr, Zstr : int_from_binary_zstr)( \
         (binary),                                                                                                                                       \
@@ -386,7 +384,7 @@ extern "C" {
     ///
     /// TAGS: Int, Convert, Binary
     ///
-    Str IntToBinary(Int *value);
+    Str IntToBinary(const Int *value);
 
     ///
     /// Parse an octal string into an integer.
@@ -428,7 +426,7 @@ extern "C" {
     ///
     Int int_from_oct_str_zstr(Zstr octal, Allocator *alloc);
     Int int_from_oct_str_str(const Str *octal, Allocator *alloc);
-#define IntFromOctStr(...) MISRA_OVERLOAD(IntFromOctStr, __VA_ARGS__)
+#define IntFromOctStr(...) OVERLOAD(IntFromOctStr, __VA_ARGS__)
 #define IntFromOctStr_1(octal)                                                                                                                             \
     _Generic((octal), Str *: int_from_oct_str_str, char *: int_from_oct_str_zstr, Zstr : int_from_oct_str_zstr)( \
         (octal),                                                                                                                                           \
@@ -457,7 +455,7 @@ extern "C" {
     ///
     /// TAGS: Int, Convert, Oct
     ///
-    Str IntToOctStr(Int *value);
+    Str IntToOctStr(const Int *value);
 
     ///
     /// Parse a hexadecimal string into an integer.
@@ -501,7 +499,7 @@ extern "C" {
     ///
     Int int_from_hex_str_zstr(Zstr hex, Allocator *alloc);
     Int int_from_hex_str_str(const Str *hex, Allocator *alloc);
-#define IntFromHexStr(...) MISRA_OVERLOAD(IntFromHexStr, __VA_ARGS__)
+#define IntFromHexStr(...) OVERLOAD(IntFromHexStr, __VA_ARGS__)
 #define IntFromHexStr_1(hex)                                                                                                                             \
     _Generic((hex), Str *: int_from_hex_str_str, char *: int_from_hex_str_zstr, Zstr : int_from_hex_str_zstr)( \
         (hex),                                                                                                                                           \
@@ -530,13 +528,13 @@ extern "C" {
     ///
     /// TAGS: Int, Convert, Hex
     ///
-    Str IntToHexStr(Int *value);
+    Str IntToHexStr(const Int *value);
 
 #ifdef __cplusplus
 }
 #endif
 
-static inline u64 int_to_u64_no_error(Int *value) {
+static inline u64 int_to_u64_no_error(const Int *value) {
     return IntToU64WithError(value, NULL);
 }
 
@@ -580,7 +578,7 @@ static inline u64 int_to_u64_no_error(Int *value) {
 ///
 /// TAGS: Int, Convert, String
 ///
-#define IntTryToStr(...)                 MISRA_OVERLOAD(IntTryToStr, __VA_ARGS__)
+#define IntTryToStr(...)                 OVERLOAD(IntTryToStr, __VA_ARGS__)
 #define IntTryToStr_2(out, value)        int_try_to_str((out), (value), (value)->bits.allocator)
 #define IntTryToStr_3(out, value, alloc) int_try_to_str((out), (value), (alloc))
 
@@ -600,7 +598,7 @@ static inline u64 int_to_u64_no_error(Int *value) {
 ///
 /// TAGS: Int, Convert, String
 ///
-#define IntToStr(...)            MISRA_OVERLOAD(IntToStr, __VA_ARGS__)
+#define IntToStr(...)            OVERLOAD(IntToStr, __VA_ARGS__)
 #define IntToStr_1(value)        int_to_str((value), (value)->bits.allocator)
 #define IntToStr_2(value, alloc) int_to_str((value), (alloc))
 
@@ -622,7 +620,7 @@ static inline u64 int_to_u64_no_error(Int *value) {
 ///
 /// TAGS: Int, Convert, Radix, String
 ///
-#define IntTryToStrRadix(...) MISRA_OVERLOAD(IntTryToStrRadix, __VA_ARGS__)
+#define IntTryToStrRadix(...) OVERLOAD(IntTryToStrRadix, __VA_ARGS__)
 #define IntTryToStrRadix_4(out, value, radix, uppercase)                                                               \
     int_try_to_str_radix((out), (value), (radix), (uppercase), (value)->bits.allocator)
 #define IntTryToStrRadix_5(out, value, radix, uppercase, alloc)                                                        \
@@ -646,7 +644,7 @@ static inline u64 int_to_u64_no_error(Int *value) {
 ///
 /// TAGS: Int, Convert, Radix, String
 ///
-#define IntToStrRadix(...) MISRA_OVERLOAD(IntToStrRadix, __VA_ARGS__)
+#define IntToStrRadix(...) OVERLOAD(IntToStrRadix, __VA_ARGS__)
 #define IntToStrRadix_3(value, radix, uppercase)                                                                       \
     int_to_str_radix((value), (radix), (uppercase), (value)->bits.allocator)
 #define IntToStrRadix_4(value, radix, uppercase, alloc) int_to_str_radix((value), (radix), (uppercase), (alloc))

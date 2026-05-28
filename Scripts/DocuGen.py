@@ -257,7 +257,7 @@ def extract_symbols_and_store_content(file_path: Path):
                     symbol_name, inferred_kind = symbol_info
                     internal_reason = internal_documentation_symbol_reason(symbol_name)
                     # Walk past both `private` (snake_case impl helpers) and
-                    # `plumbing` (numbered MISRA_OVERLOAD arms, `_HAS_ARGS`,
+                    # `plumbing` (numbered OVERLOAD arms, `_HAS_ARGS`,
                     # etc.) until either a public PascalCase symbol absorbs
                     # the doc block or the run of non-blank declarations
                     # ends. The Phase-2 / R2 pattern is:
@@ -265,7 +265,7 @@ def extract_symbols_and_store_content(file_path: Path):
                     #     /// doc block
                     #     T snake_zstr(...);
                     #     T snake_str(...);
-                    #     #define PascalName(...) MISRA_OVERLOAD(PascalName, ...)
+                    #     #define PascalName(...) OVERLOAD(PascalName, ...)
                     #     #define PascalName_1(...) _Generic(...)
                     #     #define PascalName_2(...) _Generic(...)
                     #

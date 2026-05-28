@@ -316,6 +316,8 @@ bool test_vec_init_clone_inherits_allocator_config(void) {
     typedef Vec(int) IntVec;
 
     HeapAllocator local_heap    = HeapAllocatorInit();
+    // White-box: no public effort/retry_limit setter on Allocator; we
+    // poke the base fields directly to exercise the retry policy.
     local_heap.base.effort      = ALLOCATOR_EFFORT_RETRY_FALLBACK;
     local_heap.base.retry_limit = 11;
 
@@ -530,7 +532,7 @@ int main(void) {
     int total_tests = sizeof(tests) / sizeof(tests[0]);
 
     // Run all tests using the centralized test driver
-    int __rc = run_test_suite(tests, total_tests, NULL, 0, "Vec.Insert");
+    int rc = run_test_suite(tests, total_tests, NULL, 0, "Vec.Insert");
     DefaultAllocatorDeinit(&alloc);
-    return __rc;
+    return rc;
 }

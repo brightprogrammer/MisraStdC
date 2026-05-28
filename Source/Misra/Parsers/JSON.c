@@ -1,8 +1,13 @@
-#include <Misra/Parsers/JSON.h>
-#include <Misra/Std/Zstr.h>
-#include <Misra/Std/Allocator/Default.h>
+/// file      : parsers/json.c
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
+/// This is free and unencumbered software released into the public domain.
+///
+/// JSON reader/writer: skip helpers, scalar parsers, and the public
+/// JR_OBJ / JR_ARR / JW_* macros' supporting plumbing.
 
-// libc
+#include <Misra/Parsers/JSON.h>
+#include <Misra/Std/Allocator/Default.h>
+#include <Misra/Std/Zstr.h>
 
 static StrIter JSkipObject(StrIter si) {
     if (!StrIterRemainingLength(&si)) {

@@ -22,7 +22,7 @@
 /// SUCCESS : Returns to the caller. The vector length shrinks by one;
 ///           elements previously at indices > `idx` have shifted left by
 ///           one. When `ptr` is non-NULL, the removed value has been
-///           memcopied into `*ptr` (the slot is bit-copied; the
+///           bit-copied into `*ptr` (the slot is bit-copied; the
 ///           `copy_deinit` handler is NOT called - ownership transfers to
 ///           the caller). When `ptr` is NULL and `copy_deinit` is
 ///           configured, the handler is invoked on the removed element
@@ -51,7 +51,7 @@
 /// SUCCESS : Returns to the caller. The vector length shrinks by one; the
 ///           previously-last element now occupies index `idx` (when `idx`
 ///           was not already the last index). When `ptr` is non-NULL, the
-///           removed value has been memcopied into `*ptr` and ownership
+///           removed value has been bit-copied into `*ptr` and ownership
 ///           transfers to the caller. When `ptr` is NULL and `copy_deinit`
 ///           is configured, the handler is invoked on the removed element.
 /// FAILURE : Function cannot fail. An out-of-range `idx` is treated as a
@@ -79,7 +79,7 @@
 /// SUCCESS : Returns to the caller. The vector length shrinks by `count`;
 ///           elements that previously sat at indices >= `start + count`
 ///           have shifted left by `count`. When `ptr` is non-NULL, the
-///           removed values have been memcopied into `*ptr` in order
+///           removed values have been bit-copied into `*ptr` in order
 ///           (`copy_deinit` is not invoked - ownership transfers). When
 ///           `ptr` is NULL and `copy_deinit` is configured, the handler is
 ///           invoked on each removed element.
@@ -107,7 +107,7 @@
 /// SUCCESS : Returns to the caller. The vector length shrinks by `count`;
 ///           the slots [start, start + count) are populated by elements
 ///           pulled from what was previously the tail (no defined order).
-///           When `ptr` is non-NULL, the removed values have been memcopied
+///           When `ptr` is non-NULL, the removed values have been bit-copied
 ///           into `*ptr` (ownership transfers, `copy_deinit` not invoked).
 ///           When `ptr` is NULL and `copy_deinit` is configured, the
 ///           handler is invoked on each removed element.
@@ -131,7 +131,7 @@
 ///             just delete it (the configured `copy_deinit` is invoked instead).
 ///
 /// SUCCESS : Returns to the caller. The vector length shrinks by one. When
-///           `ptr` is non-NULL the removed value is memcopied into `*ptr`.
+///           `ptr` is non-NULL the removed value is bit-copied into `*ptr`.
 /// FAILURE : Function cannot fail. Calling on an empty vector is a caller
 ///           bug and aborts via `LOG_FATAL`.
 ///
@@ -149,7 +149,7 @@
 ///
 /// SUCCESS : Returns to the caller. The vector length shrinks by one; all
 ///           remaining elements have shifted left by one. When `ptr` is
-///           non-NULL the removed value is memcopied into `*ptr`.
+///           non-NULL the removed value is bit-copied into `*ptr`.
 /// FAILURE : Function cannot fail. Calling on an empty vector is a caller
 ///           bug and aborts via `LOG_FATAL`.
 ///

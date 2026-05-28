@@ -11,6 +11,7 @@
 #include <Misra/Types.h>
 
 // Foundation: always available.
+#include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Container/Vec.h>
 

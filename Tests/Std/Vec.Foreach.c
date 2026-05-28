@@ -598,7 +598,7 @@ int main(void) {
     int total_tests = sizeof(tests) / sizeof(tests[0]);
 
     // Run all tests using the centralized test driver
-    int __rc = run_test_suite(tests, total_tests, NULL, 0, "Vec.Foreach.Simple");
+    int rc = run_test_suite(tests, total_tests, NULL, 0, "Vec.Foreach.Simple");
     DefaultAllocatorDeinit(&alloc);
-    return __rc;
+    return rc;
 }

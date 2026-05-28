@@ -19,7 +19,7 @@
 ///
 /// TAGS: Graph, Init, Construct
 ///
-#define GraphInit(...)               MISRA_OVERLOAD(GraphInit, __VA_ARGS__)
+#define GraphInit(...)               OVERLOAD(GraphInit, __VA_ARGS__)
 #define GraphInit_0()                GraphInitWithDeepCopy_3(NULL, NULL, MisraScope)
 #define GraphInit_1(typed_alloc_ptr) GraphInitWithDeepCopy_3(NULL, NULL, typed_alloc_ptr)
 
@@ -32,7 +32,7 @@
 ///
 /// TAGS: Graph, Init, Typed, Construct
 ///
-#define GraphInitT(g, ...)               MISRA_OVERLOAD(GraphInitT, g, __VA_ARGS__)
+#define GraphInitT(g, ...)               OVERLOAD(GraphInitT, g, __VA_ARGS__)
 #define GraphInitT_1(g)                  GraphInitWithDeepCopyT_4((g), NULL, NULL, MisraScope)
 #define GraphInitT_2(g, typed_alloc_ptr) GraphInitWithDeepCopyT_4((g), NULL, NULL, typed_alloc_ptr)
 
@@ -49,7 +49,7 @@
 ///
 /// TAGS: Graph, Init, DeepCopy, Construct
 ///
-#define GraphInitWithDeepCopy(...)                       MISRA_OVERLOAD(GraphInitWithDeepCopy, __VA_ARGS__)
+#define GraphInitWithDeepCopy(...)                       OVERLOAD(GraphInitWithDeepCopy, __VA_ARGS__)
 #define GraphInitWithDeepCopy_2(ci, cd)                  GRAPH_INIT_WITH_DEEP_COPY_VALUE((ci), (cd), MisraScope)
 #define GraphInitWithDeepCopy_3(ci, cd, typed_alloc_ptr) GRAPH_INIT_WITH_DEEP_COPY_VALUE((ci), (cd), typed_alloc_ptr)
 
@@ -62,7 +62,7 @@
 ///
 /// TAGS: Graph, Init, DeepCopy, Typed, Construct
 ///
-#define GraphInitWithDeepCopyT(g, ...) MISRA_OVERLOAD(GraphInitWithDeepCopyT, g, __VA_ARGS__)
+#define GraphInitWithDeepCopyT(g, ...) OVERLOAD(GraphInitWithDeepCopyT, g, __VA_ARGS__)
 #ifdef __cplusplus
 #    define GraphInitWithDeepCopyT_3(g, ci, cd) (TYPE_OF(g) GRAPH_INIT_WITH_DEEP_COPY_VALUE((ci), (cd), MisraScope))
 #    define GraphInitWithDeepCopyT_4(g, ci, cd, typed_alloc_ptr)                                                       \

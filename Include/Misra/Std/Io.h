@@ -102,22 +102,25 @@ typedef struct {
 typedef bool (*TypeSpecificWriter)(Str *o, FmtInfo *fmt_info, void *data);
 
 ///
-/// Unified I/O operations container
+/// Type-specific read callback signature.
 ///
-/// TAGS: I/O, Generic, Container
+/// TAGS: I/O, Callback, Generic
 ///
 typedef Zstr (*TypeSpecificReader)(Zstr i, FmtInfo *fmt_info, void *data);
 
 ///
-/// Create `TypeSpecificIO` for type T
+/// Unified I/O operations container. Bundles a writer + reader pair
+/// over a single backing `data` pointer; one instance per type the
+/// I/O machinery dispatches on. Produced via `TO_TYPE_SPECIFIC_IO(T, d)`
+/// and consumed by the per-arg dispatch in the formatted-I/O macros.
 ///
-/// T[in] : Type specifier
-/// d[in] : Data pointer
+/// FIELDS:
+/// - writer : Type-specific write callback, or NULL when not used.
+/// - reader : Type-specific read callback, or NULL when not used.
+/// - data   : Pointer to the value being read/written.
 ///
-/// SUCCESS: Returns initialized `TypeSpecificIO ` structure
-/// FAILURE: Function cannot fail - compile-time operation
+/// TAGS: I/O, Generic, Container
 ///
-/// TAGS: I/O, Macro, TypeConversion, Generic
 typedef struct TypeSpecificIO {
     TypeSpecificWriter writer;
     TypeSpecificReader reader;
@@ -151,6 +154,20 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
     return (TypeSpecificIO) {.writer = w, .reader = r, .data = d};
 }
 
+///
+/// Build a `TypeSpecificIO` value for type `T` over data pointer `d`.
+/// Token-pastes `_write_T` and `_read_T` to pick the right callback
+/// pair from the per-type writer/reader symbols.
+///
+/// T[in] : Type identifier (must match `_write_T` / `_read_T` symbols).
+/// d[in] : Pointer to the value being read/written.
+///
+/// SUCCESS: Returns an initialised `TypeSpecificIO`.
+/// FAILURE: Compile-time error if `_write_T` / `_read_T` are
+///          undeclared for the given `T`.
+///
+/// TAGS: I/O, Macro, TypeConversion, Generic
+///
 #define TO_TYPE_SPECIFIC_IO(T, d)                                                                                      \
     TO_TYPE_SPECIFIC_IO_IMPL((TypeSpecificWriter)_write_##T, (TypeSpecificReader)_read_##T, (d))
 
@@ -170,7 +187,7 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
 /// FAILURE: Function cannot fail.
 ///
 /// USAGE:
-///   char *name = NULL;
+///   Zstr name = NULL;
 ///   DefaultAllocator alloc = DefaultAllocatorInit();
 ///   StrReadFmt(text, "{s}", ZstrIO(name, &alloc));
 ///
@@ -215,10 +232,22 @@ Float:                                                                          
 #    define IOFMT_FLOAT_CASE_(x, addr)
 #endif
 
-// The `default:` arm below is a runtime sentinel, not a silent cast:
-// `_write_UnsupportedType` / `_read_UnsupportedType` LOG_FATAL on
-// dispatch so a wrong-typed argument surfaces immediately instead of
-// being coerced into one of the known writers.
+///
+/// Type-aware format specifier generator.
+///
+/// Wrong types fail at compile time per the conventions' `_Generic`
+/// dispatch rule (no `default:` arm). If the compiler reports
+/// "controlling expression type not compatible with any generic
+/// association" at an `IOFMT(x)` site, add an arm for the new type
+/// (or convert `x` to one of the listed arm types before the call).
+///
+/// x[in] : Value to format
+///
+/// SUCCESS: Returns `TypeSpecificIO` for supported types.
+/// FAILURE: Compile-time error on unsupported types.
+///
+/// TAGS: Macro, TypeDispatch, Generic, I/O, Format
+///
 #if defined(_MSC_VER) || defined(__MSC_VER)
 #    define IOFMT(x)                                                                                                   \
         _Generic(                                                                                                      \
@@ -226,7 +255,7 @@ Float:                                                                          
             TypeSpecificIO: (x),                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, &(x)),                                                                       \
             IOFMT_FLOAT_CASE_(x, &(x)) IOFMT_INT_CASE_(x, &(x)) IOFMT_BITVEC_CASE_(x, &(x))                            \
-                Zstr : TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                         \
+                Zstr: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                 \
             char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                   \
             unsigned char: TO_TYPE_SPECIFIC_IO(u8, &(x)),                                                              \
             unsigned short: TO_TYPE_SPECIFIC_IO(u16, &(x)),                                                            \
@@ -241,30 +270,16 @@ Float:                                                                          
             signed long long: TO_TYPE_SPECIFIC_IO(i64, &(x)),                                                          \
             f32: TO_TYPE_SPECIFIC_IO(f32, &(x)),                                                                       \
             f64: TO_TYPE_SPECIFIC_IO(f64, &(x)),                                                                       \
-            char: TO_TYPE_SPECIFIC_IO(i8, &(x)),                                                                       \
-            default: TO_TYPE_SPECIFIC_IO(UnsupportedType, NULL)                                                        \
+            char: TO_TYPE_SPECIFIC_IO(i8, &(x))                                                                        \
         )
 #else
-///
-/// Type-aware format specifier generator
-///
-/// x[in] : Value to format
-///
-/// SUCCESS: Returns `TypeSpecificIO` for supported types
-/// FAILURE: Returns unsupported type handler for unknown types
-///
-/// TAGS: Macro, TypeDispatch, Generic, I/O, Format
-// The `default:` arm below is a runtime sentinel, not a silent cast:
-// `_write_UnsupportedType` / `_read_UnsupportedType` LOG_FATAL on
-// dispatch so a wrong-typed argument surfaces immediately instead of
-// being coerced into one of the known writers.
 #    define IOFMT(x)                                                                                                   \
         _Generic(                                                                                                      \
             (x),                                                                                                       \
             TypeSpecificIO: (x),                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, (void *)&(x)),                                                               \
             IOFMT_FLOAT_CASE_(x, (void *)&(x)) IOFMT_INT_CASE_(x, (void *)&(x)) IOFMT_BITVEC_CASE_(x, (void *)&(x))    \
-                Zstr : TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                                                 \
+                Zstr: TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                                                         \
             char *: TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                                                           \
             unsigned char: TO_TYPE_SPECIFIC_IO(u8, (void *)&(x)),                                                      \
             unsigned short: TO_TYPE_SPECIFIC_IO(u16, (void *)&(x)),                                                    \
@@ -280,8 +295,7 @@ Float:                                                                          
             signed long long: TO_TYPE_SPECIFIC_IO(i64, (void *)&(x)),                                                  \
             f32: TO_TYPE_SPECIFIC_IO(f32, (void *)&(x)),                                                               \
             f64: TO_TYPE_SPECIFIC_IO(f64, (void *)&(x)),                                                               \
-            char: TO_TYPE_SPECIFIC_IO(i8, (void *)&(x)),                                                               \
-            default: TO_TYPE_SPECIFIC_IO(UnsupportedType, NULL)                                                        \
+            char: TO_TYPE_SPECIFIC_IO(i8, (void *)&(x))                                                                \
         )
 #endif
 
@@ -331,7 +345,7 @@ bool StrPad(Str *o, size width, Alignment align, size content_len);
 /// TAGS: Float, Format, Decimal
 ///
 bool float_try_to_decimal_str(Str *out, Float *value, u32 precision, bool has_precision, Allocator *alloc);
-#    define FloatTryToDecimalStr(...) MISRA_OVERLOAD(FloatTryToDecimalStr, __VA_ARGS__)
+#    define FloatTryToDecimalStr(...) OVERLOAD(FloatTryToDecimalStr, __VA_ARGS__)
 #    define FloatTryToDecimalStr_4(out, value, precision, has_precision)                                               \
         float_try_to_decimal_str((out), (value), (precision), (has_precision), MisraScope)
 #    define FloatTryToDecimalStr_5(out, value, precision, has_precision, alloc)                                        \
@@ -363,7 +377,7 @@ bool float_try_to_scientific_str(
     bool       uppercase,
     Allocator *alloc
 );
-#    define FloatTryToScientificStr(...) MISRA_OVERLOAD(FloatTryToScientificStr, __VA_ARGS__)
+#    define FloatTryToScientificStr(...) OVERLOAD(FloatTryToScientificStr, __VA_ARGS__)
 #    define FloatTryToScientificStr_5(out, value, precision, has_precision, uppercase)                                 \
         float_try_to_scientific_str((out), (value), (precision), (has_precision), (uppercase), MisraScope)
 #    define FloatTryToScientificStr_6(out, value, precision, has_precision, uppercase, alloc)                          \
@@ -461,25 +475,27 @@ bool float_try_to_scientific_str(
 /// formatted-read backend.
 ///
 /// NOTE: Provided input string must be an assignable l-value. The macro automatically updates given
-///       input string to new parse position after a successful parse. If parse fails, the input string
-///       pointers does not change.
+///       input string to new parse position after a successful parse. If parse fails, the input
+///       pointer does not change.
 ///
-/// WARN: Do not free given input after use. Pointer value is changed after successful read. It can be
-///       like `(input) + 1` or `(input + 1233493783847394)` which are invalid pointers to be called `FREE` upon.
+/// WARN: The input must not be passed to any allocator's deallocate call after use. The pointer
+///       value is updated on successful read; after the call it might be `(input) + 1` or
+///       `(input + 1233493783847394)`, neither of which is a valid free target.
 ///
-/// WARN: Not providing an assingable input (first parameter) will result in undefined behavior.
+/// WARN: Not providing an assignable input (first parameter) will result in undefined behavior.
 ///       If you're lucky you'll get a segfault.
 ///
 /// INFO: The new `input` value after a successful read will be in [`input`, `input + len(input)`]
 ///
 /// USAGE:
-///    struct {i32 id; Str name} ParseInput(const char* i, const char** o) {
-///        const char* p = i; // create a new variable to pass the pointer
-///
-///        i32 id; Str name = StrInit();
-///        StrReadFmt(p, "Person id = {} and name = {}", id, name);
-///
-///        *o = p; // position after parsed input
+///    void ParseInput(Zstr in, Zstr *out_rest, DefaultAllocator *alloc) {
+///        Zstr p  = in;                       // local cursor; in is not mutated
+///        i32  id = 0;
+///        Str  name = StrInit(alloc);
+///        StrReadFmt(p, "Person id = {} and name = {}", &id, &name);
+///        // p now points one past the consumed text on success.
+///        *out_rest = p;
+///        StrDeinit(&name);
 ///    }
 ///
 /// input[in]   : Input string to parse (must be null-terminated).
@@ -487,11 +503,10 @@ bool float_try_to_scientific_str(
 /// ...[in]     : Variable number of arguments that will receive the parsed values. Each
 ///               argument should be a modifiable l-value wrapped with `&variable`.
 ///
-/// SUCCESS : Returns a `const char*` pointing to the beginning of the unparsed portion
-///           of the `input` string after successful parsing.
-/// FAILURE : Failure occurs within the formatted-read backend (typically
-///           logs error messages and does not return); `input` is left
-///           pointing at its original position.
+/// SUCCESS : Statement form -- `input` is advanced in place to point at
+///           the first character past the consumed text.
+/// FAILURE : Backend logs an error and returns without consuming
+///           `input`; `input` is left pointing at its original position.
 ///
 /// TAGS: Macro, Wrapper, Format, Parsing, I/O
 ///
@@ -504,13 +519,13 @@ bool float_try_to_scientific_str(
             APPLY_MACRO_FOREACH(IOFMT_APPEND_COMMA, __VA_ARGS__) {NULL, NULL, NULL}                                    \
     })                                                                                                             \
     )
-#define StrReadFmt_IMPL2(input, fmtstr, varr)                                                                           \
-    do {                                                                                                                \
-        TypeSpecificIO *UNPL(argv)    = &(varr)[0];                                                                     \
-        char          **UNPL(p_input) = (char **)(&(input));                                                            \
-        u64             UNPL(argc)    = sizeof(varr) / sizeof(TypeSpecificIO);                                          \
-        const char     *UNPL(out) = str_read_fmt((Zstr)*(UNPL(p_input)), (fmtstr), UNPL(argv), UNPL(argc) - 1); \
-        (*UNPL(p_input))          = (char *)(UNPL(out)) ? (char *)(UNPL(out)) : (*UNPL(p_input));                       \
+#define StrReadFmt_IMPL2(input, fmtstr, varr)                                                                          \
+    do {                                                                                                               \
+        TypeSpecificIO *UNPL(argv) = &(varr)[0];                                                                       \
+        u64             UNPL(argc) = sizeof(varr) / sizeof(TypeSpecificIO);                                            \
+        Zstr            UNPL(out)  = str_read_fmt((input), (fmtstr), UNPL(argv), UNPL(argc) - 1);                      \
+        if (UNPL(out))                                                                                                 \
+            (input) = UNPL(out);                                                                                       \
     } while (0)
 
 ///
@@ -560,8 +575,8 @@ bool float_try_to_scientific_str(
 /// SUCCESS : Placeholders in `fmtstr` are replaced by the passed arguments, and the
 ///           resulting formatted string is written to the specified `stream`.
 /// FAILURE : Failure might occur during memory allocation for the temporary string
-///           or during the write operation to the stream. Errors from `str_write_fmt`
-///           (logging messages) might also occur.
+///           or during the write operation to the stream; the backend
+///           may also log an error message.
 ///
 /// TAGS: Macro, Wrapper, File, I/O
 ///
@@ -590,8 +605,8 @@ bool float_try_to_scientific_str(
 /// SUCCESS : Placeholders in `fmtstr` are replaced by the passed arguments, and the
 ///           resulting formatted string followed by a newline is written to the `stream`.
 /// FAILURE : Failure might occur during memory allocation for the temporary string
-///           or during the write operation to the stream. Errors from `str_write_fmt`
-///           (logging messages) might also occur.
+///           or during the write operation to the stream; the backend
+///           may also log an error message.
 ///
 /// TAGS: Macro, Wrapper, File, I/O
 ///
@@ -618,8 +633,8 @@ bool float_try_to_scientific_str(
 /// SUCCESS : Placeholders in `fmtstr` are replaced by the passed arguments, and the
 ///           resulting formatted string is written to standard output.
 /// FAILURE : Failure might occur during memory allocation for the temporary string
-///           or during the write operation. Errors from `str_write_fmt` (logging
-///           messages) might also occur.
+///           or during the write operation; the backend may also log
+///           an error message.
 ///
 /// TAGS: Macro, Convenience, Stdout, I/O
 ///
@@ -640,8 +655,8 @@ bool float_try_to_scientific_str(
 /// SUCCESS : Placeholders in `fmtstr` are replaced by the passed arguments, and the
 ///           resulting formatted string followed by a newline is written to standard output.
 /// FAILURE : Failure might occur during memory allocation for the temporary string
-///           or during the write operation. Errors from `str_write_fmt` (logging
-///           messages) might also occur.
+///           or during the write operation; the backend may also log
+///           an error message.
 ///
 /// TAGS: Macro, Convenience, Stdout, I/O
 ///
@@ -662,9 +677,8 @@ bool float_try_to_scientific_str(
 ///
 /// SUCCESS : Attempts to match `fmtstr` with the input from standard input and reads
 ///           values into the provided arguments wrapped with ``.
-/// FAILURE : Failure occurs within `f_read_fmt`. Refer to its documentation for
-///           details on failure behavior (logs error message and returns, may rollback
-///           read data, or abort in unexpected situations).
+/// FAILURE : Backend logs an error and returns; may roll back partially-
+///           read data, or abort in unexpected situations.
 ///
 /// TAGS: Macro, Convenience, Stdin, I/O
 ///
@@ -686,7 +700,6 @@ bool _write_i32(Str *o, FmtInfo *fmt_info, i32 *v);
 bool _write_i64(Str *o, FmtInfo *fmt_info, i64 *v);
 bool _write_Zstr(Str *o, FmtInfo *fmt_info, Zstr *s);
 bool _write_ZstrAlloc(Str *o, FmtInfo *fmt_info, ZstrIOArg *arg);
-bool _write_UnsupportedType(Str *o, FmtInfo *fmt_info, Zstr *s);
 bool _write_f32(Str *o, FmtInfo *fmt_info, f32 *v);
 bool _write_f64(Str *o, FmtInfo *fmt_info, f64 *v);
 #if FEATURE_FLOAT
@@ -710,7 +723,6 @@ Zstr _read_i32(Zstr i, FmtInfo *fmt_info, i32 *v);
 Zstr _read_i64(Zstr i, FmtInfo *fmt_info, i64 *v);
 Zstr _read_Zstr(Zstr i, FmtInfo *fmt_info, Zstr *v);
 Zstr _read_ZstrAlloc(Zstr i, FmtInfo *fmt_info, ZstrIOArg *arg);
-Zstr _read_UnsupportedType(Zstr i, FmtInfo *fmt_info, Zstr *s);
 Zstr _read_f32(Zstr i, FmtInfo *fmt_info, f32 *v);
 Zstr _read_f64(Zstr i, FmtInfo *fmt_info, f64 *v);
 #if FEATURE_FLOAT

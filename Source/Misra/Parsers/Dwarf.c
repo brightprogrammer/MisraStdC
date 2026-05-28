@@ -1,4 +1,4 @@
-/// file      : Dwarf.c
+/// file      : parsers/dwarf.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///

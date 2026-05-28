@@ -41,7 +41,7 @@ bool test_int_from_unsigned_integer(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int value = IntFrom(13, &alloc.base);
+    Int value = IntFrom(13, ALLOCATOR_OF(&alloc));
     Str text  = IntToBinary(&value);
 
     bool result = IntBitLength(&value) == 4;
@@ -61,7 +61,7 @@ bool test_int_bytes_le_round_trip(void) {
 
     u8  bytes[] = {0x34, 0x12, 0xEF, 0xCD};
     u8  out[4]  = {0};
-    Int value   = IntFromBytesLE(bytes, sizeof(bytes), &alloc.base);
+    Int value   = IntFromBytesLE(bytes, sizeof(bytes), ALLOCATOR_OF(&alloc));
     u64 written = IntToBytesLE(&value, out, sizeof(out));
     Str text    = IntToHexStr(&value);
 
@@ -82,7 +82,7 @@ bool test_int_bytes_be_round_trip(void) {
 
     u8  bytes[] = {0x12, 0x34, 0x56, 0x78};
     u8  out[4]  = {0};
-    Int value   = IntFromBytesBE(bytes, sizeof(bytes), &alloc.base);
+    Int value   = IntFromBytesBE(bytes, sizeof(bytes), ALLOCATOR_OF(&alloc));
     u64 written = IntToBytesBE(&value, out, sizeof(out));
     Str text    = IntToHexStr(&value);
 
@@ -101,7 +101,7 @@ bool test_int_binary_round_trip(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int value = IntFromBinary("001011", &alloc.base);
+    Int value = IntFromBinary("001011", ALLOCATOR_OF(&alloc));
     Str text  = IntToBinary(&value);
 
     bool result = IntToU64(&value) == 11;
@@ -119,7 +119,7 @@ bool test_int_decimal_round_trip(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
 
     Zstr digits = "123456789012345678901234567890";
-    Int  value  = IntFromStr(digits, &alloc.base);
+    Int  value  = IntFromStr(digits, ALLOCATOR_OF(&alloc));
     Str  text   = IntToStr(&value);
 
     bool result = ZstrCompare(StrBegin(&text), digits) == 0;
@@ -135,7 +135,7 @@ bool test_int_radix_round_trip(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int value = IntFromStrRadix("zz", 36, &alloc.base);
+    Int value = IntFromStrRadix("zz", 36, ALLOCATOR_OF(&alloc));
     Str text  = IntToStrRadix(&value, 36, false);
 
     bool result = IntToU64(&value) == 1295;
@@ -152,7 +152,7 @@ bool test_int_upper_hex_radix(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int value = IntFrom(0xBEEF, &alloc.base);
+    Int value = IntFrom(0xBEEF, ALLOCATOR_OF(&alloc));
     Str text  = IntToStrRadix(&value, 16, true);
 
     bool result = ZstrCompare(StrBegin(&text), "BEEF") == 0;
@@ -170,12 +170,15 @@ bool test_int_try_to_str_allocator_inheritance(void) {
     Str              text;
     bool             ok;
 
+    // intentional bypass: no public setter on `Allocator` for effort /
+    // retry_limit -- pre-seeded directly so the inheritance path below
+    // can be observed end-to-end.
     alloc.base.effort      = ALLOCATOR_EFFORT_RETRY;
     alloc.base.retry_limit = 4;
 
-    Int value = IntFrom(0xBEEF, &alloc.base);
+    Int value = IntFrom(0xBEEF, ALLOCATOR_OF(&alloc));
 
-    ok = int_try_to_str_radix(&text, &value, 16, true, &alloc.base);
+    ok = int_try_to_str_radix(&text, &value, 16, true, ALLOCATOR_OF(&alloc));
 
     bool result = ok && (ZstrCompare(StrBegin(&text), "BEEF") == 0) &&
                   (StrAllocator(&text)->effort == alloc.base.effort) &&
@@ -192,8 +195,8 @@ bool test_int_compare_ignores_leading_zeros(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int lhs = IntFromBinary("0001011", &alloc.base);
-    Int rhs = IntFrom(11, &alloc.base);
+    Int lhs = IntFromBinary("0001011", ALLOCATOR_OF(&alloc));
+    Int rhs = IntFrom(11, ALLOCATOR_OF(&alloc));
 
     bool result = IntCompare(&lhs, &rhs) == 0;
     result      = result && IntEQ(&lhs, &rhs);
@@ -209,7 +212,7 @@ bool test_int_zero_binary(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  zero  = IntFromBinary("0", &alloc.base);
+    Int  zero  = IntFromBinary("0", ALLOCATOR_OF(&alloc));
     Str  text  = IntToBinary(&zero);
     bool error = true;
 
@@ -230,7 +233,7 @@ bool test_int_binary_prefix_and_separators(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int value = IntFromBinary("0b1010_0011", &alloc.base);
+    Int value = IntFromBinary("0b1010_0011", ALLOCATOR_OF(&alloc));
 
     bool result = IntToU64(&value) == 163;
     result      = result && (IntBitLength(&value) == 8);
@@ -245,7 +248,7 @@ bool test_int_octal_round_trip(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int value = IntFromOctStr("0o7_55", &alloc.base);
+    Int value = IntFromOctStr("0o7_55", ALLOCATOR_OF(&alloc));
     Str text  = IntToOctStr(&value);
 
     bool result = IntToU64(&value) == 493;
@@ -263,7 +266,7 @@ bool test_int_hex_round_trip(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
 
     Zstr hex   = "deadbeefcafebabe1234";
-    Int  value = IntFromHexStr(hex, &alloc.base);
+    Int  value = IntFromHexStr(hex, ALLOCATOR_OF(&alloc));
     Str  text  = IntToHexStr(&value);
 
     bool result = ZstrCompare(StrBegin(&text), hex) == 0;
@@ -279,8 +282,8 @@ bool test_int_from_binary_invalid_digit(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  parsed = IntFromBinary("10a1", &alloc.base);
-    Int  value  = IntInit(&alloc.base);
+    Int  parsed = IntFromBinary("10a1", ALLOCATOR_OF(&alloc));
+    Int  value  = IntInit(ALLOCATOR_OF(&alloc));
     bool result = !IntTryFromBinary(&value, "10a1");
 
     result = result && IntIsZero(&parsed);
@@ -297,8 +300,8 @@ bool test_int_from_decimal_invalid_digit(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  parsed = IntFromStr("12x3", &alloc.base);
-    Int  value  = IntInit(&alloc.base);
+    Int  parsed = IntFromStr("12x3", ALLOCATOR_OF(&alloc));
+    Int  value  = IntInit(ALLOCATOR_OF(&alloc));
     bool result = !IntTryFromStr(&value, "12x3");
 
     result = result && IntIsZero(&parsed);
@@ -315,8 +318,8 @@ bool test_int_from_hex_invalid_digit(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  parsed = IntFromHexStr("12g3", &alloc.base);
-    Int  value  = IntInit(&alloc.base);
+    Int  parsed = IntFromHexStr("12g3", ALLOCATOR_OF(&alloc));
+    Int  value  = IntInit(ALLOCATOR_OF(&alloc));
     bool result = !IntTryFromHexStr(&value, "12g3");
 
     result = result && IntIsZero(&parsed);
@@ -333,8 +336,8 @@ bool test_int_from_radix_invalid_digit(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  parsed = IntFromStrRadix("102", 2, &alloc.base);
-    Int  value  = IntInit(&alloc.base);
+    Int  parsed = IntFromStrRadix("102", 2, ALLOCATOR_OF(&alloc));
+    Int  value  = IntInit(ALLOCATOR_OF(&alloc));
     bool result = !IntTryFromStrRadix(&value, "102", 2);
 
     result = result && IntIsZero(&parsed);
@@ -351,8 +354,8 @@ bool test_int_from_radix_invalid_radix(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  parsed = IntFromStrRadix("10", 1, &alloc.base);
-    Int  value  = IntInit(&alloc.base);
+    Int  parsed = IntFromStrRadix("10", 1, ALLOCATOR_OF(&alloc));
+    Int  value  = IntInit(ALLOCATOR_OF(&alloc));
     bool result = !IntTryFromStrRadix(&value, "10", 1);
 
     result = result && IntIsZero(&parsed);
@@ -369,7 +372,7 @@ bool test_int_to_u64_overflow(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  value = IntFrom(1, &alloc.base);
+    Int  value = IntFrom(1, ALLOCATOR_OF(&alloc));
     u64  out   = 0;
     bool error = false;
 
@@ -390,7 +393,7 @@ bool test_int_to_str_radix_invalid_radix(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int value = IntFrom(255, &alloc.base);
+    Int value = IntFrom(255, ALLOCATOR_OF(&alloc));
     Str text  = IntToStrRadix(&value, 37, false);
 
     bool result = StrLen(&text) == 0;
@@ -406,8 +409,8 @@ bool test_int_from_binary_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  parsed = IntFromBinary((Zstr)NULL, &alloc.base);
-    Int  value  = IntInit(&alloc.base);
+    Int  parsed = IntFromBinary((Zstr)NULL, ALLOCATOR_OF(&alloc));
+    Int  value  = IntInit(ALLOCATOR_OF(&alloc));
     bool result = !IntTryFromBinary(&value, (Zstr)NULL);
 
     result = result && IntIsZero(&parsed);
@@ -424,8 +427,8 @@ bool test_int_from_decimal_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  parsed = IntFromStr((Zstr)NULL, &alloc.base);
-    Int  value  = IntInit(&alloc.base);
+    Int  parsed = IntFromStr((Zstr)NULL, ALLOCATOR_OF(&alloc));
+    Int  value  = IntInit(ALLOCATOR_OF(&alloc));
     bool result = !IntTryFromStr(&value, (Zstr)NULL);
 
     result = result && IntIsZero(&parsed);
@@ -442,8 +445,8 @@ bool test_int_from_radix_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  parsed = IntFromStrRadix((Zstr)NULL, 10, &alloc.base);
-    Int  value  = IntInit(&alloc.base);
+    Int  parsed = IntFromStrRadix((Zstr)NULL, 10, ALLOCATOR_OF(&alloc));
+    Int  value  = IntInit(ALLOCATOR_OF(&alloc));
     bool result = !IntTryFromStrRadix(&value, (Zstr)NULL, 10);
 
     result = result && IntIsZero(&parsed);
@@ -460,8 +463,8 @@ bool test_int_from_octal_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  parsed = IntFromOctStr((Zstr)NULL, &alloc.base);
-    Int  value  = IntInit(&alloc.base);
+    Int  parsed = IntFromOctStr((Zstr)NULL, ALLOCATOR_OF(&alloc));
+    Int  value  = IntInit(ALLOCATOR_OF(&alloc));
     bool result = !IntTryFromOctStr(&value, (Zstr)NULL);
 
     result = result && IntIsZero(&parsed);
@@ -478,8 +481,8 @@ bool test_int_from_hex_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  parsed = IntFromHexStr((Zstr)NULL, &alloc.base);
-    Int  value  = IntInit(&alloc.base);
+    Int  parsed = IntFromHexStr((Zstr)NULL, ALLOCATOR_OF(&alloc));
+    Int  value  = IntInit(ALLOCATOR_OF(&alloc));
     bool result = !IntTryFromHexStr(&value, (Zstr)NULL);
 
     result = result && IntIsZero(&parsed);
@@ -496,7 +499,7 @@ bool test_int_from_bytes_le_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    IntFromBytesLE(NULL, 1, &alloc.base);
+    IntFromBytesLE(NULL, 1, ALLOCATOR_OF(&alloc));
     DefaultAllocatorDeinit(&alloc);
     return false;
 }
@@ -506,7 +509,7 @@ bool test_int_to_bytes_le_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int value = IntFrom(1, &alloc.base);
+    Int value = IntFrom(1, ALLOCATOR_OF(&alloc));
     IntToBytesLE(&value, NULL, 1);
     DefaultAllocatorDeinit(&alloc);
     return false;
@@ -517,7 +520,7 @@ bool test_int_to_bytes_be_zero_max_len(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int value = IntFrom(1, &alloc.base);
+    Int value = IntFrom(1, ALLOCATOR_OF(&alloc));
     u8  byte  = 0;
 
     IntToBytesBE(&value, &byte, 0);

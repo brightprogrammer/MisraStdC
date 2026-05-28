@@ -153,10 +153,76 @@ extern "C" {
     // Vtable functions, exposed because the Init macro stamps them
     // into `base`. Direct calls aren't recommended; use the
     // `Allocator *` returned by `ALLOCATOR_OF` instead.
-    void *debug_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
-    i8    debug_allocator_resize(Allocator *self, void *ptr, size new_size);
-    void *debug_allocator_remap(Allocator *self, void *ptr, size new_size);
-    size  debug_allocator_deallocate(Allocator *self, void *ptr);
+
+    ///
+    /// Allocate via the embedded heap (or page allocator when
+    /// `force_page_backing` is set), pad with canary bytes when
+    /// `detect_overflow` is set, and record the live entry in `live`
+    /// with the captured allocation stack trace.
+    ///
+    /// SUCCESS: Returns a writable, alignment-correct pointer to at
+    ///          least `bytes` user bytes. Zeroed when `zeroed` is
+    ///          non-zero. The live map gains one entry; `bytes_in_use`
+    ///          grows by the requested size.
+    /// FAILURE: Returns NULL when the underlying heap / page allocator
+    ///          fails or the live map cannot grow. Aborts via
+    ///          `LOG_FATAL` on cross-thread misuse.
+    ///
+    /// TAGS: Allocator, Debug, Memory, Allocation
+    ///
+    void *debug_allocator_allocate(DebugAllocator *self, size bytes, i8 zeroed);
+
+    ///
+    /// In-place resize through the embedded heap. Verifies the canary
+    /// for the existing allocation, attempts an in-place resize on the
+    /// inner heap, and on success updates the live record's recorded
+    /// size and re-stamps the canary at the new tail.
+    ///
+    /// SUCCESS: Returns 1 when the inner heap could resize in place.
+    ///          The pointer stays valid for `new_size` bytes; live
+    ///          bookkeeping reflects the new size.
+    /// FAILURE: Returns 0 when the inner heap cannot resize without
+    ///          relocating. Aborts via `LOG_FATAL` on cross-thread
+    ///          misuse, canary corruption, or unknown `ptr`.
+    ///
+    /// TAGS: Allocator, Debug, Memory, InPlace
+    ///
+    i8    debug_allocator_resize(DebugAllocator *self, void *ptr, size new_size);
+
+    ///
+    /// Resize with relocation allowed. On a move, frees the old
+    /// record (after canary verification + freed-history append),
+    /// records a fresh live entry for the new pointer, and copies
+    /// `min(old_size, new_size)` bytes across.
+    ///
+    /// SUCCESS: Returns the (possibly moved) pointer. The live map
+    ///          gains a new entry (and loses the old one on a move);
+    ///          `bytes_in_use` reflects the new size.
+    /// FAILURE: Returns NULL when the inner heap cannot serve the
+    ///          new size. Aborts via `LOG_FATAL` on cross-thread
+    ///          misuse, canary corruption, or unknown `ptr`.
+    ///
+    /// TAGS: Allocator, Debug, Memory, Reallocation
+    ///
+    void *debug_allocator_remap(DebugAllocator *self, void *ptr, size new_size);
+
+    ///
+    /// Free an allocation. Verifies the canary (if enabled), looks up
+    /// and removes the entry from `live`, appends an entry to `freed`
+    /// (when `track_freed_history` is on) with the captured free-trace,
+    /// then forwards to the inner heap / page allocator.
+    ///
+    /// SUCCESS: Returns the released user-byte count (what stats
+    ///          accounting sees). `bytes_in_use` shrinks by the
+    ///          recorded size.
+    /// FAILURE: Aborts via `LOG_FATAL` on cross-thread misuse, canary
+    ///          corruption, or when `ptr` is not in `live`. With
+    ///          freed-history enabled, double-free aborts include the
+    ///          original alloc + first-free traces.
+    ///
+    /// TAGS: Allocator, Debug, Memory, Deallocation
+    ///
+    size  debug_allocator_deallocate(DebugAllocator *self, void *ptr);
 
     // Hash / compare callbacks for the embedded void*->DebugRecord
     // maps. Exposed so the Init macro can wire them into the Map
@@ -232,6 +298,23 @@ extern "C" {
     size DebugAllocatorOverflows(const DebugAllocator *self);
 
     ///
+    /// Number of entries currently held in the freed-history ring
+    /// (only populated when `track_freed_history` is enabled in the
+    /// DebugAllocator's config). Each entry carries the original
+    /// alloc + first-free stack traces used by the double-free
+    /// diagnostic.
+    ///
+    /// self[in] : DebugAllocator instance, or NULL.
+    ///
+    /// SUCCESS: Returns the freed-history entry count.
+    /// FAILURE: Returns 0 when `self` is NULL, or when freed-history
+    ///          tracking is disabled.
+    ///
+    /// TAGS: Allocator, Debug, Observability
+    ///
+    size DebugAllocatorFreedCount(const DebugAllocator *self);
+
+    ///
     /// Append a human-readable leak report to `out`. For each entry
     /// in `live`, appends one summary line plus the captured alloc
     /// stack trace (formatted via `FormatStackTrace` when backtraces
@@ -263,6 +346,23 @@ extern "C" {
 // literal doesn't know the struct's final address yet.
 // ---------------------------------------------------------------------------
 
+///
+/// Compound-literal initializer for the embedded `live` map (a
+/// `Map(void *, DebugRecord)`). Stamps the hash/compare callbacks
+/// (`debug_ptr_hash` / `debug_ptr_compare`), the map magic, and the
+/// linear-probe policy; leaves `.allocator = NULL` so the first use
+/// inside `debug_allocator_allocate` / `_deallocate` can bind it to
+/// the surrounding `DebugAllocator`'s `&self->meta.base` once the
+/// final struct address is known. Used internally by
+/// `DebugAllocatorInitWith` -- callers should not reach for it.
+///
+/// SUCCESS: Yields a struct-initializer expression suitable as the
+///          `.live = DEBUG_LIVE_LIT` arm of a `DebugAllocator` compound
+///          literal.
+/// FAILURE: Macro cannot fail at expansion.
+///
+/// TAGS: Allocator, Debug, Init, Internal
+///
 #define DEBUG_LIVE_LIT                                                                                                 \
     {.length            = 0,                                                                                           \
      .capacity          = 0,                                                                                           \
@@ -280,6 +380,22 @@ extern "C" {
      .allocator         = NULL,                                                                                        \
      .__magic           = MAP_MAGIC}
 
+///
+/// Compound-literal initializer for the embedded `freed` Vec (a
+/// `Vec(DebugFreedEntry)` storing the freed-history ring used to
+/// reconstruct double-free contexts). Stamps the vec magic and
+/// leaves `.allocator = NULL` so first-use lazily binds it to
+/// `&self->meta.base`, same pattern as `DEBUG_LIVE_LIT`. Used
+/// internally by `DebugAllocatorInitWith` -- callers should not
+/// reach for it.
+///
+/// SUCCESS: Yields a struct-initializer expression suitable as the
+///          `.freed = DEBUG_FREED_LIT` arm of a `DebugAllocator`
+///          compound literal.
+/// FAILURE: Macro cannot fail at expansion.
+///
+/// TAGS: Allocator, Debug, Init, Internal
+///
 #define DEBUG_FREED_LIT                                                                                                \
     {.length      = 0,                                                                                                 \
      .capacity    = 0,                                                                                                 \
@@ -292,10 +408,10 @@ extern "C" {
 #define DebugAllocatorInitWith(_cfg)                                                                                   \
     ((DebugAllocator) {                                                                                                \
         .base =                                                                                                        \
-            {.allocate    = debug_allocator_allocate,                                                                  \
-                   .resize      = debug_allocator_resize,                                                                    \
-                   .remap       = debug_allocator_remap,                                                                     \
-                   .deallocate  = debug_allocator_deallocate,                                                                \
+            {.allocate    = (AllocatorAllocateFn)debug_allocator_allocate,                                          \
+                   .resize      = (AllocatorResizeFn)debug_allocator_resize,                                                 \
+                   .remap       = (AllocatorRemapFn)debug_allocator_remap,                                                   \
+                   .deallocate  = (AllocatorDeallocateFn)debug_allocator_deallocate,                                         \
                    .alignment   = 1,                                                                                         \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \

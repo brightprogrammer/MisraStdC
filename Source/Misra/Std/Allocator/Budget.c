@@ -28,68 +28,63 @@
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 
-struct BudgetFreeSlot {
-    int _unused;
-};
-
 // Relational invariants for BudgetAllocator. The caller-provided
 // buffer is partitioned at init into a bitmap region followed by a
 // slots region; the linked fields stay synchronized for the lifetime
 // of the allocator. An init failure (buf too small, slot_size 0,
 // etc.) yields a zero-initialized struct with __magic == 0 -- the
 // magic check above already rejects it.
-static void budget_validate_self(const Allocator *self) {
+static void budget_validate_self(const BudgetAllocator *self) {
     if (!self) {
         LOG_FATAL("BudgetAllocator: NULL self");
     }
-    if (self->__magic != BUDGET_ALLOCATOR_MAGIC) {
+    if (self->base.__magic != BUDGET_ALLOCATOR_MAGIC) {
         LOG_FATAL("type-confusion: allocator passed to budget_allocator_* is not a BudgetAllocator");
     }
-    if (!self->allocate || !self->resize || !self->remap || !self->deallocate) {
+    if (!self->base.allocate || !self->base.resize || !self->base.remap || !self->base.deallocate) {
         LOG_FATAL("BudgetAllocator: vtable function pointer is NULL");
     }
-    if (self->alignment == 0 || (self->alignment & (self->alignment - 1)) != 0) {
-        LOG_FATAL("BudgetAllocator: alignment {} is not a positive power of two", (u64)self->alignment);
+    if (self->base.alignment == 0 || (self->base.alignment & (self->base.alignment - 1)) != 0) {
+        LOG_FATAL("BudgetAllocator: alignment {} is not a positive power of two", (u64)self->base.alignment);
     }
-    const BudgetAllocator *b = (const BudgetAllocator *)self;
-    if (!b->buf || b->buf_bytes == 0) {
+    if (!self->buf || self->buf_bytes == 0) {
         LOG_FATAL("BudgetAllocator: NULL or zero-byte backing buffer");
     }
-    if (!b->bitmap || b->bitmap_words == 0) {
+    if (!self->bitmap || self->bitmap_words == 0) {
         LOG_FATAL("BudgetAllocator: NULL or zero-word bitmap");
     }
-    if (!b->slots || b->slot_count == 0) {
+    if (!self->slots || self->slot_count == 0) {
         LOG_FATAL("BudgetAllocator: NULL or zero-count slot region");
     }
-    if (b->slot_size == 0) {
+    if (self->slot_size == 0) {
         LOG_FATAL("BudgetAllocator: slot_size is 0");
     }
     // Bitmap covers at least slot_count bits.
-    if ((u64)b->bitmap_words * 64u < (u64)b->slot_count) {
+    if ((u64)self->bitmap_words * 64u < (u64)self->slot_count) {
         LOG_FATAL(
             "BudgetAllocator: bitmap_words {} too small for slot_count {} (need {})",
-            (u64)b->bitmap_words,
-            (u64)b->slot_count,
-            (u64)((b->slot_count + 63u) / 64u)
+            (u64)self->bitmap_words,
+            (u64)self->slot_count,
+            (u64)((self->slot_count + 63u) / 64u)
         );
     }
     // Slots and bitmap both lie inside [buf, buf + buf_bytes).
-    const u8 *buf_end = b->buf + b->buf_bytes;
-    if ((const u8 *)b->bitmap < b->buf || (const u8 *)b->bitmap >= buf_end) {
+    const u8 *buf_end = self->buf + self->buf_bytes;
+    if ((const u8 *)self->bitmap < self->buf || (const u8 *)self->bitmap >= buf_end) {
         LOG_FATAL("BudgetAllocator: bitmap pointer outside buf region");
     }
-    if (b->slots < b->buf || b->slots > buf_end) {
+    if (self->slots < self->buf || self->slots > buf_end) {
         LOG_FATAL("BudgetAllocator: slots pointer outside buf region");
     }
-    if ((u64)b->slot_count * (u64)b->slot_size > (u64)(buf_end - b->slots)) {
+    if ((u64)self->slot_count * (u64)self->slot_size > (u64)(buf_end - self->slots)) {
         LOG_FATAL(
             "BudgetAllocator: slots region overruns buf (need {} bytes, have {})",
-            (u64)b->slot_count * (u64)b->slot_size,
-            (u64)(buf_end - b->slots)
+            (u64)self->slot_count * (u64)self->slot_size,
+            (u64)(buf_end - self->slots)
         );
     }
     // Bitmap region must precede the slot region (init lays them out that way).
-    if ((const u8 *)b->bitmap >= b->slots) {
+    if ((const u8 *)self->bitmap >= self->slots) {
         LOG_FATAL("BudgetAllocator: bitmap region must precede slot region");
     }
 }
@@ -115,13 +110,12 @@ static i64 budget_first_free_bit(const u64 *bitmap, u32 words, size cap) {
 // ---------------------------------------------------------------------------
 // Public alloc / free / resize / remap.
 
-void *budget_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
+void *budget_allocator_allocate(BudgetAllocator *self, size bytes, i8 zeroed) {
     budget_validate_self(self);
-    BudgetAllocator *bp = (BudgetAllocator *)self;
-    if (bytes == 0 || bytes > bp->slot_size)
+    if (bytes == 0 || bytes > self->slot_size)
         return NULL;
 
-    i64 idx = budget_first_free_bit(bp->bitmap, bp->bitmap_words, bp->slot_count);
+    i64 idx = budget_first_free_bit(self->bitmap, self->bitmap_words, self->slot_count);
     if (idx < 0)
         return NULL;
 
@@ -129,63 +123,60 @@ void *budget_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     // somehow set, the bitmap memory has been corrupted.
     u32 w = (u32)((u64)idx >> 6);
     u32 b = (u32)((u64)idx & 63u);
-    if (bp->bitmap[w] & ((u64)1 << b)) {
+    if (self->bitmap[w] & ((u64)1 << b)) {
         LOG_FATAL("BudgetAllocator bitmap corruption: idx {} bit unexpectedly set", (u64)idx);
     }
-    bp->bitmap[w] |= ((u64)1 << b);
+    self->bitmap[w] |= ((u64)1 << b);
 
-    void *slot = bp->slots + (size)idx * bp->slot_size;
+    void *slot = self->slots + (size)idx * self->slot_size;
     if (zeroed)
-        MemSet(slot, 0, bp->slot_size);
+        MemSet(slot, 0, self->slot_size);
     return slot;
 }
 
-i8 budget_allocator_resize(Allocator *self, void *ptr, size new_size) {
+i8 budget_allocator_resize(BudgetAllocator *self, void *ptr, size new_size) {
     budget_validate_self(self);
-    BudgetAllocator *bp = (BudgetAllocator *)self;
     (void)ptr;
-    return new_size <= bp->slot_size ? 1 : 0;
+    return new_size <= self->slot_size ? 1 : 0;
 }
 
-void *budget_allocator_remap(Allocator *self, void *ptr, size new_size) {
+void *budget_allocator_remap(BudgetAllocator *self, void *ptr, size new_size) {
     budget_validate_self(self);
-    BudgetAllocator *bp = (BudgetAllocator *)self;
     if (!ptr)
         return budget_allocator_allocate(self, new_size, true);
     if (new_size == 0) {
         budget_allocator_deallocate(self, ptr);
         return NULL;
     }
-    return new_size <= bp->slot_size ? ptr : NULL;
+    return new_size <= self->slot_size ? ptr : NULL;
 }
 
-size budget_allocator_deallocate(Allocator *self, void *ptr) {
+size budget_allocator_deallocate(BudgetAllocator *self, void *ptr) {
     budget_validate_self(self);
-    BudgetAllocator *bp = (BudgetAllocator *)self;
     if (!ptr)
         return 0;
 
     u8 *p   = (u8 *)ptr;
-    u8 *end = bp->slots + bp->slot_count * bp->slot_size;
+    u8 *end = self->slots + self->slot_count * self->slot_size;
 
-    if (p < bp->slots || p >= end) {
+    if (p < self->slots || p >= end) {
         LOG_FATAL("budget_free: foreign ptr {x} not in slot region", (u64)p);
         return 0;
     }
-    size off = (size)(p - bp->slots);
-    if (off % bp->slot_size != 0) {
-        LOG_FATAL("budget_free: misaligned ptr {x} (slot size {})", (u64)p, (u64)bp->slot_size);
+    size off = (size)(p - self->slots);
+    if (off % self->slot_size != 0) {
+        LOG_FATAL("budget_free: misaligned ptr {x} (slot size {})", (u64)p, (u64)self->slot_size);
         return 0;
     }
-    size idx = off / bp->slot_size;
+    size idx = off / self->slot_size;
     u32  w   = (u32)(idx >> 6);
     u32  b   = (u32)(idx & 63u);
-    if (!(bp->bitmap[w] & ((u64)1 << b))) {
+    if (!(self->bitmap[w] & ((u64)1 << b))) {
         LOG_FATAL("budget_free: double-free of {x} (idx {})", (u64)p, (u64)idx);
         return 0;
     }
-    bp->bitmap[w] &= ~((u64)1 << b);
-    return bp->slot_size;
+    self->bitmap[w] &= ~((u64)1 << b);
+    return self->slot_size;
 }
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,57 @@
+/// file      : std/allocator/_os.h  (INTERNAL)
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
+/// This is free and unencumbered software released into the public domain.
+///
+/// Internal-library shim over the OS page-management primitives
+/// (mmap/munmap on POSIX, VirtualAlloc/VirtualFree on Windows). NOT
+/// part of the public API. Used by allocator implementations
+/// (HeapAllocator, ArenaAllocator, ...) so each allocator can talk to
+/// the kernel directly and remain the single source of truth for its
+/// own region tracking and retention policy.
+///
+/// The `_` prefix on the file name marks the header as not exported
+/// from the install tree.
+
+#ifndef MISRA_STD_ALLOCATOR_OS_H_INTERNAL
+#define MISRA_STD_ALLOCATOR_OS_H_INTERNAL
+
+#include <Misra/Types.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+    /// OS page size, in bytes. First call queries the platform (kernel32
+    /// on Windows, compile-time constant on POSIX since we control the
+    /// supported architecture/OS matrix); subsequent calls return the
+    /// cached value. Thread-safety: the cached store uses a one-shot
+    /// idempotent write -- callers may race on the first call but every
+    /// observed value is the same.
+    size os_page_size(void);
+
+    /// mmap an anonymous, page-zeroed region of `bytes` bytes (which MUST
+    /// be a multiple of `os_page_size()`). Returns the region
+    /// pointer or NULL on OS failure. The kernel zeros the region, so
+    /// callers that need zeroed memory do not need to MemSet on top.
+    void *os_page_map(size bytes);
+
+    /// Release a region previously returned by `os_page_map`. The
+    /// caller MUST pass the same `bytes` it requested -- the OS shim
+    /// holds no per-region bookkeeping. Passing a wrong size or a stale
+    /// pointer is undefined behaviour.
+    void os_page_unmap(void *ptr, size bytes);
+
+    /// Round `bytes` up to the next multiple of `os_page_size()`.
+    /// Convenience for callers that compute mmap request sizes from
+    /// arbitrary byte counts and need the exact rounded length back so
+    /// the matching unmap can pass it.
+    static inline size os_page_round_up(size bytes) {
+        size ps = os_page_size();
+        return (bytes + ps - 1u) & ~(ps - 1u);
+    }
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // MISRA_STD_ALLOCATOR_OS_H_INTERNAL

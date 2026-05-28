@@ -19,49 +19,44 @@ static void test_abort_handler(void) {
     longjmp(g_test_abort_jmp, 1);
 }
 
-// Run a specific deadend test using setjmp/longjmp to capture aborts
+// Run a specific test using setjmp/longjmp to capture LOG_FATAL aborts.
+// `expect_failure=true`  -> pass iff the test aborts.
+// `expect_failure=false` -> pass iff the test returns true without aborting.
+// Both paths go through setjmp: a `false`-expectation that nevertheless
+// aborts must unwind back here too, otherwise the abort handler would
+// longjmp to an uninitialised buffer.
 bool test_deadend(TestFunction test_func, bool expect_failure) {
     if (!test_func) {
         WriteFmt("[ERROR] test_deadend: NULL test function provided\n");
         return false;
     }
 
-    // Set our custom abort handler
+    // Install the abort capture handler for the duration of this call.
     OnAbort(test_abort_handler);
 
-    // For non-deadend tests, run normally
-    if (!expect_failure) {
-        return test_func();
-    }
-
-    // Set up abort capturing for deadend tests
     bool test_result = false;
-
-    // Set up jump point for abort capture
     if (setjmp(g_test_abort_jmp) == 0) {
-        // First time - run the test
-        test_result = test_func();
-
-        // If we get here, the test completed without aborting
+        // First entry: run the test.
+        bool returned = test_func();
         if (expect_failure) {
             WriteFmt("    [Unexpected success: Test completed without abort]\n");
-            test_result = false; // Expected failure but got success
+            test_result = false; // Expected abort, got clean return.
         } else {
             WriteFmt("    [Success: Test completed normally]\n");
-            test_result = true;  // Expected success and got success
+            test_result = returned; // Caller's bool is the verdict.
         }
     } else {
-        // We jumped here from abort - test was aborted
+        // Re-entry via longjmp: the test triggered LOG_FATAL.
         if (expect_failure) {
             WriteFmt("    [Expected failure: Test aborted as expected]\n");
-            test_result = true;  // Expected failure and got abort
+            test_result = true;  // Abort was the contract.
         } else {
             WriteFmt("    [Unexpected failure: Test aborted unexpectedly]\n");
-            test_result = false; // Expected success but got abort
+            test_result = false;
         }
     }
 
-    // Reset abort handler to default
+    // Restore the default abort path before returning.
     OnAbort(NULL);
 
     return test_result;

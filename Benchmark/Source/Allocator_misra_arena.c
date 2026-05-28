@@ -97,11 +97,9 @@ uint64_t bench_live_bytes(void) {
 }
 
 uint64_t bench_footprint_bytes(void) {
-    if (!g_arena_live) return 0;
-    const PageAllocator *p = &g_arena.page;
-    uint64_t total = 0;
-    for (u32 i = 0; i < p->len; i++) {
-        total += (uint64_t)p->entries[i].bytes;
-    }
-    return total;
+    // ArenaAllocator no longer embeds a PageAllocator; it talks directly
+    // to the kernel via the internal `_Os.h` shim and tracks chunks
+    // privately. Fall back to live-bytes from stats (undercounts the
+    // per-chunk header overhead, but the only public-API readout).
+    return bench_live_bytes();
 }

@@ -79,7 +79,7 @@ typedef Iter(const u8) BufIter;
 /// Pointer to the contiguous byte storage backing `b`. Read-only at
 /// the macro level; the bytes themselves are mutable through this
 /// pointer. Invalidated by any growth (`BufReserve`, `BufResize`,
-/// `BufPushByte`, `BufPushBytes`).
+/// `BufWriteU8`, `BufPushBytes`).
 ///
 /// TAGS: Buf, Data, Accessor
 ///
@@ -144,24 +144,11 @@ typedef Iter(const u8) BufIter;
 ///
 /// TAGS: Buf, Iter, Construct
 ///
-#define BufIterFromBuf(b_) BufIterFromMemory((const u8 *)(b_)->data, (b_)->length)
+#define BufIterFromBuf(b_) BufIterFromMemory(BufData(b_), BufLength(b_))
 
 // ---------------------------------------------------------------------------
 // Single-byte / bulk push helpers
 // ---------------------------------------------------------------------------
-
-///
-/// Append a single byte to `b`, growing the backing store if needed.
-///
-/// SUCCESS : Returns `true`; `b->length` increases by one.
-/// FAILURE : Returns `false` if the underlying allocator fails to
-///           grow `b`; `*b` is unchanged.
-///
-/// TAGS: Buf, Push, Byte, Append
-///
-static inline bool BufPushByte(Buf *b, u8 v) {
-    return VecPushBackR(b, v);
-}
 
 ///
 /// Append `n` bytes from `data` to `b` in order. Bails on the first

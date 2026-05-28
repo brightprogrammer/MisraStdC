@@ -1,4 +1,4 @@
-/// file      : Tests/Std/Allocator.Arena.c
+/// file      : tests/std/allocator.arena.c
 /// Smoke tests for the bump (arena) allocator.
 
 #include <Misra/Std/Allocator.h>

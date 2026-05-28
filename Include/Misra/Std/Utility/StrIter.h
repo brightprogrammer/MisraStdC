@@ -1,3 +1,13 @@
+/// file      : std/utility/striter.h
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
+/// This is free and unencumbered software released into the public domain.
+///
+/// Character cursor (`StrIter` = `Iter(char)`) plus a `Vec(StrIter)`
+/// alias. Most operations are namespace-inheritance aliases that
+/// re-frame `Iter(char)` ops in string vocabulary; the `StrIterFromZstr`
+/// / `StrIterFromCstr` constructors are the only string-specific
+/// additions over the generic `Iter` surface.
+
 #ifndef MISRA_STD_UTILITY_STR_ITER_H
 #define MISRA_STD_UTILITY_STR_ITER_H
 
@@ -28,7 +38,7 @@ typedef Vec(StrIter) StrIters;
 ///
 /// TAGS: StrIter, Validate, API
 ///
-#define ValidateStrIters(siv) ValidateVec(siv);
+#define ValidateStrIters(siv) ValidateVec(siv)
 
 // ---------------------------------------------------------------------------
 // Position
@@ -139,7 +149,7 @@ typedef Vec(StrIter) StrIters;
 ///
 /// TAGS: StrIter, Construct, Cstr
 ///
-#define StrIterFromCstr(s, n) ((StrIter) {.data = (s), .length = n, .pos = 0, .alignment = 1, .dir = 1})
+#define StrIterFromCstr(s, n) ((StrIter) {.data = (s), .length = (n), .pos = 0, .alignment = 1, .dir = 1})
 
 // ---------------------------------------------------------------------------
 // Sizing
@@ -153,7 +163,7 @@ typedef Vec(StrIter) StrIters;
 ///
 /// TAGS: StrIter, Size, Alias
 ///
-#define StrIterSize(mi)            IterSize(mi)
+#define StrIterSize(mi) IterSize(mi)
 
 ///
 /// Remaining region size in bytes from the current position to the
@@ -162,7 +172,7 @@ typedef Vec(StrIter) StrIters;
 ///
 /// TAGS: StrIter, Size, Remaining, Alias
 ///
-#define StrIterRemainingSize(mi)   IterRemainingSize(mi)
+#define StrIterRemainingSize(mi) IterRemainingSize(mi)
 
 ///
 /// Total character length of the region the `StrIter` covers. Alias-
@@ -171,7 +181,7 @@ typedef Vec(StrIter) StrIters;
 ///
 /// TAGS: StrIter, Length, Alias
 ///
-#define StrIterLength(mi)          IterLength(mi)
+#define StrIterLength(mi) IterLength(mi)
 
 ///
 /// Characters remaining to read in the iteration direction. Alias-
@@ -190,7 +200,7 @@ typedef Vec(StrIter) StrIters;
 ///
 /// TAGS: StrIter, Position, Alias
 ///
-#define StrIterPos(mi)             IterPos(mi)
+#define StrIterPos(mi) IterPos(mi)
 
 // ---------------------------------------------------------------------------
 // Read / peek
@@ -248,21 +258,22 @@ typedef Vec(StrIter) StrIters;
 #define StrIterMustPeekAt(mi, n, out) IterMustPeekAt((mi), (n), (out))
 
 ///
-/// Peek one position ahead in the iteration direction. Propagating
-/// alias for `IterPeekAt(mi, 1, out)`; see `IterPeekAt` for the
-/// full contract.
+/// Peek one position ahead in the iteration direction. Honours the
+/// iter's `dir` so that on a reverse iter "next" means the byte the
+/// cursor would land on after one `IterNext` step (i.e. behind the
+/// current position in memory), matching the forward-iter intuition.
 ///
-/// TAGS: StrIter, Peek, Next, Alias
+/// TAGS: StrIter, Peek, Next
 ///
-#define StrIterPeekNext(mi, out) IterPeekAt((mi), 1, (out))
+#define StrIterPeekNext(mi, out) IterPeekAt((mi), (mi)->dir, (out))
 
 ///
-/// Peek one position behind in the iteration direction. Propagating
-/// alias for `IterPeekAt(mi, -1, out)`; see `IterPeekAt` for the
-/// full contract.
+/// Peek one position behind in the iteration direction. Honours the
+/// iter's `dir` so "prev" stays opposite of `StrIterPeekNext` for both
+/// forward and reverse iters.
 ///
-/// TAGS: StrIter, Peek, Prev, Alias
+/// TAGS: StrIter, Peek, Prev
 ///
-#define StrIterPeekPrev(mi, out) IterPeekAt((mi), -1, (out))
+#define StrIterPeekPrev(mi, out) IterPeekAt((mi), -((mi)->dir), (out))
 
 #endif // MISRA_STD_UTILITY_STR_ITER_H

@@ -1,6 +1,6 @@
-/// file      : Private.h
+/// file      : std/container/list/private.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
-/// copyright : Copyright (c) 2025, Siddharth Mishra, All rights reserved.
+/// This is free and unencumbered software released into the public domain.
 ///
 /// Provides a type-safe list implementation in C
 
@@ -18,7 +18,6 @@ void             swap_list(GenericList *list, u64 item_size, u64 idx1, u64 idx2)
 void             reverse_list(GenericList *list, u64 item_size);
 bool             push_arr_list(GenericList *list, u64 item_size, const void *arr, u64 count);
 bool             merge_list(GenericList *list1, u64 item_size, GenericList *list2);
-void             resize_list(GenericList *list, u64 item_size, u64 new_size);
 void             clear_list(GenericList *list, u64 item_size);
 GenericListNode *node_at_list(GenericList *list, u64 item_size, u64 idx);
 void            *item_ptr_at_list(GenericList *list, u64 item_size, u64 idx);

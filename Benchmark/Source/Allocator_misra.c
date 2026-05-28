@@ -84,8 +84,9 @@ void *bench_realloc(void *p, size_t n) {
 }
 
 void bench_free(void *p) {
-    // typed-direct AllocatorFree resolves to heap_allocator_free
-    // static-inline trampoline (one tail call into heap_allocator_deallocate).
+    // typed-direct AllocatorFree resolves to heap_allocator_deallocate
+    // directly (the _Generic arm names the deallocate symbol, no
+    // trampoline in between).
     AllocatorFree(g_heap_typed, p);
 }
 
@@ -99,23 +100,14 @@ uint64_t bench_live_bytes(void) {
 }
 
 uint64_t bench_footprint_bytes(void) {
-    // The HeapAllocator's embedded PageAllocator tracks every live
-    // mmap region in `entries[0..len-1]`. Each entry carries the
-    // rounded mmap length (PageEntry.bytes -- see Page.h:32-40).
-    // Summing gives the exact kernel-committed footprint of misra's
-    // heap, with zero contamination from the bench process's other
-    // memory (gbench, std::vectors, libc).
-    //
-    // entries[] holds: every user page that the heap's S/M/L bins
-    // are carving slots out of; every XL passthrough region (one
-    // mmap per >2048 B allocation); and the heap's own
-    // descriptor-array storage. So it's the complete "what did
-    // misra ask the kernel for" number.
-    if (!g_alloc) return 0;
-    const PageAllocator *p = &g_heap.page;
-    uint64_t total = 0;
-    for (u32 i = 0; i < p->len; i++) {
-        total += (uint64_t)p->entries[i].bytes;
-    }
-    return total;
+    // The HeapAllocator no longer embeds a PageAllocator -- it goes
+    // straight to the kernel via the internal `_Os.h` shim and tracks
+    // its OS-page descriptors in its own `pages[]` hash table plus
+    // `xl[]` passthrough array. Those descriptors are not part of the
+    // public surface, so there's no allocator-introspective accessor
+    // we can call here without reaching into private fields. Fall back
+    // to the stats-tracked live-bytes number, which underestimates
+    // kernel footprint (no per-page overhead) but is the cleanest
+    // public-API readout available.
+    return bench_live_bytes();
 }

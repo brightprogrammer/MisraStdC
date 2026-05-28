@@ -1,4 +1,4 @@
-/// file      : Tests/Std/AllocDebug.c
+/// file      : tests/std/allocdebug.c
 ///
 /// Exhaustive feature-coverage tests for DebugAllocator.
 ///
@@ -117,7 +117,11 @@ bool test_debug_report_leaks_emits_traces(void) {
     (void)p1;
     (void)p2;
 
-    Str out = StrInit(ALLOCATOR_OF(&dbg.meta));
+    // The leak-report buffer is allocated through a SEPARATE scratch
+    // allocator -- not through `dbg` -- so its own storage isn't
+    // counted as a leak by the very report we're about to generate.
+    HeapAllocator scratch = HeapAllocatorInit();
+    Str           out     = StrInit(&scratch);
     DebugAllocatorReportLeaks(&dbg, &out);
 
     bool ok = StrLen(&out) > 0;
@@ -126,6 +130,7 @@ bool test_debug_report_leaks_emits_traces(void) {
     ok      = ok && (ZstrFindSubstring(StrBegin(&out), "40 bytes") != NULL);
 
     StrDeinit(&out);
+    HeapAllocatorDeinit(&scratch);
     if (p1)
         AllocatorFree(adbg, p1);
     if (p2)
@@ -144,6 +149,9 @@ bool test_debug_alloc_trace_captured(void) {
     void *p  = AllocatorAlloc(adbg, 64, false);
     bool  ok = (p != NULL);
 
+    // intentional bypass: the live Map keyed by user pointer is internal
+    // to DebugAllocator with no public accessor; reach in to confirm the
+    // alloc-trace was captured.
     DebugRecord *rec = MapGetFirstPtr(&dbg.live, p);
     ok               = ok && (rec != NULL) && (rec->alloc_trace_n > 0);
 
@@ -160,20 +168,22 @@ bool test_debug_freed_history_grows_on_free(void) {
     DebugAllocator dbg  = DebugAllocatorInit();
     Allocator     *adbg = ALLOCATOR_OF(&dbg);
 
-    bool  ok = (VecLen(&dbg.freed) == 0);
+    bool  ok = (DebugAllocatorFreedCount(&dbg) == 0);
     void *p1 = AllocatorAlloc(adbg, 16, false);
     void *p2 = AllocatorAlloc(adbg, 32, false);
     void *p3 = AllocatorAlloc(adbg, 64, false);
-    ok       = ok && (VecLen(&dbg.freed) == 0); // alloc doesn't push
+    ok       = ok && (DebugAllocatorFreedCount(&dbg) == 0); // alloc doesn't push
 
     AllocatorFree(adbg, p1);
-    ok = ok && (VecLen(&dbg.freed) == 1);
+    ok = ok && (DebugAllocatorFreedCount(&dbg) == 1);
 
     AllocatorFree(adbg, p2);
     AllocatorFree(adbg, p3);
-    ok = ok && (VecLen(&dbg.freed) == 3);
+    ok = ok && (DebugAllocatorFreedCount(&dbg) == 3);
 
-    // Each freed entry carries the ptr + both traces.
+    // intentional bypass: the freed-history Vec elements are internal
+    // `DebugFreedEntry` structs with no public accessor; reach in to
+    // confirm each entry carries the ptr + both traces.
     ok = ok && (VecPtrAt(&dbg.freed, 0)->ptr == p1) && (VecPtrAt(&dbg.freed, 0)->requested_size == 16);
     ok = ok && (VecPtrAt(&dbg.freed, 0)->alloc_trace_n > 0) && (VecPtrAt(&dbg.freed, 0)->free_trace_n > 0);
     ok = ok && (VecPtrAt(&dbg.freed, 2)->ptr == p3) && (VecPtrAt(&dbg.freed, 2)->requested_size == 64);
@@ -199,7 +209,7 @@ bool test_debug_freed_history_disabled(void) {
         }
         AllocatorFree(adbg, p);
     }
-    ok = ok && (VecLen(&dbg.freed) == 0);
+    ok = ok && (DebugAllocatorFreedCount(&dbg) == 0);
     ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
 
     DebugAllocatorDeinit(&dbg);
@@ -213,7 +223,7 @@ bool test_debug_remap_grows(void) {
     DebugAllocator dbg  = DebugAllocatorInit();
     Allocator     *adbg = ALLOCATOR_OF(&dbg);
 
-    u8 *p  = (u8 *)AllocatorAlloc(adbg, 16, true);
+    u8  *p  = (u8 *)AllocatorAlloc(adbg, 16, true);
     bool ok = (p != NULL);
     if (ok) {
         p[0]  = 'h';
@@ -222,8 +232,8 @@ bool test_debug_remap_grows(void) {
 
     u8 *grown = (u8 *)AllocatorRealloc(adbg, p, 200);
     ok        = ok && (grown != NULL) && (grown[0] == 'h') && (grown[15] == '!');
-    ok          = ok && (DebugAllocatorLiveCount(&dbg) == 1);
-    ok          = ok && (DebugAllocatorLiveBytes(&dbg) == 200);
+    ok        = ok && (DebugAllocatorLiveCount(&dbg) == 1);
+    ok        = ok && (DebugAllocatorLiveBytes(&dbg) == 200);
 
     if (grown)
         AllocatorFree(adbg, grown);

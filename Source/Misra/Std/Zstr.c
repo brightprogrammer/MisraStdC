@@ -35,9 +35,9 @@ i32 ZstrCompare(Zstr s1, Zstr s2) {
 // is the generic-callback shape (sizeof the Zstr slot, = sizeof(Zstr));
 // the real length is walked here until the NUL.
 u64 zstr_hash(const Zstr *key, u32 ignored_size) {
-    Zstr                 s    = NULL;
-    const unsigned char *ptr  = NULL;
-    u64                  hash = 1469598103934665603ULL;
+    Zstr      s    = NULL;
+    const u8 *ptr  = NULL;
+    u64       hash = 1469598103934665603ULL;
 
     (void)ignored_size;
 
@@ -46,7 +46,7 @@ u64 zstr_hash(const Zstr *key, u32 ignored_size) {
     }
 
     s   = *key;
-    ptr = (const unsigned char *)s;
+    ptr = (const u8 *)s;
     while (*ptr) {
         hash ^= (u64)(*ptr++);
         hash *= 1099511628211ULL;
@@ -82,7 +82,7 @@ i32 ZstrCompareN(Zstr s1, Zstr s2, size n) {
     size i = 0;
     while (i < n && s1[i] && s2[i]) {
         if (s1[i] != s2[i]) {
-            return (i32)(unsigned char)s1[i] - (i32)(unsigned char)s2[i];
+            return (i32)(u8)s1[i] - (i32)(u8)s2[i];
         }
         i++;
     }
@@ -176,7 +176,7 @@ Zstr zstr_dup(Zstr src, Allocator *alloc) {
 }
 
 bool zstr_init_clone(void *dst_ptr, const void *src_ptr, const Allocator *alloc) {
-    Zstr *dst = (Zstr *)dst_ptr;
+    Zstr       *dst = (Zstr *)dst_ptr;
     const Zstr *src = (const Zstr *)src_ptr;
 
     if (!dst || !src || !*src || !alloc) {
@@ -223,7 +223,7 @@ i64 ZstrToI64(Zstr s, Zstr *endptr) {
     // INT64_MAX for positive, INT64_MAX+1 (= 2^63) for negative.
     // Overflow saturates so callers see a pinned value rather than a
     // silent wrap.
-    Zstr digit_start = s;
+    Zstr      digit_start = s;
     const u64 bound       = neg ? ((u64)1 << 63) : (u64)0x7FFFFFFFFFFFFFFFULL;
     u64       val         = 0;
     bool      saturated   = false;
@@ -280,7 +280,11 @@ f64 ZstrToF64(Zstr s, Zstr *endptr) {
             s++;
         }
     }
-    if (s == digit_start && (s[-1] != '.' || (digit_start == s))) {
+    if (s == digit_start) {
+        // No mantissa digits consumed (and no `.` either, since the
+        // decimal branch above always moves `s` forward). Don't touch
+        // `s[-1]` -- that's a read before the caller's buffer when
+        // `digit_start` was the start of the input.
         if (endptr) {
             *endptr = digit_start;
         }
@@ -295,13 +299,13 @@ f64 ZstrToF64(Zstr s, Zstr *endptr) {
             eneg = true;
             s++;
         }
-        int exp = 0;
+        i32 exp = 0;
         while (*s >= '0' && *s <= '9') {
             exp = exp * 10 + (*s - '0');
             s++;
         }
         f64 mul = 1.0;
-        for (int i = 0; i < exp; ++i) {
+        for (i32 k = 0; k < exp; ++k) {
             mul *= 10.0;
         }
         if (eneg) {

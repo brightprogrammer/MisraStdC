@@ -1042,12 +1042,12 @@ bool test_bitvec_hash_as_map_key(void) {
     BitVecPush(&probe, false);
     BitVecPush(&probe, true);
 
-    u64 *got = MapTryGetPtr(&counts, probe);
+    u64 *got = MapGetFirstPtr(&counts, probe);
 
     BitVec missing = BitVecInit(base);
     BitVecPush(&missing, true);
     BitVecPush(&missing, true);
-    u64 *gone = MapTryGetPtr(&counts, missing);
+    u64 *gone = MapGetFirstPtr(&counts, missing);
 
     bool result = (got != NULL && *got == 1u);
     result      = result && (gone == NULL);

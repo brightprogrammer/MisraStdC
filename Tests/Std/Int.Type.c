@@ -70,6 +70,8 @@ bool test_int_clone_inherits_allocator_config(void) {
     WriteFmt("Testing IntClone allocator inheritance\n");
 
     DefaultAllocator alloc = DefaultAllocatorInit();
+    // White-box: no public effort/retry_limit setter on Allocator; we
+    // poke the base fields directly to exercise the retry policy.
     alloc.base.effort      = ALLOCATOR_EFFORT_RETRY_FALLBACK;
     alloc.base.retry_limit = 5;
 

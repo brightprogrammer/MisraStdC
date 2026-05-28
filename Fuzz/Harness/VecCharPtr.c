@@ -1,4 +1,4 @@
-/// file      : fuzz/Harness/VecCharPtr.c
+/// file      : Fuzz/Harness/VecCharPtr.c
 /// author    : Generated for MisraStdC fuzzing
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -467,12 +467,7 @@ void fuzz_char_ptr_vec(
                     }
                 }
 
-                // VecInitClone macro is currently broken upstream
-                // (references missing VEC_INIT_WITH_DEEP_COPY_VALUE),
-                // so exercise the clone path manually via clone_vec.
-                VecDeinit(vec);
-                *vec = VecInitWithDeepCopyT(*vec, char_ptr_copy_init, char_ptr_deinit, alloc);
-                clone_vec(GENERIC_VEC(vec), GENERIC_VEC(&temp), sizeof(char *));
+                VecInitClone(vec, &temp);
 
                 VecDeinit(&temp);
             }

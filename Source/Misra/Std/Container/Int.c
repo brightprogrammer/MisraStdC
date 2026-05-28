@@ -1,5 +1,5 @@
 /// file      : std/container/int.c
-/// author    : Generated following Misra project patterns
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Arbitrary-precision unsigned integer implementation built on top of BitVec.
@@ -24,7 +24,7 @@ static bool
 static bool int_try_init_with_capacity(Int *out, u64 capacity, Allocator *alloc);
 static bool int_try_from_u64_with_allocator(Int *out, u64 value, Allocator *alloc);
 static bool int_try_from_i64_with_allocator(Int *out, i64 value, Allocator *alloc);
-static bool int_try_clone_value(Int *out, Int *value);
+static bool int_try_clone_value(Int *out, const Int *value);
 static u64  int_u64_bits(u64 value);
 
 static Int int_wrap(BitVec bits) {
@@ -79,7 +79,7 @@ static bool int_try_from_i64_with_allocator(Int *out, i64 value, Allocator *allo
     return int_try_from_u64_with_allocator(out, (u64)value, alloc);
 }
 
-static u64 int_significant_bits(Int *value) {
+static u64 int_significant_bits(const Int *value) {
     ValidateInt(value);
 
     for (u64 i = BitVecLen(INT_BITS(value)); i > 0; i--) {
@@ -221,12 +221,12 @@ static void int_normalize(Int *value) {
     BitVecResize(INT_BITS(value), int_significant_bits(value));
 }
 
-static bool int_is_odd(Int *value) {
+static bool int_is_odd(const Int *value) {
     ValidateInt(value);
     return BitVecLen(INT_BITS(value)) > 0 && BitVecGet(INT_BITS(value), 0);
 }
 
-static bool int_is_one(Int *value) {
+static bool int_is_one(const Int *value) {
     ValidateInt(value);
     return IntBitLength(value) == 1 && BitVecGet(INT_BITS(value), 0);
 }
@@ -364,16 +364,16 @@ static bool
     return true;
 }
 
-u64 IntBitLength(Int *value) {
+u64 IntBitLength(const Int *value) {
     return int_significant_bits(value);
 }
 
-u64 IntByteLength(Int *value) {
+u64 IntByteLength(const Int *value) {
     u64 bits = IntBitLength(value);
     return bits == 0 ? 0 : CEIL_DIV(bits, 8u);
 }
 
-bool IntTryLog2(Int *value, u64 *out) {
+bool IntTryLog2(const Int *value, u64 *out) {
     if (!value || !out) {
         LOG_FATAL("Invalid arguments");
     }
@@ -389,7 +389,7 @@ bool IntTryLog2(Int *value, u64 *out) {
     return true;
 }
 
-u64 IntLog2WithError(Int *value, bool *error) {
+u64 IntLog2WithError(const Int *value, bool *error) {
     u64  out = 0;
     bool ok  = IntTryLog2(value, &out);
 
@@ -400,7 +400,7 @@ u64 IntLog2WithError(Int *value, bool *error) {
     return out;
 }
 
-u64 IntTrailingZeroCount(Int *value) {
+u64 IntTrailingZeroCount(const Int *value) {
     ValidateInt(value);
 
     for (u64 i = 0; i < BitVecLen(INT_BITS(value)); i++) {
@@ -412,35 +412,35 @@ u64 IntTrailingZeroCount(Int *value) {
     return 0;
 }
 
-bool IntIsZero(Int *value) {
+bool IntIsZero(const Int *value) {
     return IntBitLength(value) == 0;
 }
 
-bool IntIsOne(Int *value) {
+bool IntIsOne(const Int *value) {
     return int_is_one(value);
 }
 
-bool IntIsEven(Int *value) {
+bool IntIsEven(const Int *value) {
     ValidateInt(value);
     return !int_is_odd(value);
 }
 
-bool IntIsOdd(Int *value) {
+bool IntIsOdd(const Int *value) {
     return int_is_odd(value);
 }
 
-bool IntFitsU64(Int *value) {
+bool IntFitsU64(const Int *value) {
     ValidateInt(value);
     return IntBitLength(value) <= 64;
 }
 
-bool IntIsPowerOfTwo(Int *value) {
+bool IntIsPowerOfTwo(const Int *value) {
     ValidateInt(value);
 
     return !IntIsZero(value) && IntBitLength(value) == IntTrailingZeroCount(value) + 1;
 }
 
-static bool int_try_clone_value(Int *out, Int *value) {
+static bool int_try_clone_value(Int *out, const Int *value) {
     if (!out || !value) {
         LOG_FATAL("Invalid arguments");
     }
@@ -455,11 +455,11 @@ static bool int_try_clone_value(Int *out, Int *value) {
     return true;
 }
 
-bool IntTryClone(Int *out, Int *value) {
+bool IntTryClone(Int *out, const Int *value) {
     return int_try_clone_value(out, value);
 }
 
-Int IntClone(Int *value) {
+Int IntClone(const Int *value) {
     Int clone;
 
     ValidateInt(value);
@@ -483,7 +483,7 @@ Int int_from_i64(i64 value, Allocator *alloc) {
     return int_from_u64((u64)value, alloc);
 }
 
-bool IntTryToU64(Int *value, u64 *out) {
+bool IntTryToU64(const Int *value, u64 *out) {
     if (!value || !out) {
         LOG_FATAL("Invalid arguments");
     }
@@ -499,7 +499,7 @@ bool IntTryToU64(Int *value, u64 *out) {
     return true;
 }
 
-u64 IntToU64WithError(Int *value, bool *error) {
+u64 IntToU64WithError(const Int *value, bool *error) {
     u64  out = 0;
     bool ok  = IntTryToU64(value, &out);
 
@@ -529,7 +529,7 @@ Int int_from_bytes_le(const u8 *bytes, u64 len, Allocator *alloc) {
     return result;
 }
 
-u64 IntToBytesLE(Int *value, u8 *bytes, u64 max_len) {
+u64 IntToBytesLE(const Int *value, u8 *bytes, u64 max_len) {
     ValidateInt(value);
 
     if (!bytes) {
@@ -583,7 +583,7 @@ Int int_from_bytes_be(const u8 *bytes, u64 len, Allocator *alloc) {
     return result;
 }
 
-u64 IntToBytesBE(Int *value, u8 *bytes, u64 max_len) {
+u64 IntToBytesBE(const Int *value, u8 *bytes, u64 max_len) {
     ValidateInt(value);
 
     if (!bytes) {
@@ -663,11 +663,11 @@ Int int_from_str_str(const Str *decimal, Allocator *alloc) {
     return out;
 }
 
-bool int_try_to_str(Str *out, Int *value, Allocator *alloc) {
+bool int_try_to_str(Str *out, const Int *value, Allocator *alloc) {
     return int_try_to_str_radix(out, value, 10, false, alloc);
 }
 
-Str int_to_str(Int *value, Allocator *alloc) {
+Str int_to_str(const Int *value, Allocator *alloc) {
     Str result;
 
     ValidateInt(value);
@@ -721,7 +721,7 @@ Int int_from_str_radix_str(const Str *digits, u8 radix, Allocator *alloc) {
     return out;
 }
 
-bool int_try_to_str_radix(Str *out, Int *value, u8 radix, bool uppercase, Allocator *alloc) {
+bool int_try_to_str_radix(Str *out, const Int *value, u8 radix, bool uppercase, Allocator *alloc) {
     Int current;
     Str result;
 
@@ -776,7 +776,7 @@ bool int_try_to_str_radix(Str *out, Int *value, u8 radix, bool uppercase, Alloca
     return true;
 }
 
-Str int_to_str_radix(Int *value, u8 radix, bool uppercase, Allocator *alloc) {
+Str int_to_str_radix(const Int *value, u8 radix, bool uppercase, Allocator *alloc) {
     Str result;
 
     ValidateInt(value);
@@ -832,7 +832,7 @@ Int int_from_binary_str(const Str *binary, Allocator *alloc) {
     return out;
 }
 
-Str IntToBinary(Int *value) {
+Str IntToBinary(const Int *value) {
     return IntToStrRadix(value, 2, false);
 }
 
@@ -880,7 +880,7 @@ Int int_from_oct_str_str(const Str *octal, Allocator *alloc) {
     return out;
 }
 
-Str IntToOctStr(Int *value) {
+Str IntToOctStr(const Int *value) {
     return IntToStrRadix(value, 8, false);
 }
 
@@ -917,7 +917,7 @@ Int int_from_hex_str_str(const Str *hex, Allocator *alloc) {
     return out;
 }
 
-Str IntToHexStr(Int *value) {
+Str IntToHexStr(const Int *value) {
     return IntToStrRadix(value, 16, false);
 }
 
@@ -925,7 +925,7 @@ Str IntToHexStr(Int *value) {
 // GenericHash callback's value-slot size; ignored since Int's real
 // length lives inside the value itself. `Int` is unsigned by design,
 // so there's no sign byte to mix in.
-u64 int_hash(Int *value, u32 size) {
+u64 int_hash(const Int *value, u32 size) {
     u64 hash = 1469598103934665603ULL;
 
     (void)size;
@@ -941,7 +941,7 @@ u64 int_hash(Int *value, u32 size) {
     return hash;
 }
 
-int int_compare(Int *lhs, Int *rhs) {
+int int_compare(const Int *lhs, const Int *rhs) {
     ValidateInt(lhs);
     ValidateInt(rhs);
 
@@ -967,7 +967,7 @@ int int_compare(Int *lhs, Int *rhs) {
     return 0;
 }
 
-int int_compare_u64(Int *lhs, u64 rhs) {
+int int_compare_u64(const Int *lhs, u64 rhs) {
     ValidateInt(lhs);
 
     if (IntBitLength(lhs) > 64) {
@@ -988,7 +988,7 @@ int int_compare_u64(Int *lhs, u64 rhs) {
     return 0;
 }
 
-int int_compare_i64(Int *lhs, i64 rhs) {
+int int_compare_i64(const Int *lhs, i64 rhs) {
     ValidateInt(lhs);
 
     if (rhs < 0) {
@@ -1050,7 +1050,7 @@ bool IntShiftRight(Int *value, u64 positions) {
     return true;
 }
 
-bool int_add(Int *result, Int *a, Int *b) {
+bool int_add(Int *result, const Int *a, const Int *b) {
     ValidateInt(result);
     ValidateInt(a);
     ValidateInt(b);
@@ -1095,7 +1095,7 @@ bool int_add(Int *result, Int *a, Int *b) {
     return true;
 }
 
-bool int_add_u64(Int *result, Int *value, u64 addend) {
+bool int_add_u64(Int *result, const Int *value, u64 addend) {
     ValidateInt(result);
     ValidateInt(value);
 
@@ -1112,7 +1112,7 @@ bool int_add_u64(Int *result, Int *value, u64 addend) {
     return true;
 }
 
-bool int_add_i64(Int *result, Int *value, i64 addend) {
+bool int_add_i64(Int *result, const Int *value, i64 addend) {
     u64 magnitude = int_i64_magnitude(addend);
 
     ValidateInt(result);
@@ -1129,7 +1129,7 @@ bool int_add_i64(Int *result, Int *value, i64 addend) {
     return true;
 }
 
-bool int_sub(Int *result, Int *a, Int *b) {
+bool int_sub(Int *result, const Int *a, const Int *b) {
     ValidateInt(result);
     ValidateInt(a);
     ValidateInt(b);
@@ -1171,7 +1171,7 @@ bool int_sub(Int *result, Int *a, Int *b) {
     return true;
 }
 
-bool int_sub_u64(Int *result, Int *value, u64 subtrahend) {
+bool int_sub_u64(Int *result, const Int *value, u64 subtrahend) {
     ValidateInt(result);
     ValidateInt(value);
 
@@ -1186,7 +1186,7 @@ bool int_sub_u64(Int *result, Int *value, u64 subtrahend) {
     return ok;
 }
 
-bool int_sub_i64(Int *result, Int *value, i64 subtrahend) {
+bool int_sub_i64(Int *result, const Int *value, i64 subtrahend) {
     u64 magnitude = int_i64_magnitude(subtrahend);
 
     ValidateInt(result);
@@ -1199,7 +1199,7 @@ bool int_sub_i64(Int *result, Int *value, i64 subtrahend) {
     return int_add_u64(result, value, magnitude);
 }
 
-bool int_mul(Int *result, Int *a, Int *b) {
+bool int_mul(Int *result, const Int *a, const Int *b) {
     ValidateInt(result);
     ValidateInt(a);
     ValidateInt(b);
@@ -1245,7 +1245,7 @@ bool int_mul(Int *result, Int *a, Int *b) {
     return true;
 }
 
-bool int_mul_u64(Int *result, Int *value, u64 factor) {
+bool int_mul_u64(Int *result, const Int *value, u64 factor) {
     ValidateInt(result);
     ValidateInt(value);
 
@@ -1262,7 +1262,7 @@ bool int_mul_u64(Int *result, Int *value, u64 factor) {
     return true;
 }
 
-bool int_mul_i64(Int *result, Int *value, i64 factor) {
+bool int_mul_i64(Int *result, const Int *value, i64 factor) {
     if (factor < 0) {
         LOG_FATAL("Int cannot be multiplied by a negative scalar");
     }
@@ -1270,11 +1270,11 @@ bool int_mul_i64(Int *result, Int *value, i64 factor) {
     return int_mul_u64(result, value, (u64)factor);
 }
 
-bool IntSquare(Int *result, Int *value) {
+bool IntSquare(Int *result, const Int *value) {
     return int_mul(result, value, value);
 }
 
-bool int_pow(Int *result, Int *base, Int *exponent) {
+bool int_pow(Int *result, const Int *base, const Int *exponent) {
     ValidateInt(result);
     ValidateInt(base);
     ValidateInt(exponent);
@@ -1287,7 +1287,7 @@ bool int_pow(Int *result, Int *base, Int *exponent) {
     return int_pow_u64(result, base, IntToU64(exponent));
 }
 
-bool int_pow_u64(Int *result, Int *base, u64 exponent) {
+bool int_pow_u64(Int *result, const Int *base, u64 exponent) {
     ValidateInt(result);
     ValidateInt(base);
 
@@ -1336,7 +1336,7 @@ bool int_pow_u64(Int *result, Int *base, u64 exponent) {
     return true;
 }
 
-bool int_pow_i64(Int *result, Int *base, i64 exponent) {
+bool int_pow_i64(Int *result, const Int *base, i64 exponent) {
     if (exponent < 0) {
         LOG_FATAL("Int exponent cannot be negative");
     }
@@ -1344,7 +1344,7 @@ bool int_pow_i64(Int *result, Int *base, i64 exponent) {
     return int_pow_u64(result, base, (u64)exponent);
 }
 
-bool int_div_mod(Int *quotient, Int *remainder, Int *dividend, Int *divisor) {
+bool int_div_mod(Int *quotient, Int *remainder, const Int *dividend, const Int *divisor) {
     ValidateInt(quotient);
     ValidateInt(remainder);
     ValidateInt(dividend);
@@ -1430,7 +1430,7 @@ cleanup:
     return ok;
 }
 
-bool int_div(Int *result, Int *dividend, Int *divisor) {
+bool int_div(Int *result, const Int *dividend, const Int *divisor) {
     Int quotient  = IntInit(result->bits.allocator);
     Int remainder = IntInit(result->bits.allocator);
 
@@ -1445,7 +1445,7 @@ bool int_div(Int *result, Int *dividend, Int *divisor) {
     return true;
 }
 
-bool int_div_exact(Int *result, Int *dividend, Int *divisor) {
+bool int_div_exact(Int *result, const Int *dividend, const Int *divisor) {
     ValidateInt(result);
     ValidateInt(dividend);
     ValidateInt(divisor);
@@ -1474,7 +1474,7 @@ bool int_div_exact(Int *result, Int *dividend, Int *divisor) {
     return true;
 }
 
-bool int_div_u64(Int *result, Int *dividend, u64 divisor) {
+bool int_div_u64(Int *result, const Int *dividend, u64 divisor) {
     Int divisor_value = IntInit(dividend->bits.allocator);
 
     if (!int_try_from_u64_with_allocator(&divisor_value, divisor, dividend->bits.allocator)) {
@@ -1487,7 +1487,7 @@ bool int_div_u64(Int *result, Int *dividend, u64 divisor) {
     return ok;
 }
 
-bool int_div_i64(Int *result, Int *dividend, i64 divisor) {
+bool int_div_i64(Int *result, const Int *dividend, i64 divisor) {
     Int divisor_value = IntInit(dividend->bits.allocator);
 
     if (!int_try_from_i64_with_allocator(&divisor_value, divisor, dividend->bits.allocator)) {
@@ -1500,7 +1500,7 @@ bool int_div_i64(Int *result, Int *dividend, i64 divisor) {
     return ok;
 }
 
-bool int_div_exact_u64(Int *result, Int *dividend, u64 divisor) {
+bool int_div_exact_u64(Int *result, const Int *dividend, u64 divisor) {
     Int divisor_value = IntInit(dividend->bits.allocator);
 
     if (!int_try_from_u64_with_allocator(&divisor_value, divisor, dividend->bits.allocator)) {
@@ -1513,7 +1513,7 @@ bool int_div_exact_u64(Int *result, Int *dividend, u64 divisor) {
     return ok;
 }
 
-bool int_div_exact_i64(Int *result, Int *dividend, i64 divisor) {
+bool int_div_exact_i64(Int *result, const Int *dividend, i64 divisor) {
     Int divisor_value = IntInit(dividend->bits.allocator);
 
     if (!int_try_from_i64_with_allocator(&divisor_value, divisor, dividend->bits.allocator)) {
@@ -1526,7 +1526,7 @@ bool int_div_exact_i64(Int *result, Int *dividend, i64 divisor) {
     return ok;
 }
 
-bool int_div_mod_u64(Int *quotient, Int *remainder, Int *dividend, u64 divisor) {
+bool int_div_mod_u64(Int *quotient, Int *remainder, const Int *dividend, u64 divisor) {
     Int divisor_value = IntInit(dividend->bits.allocator);
 
     if (!int_try_from_u64_with_allocator(&divisor_value, divisor, dividend->bits.allocator)) {
@@ -1539,7 +1539,7 @@ bool int_div_mod_u64(Int *quotient, Int *remainder, Int *dividend, u64 divisor) 
     return ok;
 }
 
-bool int_div_mod_i64(Int *quotient, Int *remainder, Int *dividend, i64 divisor) {
+bool int_div_mod_i64(Int *quotient, Int *remainder, const Int *dividend, i64 divisor) {
     Int divisor_value = IntInit(dividend->bits.allocator);
 
     if (!int_try_from_i64_with_allocator(&divisor_value, divisor, dividend->bits.allocator)) {
@@ -1552,7 +1552,7 @@ bool int_div_mod_i64(Int *quotient, Int *remainder, Int *dividend, i64 divisor) 
     return ok;
 }
 
-u64 int_div_u64_rem(Int *quotient, Int *dividend, u64 divisor) {
+u64 int_div_u64_rem(Int *quotient, const Int *dividend, u64 divisor) {
     ValidateInt(quotient);
     ValidateInt(dividend);
 
@@ -1583,7 +1583,7 @@ u64 int_div_u64_rem(Int *quotient, Int *dividend, u64 divisor) {
     return rem;
 }
 
-bool int_mod(Int *result, Int *dividend, Int *divisor) {
+bool int_mod(Int *result, const Int *dividend, const Int *divisor) {
     Int quotient  = IntInit(result->bits.allocator);
     Int remainder = IntInit(result->bits.allocator);
 
@@ -1598,7 +1598,7 @@ bool int_mod(Int *result, Int *dividend, Int *divisor) {
     return true;
 }
 
-bool int_mod_u64_into(Int *result, Int *dividend, u64 divisor) {
+bool int_mod_u64_into(Int *result, const Int *dividend, u64 divisor) {
     Int quotient = IntInit(result->bits.allocator);
 
     bool ok = int_div_mod_u64(&quotient, result, dividend, divisor);
@@ -1606,7 +1606,7 @@ bool int_mod_u64_into(Int *result, Int *dividend, u64 divisor) {
     return ok;
 }
 
-bool int_mod_i64_into(Int *result, Int *dividend, i64 divisor) {
+bool int_mod_i64_into(Int *result, const Int *dividend, i64 divisor) {
     Int quotient = IntInit(result->bits.allocator);
 
     bool ok = int_div_mod_i64(&quotient, result, dividend, divisor);
@@ -1614,7 +1614,7 @@ bool int_mod_i64_into(Int *result, Int *dividend, i64 divisor) {
     return ok;
 }
 
-u64 int_mod_u64(Int *value, u64 modulus) {
+u64 int_mod_u64(const Int *value, u64 modulus) {
     ValidateInt(value);
 
     if (modulus == 0) {
@@ -1629,7 +1629,7 @@ u64 int_mod_u64(Int *value, u64 modulus) {
     return rem;
 }
 
-bool IntGCD(Int *result, Int *a, Int *b) {
+bool IntGCD(Int *result, const Int *a, const Int *b) {
     ValidateInt(result);
     ValidateInt(a);
     ValidateInt(b);
@@ -1662,7 +1662,7 @@ bool IntGCD(Int *result, Int *a, Int *b) {
     return true;
 }
 
-bool IntLCM(Int *result, Int *a, Int *b) {
+bool IntLCM(Int *result, const Int *a, const Int *b) {
     ValidateInt(result);
     ValidateInt(a);
     ValidateInt(b);
@@ -1690,7 +1690,7 @@ bool IntLCM(Int *result, Int *a, Int *b) {
     return true;
 }
 
-bool IntRootRem(Int *root, Int *remainder, Int *value, u64 degree) {
+bool IntRootRem(Int *root, Int *remainder, const Int *value, u64 degree) {
     ValidateInt(root);
     ValidateInt(remainder);
     ValidateInt(value);
@@ -1863,7 +1863,7 @@ bool IntRootRem(Int *root, Int *remainder, Int *value, u64 degree) {
     return true;
 }
 
-bool IntRoot(Int *result, Int *value, u64 degree) {
+bool IntRoot(Int *result, const Int *value, u64 degree) {
     Int root      = IntInit(result->bits.allocator);
     Int remainder = IntInit(result->bits.allocator);
 
@@ -1878,15 +1878,15 @@ bool IntRoot(Int *result, Int *value, u64 degree) {
     return true;
 }
 
-bool IntSqrtRem(Int *root, Int *remainder, Int *value) {
+bool IntSqrtRem(Int *root, Int *remainder, const Int *value) {
     return IntRootRem(root, remainder, value, 2);
 }
 
-bool IntSqrt(Int *result, Int *value) {
+bool IntSqrt(Int *result, const Int *value) {
     return IntRoot(result, value, 2);
 }
 
-bool IntIsPerfectSquare(Int *value) {
+bool IntIsPerfectSquare(const Int *value) {
     ValidateInt(value);
 
     Int  root      = IntInit(value->bits.allocator);
@@ -1905,7 +1905,7 @@ bool IntIsPerfectSquare(Int *value) {
     return result;
 }
 
-bool IntIsPerfectPower(Int *value) {
+bool IntIsPerfectPower(const Int *value) {
     ValidateInt(value);
 
     if (IntIsZero(value) || IntBitLength(value) == 1) {
@@ -1941,7 +1941,7 @@ bool IntIsPerfectPower(Int *value) {
     return false;
 }
 
-bool IntTryJacobi(int *out, Int *a, Int *n) {
+bool IntTryJacobi(int *out, const Int *a, const Int *n) {
     ValidateInt(a);
     ValidateInt(n);
 
@@ -2004,7 +2004,7 @@ bool IntTryJacobi(int *out, Int *a, Int *n) {
     return true;
 }
 
-int IntJacobiWithError(Int *a, Int *n, bool *error) {
+int IntJacobiWithError(const Int *a, const Int *n, bool *error) {
     int  out = 0;
     bool ok  = IntTryJacobi(&out, a, n);
 
@@ -2015,7 +2015,7 @@ int IntJacobiWithError(Int *a, Int *n, bool *error) {
     return out;
 }
 
-bool IntModAdd(Int *result, Int *a, Int *b, Int *modulus) {
+bool IntModAdd(Int *result, const Int *a, const Int *b, const Int *modulus) {
     ValidateInt(result);
     ValidateInt(a);
     ValidateInt(b);
@@ -2044,7 +2044,7 @@ bool IntModAdd(Int *result, Int *a, Int *b, Int *modulus) {
     return true;
 }
 
-bool IntModSub(Int *result, Int *a, Int *b, Int *modulus) {
+bool IntModSub(Int *result, const Int *a, const Int *b, const Int *modulus) {
     ValidateInt(result);
     ValidateInt(a);
     ValidateInt(b);
@@ -2099,7 +2099,7 @@ bool IntModSub(Int *result, Int *a, Int *b, Int *modulus) {
     return true;
 }
 
-bool IntModMul(Int *result, Int *a, Int *b, Int *modulus) {
+bool IntModMul(Int *result, const Int *a, const Int *b, const Int *modulus) {
     ValidateInt(result);
     ValidateInt(a);
     ValidateInt(b);
@@ -2128,7 +2128,7 @@ bool IntModMul(Int *result, Int *a, Int *b, Int *modulus) {
     return true;
 }
 
-bool IntModDiv(Int *result, Int *a, Int *b, Int *modulus) {
+bool IntModDiv(Int *result, const Int *a, const Int *b, const Int *modulus) {
     ValidateInt(result);
     ValidateInt(a);
     ValidateInt(b);
@@ -2161,11 +2161,11 @@ bool IntModDiv(Int *result, Int *a, Int *b, Int *modulus) {
     return true;
 }
 
-bool IntSquareMod(Int *result, Int *value, Int *modulus) {
+bool IntSquareMod(Int *result, const Int *value, const Int *modulus) {
     return IntModMul(result, value, value, modulus);
 }
 
-bool int_pow_u64_mod(Int *result, Int *base, u64 exponent, Int *modulus) {
+bool int_pow_u64_mod(Int *result, const Int *base, u64 exponent, const Int *modulus) {
     ValidateInt(result);
     ValidateInt(base);
     ValidateInt(modulus);
@@ -2221,7 +2221,7 @@ bool int_pow_u64_mod(Int *result, Int *base, u64 exponent, Int *modulus) {
     return true;
 }
 
-bool int_pow_mod(Int *result, Int *base, Int *exponent, Int *modulus) {
+bool int_pow_mod(Int *result, const Int *base, const Int *exponent, const Int *modulus) {
     ValidateInt(result);
     ValidateInt(base);
     ValidateInt(exponent);
@@ -2286,7 +2286,7 @@ bool int_pow_mod(Int *result, Int *base, Int *exponent, Int *modulus) {
     return true;
 }
 
-bool int_pow_i64_mod(Int *result, Int *base, i64 exponent, Int *modulus) {
+bool int_pow_i64_mod(Int *result, const Int *base, i64 exponent, const Int *modulus) {
     if (exponent < 0) {
         LOG_FATAL("Int exponent cannot be negative");
     }
@@ -2294,7 +2294,7 @@ bool int_pow_i64_mod(Int *result, Int *base, i64 exponent, Int *modulus) {
     return int_pow_u64_mod(result, base, (u64)exponent, modulus);
 }
 
-bool IntModInv(Int *result, Int *value, Int *modulus) {
+bool IntModInv(Int *result, const Int *value, const Int *modulus) {
     ValidateInt(result);
     ValidateInt(value);
     ValidateInt(modulus);
@@ -2424,7 +2424,7 @@ bool IntModInv(Int *result, Int *value, Int *modulus) {
     return ok;
 }
 
-bool IntModSqrt(Int *result, Int *value, Int *modulus) {
+bool IntModSqrt(Int *result, const Int *value, const Int *modulus) {
     ValidateInt(result);
     ValidateInt(value);
     ValidateInt(modulus);
@@ -2738,7 +2738,7 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus) {
     return ok;
 }
 
-bool IntIsProbablePrimeWithError(Int *value, bool *error) {
+bool IntIsProbablePrimeWithError(const Int *value, bool *error) {
     static const u64 bases[] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37};
 
     if (error) {
@@ -2863,7 +2863,7 @@ bool IntIsProbablePrimeWithError(Int *value, bool *error) {
     }
 }
 
-bool IntNextPrime(Int *result, Int *value) {
+bool IntNextPrime(Int *result, const Int *value) {
     bool error = false;
 
     ValidateInt(result);

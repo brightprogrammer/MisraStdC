@@ -1,11 +1,13 @@
+/// file      : std/container/list.c
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
+/// This is free and unencumbered software released into the public domain.
+///
+/// Doubly-linked list runtime: node allocation, insertion/removal,
+/// merge primitives consumed by the typed `List(T)` macros.
+
 #include <Misra/Std/Container/List.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
-
-
-static inline size list_alloc_alignment(void) {
-    return MAX_ALIGN;
-}
 
 static inline GenericListNode *alloc_list_node(GenericList *list) {
     return AllocatorAlloc(list->allocator, sizeof(GenericListNode), true);
@@ -399,6 +401,12 @@ void validate_list(const GenericList *l) {
     if ((l)->__magic != LIST_MAGIC) {
         LOG_FATAL("Invalid list. Either not initialized or corrupted!");
     }
+    // List has no stack-init form, so a NULL allocator on a magic-OK
+    // handle means corruption between init and use. Surface it before
+    // dereferencing the method table.
+    if (!(l)->allocator) {
+        LOG_FATAL("List allocator pointer is NULL.");
+    }
     if (!(l)->allocator->allocate || !(l)->allocator->resize || !(l)->allocator->remap || !(l)->allocator->deallocate) {
         LOG_FATAL("Invalid list allocator.");
     }
@@ -547,6 +555,13 @@ bool list_insert_range_l(GenericList *list, void *items, u64 item_size, u64 coun
 
     if (!items) {
         LOG_FATAL("Expected a valid pointer");
+    }
+
+    // Source-zero-on-success needs the exact byte count of the source range;
+    // a wrap to a small value would under-zero and leave the caller believing
+    // ownership had moved out of the range it can still see.
+    if (item_size && count > UINT64_MAX / item_size) {
+        LOG_FATAL("list_insert_range_l: item_size * count overflows u64");
     }
 
     return list_zero_source_on_success(list, items, item_size * count, push_arr_list(list, item_size, items, count));

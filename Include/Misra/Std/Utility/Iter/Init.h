@@ -1,3 +1,4 @@
+/// file      : std/utility/iter/init.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 
@@ -212,6 +213,14 @@
 ///
 /// parent[in] : Source iterator. Must outlive the child read.
 /// n[in]      : Number of elements the child can read.
+///
+/// SUCCESS : Returns a typed compound-literal `Iter` covering
+///           `[parent->data + parent->pos, parent->data + parent->pos + n)`,
+///           with `pos = 0` and parent's `alignment` / `dir`. Parent is
+///           unchanged.
+/// FAILURE : Macro cannot fail. Caller is responsible for not passing
+///           an `n` that extends past the parent's remaining range; no
+///           bounds check is performed.
 ///
 /// TAGS: Initialization, Iter, Subview
 ///

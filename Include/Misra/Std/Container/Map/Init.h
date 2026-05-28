@@ -44,7 +44,7 @@
      .allocator         = ALLOCATOR_OF(typed_alloc_ptr),                                                               \
      .__magic           = MAP_MAGIC}
 
-#define MapInitFull(...) MISRA_OVERLOAD(MapInitFull, __VA_ARGS__)
+#define MapInitFull(...) OVERLOAD(MapInitFull, __VA_ARGS__)
 #define MapInitFull_8(hash_fn, compare_fn, vcmp, kci, kcd, vci, vcd, policy_value)                                     \
     MapInitFull_9(hash_fn, compare_fn, vcmp, kci, kcd, vci, vcd, policy_value, MisraScope)
 
@@ -55,7 +55,7 @@
 ///
 /// TAGS: Map, Init, API
 ///
-#define MapInit(...)                   MISRA_OVERLOAD(MapInit, __VA_ARGS__)
+#define MapInit(...)                   OVERLOAD(MapInit, __VA_ARGS__)
 #define MapInit_2(hash_fn, compare_fn) MapInit_3(hash_fn, compare_fn, MisraScope)
 #define MapInit_3(hash_fn, compare_fn, typed_alloc_ptr)                                                                \
     MapInitFull_9((hash_fn), (compare_fn), NULL, NULL, NULL, NULL, NULL, MapPolicyLinear, typed_alloc_ptr)
@@ -65,7 +65,7 @@
 ///
 /// TAGS: Map, Compare, Value, Init
 ///
-#define MapInitWithValueCompare(...) MISRA_OVERLOAD(MapInitWithValueCompare, __VA_ARGS__)
+#define MapInitWithValueCompare(...) OVERLOAD(MapInitWithValueCompare, __VA_ARGS__)
 #define MapInitWithValueCompare_3(hash_fn, compare_fn, value_compare_fn)                                               \
     MapInitWithValueCompare_4(hash_fn, compare_fn, value_compare_fn, MisraScope)
 #define MapInitWithValueCompare_4(hash_fn, compare_fn, value_compare_fn, typed_alloc_ptr)                              \
@@ -76,7 +76,7 @@
 ///
 /// TAGS: Map, Policy, Init
 ///
-#define MapInitWithPolicy(...) MISRA_OVERLOAD(MapInitWithPolicy, __VA_ARGS__)
+#define MapInitWithPolicy(...) OVERLOAD(MapInitWithPolicy, __VA_ARGS__)
 #define MapInitWithPolicy_3(hash_fn, compare_fn, policy_value)                                                         \
     MapInitWithPolicy_4(hash_fn, compare_fn, policy_value, MisraScope)
 #define MapInitWithPolicy_4(hash_fn, compare_fn, policy_value, typed_alloc_ptr)                                        \
@@ -87,7 +87,7 @@
 ///
 /// TAGS: Map, Compare, Value, Policy, Init
 ///
-#define MapInitWithValueCompareAndPolicy(...) MISRA_OVERLOAD(MapInitWithValueCompareAndPolicy, __VA_ARGS__)
+#define MapInitWithValueCompareAndPolicy(...) OVERLOAD(MapInitWithValueCompareAndPolicy, __VA_ARGS__)
 #define MapInitWithValueCompareAndPolicy_4(hash_fn, compare_fn, value_compare_fn, policy_value)                        \
     MapInitWithValueCompareAndPolicy_5(hash_fn, compare_fn, value_compare_fn, policy_value, MisraScope)
 #define MapInitWithValueCompareAndPolicy_5(hash_fn, compare_fn, value_compare_fn, policy_value, typed_alloc_ptr)       \
@@ -98,7 +98,7 @@
 ///
 /// TAGS: Map, Init, DeepCopy, Copy
 ///
-#define MapInitWithDeepCopy(...) MISRA_OVERLOAD(MapInitWithDeepCopy, __VA_ARGS__)
+#define MapInitWithDeepCopy(...) OVERLOAD(MapInitWithDeepCopy, __VA_ARGS__)
 #define MapInitWithDeepCopy_6(hash_fn, compare_fn, key_ci, key_cd, value_ci, value_cd)                                 \
     MapInitWithDeepCopy_7(hash_fn, compare_fn, key_ci, key_cd, value_ci, value_cd, MisraScope)
 #define MapInitWithDeepCopy_7(hash_fn, compare_fn, key_ci, key_cd, value_ci, value_cd, typed_alloc_ptr)                \
@@ -114,7 +114,7 @@
         typed_alloc_ptr                                                                                                \
     )
 
-#define MapInitT(m, ...) MISRA_OVERLOAD(MapInitT, m, __VA_ARGS__)
+#define MapInitT(m, ...) OVERLOAD(MapInitT, m, __VA_ARGS__)
 #ifdef __cplusplus
 #    define MapInitT_3(m, hash_fn, compare_fn) (TYPE_OF(m) MapInit_3((hash_fn), (compare_fn), MisraScope))
 #    define MapInitT_4(m, hash_fn, compare_fn, typed_alloc_ptr)                                                        \
@@ -125,7 +125,7 @@
         ((TYPE_OF(m))MapInit_3((hash_fn), (compare_fn), typed_alloc_ptr))
 #endif
 
-#define MapInitWithDeepCopyT(m, ...) MISRA_OVERLOAD(MapInitWithDeepCopyT, m, __VA_ARGS__)
+#define MapInitWithDeepCopyT(m, ...) OVERLOAD(MapInitWithDeepCopyT, m, __VA_ARGS__)
 #ifdef __cplusplus
 #    define MapInitWithDeepCopyT_7(m, hash_fn, compare_fn, key_ci, key_cd, value_ci, value_cd)                         \
         (TYPE_OF(m)                                                                                                    \
@@ -144,6 +144,20 @@
         )MapInitWithDeepCopy_7((hash_fn), (compare_fn), (key_ci), (key_cd), (value_ci), (value_cd), typed_alloc_ptr))
 #endif
 
+///
+/// Release a map's storage and zero its handle. Calls any configured
+/// key / value `copy_deinit` hooks on each live entry before freeing
+/// the entry array.
+///
+/// m[in,out] : Pointer to a `Map` handle.
+///
+/// SUCCESS : Returns to the caller. The handle is zeroed; all
+///           entries reclaimed through the configured allocator.
+/// FAILURE : `ValidateMap` aborts via `LOG_FATAL` when `m` is NULL or
+///           uninitialised.
+///
+/// TAGS: Map, Deinit, Lifecycle
+///
 #define MapDeinit(m)                                                                                                   \
     deinit_map(                                                                                                        \
         GENERIC_MAP(m),                                                                                                \

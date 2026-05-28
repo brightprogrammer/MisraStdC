@@ -16,6 +16,12 @@
 extern "C" {
 #endif
 
+/// IEEE 754 positive infinity / quiet NaN constants. Replaces libc's
+/// `HUGE_VAL` / `NAN` (`<float.h>` / `<math.h>`) which are off-limits
+/// inside the library proper.
+///
+/// TAGS: Math, Float, Infinity, NaN, Constant
+///
 #if defined(_MSC_VER) && !defined(__clang__)
     // MSVC: no `__builtin_inf` etc.; HUGE_VAL / NAN come from
     // `<float.h>` macros, but those are also libc territory. The

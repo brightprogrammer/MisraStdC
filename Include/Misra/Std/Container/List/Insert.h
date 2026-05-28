@@ -1,5 +1,5 @@
-/// file      : Insert.h
-/// author    : Generated following Misra project patterns
+/// file      : std/container/list/insert.h
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// List insertion helpers.

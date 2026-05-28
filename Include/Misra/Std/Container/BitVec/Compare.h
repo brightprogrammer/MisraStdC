@@ -1,5 +1,5 @@
 /// file      : std/container/bitvec/compare.h
-/// author    : Generated following Misra project patterns
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Comparison and set-like operations for bitvectors.
@@ -31,7 +31,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Compare, Range, Equal
     ///
-    bool BitVecEqualsRange(BitVec *bv1, u64 start1, BitVec *bv2, u64 start2, u64 len);
+    bool BitVecEqualsRange(const BitVec *bv1, u64 start1, const BitVec *bv2, u64 start2, u64 len);
 
     ///
     /// Compare ranges of two bitvectors lexicographically.
@@ -50,7 +50,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Compare, Range, Lexicographic
     ///
-    int BitVecCompareRange(BitVec *bv1, u64 start1, BitVec *bv2, u64 start2, u64 len);
+    int BitVecCompareRange(const BitVec *bv1, u64 start1, const BitVec *bv2, u64 start2, u64 len);
 
     ///
     /// Check if first bitvector is a subset of the second.
@@ -67,7 +67,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Compare, Subset, Set
     ///
-    bool BitVecIsSubset(BitVec *bv1, BitVec *bv2);
+    bool BitVecIsSubset(const BitVec *bv1, const BitVec *bv2);
 
     ///
     /// Check if first bitvector is a superset of the second.
@@ -84,7 +84,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Compare, Superset, Set
     ///
-    bool BitVecIsSuperset(BitVec *bv1, BitVec *bv2);
+    bool BitVecIsSuperset(const BitVec *bv1, const BitVec *bv2);
 
     ///
     /// Check if two bitvectors are disjoint (have no common 1-bits).
@@ -100,7 +100,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Compare, Disjoint, Set
     ///
-    bool BitVecDisjoint(BitVec *bv1, BitVec *bv2);
+    bool BitVecDisjoint(const BitVec *bv1, const BitVec *bv2);
 
     ///
     /// Check if two bitvectors overlap (have any common 1-bits).
@@ -116,7 +116,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Compare, Overlaps, Set
     ///
-    bool BitVecOverlaps(BitVec *bv1, BitVec *bv2);
+    bool BitVecOverlaps(const BitVec *bv1, const BitVec *bv2);
 
     ///
     /// Test equality between two bitvectors.
@@ -133,7 +133,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Equals, Compare, Test
     ///
-    bool BitVecEquals(BitVec *bv1, BitVec *bv2);
+    bool BitVecEquals(const BitVec *bv1, const BitVec *bv2);
 
     ///
     /// Compare two bitvectors lexicographically.
@@ -150,7 +150,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Compare, Lexicographic
     ///
-    int BitVecCompare(BitVec *bv1, BitVec *bv2);
+    int BitVecCompare(const BitVec *bv1, const BitVec *bv2);
 
     ///
     /// Hash a `BitVec` for use as a map key. FNV-1a over the live bits
@@ -187,7 +187,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Compare, Numerical, Integer
     ///
-    int BitVecNumericalCompare(BitVec *bv1, BitVec *bv2);
+    int BitVecNumericalCompare(const BitVec *bv1, const BitVec *bv2);
 
     ///
     /// Compare two bitvectors by their Hamming weights (number of 1s).
@@ -203,7 +203,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Compare, Weight, Population
     ///
-    int BitVecWeightCompare(BitVec *bv1, BitVec *bv2);
+    int BitVecWeightCompare(const BitVec *bv1, const BitVec *bv2);
 
     ///
     /// Compare two bitvectors as signed integers (MSB is sign bit).
@@ -219,7 +219,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Compare, Signed, Integer
     ///
-    int BitVecSignedCompare(BitVec *bv1, BitVec *bv2);
+    int BitVecSignedCompare(const BitVec *bv1, const BitVec *bv2);
 
     ///
     /// Check if bits in bitvector are in sorted order.
@@ -235,7 +235,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Sorted, Order, Check
     ///
-    bool BitVecIsSorted(BitVec *bv);
+    bool BitVecIsSorted(const BitVec *bv);
 
 #ifdef __cplusplus
 }

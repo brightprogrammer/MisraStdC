@@ -1,5 +1,5 @@
 /// file      : std/container/float/convert.h
-/// author    : Generated following Misra project patterns
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Conversion helpers for Float.
@@ -15,24 +15,6 @@ extern "C" {
 #endif
 
 #ifndef __cplusplus
-#    define FLOAT_FROM_DISPATCH(value)                                                                                 \
-        _Generic(                                                                                                      \
-            (value),                                                                                                   \
-            Int *: float_from_int,                                                                                     \
-            unsigned char: float_from_u64,                                                                             \
-            unsigned short: float_from_u64,                                                                            \
-            unsigned int: float_from_u64,                                                                              \
-            unsigned long: float_from_u64,                                                                             \
-            unsigned long long: float_from_u64,                                                                        \
-            signed char: float_from_i64,                                                                               \
-            signed short: float_from_i64,                                                                              \
-            signed int: float_from_i64,                                                                                \
-            signed long: float_from_i64,                                                                               \
-            signed long long: float_from_i64,                                                                          \
-            float: float_from_f32,                                                                                     \
-            double: float_from_f64                                                                                     \
-        )
-
 ///
 /// Convert a numeric value into an arbitrary-precision float.
 /// Dispatches on the type of `value`. The allocator argument may be a
@@ -56,7 +38,23 @@ extern "C" {
 ///
 /// TAGS: Float, Convert, Import, Generic
 ///
-#    define FloatFrom(value, allocator_ptr) FLOAT_FROM_DISPATCH(value)((value), ALLOCATOR_OF(allocator_ptr))
+#    define FloatFrom(value, allocator_ptr)                                                                            \
+        _Generic(                                                                                                      \
+            (value),                                                                                                   \
+            Int *: float_from_int,                                                                                     \
+            unsigned char: float_from_u64,                                                                             \
+            unsigned short: float_from_u64,                                                                            \
+            unsigned int: float_from_u64,                                                                              \
+            unsigned long: float_from_u64,                                                                             \
+            unsigned long long: float_from_u64,                                                                        \
+            signed char: float_from_i64,                                                                               \
+            signed short: float_from_i64,                                                                              \
+            signed int: float_from_i64,                                                                                \
+            signed long: float_from_i64,                                                                               \
+            signed long long: float_from_i64,                                                                          \
+            float: float_from_f32,                                                                                     \
+            double: float_from_f64                                                                                     \
+        )((value), ALLOCATOR_OF(allocator_ptr))
 #endif
 
     ///
@@ -74,7 +72,7 @@ extern "C" {
     ///
     /// TAGS: Float, Convert, Int, Truncate
     ///
-    bool FloatToInt(Int *result, Float *value);
+    bool FloatToInt(Int *result, const Float *value);
 
     ///
     /// Parse a decimal string into a float.
@@ -116,7 +114,7 @@ extern "C" {
     ///
     Float float_from_str_zstr(Zstr text, Allocator *alloc);
     Float float_from_str_str(const Str *text, Allocator *alloc);
-#define FloatFromStr(...) MISRA_OVERLOAD(FloatFromStr, __VA_ARGS__)
+#define FloatFromStr(...) OVERLOAD(FloatFromStr, __VA_ARGS__)
 #define FloatFromStr_1(text)                                                                                                                      \
     _Generic((text), Str *: float_from_str_str, char *: float_from_str_zstr, Zstr : float_from_str_zstr)( \
         (text),                                                                                                                                   \
@@ -128,8 +126,8 @@ extern "C" {
         ALLOCATOR_OF(alloc)                                                                                                                       \
     )
 
-    bool float_try_to_str(Str *out, Float *value, Allocator *alloc);
-    Str  float_to_str(Float *value, Allocator *alloc);
+    bool float_try_to_str(Str *out, const Float *value, Allocator *alloc);
+    Str  float_to_str(const Float *value, Allocator *alloc);
 
 #ifdef __cplusplus
 }
@@ -147,7 +145,7 @@ extern "C" {
 ///
 /// TAGS: Float, Convert, String, Decimal
 ///
-#define FloatTryToStr(...)                 MISRA_OVERLOAD(FloatTryToStr, __VA_ARGS__)
+#define FloatTryToStr(...)                 OVERLOAD(FloatTryToStr, __VA_ARGS__)
 #define FloatTryToStr_2(out, value)        float_try_to_str((out), (value), (value)->significand.bits.allocator)
 #define FloatTryToStr_3(out, value, alloc) float_try_to_str((out), (value), (alloc))
 
@@ -164,7 +162,7 @@ extern "C" {
 ///
 /// TAGS: Float, Convert, String, Decimal
 ///
-#define FloatToStr(...)            MISRA_OVERLOAD(FloatToStr, __VA_ARGS__)
+#define FloatToStr(...)            OVERLOAD(FloatToStr, __VA_ARGS__)
 #define FloatToStr_1(value)        float_to_str((value), (value)->significand.bits.allocator)
 #define FloatToStr_2(value, alloc) float_to_str((value), (alloc))
 

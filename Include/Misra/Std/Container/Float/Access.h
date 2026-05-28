@@ -1,5 +1,5 @@
 /// file      : std/container/float/access.h
-/// author    : Generated following Misra project patterns
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// State inspection helpers for Float.
@@ -27,7 +27,7 @@ extern "C" {
     ///
     /// TAGS: Float, Access, Zero, Predicate
     ///
-    bool FloatIsZero(Float *value);
+    bool FloatIsZero(const Float *value);
     ///
     /// Test whether a floating-point value is negative.
     ///
@@ -42,7 +42,7 @@ extern "C" {
     ///
     /// TAGS: Float, Access, Negative, Predicate
     ///
-    bool FloatIsNegative(Float *value);
+    bool FloatIsNegative(const Float *value);
     ///
     /// Read the base-10 exponent of a float.
     ///
@@ -57,7 +57,7 @@ extern "C" {
     ///
     /// TAGS: Float, Access, Exponent
     ///
-    i64 FloatExponent(Float *value);
+    i64 FloatExponent(const Float *value);
 
 #ifdef __cplusplus
 }

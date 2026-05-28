@@ -823,7 +823,7 @@ bool test_rvalue_fast_delete_range_operations(void) {
 }
 
 // Main function that runs all tests
-int main(int argc, char *argv[]) {
+int main(void) {
     // Array of normal test functions
     TestFunction normal_tests[] = {
         test_vec_pop_back,
@@ -846,7 +846,7 @@ int main(int argc, char *argv[]) {
     int normal_count = sizeof(normal_tests) / sizeof(normal_tests[0]);
 
     alloc    = DefaultAllocatorInit();
-    int __rc = run_test_suite(normal_tests, normal_count, NULL, 0, "Vec.Remove");
+    int rc = run_test_suite(normal_tests, normal_count, NULL, 0, "Vec.Remove");
     DefaultAllocatorDeinit(&alloc);
-    return __rc;
+    return rc;
 }

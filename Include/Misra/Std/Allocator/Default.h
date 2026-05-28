@@ -4,11 +4,11 @@
 ///
 /// `DefaultAllocator` is the recommended general-purpose allocator
 /// type for code that does not have a more specific requirement. It
-/// is a plain type alias for `HeapAllocator` -- a per-descriptor
-/// binned heap built on top of `PageAllocator`. There is NO global
-/// instance; every `DefaultAllocator` is user-owned, stack- or
-/// heap-resident, and must be paired with `DefaultAllocatorDeinit`
-/// on teardown.
+/// is a plain type alias for `HeapAllocator` -- a bitmap-backed
+/// binned heap with a hash-indexed page table that talks directly to
+/// the kernel for its OS pages. There is NO global instance; every
+/// `DefaultAllocator` is user-owned, stack- or heap-resident, and
+/// must be paired with `DefaultAllocatorDeinit` on teardown.
 ///
 /// USAGE - direct construction:
 ///   DefaultAllocator alloc = DefaultAllocatorInit();
@@ -54,23 +54,50 @@ typedef HeapAllocator DefaultAllocator;
 }
 #endif
 
+///
+/// Build a fresh `DefaultAllocator` value. Backend selected at build
+/// time: `HeapAllocator` by default; `DebugAllocator` when
+/// `FEATURE_DEFAULT_ALLOC_DEBUG` is on (with page-backed UAF detection
+/// layered on top when `FEATURE_DEFAULT_ALLOC_DEBUG_PAGE_BACKED` is
+/// also on). Tests / Fuzz / Bench code calls this and gets the project's
+/// recommended allocator for the current build.
+///
+/// SUCCESS : Returns an initialised `DefaultAllocator` by value.
+/// FAILURE : Backend init can't fail at this level -- both the heap
+///           and debug backends LOG_FATAL on internal init errors.
+///
+/// TAGS: Allocator, Default, Init
+///
 #if FEATURE_DEFAULT_ALLOC_DEBUG
 #    if FEATURE_DEFAULT_ALLOC_DEBUG_PAGE_BACKED
-// Layer page-backed UAF detection on top of the default-debug config:
-// every alloc consumes whole pages, every free PROT_NONE's the region.
-// Compound-literal form so each DefaultAllocator gets its own config copy.
 #        define DefaultAllocatorInit()                                                                                 \
-            DebugAllocatorInitWith(((DebugAllocatorConfig) {.capture_traces     = true,                                \
-                                                            .detect_overflow    = true,                                \
-                                                            .force_page_backing = true,                                \
-                                                            .trace_depth        = 8,                                   \
-                                                            .canary_bytes       = 16}))
+            DebugAllocatorInitWith(((DebugAllocatorConfig) {.capture_traces      = true,                               \
+                                                            .detect_overflow     = true,                               \
+                                                            .force_page_backing  = true,                               \
+                                                            .trace_depth         = 8,                                  \
+                                                            .canary_bytes        = 16,                                 \
+                                                            .track_freed_history = true}))
 #    else
 #        define DefaultAllocatorInit() DebugAllocatorInit()
 #    endif
+#else
+#    define DefaultAllocatorInit() HeapAllocatorInit()
+#endif
+
+///
+/// Release a `DefaultAllocator`'s backing storage and zero its handle.
+///
+/// ptr[in,out] : Pointer to the `DefaultAllocator` to release.
+///
+/// SUCCESS : Returns to the caller. The backend handle is zeroed.
+/// FAILURE : Backend deinit aborts via LOG_FATAL on a corrupted /
+///           uninitialised handle.
+///
+/// TAGS: Allocator, Default, Deinit, Lifecycle
+///
+#if FEATURE_DEFAULT_ALLOC_DEBUG
 #    define DefaultAllocatorDeinit(ptr) DebugAllocatorDeinit(ptr)
 #else
-#    define DefaultAllocatorInit()      HeapAllocatorInit()
 #    define DefaultAllocatorDeinit(ptr) HeapAllocatorDeinit(ptr)
 #endif
 

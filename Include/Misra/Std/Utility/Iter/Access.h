@@ -1,3 +1,4 @@
+/// file      : std/utility/iter/access.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 
@@ -48,14 +49,14 @@
 ///
 /// TAGS: Memory, Size, Iter
 ///
-#define IterSize(mi) IterLength(mi) * ALIGN_UP(sizeof(ITER_DATA_TYPE(mi)), (mi)->alignment)
+#define IterSize(mi) (IterLength(mi) * ALIGN_UP(sizeof(ITER_DATA_TYPE(mi)), (mi)->alignment))
 
 ///
 /// Remaining region size in bytes.
 ///
 /// TAGS: Memory, Iter, Size
 ///
-#define IterRemainingSize(mi) IterRemainingLength(mi) * ALIGN_UP(sizeof(ITER_DATA_TYPE(mi)), (mi)->alignment)
+#define IterRemainingSize(mi) (IterRemainingLength(mi) * ALIGN_UP(sizeof(ITER_DATA_TYPE(mi)), (mi)->alignment))
 
 ///
 /// Pointer to the current read position, or `NULL_ITER_DATA(mi)` when

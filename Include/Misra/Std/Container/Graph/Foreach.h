@@ -54,7 +54,7 @@
 /// TAGS: Graph, Foreach, Neighbor, Iteration
 ///
 #define GraphNodeForeachNeighbor(node, neighbor)                                                                       \
-    for (GraphNode UNPL(src_node) = (node); UNPL(src_node).__graph; UNPL(src_node).__graph = NULL)                    \
+    for (GraphNode UNPL(src_node) = (node); UNPL(src_node)._graph_; UNPL(src_node)._graph_ = NULL)                    \
         for (GenericGraphNeighborIter UNPL(iter) = graph_neighbor_iter_begin(UNPL(src_node)); UNPL(iter).graph;       \
              UNPL(iter).graph = NULL)                                                                                  \
             for (GraphNode neighbor = {0}; graph_neighbor_iter_next(&UNPL(iter), &neighbor);)
@@ -75,7 +75,7 @@
 /// TAGS: Graph, Foreach, Predecessor, Iteration
 ///
 #define GraphNodeForeachPredecessor(node, predecessor)                                                                \
-    for (GraphNode UNPL(dst_node) = (node); UNPL(dst_node).__graph; UNPL(dst_node).__graph = NULL)                   \
+    for (GraphNode UNPL(dst_node) = (node); UNPL(dst_node)._graph_; UNPL(dst_node)._graph_ = NULL)                   \
         for (GenericGraphPredecessorIter UNPL(iter) = graph_predecessor_iter_begin(UNPL(dst_node));                  \
              UNPL(iter).graph;                                                                                        \
              UNPL(iter).graph = NULL)                                                                                 \

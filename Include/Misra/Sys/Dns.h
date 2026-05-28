@@ -81,7 +81,7 @@ extern "C" {
     /// TAGS: Dns, Resolve, Init
     ///
     bool dns_resolver_init(DnsResolver *out, Allocator *alloc);
-#define DnsResolverInit(...)          MISRA_OVERLOAD(DnsResolverInit, __VA_ARGS__)
+#define DnsResolverInit(...)          OVERLOAD(DnsResolverInit, __VA_ARGS__)
 #define DnsResolverInit_1(out)        dns_resolver_init((out), MisraScope)
 #define DnsResolverInit_2(out, alloc) dns_resolver_init((out), ALLOCATOR_OF(alloc))
 
@@ -169,7 +169,8 @@ extern "C" {
     ///
     /// TAGS: Dns, Resolve, API
     ///
-    bool DnsResolve_4_one(DnsResolver *self, Zstr spec, SocketKind kind, SocketAddr *out);
+    bool dns_resolve_4_one_zstr(DnsResolver *self, Zstr spec, SocketKind kind, SocketAddr *out);
+    bool dns_resolve_4_one_str(DnsResolver *self, const Str *spec, SocketKind kind, SocketAddr *out);
 
     ///
     /// `DnsResolve` dispatches by argument count. The 4-arg form
@@ -179,14 +180,13 @@ extern "C" {
     ///
     /// TAGS: Dns, Resolve, API
     ///
-#define DnsResolve(...) MISRA_OVERLOAD(DnsResolve, __VA_ARGS__)
-#define DnsResolve_4(self, spec, kind, out)                                                                                                                                                                                \
-    _Generic((out), DnsAddrs *: _Generic((spec), Str *: dns_resolve_4_vec_str, Zstr: dns_resolve_4_vec_zstr, char *: dns_resolve_4_vec_zstr), SocketAddr *: DnsResolve_4_one)( \
-        (self),                                                                                                                                                                                                            \
-        (spec),                                                                                                                                                                                                            \
-        (kind),                                                                                                                                                                                                            \
-        (out)                                                                                                                                                                                                              \
-    )
+#define DnsResolve(...) OVERLOAD(DnsResolve, __VA_ARGS__)
+#define DnsResolve_4(self, spec, kind, out)                                                                                                                                                                                                                                                                                                            \
+    _Generic(                                                                                                                                                                                                                                                                                                                                          \
+        (out),                                                                                                                                                                                                                                                                                                                                         \
+        DnsAddrs *: _Generic((spec), Str *: dns_resolve_4_vec_str, Zstr: dns_resolve_4_vec_zstr, char *: dns_resolve_4_vec_zstr),                                                                                                                                                                                                                      \
+        SocketAddr *: _Generic((spec), Str *: dns_resolve_4_one_str, Zstr: dns_resolve_4_one_zstr, char *: dns_resolve_4_one_zstr)                                                                                                                                                                                                                     \
+    )((self), (spec), (kind), (out))
 
 #ifdef __cplusplus
 }

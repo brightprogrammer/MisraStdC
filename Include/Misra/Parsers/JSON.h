@@ -452,7 +452,6 @@ StrIter JSkipValue(StrIter si);
                 /* if still no advancement in read position */                                                         \
                 if (UNPL(read_si).pos == si.pos) {                                                                     \
                     LOG_ERROR("Failed to parse value. Invalid JSON.");                                                 \
-                    StrDeinit(&key);                                                                                   \
                     UNPL(failed) = true;                                                                               \
                     si           = UNPL(saved_si);                                                                     \
                     break;                                                                                             \

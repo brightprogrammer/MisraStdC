@@ -1121,7 +1121,7 @@ bool test_status_response_pattern(void) {
 }
 
 // Main function that runs all tests
-int main(int argc, char *argv[]) {
+int main(void) {
     // Array of test functions
     TestFunction tests[] = {
         test_basic_iterator_functionality,

@@ -4,27 +4,10 @@
 ///
 /// Portable system functions
 
-// required for strerror_r
-// Reference : https://forums.freebsd.org/threads/strerror_r-best-practices-posix-vs-gnu.92296/
-#define _POSIX_C_SOURCE 200112L
-
 #include <Misra/Config.h>
 
 #if PLATFORM_WINDOWS
 #    include <windows.h>
-#    include <tlhelp32.h>
-#    include <psapi.h>
-#    include <signal.h>
-#else
-#    include <dirent.h>
-#    include <pthread.h>
-#    include <sys/stat.h>
-#    include <sys/wait.h>
-#    include <signal.h>
-#    include <unistd.h>
-#    if PLATFORM_DARWIN
-#        include <mach-o/dyld.h>
-#    endif
 #endif
 
 #include <Misra/Std/Allocator.h>
@@ -295,13 +278,10 @@ ProcId ProcGetCurrentId(void) {
     // kernel32.dll, not libc.
     return (ProcId)GetCurrentProcessId();
 #elif FEATURE_DIRECT_SYSCALL
-    // Linux: direct syscall. Kernel guarantees getpid never fails.
+    // Linux + Darwin (XNU): direct syscall. Kernel guarantees getpid never fails.
     return (ProcId)misra_sys0(MISRA_SYS_getpid);
 #else
-    // macOS / BSD: getpid is provided by libSystem, the OS-sanctioned
-    // ABI on those platforms (libc.dylib is just a stub forwarding to
-    // libSystem). Apple disallows direct user-mode syscalls.
-    return (ProcId)getpid();
+#    error "ProcGetCurrentId: unsupported platform/architecture (no direct-syscall path)"
 #endif
 }
 
@@ -321,8 +301,6 @@ ProcId ProcGetCurrentId(void) {
 //     `_getenv` is not in the allowed set. Callers that need env
 //     vars on Darwin must capture them at startup themselves; for
 //     now `EnvGet` returns NULL on Darwin.
-//   - Other Unix: weak `getenv` fallback (works if libc is linked,
-//     returns NULL otherwise).
 
 #if PLATFORM_LINUX && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)
 // Owned here so the symbol is always defined in libmisra_std.a. Set
@@ -333,10 +311,6 @@ ProcId ProcGetCurrentId(void) {
 char **misra_envp = NULL;
 #elif PLATFORM_WINDOWS
 __declspec(dllimport) extern char *__cdecl getenv(Zstr name);
-#elif !PLATFORM_DARWIN
-// Other Unix: weak fallback. Resolves to libc's `getenv` when libc
-// is linked; unresolved (treated as NULL) otherwise.
-extern char *getenv(Zstr name) __attribute__((weak));
 #endif
 
 Zstr EnvGet(Zstr name) {
@@ -368,9 +342,6 @@ Zstr EnvGet(Zstr name) {
     (void)name;
     return NULL;
 #else
-    if (!getenv) {
-        return NULL;
-    }
-    return (Zstr)getenv(name);
+#    error "EnvGet: unsupported platform (Linux x86_64/aarch64, Darwin, Windows only)"
 #endif
 }

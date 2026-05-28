@@ -61,8 +61,8 @@ typedef u64 GraphNodeId;
 /// TAGS: Graph, Node, Handle
 ///
 typedef struct {
-    void       *__graph;
-    GraphNodeId __id;
+    void       *_graph_;
+    GraphNodeId _id_;
 } GraphNode;
 
 ///

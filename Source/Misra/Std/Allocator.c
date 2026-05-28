@@ -3,10 +3,12 @@
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Generic allocator dispatch entry points. The concrete allocator
-/// implementations (Heap, Page, Arena, Pool) live next to this file under
-/// `Allocator/`; this file only routes through the function-pointer table
-/// on the `Allocator` base and applies the `effort`/`retry_limit` retry
-/// policy on top.
+/// implementations (Page, Heap, Arena, Slab, Budget, Debug) live next
+/// to this file under `Allocator/`; this file only routes through the
+/// function-pointer table on the `Allocator` base and applies the
+/// `effort` / `retry_limit` retry policy on top. Stats updates live
+/// here too -- only the `_dyn` (Allocator *) path goes through this
+/// file, so it's the natural choke point for instrumentation.
 
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Log.h>
@@ -86,10 +88,12 @@ void *AllocatorAlloc_dyn(Allocator *self, size bytes, i8 zeroed) {
 }
 
 #if FEATURE_ALLOC_STATS
-// Bookkeeping for a successful resize/remap. bytes_in_use deltas are
-// tracked inside the underlying allocator (via internal alloc/free
-// for the move case, and as a no-op for true in-place). Dispatch
-// just counts the operation and accumulates requested bytes.
+// Bookkeeping for a successful resize/remap. bytes_in_use is NOT
+// updated here: a true in-place resize is a no-op for outstanding-byte
+// accounting, and a relocating remap moves bytes internally to the
+// typed allocator without going back through the _dyn wrapper. Stats
+// stay precise for allocate/deallocate; remap-heavy workloads should
+// expect bytes_in_use drift documented in the AllocatorStats block.
 static void allocator_stats_on_realloc(Allocator *self, size new_size) {
     self->stats.reallocations   += 1;
     self->stats.bytes_requested += (u64)new_size;
@@ -147,18 +151,6 @@ void *AllocatorRemap_dyn(Allocator *self, void *ptr, size new_size) {
     }
 #endif
     return new_ptr;
-}
-
-void *AllocatorRealloc_dyn(Allocator *self, void *ptr, size new_size) {
-    // Convenience cascade: try in-place first (cheap if the allocator
-    // can do it -- no copy, no free, pointer stays valid), fall back
-    // to remap on failure. Callers that need to know whether the
-    // pointer moved should use AllocatorResize / AllocatorRemap
-    // directly. ValidateAllocator runs inside each sub-call.
-    if (ptr && new_size > 0 && AllocatorResize_dyn(self, ptr, new_size)) {
-        return ptr;
-    }
-    return AllocatorRemap_dyn(self, ptr, new_size);
 }
 
 void AllocatorFree_dyn(Allocator *self, void *ptr) {

@@ -163,9 +163,9 @@ bool test_int_hash_as_map_key(void) {
     MapInsertR(&counts, k2, 2u);
 
     Int    probe   = IntFrom(100u, &alloc.base);
-    u64   *got     = MapTryGetPtr(&counts, probe);
+    u64   *got     = MapGetFirstPtr(&counts, probe);
     Int    missing = IntFrom(999u, &alloc.base);
-    u64   *gone    = MapTryGetPtr(&counts, missing);
+    u64   *gone    = MapGetFirstPtr(&counts, missing);
 
     bool result = (got != NULL && *got == 1u);
     result      = result && (gone == NULL);

@@ -1,7 +1,19 @@
+/// file      : sys/dir.h
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
+/// This is free and unencumbered software released into the public domain.
+///
+/// Directory enumeration and per-entry types. Wraps `opendir`/`readdir`
+/// on POSIX, `FindFirstFile`/`FindNextFile` on Windows. Entries are
+/// returned as a typed `DirContents` vector of `DirEntry` structs; each
+/// entry owns its filename `Str` and must be released via
+/// `DirEntryDeinitCopy` (or implicitly by `VecDeinit`-ing the
+/// `DirContents` if `copy_init` / `copy_deinit` were wired at
+/// container init).
 #ifndef MISRA_SYS_DIR_H
 #define MISRA_SYS_DIR_H
 
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Zstr.h>
 
 typedef enum DirEntryType {
@@ -50,7 +62,9 @@ typedef struct DirEntry {
 ///           backed `src->name`.
 /// FAILURE : Aborts via `LOG_FATAL` if either pointer is NULL.
 ///
-DirEntry *DirEntryInitCopy(DirEntry *dst, DirEntry *src);
+/// TAGS: System, Directory, Structure, Copy
+///
+DirEntry *DirEntryInitCopy(DirEntry *dst, const DirEntry *src);
 
 ///
 /// Deinitialize a directory entry previously produced by
@@ -63,6 +77,8 @@ DirEntry *DirEntryInitCopy(DirEntry *dst, DirEntry *src);
 ///           and `type` set to 0; the struct itself is left for the
 ///           caller to release.
 /// FAILURE : Aborts via `LOG_FATAL` if `copy` is NULL.
+///
+/// TAGS: System, Directory, Structure, Cleanup
 ///
 DirEntry *DirEntryDeinitCopy(DirEntry *copy);
 
@@ -96,7 +112,7 @@ typedef Vec(DirEntry) DirContents;
 /// TAGS: System, FileSystem, Directory
 ///
 DirContents dir_get_contents(Zstr path, Allocator *alloc);
-#define DirGetContents(...) MISRA_OVERLOAD(DirGetContents, __VA_ARGS__)
+#define DirGetContents(...) OVERLOAD(DirGetContents, __VA_ARGS__)
 #define DirGetContents_1(path)                                                                                         \
     _Generic(                                                                                                          \
         (path),                                                                                                        \

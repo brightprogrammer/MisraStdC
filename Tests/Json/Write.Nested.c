@@ -549,7 +549,7 @@ bool test_mixed_array_types_writing(void) {
 }
 
 // Main function that runs all nested writing tests
-int main(int argc, char *argv[]) {
+int main(void) {
     // Array of test functions
     TestFunction tests[] = {
         test_two_level_nesting_writing,

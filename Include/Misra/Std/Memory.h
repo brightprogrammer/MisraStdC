@@ -20,7 +20,8 @@
 /// n[in]   : Number of bytes to compare.
 ///
 /// SUCCESS: Returns 0 if equal, <0 if p1<p2, >0 if p1>p2.
-/// FAILURE: Function cannot fail - always returns comparison result.
+/// FAILURE: Aborts via LOG_FATAL when `n > 0` and either `p1` or `p2`
+///          is NULL.
 ///
 /// TAGS: Memory, Comparison
 i32 MemCompare(const void *p1, const void *p2, size n);
@@ -34,7 +35,9 @@ i32 MemCompare(const void *p1, const void *p2, size n);
 /// n[in]    : Number of bytes to copy.
 ///
 /// SUCCESS: Returns destination pointer.
-/// FAILURE: Function cannot fail if regions don't overlap.
+/// FAILURE: Aborts via LOG_FATAL when `n > 0` and either `dst` or `src`
+///          is NULL. Behaviour is undefined when the regions overlap;
+///          use `MemMove` for that case.
 ///
 /// TAGS: Memory, Copy
 void *MemCopy(void *dst, const void *src, size n);
@@ -44,7 +47,8 @@ void *MemCopy(void *dst, const void *src, size n);
 /// A zero byte count returns `dst` without reading either pointer.
 ///
 /// SUCCESS: Returns destination pointer.
-/// FAILURE: Function cannot fail.
+/// FAILURE: Aborts via LOG_FATAL when `n > 0` and either `dst` or `src`
+///          is NULL.
 ///
 /// TAGS: Memory, Move
 void *MemMove(void *dst, const void *src, size n);
@@ -54,7 +58,7 @@ void *MemMove(void *dst, const void *src, size n);
 /// A zero byte count returns `dst` without writing to it.
 ///
 /// SUCCESS: Returns destination pointer.
-/// FAILURE: Function cannot fail.
+/// FAILURE: Aborts via LOG_FATAL when `n > 0` and `dst` is NULL.
 ///
 /// TAGS: Memory, Set
 void *MemSet(void *dst, i32 val, size n);

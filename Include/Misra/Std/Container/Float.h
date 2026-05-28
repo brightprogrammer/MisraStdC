@@ -1,5 +1,5 @@
 /// file      : std/container/float.h
-/// author    : Generated following Misra project patterns
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Arbitrary-precision decimal floating-point API built on top of Int.

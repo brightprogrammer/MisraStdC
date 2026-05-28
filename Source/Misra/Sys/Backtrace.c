@@ -1,4 +1,4 @@
-/// file      : Backtrace.c
+/// file      : sys/backtrace.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -24,8 +24,8 @@
 #include <Misra/Std.h>
 #include <Misra/Std/Log.h>
 // Backtrace.h forward-declares SymbolResolver to keep the include
-// footprint small (so files like Bin/ElfInfo.c that maintain their
-// own ELF enum vocabulary aren't poisoned by Parsers/Elf.h transitively).
+// footprint small (so downstream TUs that maintain their own ELF
+// enum vocabulary aren't poisoned by Parsers/Elf.h transitively).
 // The implementation needs the full definition.
 #if FEATURE_SYS_SYMRESOLVE
 #    include <Misra/Sys/SymbolResolver.h>

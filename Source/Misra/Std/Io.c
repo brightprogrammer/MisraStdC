@@ -1,64 +1,19 @@
-/// file      : std/io.h
+/// file      : std/io.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// formatted reading/writing and other magical stuff
 
-// Required for fileno
-// Reference : https://forums.freebsd.org/threads/strerror_r-best-practices-posix-vs-gnu.92296/
-#define _POSIX_C_SOURCE 200112L
-
 #include <Misra/Config.h>
-#include <Misra/Std/Container/Str.h>
-
-#if PLATFORM_WINDOWS
-#    include <io.h>
-#    define FILENO _fileno
-#else
-#    include <unistd.h>
-#    define FILENO fileno
-#endif
-
-#include "../_Syscall.h"
-
-// Returns 1 if `fd` is a TTY, 0 otherwise. Linux: direct ioctl(TCGETS).
-// macOS/BSD: libSystem isatty. Windows: CRT _isatty.
-static inline int is_tty(int fd) {
-#if PLATFORM_WINDOWS
-    return _isatty(fd);
-#elif FEATURE_DIRECT_SYSCALL
-    // termios is < 64 bytes; 128 is safe overkill.
-    int rc = 0;
-    StrInitStack(buf, 128) {
-        long ret = misra_sys3(MISRA_SYS_ioctl, (long)fd, 0x5401L, (long)(u64)StrBegin(&buf));
-        rc       = ret == 0 ? 1 : 0;
-    }
-    return rc;
-#else
-    return isatty(fd);
-#endif
-}
-
-#define ISATTY is_tty
-
-#ifndef STDIN_FILENO
-#    define STDIN_FILENO FILENO(stdin)
-#endif
-#ifndef STDOUT_FILENO
-#    define STDOUT_FILENO FILENO(stdout)
-#endif
-#ifndef STDERR_FILENO
-#    define STDERR_FILENO FILENO(stderr)
-#endif
-
 #include <Misra/Std/Allocator/Default.h>
-#include <Misra/Std/Zstr.h>
 #include <Misra/Std/Container/Buf.h>
+#include <Misra/Std/Container/Str.h>
 #include <Misra/Std/File.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
-#include <Misra/Sys.h>
 #include <Misra/Std/Memory.h>
+#include <Misra/Std/Zstr.h>
+#include <Misra/Sys.h>
 #include <Misra/Types.h>
 
 #if FEATURE_BITVEC
@@ -75,7 +30,7 @@ static inline int is_tty(int fd) {
 #include <Misra/Std/Math.h>
 // Tiny in-tree hex helpers so Io doesn't need libc isxdigit/strtol.
 // Returns -1 on a non-hex digit, otherwise 0..15.
-static inline int hex_nibble(char c) {
+static inline i32 hex_nibble(char c) {
     if (c >= '0' && c <= '9')
         return c - '0';
     if (c >= 'a' && c <= 'f')
@@ -86,9 +41,9 @@ static inline int hex_nibble(char c) {
 }
 
 // Parses two hex chars into a byte; returns -1 if either is not hex.
-static inline int hex_byte(char hi, char lo) {
-    int h = hex_nibble(hi);
-    int l = hex_nibble(lo);
+static inline i32 hex_byte(char hi, char lo) {
+    i32 h = hex_nibble(hi);
+    i32 l = hex_nibble(lo);
     if (h < 0 || l < 0)
         return -1;
     return (h << 4) | l;
@@ -612,9 +567,9 @@ Zstr str_read_fmt(Zstr input, Zstr fmtstr, TypeSpecificIO *argv, u64 argc) {
 
     Zstr p         = fmtstr;
     Zstr in        = input;
-    u64         rem_p     = ZstrLen(fmtstr);
-    u64         rem_in    = ZstrLen(in);
-    u64         arg_index = 0; // Current argument index
+    u64  rem_p     = ZstrLen(fmtstr);
+    u64  rem_in    = ZstrLen(in);
+    u64  arg_index = 0; // Current argument index
 
     while (rem_p > 0) {
         if (rem_p >= 2 && p[0] == '{' && p[1] == '{') {
@@ -639,7 +594,7 @@ Zstr str_read_fmt(Zstr input, Zstr fmtstr, TypeSpecificIO *argv, u64 argc) {
 
             // Find closing brace
             Zstr start    = p;
-            size        spec_len = 0;
+            size spec_len = 0;
             while (rem_p > 0 && *p != '}') {
                 p++;
                 rem_p--;
@@ -862,10 +817,10 @@ bool buf_read_fmt(BufIter *iter, Zstr fmtstr, TypeSpecificIO *argv, u64 argc) {
         LOG_FATAL("buf_read_fmt: NULL iter or fmtstr");
     }
 
-    size        start_pos = iter->pos;
-    u64         arg_index = 0;
-    StrIter     fsi       = StrIterFromZstr(fmtstr);
-    char        fc        = 0;
+    size    start_pos = iter->pos;
+    u64     arg_index = 0;
+    StrIter fsi       = StrIterFromZstr(fmtstr);
+    char    fc        = 0;
 
     while (StrIterPeek(&fsi, &fc)) {
         if (fc != '{') {
@@ -909,7 +864,7 @@ bool buf_read_fmt(BufIter *iter, Zstr fmtstr, TypeSpecificIO *argv, u64 argc) {
 
         // Read the raw bytes into a u64 with the spec's endianness.
         Zstr in   = (Zstr)iter->data + iter->pos;
-        u64         x    = 0;
+        u64  x    = 0;
         Zstr next = NULL;
         switch (fmt_info.width) {
             case 1 : {
@@ -1287,7 +1242,7 @@ static inline bool write_char_internal(Str *o, FormatFlags flags, Zstr vs, size 
     return true;
 }
 
-int ZstrHexDigitValue(char c) {
+i32 ZstrHexDigitValue(char c) {
     if (c >= '0' && c <= '9') {
         return c - '0';
     }
@@ -1303,7 +1258,7 @@ int ZstrHexDigitValue(char c) {
 
 #if FEATURE_INT
 static bool int_fmt_digit_matches_radix(char c, u8 radix) {
-    int digit = ZstrHexDigitValue(c);
+    i32 digit = ZstrHexDigitValue(c);
 
     return digit >= 0 && digit < radix;
 }
@@ -1396,8 +1351,8 @@ bool float_try_to_decimal_str(Str *out, Float *value, u32 precision, bool has_pr
     {
         Zstr body   = StrBegin(&canonical);
         Zstr dot    = NULL;
-        u64         prefix = 0;
-        u64         frac   = 0;
+        u64  prefix = 0;
+        u64  frac   = 0;
 
         result = StrInit(alloc);
 
@@ -1626,17 +1581,17 @@ static inline Zstr read_chars_internal(Zstr i, u8 *buffer, size buffer_size, Fmt
         LOG_FATAL("Invalid arguments to read_chars_internal");
     }
 
-    size        bytes_read = 0;
+    size bytes_read = 0;
     Zstr current    = i;
-    bool        force_case = fmt_info && (fmt_info->flags & FMT_FLAG_FORCE_CASE) != 0;
-    bool        is_caps    = fmt_info && (fmt_info->flags & FMT_FLAG_CAPS) != 0;
+    bool force_case = fmt_info && (fmt_info->flags & FMT_FLAG_FORCE_CASE) != 0;
+    bool is_caps    = fmt_info && (fmt_info->flags & FMT_FLAG_CAPS) != 0;
 
     while (bytes_read < buffer_size && *current && !IS_SPACE(*current)) {
         u8 char_to_store;
 
         if (current[0] == '\\' && current[1] == 'x') {
             // Handle hex escape sequence \xNN
-            int hex_val = hex_byte(current[2], current[3]);
+            i32 hex_val = hex_byte(current[2], current[3]);
             if (hex_val >= 0) {
                 char_to_store  = (u8)hex_val;
                 current       += 4; // Skip \xNN
@@ -1759,7 +1714,7 @@ bool _write_Zstr(Str *o, FmtInfo *fmt_info, Zstr *s) {
     ValidateStr(o);
 
     // Store original length to calculate content size later
-    size        start_len = o->length;
+    size start_len = o->length;
     Zstr xs        = *s;
 
     // Handle null or empty string
@@ -2271,7 +2226,7 @@ char ZstrProcessEscape(Zstr *str) {
             break;
         case 'x' : { // Hex escape
             s++;
-            int hex_val = hex_byte(s[0], s[1]);
+            i32 hex_val = hex_byte(s[0], s[1]);
             if (hex_val < 0) {
                 LOG_ERROR("Invalid hex escape sequence");
                 return 0;
@@ -2319,7 +2274,7 @@ Zstr _read_Str(Zstr i, FmtInfo *fmt_info, Str *s) {
             // Quoted string mode
             if (*i == '\\') {
                 Zstr curr = i;
-                char        c    = ZstrProcessEscape(&curr);
+                char c    = ZstrProcessEscape(&curr);
                 if (c == 0) { // Error in escape sequence
                     StrDeinit(s);
                     return NULL;
@@ -2360,7 +2315,7 @@ Zstr _read_Str(Zstr i, FmtInfo *fmt_info, Str *s) {
 
             if (*i == '\\') {
                 Zstr curr = i;
-                char        c    = ZstrProcessEscape(&curr);
+                char c    = ZstrProcessEscape(&curr);
                 if (c == 0) { // Error in escape sequence
                     StrDeinit(s);
                     return NULL;
@@ -2415,10 +2370,6 @@ static bool is_valid_number_char(char c, bool is_first_char, bool allow_decimal)
 
     // Allow decimal point if allowed
     if (c == '.' && allow_decimal)
-        return true;
-
-    // Allow base prefixes (only at the beginning or after a sign)
-    if (c == '0' && (is_first_char || (is_first_char + 1)))
         return true;
 
     // Allow 'x', 'b', 'o' for hex/binary/octal after '0'
@@ -2591,9 +2542,9 @@ Zstr _read_f64(Zstr i, FmtInfo *fmt_info, f64 *v) {
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
-        u64         temp = 0;
+        u64  temp = 0;
         Zstr next = read_chars_internal(i, (u8 *)&temp, sizeof(temp), fmt_info);
-        *v               = (f64)temp;
+        *v        = (f64)temp;
         DefaultAllocatorDeinit(&scratch);
         return next;
     }
@@ -2619,7 +2570,7 @@ Zstr _read_f64(Zstr i, FmtInfo *fmt_info, f64 *v) {
     if ((c == 'i' || c == 'I' || c == 'n' || c == 'N') || (c == '-' && (c1 == 'i' || c1 == 'I'))) {
         // For special values, scan up to the next whitespace and try to parse.
         StrIter saved = si;
-        Zstr        start = (Zstr)(si.data) + si.pos;
+        Zstr    start = (Zstr)(si.data) + si.pos;
         while (StrIterPeek(&si, &c) && !IS_SPACE(c)) {
             StrIterMustNext(&si);
         }
@@ -2762,8 +2713,8 @@ Zstr _read_u8(Zstr i, FmtInfo *fmt_info, u8 *v) {
 
     // Check for special prefixes with no digits
     if (StrLen(&temp) == 2 && StrBegin(&temp)[0] == '0' &&
-        (StrBegin(&temp)[1] == 'x' || StrBegin(&temp)[1] == 'X' || StrBegin(&temp)[1] == 'b' || StrBegin(&temp)[1] == 'B' ||
-         StrBegin(&temp)[1] == 'o' || StrBegin(&temp)[1] == 'O')) {
+        (StrBegin(&temp)[1] == 'x' || StrBegin(&temp)[1] == 'X' || StrBegin(&temp)[1] == 'b' ||
+         StrBegin(&temp)[1] == 'B' || StrBegin(&temp)[1] == 'o' || StrBegin(&temp)[1] == 'O')) {
         LOG_ERROR("Incomplete number format");
         StrDeinit(&temp);
         DefaultAllocatorDeinit(&scratch);
@@ -2801,627 +2752,134 @@ Zstr _read_u8(Zstr i, FmtInfo *fmt_info, u8 *v) {
     return start + pos;
 }
 
-Zstr _read_u16(Zstr i, FmtInfo *fmt_info, u16 *v) {
-    DefaultAllocator scratch = DefaultAllocatorInit();
-
-    if (!i || !v) {
-        DefaultAllocatorDeinit(&scratch);
-        LOG_FATAL("Invalid arguments");
+// ---------------------------------------------------------------------------
+// Text-mode integer readers: _read_u16 / _read_u32 / _read_u64 / _read_i8 /
+// _read_i16 / _read_i32 / _read_i64.
+//
+// Bodies were near-identical -- 7 functions, ~90 lines each, ~700 lines of
+// near-duplicate code -- and the function pointers are compared by identity
+// at lines ~695-712 / ~903-913 (`read_fn == (void *)_read_u8`, etc.), so
+// they MUST remain distinct symbols. Stamp them out with a macro that
+// parameterises the type / parser / bound-check; each instance compiles to
+// its own function with its own address.
+//
+// `_read_u8` is the outlier (skips whitespace BEFORE checking the char-format
+// flag, where all 7 others check the flag against the original cursor first)
+// and is kept as a stand-alone definition below for clarity. The behaviour
+// asymmetry is exercised by the format tests, so unifying it would change
+// observable behaviour.
+//
+// Macro parameters:
+//   NAME         function suffix (u16, i32, ...)
+//   T            destination type (u16, i32, ...)
+//   VAL_T        parser's natural result type (u64 for unsigned, i64 for signed)
+//   PARSER       StrToU64 / StrToI64
+//   BOUND_CHECK  block that runs after the parser returns, emitting
+//                LOG_ERROR + cleanup + early-return on out-of-range; empty
+//                for u64 / i64 where the parser's natural range == T's range
+// ---------------------------------------------------------------------------
+#define _MAKE_READ_TXT_INT(NAME, T, VAL_T, PARSER, BOUND_CHECK)                                                        \
+    Zstr _read_##NAME(Zstr i, FmtInfo *fmt_info, T *v) {                                                               \
+        DefaultAllocator scratch = DefaultAllocatorInit();                                                             \
+                                                                                                                       \
+        if (!i || !v) {                                                                                                \
+            DefaultAllocatorDeinit(&scratch);                                                                          \
+            LOG_FATAL("Invalid arguments");                                                                            \
+        }                                                                                                              \
+                                                                                                                       \
+        if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {                                                           \
+            *v        = 0;                                                                                             \
+            Zstr next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);                                         \
+            DefaultAllocatorDeinit(&scratch);                                                                          \
+            return next;                                                                                               \
+        }                                                                                                              \
+                                                                                                                       \
+        StrIter si = StrIterFromZstr(i);                                                                               \
+        char    c  = 0;                                                                                                \
+                                                                                                                       \
+        while (StrIterPeek(&si, &c) && IS_SPACE(c)) {                                                                  \
+            StrIterMustNext(&si);                                                                                      \
+        }                                                                                                              \
+                                                                                                                       \
+        if (!StrIterRemainingLength(&si)) {                                                                            \
+            LOG_ERROR("Failed to parse " #NAME ": empty input");                                                       \
+            DefaultAllocatorDeinit(&scratch);                                                                          \
+            return (Zstr)(si.data) + si.pos;                                                                           \
+        }                                                                                                              \
+                                                                                                                       \
+        size start_pos = si.pos;                                                                                       \
+        while (StrIterPeek(&si, &c)) {                                                                                 \
+            if (!is_valid_number_char(c, si.pos == start_pos, false)) {                                                \
+                break;                                                                                                 \
+            }                                                                                                          \
+            StrIterMustNext(&si);                                                                                      \
+        }                                                                                                              \
+                                                                                                                       \
+        Zstr start = (Zstr)(si.data) + start_pos;                                                                      \
+        size pos   = si.pos - start_pos;                                                                               \
+        Str  temp  = StrInitFromCstr(start, pos, &scratch);                                                            \
+                                                                                                                       \
+        if (StrLen(&temp) == 2 && StrBegin(&temp)[0] == '0' &&                                                         \
+            (StrBegin(&temp)[1] == 'x' || StrBegin(&temp)[1] == 'X' || StrBegin(&temp)[1] == 'b' ||                    \
+             StrBegin(&temp)[1] == 'B' || StrBegin(&temp)[1] == 'o' || StrBegin(&temp)[1] == 'O')) {                   \
+            LOG_ERROR("Incomplete number format");                                                                     \
+            StrDeinit(&temp);                                                                                          \
+            DefaultAllocatorDeinit(&scratch);                                                                          \
+            return start;                                                                                              \
+        }                                                                                                              \
+                                                                                                                       \
+        if (!is_valid_numeric_string(&temp, false)) {                                                                  \
+            LOG_ERROR("Invalid numeric format");                                                                       \
+            StrDeinit(&temp);                                                                                          \
+            DefaultAllocatorDeinit(&scratch);                                                                          \
+            return start;                                                                                              \
+        }                                                                                                              \
+                                                                                                                       \
+        VAL_T val;                                                                                                     \
+        if (!PARSER(&temp, &val, NULL)) {                                                                              \
+            LOG_ERROR("Failed to parse " #NAME);                                                                       \
+            StrDeinit(&temp);                                                                                          \
+            DefaultAllocatorDeinit(&scratch);                                                                          \
+            return start;                                                                                              \
+        }                                                                                                              \
+                                                                                                                       \
+        BOUND_CHECK                                                                                                    \
+                                                                                                                       \
+        *v = (T)val;                                                                                                   \
+        StrDeinit(&temp);                                                                                              \
+        DefaultAllocatorDeinit(&scratch);                                                                              \
+        return start + pos;                                                                                            \
     }
 
-    // Handle character format specifier
-    if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
-        *v               = 0;
-        Zstr next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
-
-        DefaultAllocatorDeinit(&scratch);
-        return next;
+// Unsigned bound: log + cleanup + early return on val > UMAX.
+#define _U_BOUND(NAME, UMAX)                                                                                           \
+    if (val > UMAX) {                                                                                                  \
+        LOG_ERROR("Value {} exceeds " #NAME " maximum ({})", val, UMAX);                                               \
+        StrDeinit(&temp);                                                                                              \
+        DefaultAllocatorDeinit(&scratch);                                                                              \
+        return start;                                                                                                  \
     }
 
-    StrIter si = StrIterFromZstr(i);
-    char    c  = 0;
-
-    // Skip whitespace
-    while (StrIterPeek(&si, &c) && IS_SPACE(c)) {
-        StrIterMustNext(&si);
+// Signed bound: log + cleanup + early return on val outside [IMIN, IMAX].
+#define _I_BOUND(NAME, IMIN, IMAX)                                                                                     \
+    if (val > IMAX || val < IMIN) {                                                                                    \
+        LOG_ERROR("Value {} outside " #NAME " range ({} to {})", val, IMIN, IMAX);                                     \
+        StrDeinit(&temp);                                                                                              \
+        DefaultAllocatorDeinit(&scratch);                                                                              \
+        return start;                                                                                                  \
     }
 
-    // Check for empty string
-    if (!StrIterRemainingLength(&si)) {
-        LOG_ERROR("Failed to parse u16: empty input");
-        DefaultAllocatorDeinit(&scratch);
-        return (Zstr)(si.data) + si.pos;
-    }
-
-    // Find the end of the number using more precise rules
-    size start_pos = si.pos;
-
-    // Parse character by character
-    while (StrIterPeek(&si, &c)) {
-        // Check if character is valid for a number
-        if (!is_valid_number_char(c, si.pos == start_pos, false)) {
-            break;
-        }
-
-        StrIterMustNext(&si);
-    }
-
-    Zstr start = (Zstr)(si.data) + start_pos;
-    size pos   = si.pos - start_pos;
-
-    // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos, &scratch);
-
-    // Check for special prefixes with no digits
-    if (StrLen(&temp) == 2 && StrBegin(&temp)[0] == '0' &&
-        (StrBegin(&temp)[1] == 'x' || StrBegin(&temp)[1] == 'X' || StrBegin(&temp)[1] == 'b' || StrBegin(&temp)[1] == 'B' ||
-         StrBegin(&temp)[1] == 'o' || StrBegin(&temp)[1] == 'O')) {
-        LOG_ERROR("Incomplete number format");
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    // Validate the string is a proper number
-    if (!is_valid_numeric_string(&temp, false)) {
-        LOG_ERROR("Invalid numeric format");
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    // Use base 0 to let strtoul detect the base from prefix
-    u64 val;
-    if (!StrToU64(&temp, &val, NULL)) {
-        LOG_ERROR("Failed to parse u16");
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    // Check for overflow
-    if (val > UINT16_MAX) {
-        LOG_ERROR("Value {} exceeds u16 maximum ({})", val, UINT16_MAX);
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    *v = (u16)val;
-    StrDeinit(&temp);
-    DefaultAllocatorDeinit(&scratch);
-    return start + pos;
-}
-
-Zstr _read_u32(Zstr i, FmtInfo *fmt_info, u32 *v) {
-    DefaultAllocator scratch = DefaultAllocatorInit();
-
-    if (!i || !v) {
-        DefaultAllocatorDeinit(&scratch);
-        LOG_FATAL("Invalid arguments");
-    }
-
-    // Handle character format specifier
-    if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
-        *v               = 0;
-        Zstr next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
-
-        DefaultAllocatorDeinit(&scratch);
-        return next;
-    }
-
-    StrIter si = StrIterFromZstr(i);
-    char    c  = 0;
-
-    // Skip whitespace
-    while (StrIterPeek(&si, &c) && IS_SPACE(c)) {
-        StrIterMustNext(&si);
-    }
-
-    // Check for empty string
-    if (!StrIterRemainingLength(&si)) {
-        LOG_ERROR("Failed to parse u32: empty input");
-        DefaultAllocatorDeinit(&scratch);
-        return (Zstr)(si.data) + si.pos;
-    }
-    // Find the end of the number using more precise rules
-    size start_pos = si.pos;
-
-    // Parse character by character
-    while (StrIterPeek(&si, &c)) {
-        // Check if character is valid for a number
-        if (!is_valid_number_char(c, si.pos == start_pos, false)) {
-            break;
-        }
-
-        StrIterMustNext(&si);
-    }
-
-    Zstr start = (Zstr)(si.data) + start_pos;
-    size pos   = si.pos - start_pos;
-
-    // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos, &scratch);
-
-    // Check for special prefixes with no digits
-    if (StrLen(&temp) == 2 && StrBegin(&temp)[0] == '0' &&
-        (StrBegin(&temp)[1] == 'x' || StrBegin(&temp)[1] == 'X' || StrBegin(&temp)[1] == 'b' || StrBegin(&temp)[1] == 'B' ||
-         StrBegin(&temp)[1] == 'o' || StrBegin(&temp)[1] == 'O')) {
-        LOG_ERROR("Incomplete number format");
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    // Validate the string is a proper number
-    if (!is_valid_numeric_string(&temp, false)) {
-        LOG_ERROR("Invalid numeric format");
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    // Use base 0 to let strtoul detect the base from prefix
-    u64 val;
-    if (!StrToU64(&temp, &val, NULL)) {
-        LOG_ERROR("Failed to parse u32");
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    // Check for overflow
-    if (val > UINT32_MAX) {
-        LOG_ERROR("Value {} exceeds u32 maximum ({})", val, UINT32_MAX);
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    *v = (u32)val;
-    StrDeinit(&temp);
-    DefaultAllocatorDeinit(&scratch);
-    return start + pos;
-}
-
-Zstr _read_u64(Zstr i, FmtInfo *fmt_info, u64 *v) {
-    DefaultAllocator scratch = DefaultAllocatorInit();
-
-    if (!i || !v) {
-        DefaultAllocatorDeinit(&scratch);
-        LOG_FATAL("Invalid arguments");
-    }
-
-    // Handle character format specifier
-    if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
-        *v               = 0;
-        Zstr next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
-
-        DefaultAllocatorDeinit(&scratch);
-        return next;
-    }
-
-    StrIter si = StrIterFromZstr(i);
-    char    c  = 0;
-
-    // Skip whitespace
-    while (StrIterPeek(&si, &c) && IS_SPACE(c)) {
-        StrIterMustNext(&si);
-    }
-
-    // Check for empty string
-    if (!StrIterRemainingLength(&si)) {
-        LOG_ERROR("Failed to parse u64: empty input");
-        DefaultAllocatorDeinit(&scratch);
-        return (Zstr)(si.data) + si.pos;
-    }
-
-    // Find the end of the number using more precise rules
-    size start_pos = si.pos;
-
-    // Parse character by character
-    while (StrIterPeek(&si, &c)) {
-        // Check if character is valid for a number
-        if (!is_valid_number_char(c, si.pos == start_pos, false)) {
-            break;
-        }
-
-        StrIterMustNext(&si);
-    }
-
-    Zstr start = (Zstr)(si.data) + start_pos;
-    size pos   = si.pos - start_pos;
-
-    // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos, &scratch);
-
-    // Check for special prefixes with no digits
-    if (StrLen(&temp) == 2 && StrBegin(&temp)[0] == '0' &&
-        (StrBegin(&temp)[1] == 'x' || StrBegin(&temp)[1] == 'X' || StrBegin(&temp)[1] == 'b' || StrBegin(&temp)[1] == 'B' ||
-         StrBegin(&temp)[1] == 'o' || StrBegin(&temp)[1] == 'O')) {
-        LOG_ERROR("Incomplete number format");
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    // Validate the string is a proper number
-    if (!is_valid_numeric_string(&temp, false)) {
-        LOG_ERROR("Invalid numeric format");
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    // Use base 0 to let strtoul detect the base from prefix
-    if (!StrToU64(&temp, v, NULL)) {
-        LOG_ERROR("Failed to parse u64");
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    StrDeinit(&temp);
-    DefaultAllocatorDeinit(&scratch);
-    return start + pos;
-}
-
-Zstr _read_i8(Zstr i, FmtInfo *fmt_info, i8 *v) {
-    DefaultAllocator scratch = DefaultAllocatorInit();
-
-    if (!i || !v) {
-        DefaultAllocatorDeinit(&scratch);
-        LOG_FATAL("Invalid arguments");
-    }
-
-    // Handle character format specifier
-    if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
-        *v               = 0;
-        Zstr next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
-        DefaultAllocatorDeinit(&scratch);
-        return next;
-    }
-
-    StrIter si = StrIterFromZstr(i);
-    char    c  = 0;
-
-    // Skip whitespace
-    while (StrIterPeek(&si, &c) && IS_SPACE(c)) {
-        StrIterMustNext(&si);
-    }
-
-    // Check for empty string
-    if (!StrIterRemainingLength(&si)) {
-        LOG_ERROR("Failed to parse i8: empty input");
-        DefaultAllocatorDeinit(&scratch);
-        return (Zstr)(si.data) + si.pos;
-    }
-
-    // Find the end of the number using more precise rules
-    size start_pos = si.pos;
-
-    // Parse character by character
-    while (StrIterPeek(&si, &c)) {
-        // Check if character is valid for a number
-        if (!is_valid_number_char(c, si.pos == start_pos, false)) {
-            break;
-        }
-
-        StrIterMustNext(&si);
-    }
-
-    Zstr start = (Zstr)(si.data) + start_pos;
-    size pos   = si.pos - start_pos;
-
-    // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos, &scratch);
-
-    // Check for special prefixes with no digits
-    if (StrLen(&temp) == 2 && StrBegin(&temp)[0] == '0' &&
-        (StrBegin(&temp)[1] == 'x' || StrBegin(&temp)[1] == 'X' || StrBegin(&temp)[1] == 'b' || StrBegin(&temp)[1] == 'B' ||
-         StrBegin(&temp)[1] == 'o' || StrBegin(&temp)[1] == 'O')) {
-        LOG_ERROR("Incomplete number format");
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    // Validate the string is a proper number
-    if (!is_valid_numeric_string(&temp, false)) {
-        LOG_ERROR("Invalid numeric format");
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    // Use base 0 to let strtoul detect the base from prefix
-    i64 val;
-    if (!StrToI64(&temp, &val, NULL)) {
-        LOG_ERROR("Failed to parse i8");
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    // Check for overflow/underflow
-    if (val > INT8_MAX || val < INT8_MIN) {
-        LOG_ERROR("Value {} outside i8 range ({} to {})", val, INT8_MIN, INT8_MAX);
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    *v = (i8)val;
-    StrDeinit(&temp);
-    DefaultAllocatorDeinit(&scratch);
-    return start + pos;
-}
-
-Zstr _read_i16(Zstr i, FmtInfo *fmt_info, i16 *v) {
-    DefaultAllocator scratch = DefaultAllocatorInit();
-
-    if (!i || !v) {
-        DefaultAllocatorDeinit(&scratch);
-        LOG_FATAL("Invalid arguments");
-    }
-
-    // Handle character format specifier
-    if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
-        *v               = 0;
-        Zstr next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
-
-        DefaultAllocatorDeinit(&scratch);
-        return next;
-    }
-
-    StrIter si = StrIterFromZstr(i);
-    char    c  = 0;
-
-    // Skip whitespace
-    while (StrIterPeek(&si, &c) && IS_SPACE(c)) {
-        StrIterMustNext(&si);
-    }
-
-    // Check for empty string
-    if (!StrIterRemainingLength(&si)) {
-        LOG_ERROR("Failed to parse i16: empty input");
-        DefaultAllocatorDeinit(&scratch);
-        return (Zstr)(si.data) + si.pos;
-    }
-
-    // Find the end of the number using more precise rules
-    size start_pos = si.pos;
-
-    // Parse character by character
-    while (StrIterPeek(&si, &c)) {
-        // Check if character is valid for a number
-        if (!is_valid_number_char(c, si.pos == start_pos, false)) {
-            break;
-        }
-
-        StrIterMustNext(&si);
-    }
-
-    Zstr start = (Zstr)(si.data) + start_pos;
-    size pos   = si.pos - start_pos;
-
-    // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos, &scratch);
-
-    // Check for special prefixes with no digits
-    if (StrLen(&temp) == 2 && StrBegin(&temp)[0] == '0' &&
-        (StrBegin(&temp)[1] == 'x' || StrBegin(&temp)[1] == 'X' || StrBegin(&temp)[1] == 'b' || StrBegin(&temp)[1] == 'B' ||
-         StrBegin(&temp)[1] == 'o' || StrBegin(&temp)[1] == 'O')) {
-        LOG_ERROR("Incomplete number format");
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    // Validate the string is a proper number
-    if (!is_valid_numeric_string(&temp, false)) {
-        LOG_ERROR("Invalid numeric format");
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    // Use base 0 to let strtoul detect the base from prefix
-    i64 val;
-    if (!StrToI64(&temp, &val, NULL)) {
-        LOG_ERROR("Failed to parse i16");
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    // Check for overflow/underflow
-    if (val > INT16_MAX || val < INT16_MIN) {
-        LOG_ERROR("Value {} outside i16 range ({} to {})", val, INT16_MIN, INT16_MAX);
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    *v = (i16)val;
-    StrDeinit(&temp);
-    DefaultAllocatorDeinit(&scratch);
-    return start + pos;
-}
-
-Zstr _read_i32(Zstr i, FmtInfo *fmt_info, i32 *v) {
-    DefaultAllocator scratch = DefaultAllocatorInit();
-
-    if (!i || !v) {
-        DefaultAllocatorDeinit(&scratch);
-        LOG_FATAL("Invalid arguments");
-    }
-
-    // Handle character format specifier
-    if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
-        *v               = 0;
-        Zstr next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
-
-        DefaultAllocatorDeinit(&scratch);
-        return next;
-    }
-
-    StrIter si = StrIterFromZstr(i);
-    char    c  = 0;
-
-    // Skip whitespace
-    while (StrIterPeek(&si, &c) && IS_SPACE(c)) {
-        StrIterMustNext(&si);
-    }
-
-    // Check for empty string
-    if (!StrIterRemainingLength(&si)) {
-        LOG_ERROR("Failed to parse i32: empty input");
-        DefaultAllocatorDeinit(&scratch);
-        return (Zstr)(si.data) + si.pos;
-    }
-
-    // Find the end of the number using more precise rules
-    size start_pos = si.pos;
-
-    // Parse character by character
-    while (StrIterPeek(&si, &c)) {
-        // Check if character is valid for a number
-        if (!is_valid_number_char(c, si.pos == start_pos, false)) {
-            break;
-        }
-
-        StrIterMustNext(&si);
-    }
-
-    Zstr start = (Zstr)(si.data) + start_pos;
-    size pos   = si.pos - start_pos;
-
-    // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos, &scratch);
-
-    // Check for special prefixes with no digits
-    if (StrLen(&temp) == 2 && StrBegin(&temp)[0] == '0' &&
-        (StrBegin(&temp)[1] == 'x' || StrBegin(&temp)[1] == 'X' || StrBegin(&temp)[1] == 'b' || StrBegin(&temp)[1] == 'B' ||
-         StrBegin(&temp)[1] == 'o' || StrBegin(&temp)[1] == 'O')) {
-        LOG_ERROR("Incomplete number format");
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    // Validate the string is a proper number
-    if (!is_valid_numeric_string(&temp, false)) {
-        LOG_ERROR("Invalid numeric format");
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    // Use base 0 to let strtoul detect the base from prefix
-    i64 val;
-    if (!StrToI64(&temp, &val, NULL)) {
-        LOG_ERROR("Failed to parse i32");
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    // Check for overflow/underflow
-    if (val > INT32_MAX || val < INT32_MIN) {
-        LOG_ERROR("Value {} outside i32 range ({} to {})", val, INT32_MIN, INT32_MAX);
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    *v = (i32)val;
-    StrDeinit(&temp);
-    DefaultAllocatorDeinit(&scratch);
-    return start + pos;
-}
-
-Zstr _read_i64(Zstr i, FmtInfo *fmt_info, i64 *v) {
-    DefaultAllocator scratch = DefaultAllocatorInit();
-
-    if (!i || !v) {
-        DefaultAllocatorDeinit(&scratch);
-        LOG_FATAL("Invalid arguments");
-    }
-
-    // Handle character format specifier
-    if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
-        *v               = 0;
-        Zstr next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
-
-        DefaultAllocatorDeinit(&scratch);
-        return next;
-    }
-
-    StrIter si = StrIterFromZstr(i);
-    char    c  = 0;
-
-    // Skip whitespace
-    while (StrIterPeek(&si, &c) && IS_SPACE(c)) {
-        StrIterMustNext(&si);
-    }
-
-    // Check for empty string
-    if (!StrIterRemainingLength(&si)) {
-        LOG_ERROR("Failed to parse i64: empty input");
-        DefaultAllocatorDeinit(&scratch);
-        return (Zstr)(si.data) + si.pos;
-    }
-
-    // Find the end of the number using more precise rules
-    size start_pos = si.pos;
-
-    // Parse character by character
-    while (StrIterPeek(&si, &c)) {
-        // Check if character is valid for a number
-        if (!is_valid_number_char(c, si.pos == start_pos, false)) {
-            break;
-        }
-
-        StrIterMustNext(&si);
-    }
-
-    Zstr start = (Zstr)(si.data) + start_pos;
-    size pos   = si.pos - start_pos;
-
-    // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos, &scratch);
-
-    // Check for special prefixes with no digits
-    if (StrLen(&temp) == 2 && StrBegin(&temp)[0] == '0' &&
-        (StrBegin(&temp)[1] == 'x' || StrBegin(&temp)[1] == 'X' || StrBegin(&temp)[1] == 'b' || StrBegin(&temp)[1] == 'B' ||
-         StrBegin(&temp)[1] == 'o' || StrBegin(&temp)[1] == 'O')) {
-        LOG_ERROR("Incomplete number format");
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    // Validate the string is a proper number
-    if (!is_valid_numeric_string(&temp, false)) {
-        LOG_ERROR("Invalid numeric format");
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    // Use base 0 to let strtoul detect the base from prefix
-    if (!StrToI64(&temp, v, NULL)) {
-        LOG_ERROR("Failed to parse i64");
-        StrDeinit(&temp);
-        DefaultAllocatorDeinit(&scratch);
-        return start;
-    }
-
-    StrDeinit(&temp);
-    DefaultAllocatorDeinit(&scratch);
-    return start + pos;
-}
+_MAKE_READ_TXT_INT(u16, u16, u64, StrToU64, _U_BOUND(u16, UINT16_MAX))
+_MAKE_READ_TXT_INT(u32, u32, u64, StrToU64, _U_BOUND(u32, UINT32_MAX))
+_MAKE_READ_TXT_INT(u64, u64, u64, StrToU64, /* val is already u64; no bound */)
+_MAKE_READ_TXT_INT(i8, i8, i64, StrToI64, _I_BOUND(i8, INT8_MIN, INT8_MAX))
+_MAKE_READ_TXT_INT(i16, i16, i64, StrToI64, _I_BOUND(i16, INT16_MIN, INT16_MAX))
+_MAKE_READ_TXT_INT(i32, i32, i64, StrToI64, _I_BOUND(i32, INT32_MIN, INT32_MAX))
+_MAKE_READ_TXT_INT(i64, i64, i64, StrToI64, /* val is already i64; no bound */)
+
+#undef _MAKE_READ_TXT_INT
+#undef _U_BOUND
+#undef _I_BOUND
 
 Zstr _read_Zstr(Zstr i, FmtInfo *fmt_info, Zstr *out) {
     (void)fmt_info;
@@ -3431,13 +2889,13 @@ Zstr _read_Zstr(Zstr i, FmtInfo *fmt_info, Zstr *out) {
 }
 
 Zstr _read_ZstrAlloc(Zstr i, FmtInfo *fmt_info, ZstrIOArg *arg) {
-    char      **out           = NULL;
-    char       *previous      = NULL;
-    char       *result        = NULL;
-    Zstr next          = NULL;
-    Allocator  *allocator_ptr = NULL;
-    Str         temp;
-    FmtInfo     default_fmt;
+    char     **out           = NULL;
+    char      *previous      = NULL;
+    char      *result        = NULL;
+    Zstr       next          = NULL;
+    Allocator *allocator_ptr = NULL;
+    Str        temp;
+    FmtInfo    default_fmt;
 
     if (!i || !arg || !arg->value || !arg->allocator) {
         LOG_FATAL("Invalid arguments");
@@ -3620,14 +3078,6 @@ bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
 }
 #endif // FEATURE_INT
 
-bool _write_UnsupportedType(Str *o, FmtInfo *fmt_info, Zstr *s) {
-    (void)o;
-    (void)fmt_info;
-    (void)s;
-    LOG_FATAL("Attempt to write unsupported type");
-    return false;
-}
-
 #if FEATURE_BITVEC
 Zstr _read_BitVec(Zstr i, FmtInfo *fmt_info, BitVec *bv) {
     (void)fmt_info; // Unused parameter
@@ -3676,9 +3126,8 @@ Zstr _read_BitVec(Zstr i, FmtInfo *fmt_info, BitVec *bv) {
         }
 
         // Parse hex string
-        Str            hex_str =
-            StrInitFromCstr((Zstr)(si.data) + hex_start_pos, si.pos - hex_start_pos, bv->allocator);
-        u64            value;
+        Str hex_str = StrInitFromCstr((Zstr)(si.data) + hex_start_pos, si.pos - hex_start_pos, bv->allocator);
+        u64 value;
         StrParseConfig config = {.base = 16};
         if (!StrToU64(&hex_str, &value, &config)) {
             LOG_ERROR("Failed to parse hex value");
@@ -3713,9 +3162,8 @@ Zstr _read_BitVec(Zstr i, FmtInfo *fmt_info, BitVec *bv) {
         }
 
         // Parse octal string
-        Str            oct_str =
-            StrInitFromCstr((Zstr)(si.data) + oct_start_pos, si.pos - oct_start_pos, bv->allocator);
-        u64            value;
+        Str oct_str = StrInitFromCstr((Zstr)(si.data) + oct_start_pos, si.pos - oct_start_pos, bv->allocator);
+        u64 value;
         StrParseConfig config = {.base = 8};
         if (!StrToU64(&oct_str, &value, &config)) {
             LOG_ERROR("Failed to parse octal value");
@@ -3846,10 +3294,10 @@ Zstr _read_Int(Zstr i, FmtInfo *fmt_info, Int *value) {
 
 #if FEATURE_FLOAT
 Zstr _read_Float(Zstr i, FmtInfo *fmt_info, Float *value) {
-    size        token_len = 0;
-    Zstr start     = NULL;
-    Str         temp;
-    Float       parsed;
+    size  token_len = 0;
+    Zstr  start     = NULL;
+    Str   temp;
+    Float parsed;
 
     if (!i || !value) {
         LOG_FATAL("Invalid arguments");
@@ -3905,14 +3353,7 @@ Zstr _read_Float(Zstr i, FmtInfo *fmt_info, Float *value) {
     StrDeinit(&temp);
     return start + token_len;
 }
-#endif              // FEATURE_FLOAT
-
-Zstr _read_UnsupportedType(Zstr i, FmtInfo *fmt_info, Zstr *s) {
-    (void)fmt_info; // Unused parameter
-    (void)s;
-    LOG_FATAL("Attempt to read unsupported type.");
-    return i;
-}
+#endif // FEATURE_FLOAT
 
 Zstr _read_f32(Zstr i, FmtInfo *fmt_info, f32 *v) {
     DefaultAllocator scratch = DefaultAllocatorInit();
@@ -3924,9 +3365,9 @@ Zstr _read_f32(Zstr i, FmtInfo *fmt_info, f32 *v) {
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
-        u32         temp = 0;
+        u32  temp = 0;
         Zstr next = read_chars_internal(i, (u8 *)&temp, sizeof(temp), fmt_info);
-        *v               = (f32)temp;
+        *v        = (f32)temp;
         DefaultAllocatorDeinit(&scratch);
         return next;
     }
@@ -3952,7 +3393,7 @@ Zstr _read_f32(Zstr i, FmtInfo *fmt_info, f32 *v) {
     if ((c == 'i' || c == 'I' || c == 'n' || c == 'N') || (c == '-' && (c1 == 'i' || c1 == 'I'))) {
         // For special values, scan up to the next whitespace and try to parse.
         StrIter saved = si;
-        Zstr        start = (Zstr)(si.data) + si.pos;
+        Zstr    start = (Zstr)(si.data) + si.pos;
         while (StrIterPeek(&si, &c) && !IS_SPACE(c)) {
             StrIterMustNext(&si);
         }
@@ -4103,8 +3544,8 @@ static bool _write_r32(Str *o, FmtInfo *fmt_info, u32 *v) {
                    StrPushBackR(o, (x >> 8) & 0xff) && StrPushBackR(o, (x & 0xff));
         }
         case ENDIAN_LITTLE : {
-            return StrPushBackR(o, (x & 0xff)) && StrPushBackR(o, (x >> 8) & 0xff) && StrPushBackR(o, (x >> 16) & 0xff) &&
-                   StrPushBackR(o, ((x >> 24) & 0xff));
+            return StrPushBackR(o, (x & 0xff)) && StrPushBackR(o, (x >> 8) & 0xff) &&
+                   StrPushBackR(o, (x >> 16) & 0xff) && StrPushBackR(o, ((x >> 24) & 0xff));
         }
         case ENDIAN_NATIVE :
         default : {
@@ -4135,10 +3576,10 @@ static bool _write_r64(Str *o, FmtInfo *fmt_info, u64 *v) {
                    StrPushBackR(o, (x >> 8) & 0xff) && StrPushBackR(o, (x & 0xff));
         }
         case ENDIAN_LITTLE : {
-            return StrPushBackR(o, (x & 0xff)) && StrPushBackR(o, (x >> 8) & 0xff) && StrPushBackR(o, (x >> 16) & 0xff) &&
-                   StrPushBackR(o, (x >> 24) & 0xff) && StrPushBackR(o, (x >> 32) & 0xff) &&
-                   StrPushBackR(o, (x >> 40) & 0xff) && StrPushBackR(o, (x >> 48) & 0xff) &&
-                   StrPushBackR(o, ((x >> 56) & 0xff));
+            return StrPushBackR(o, (x & 0xff)) && StrPushBackR(o, (x >> 8) & 0xff) &&
+                   StrPushBackR(o, (x >> 16) & 0xff) && StrPushBackR(o, (x >> 24) & 0xff) &&
+                   StrPushBackR(o, (x >> 32) & 0xff) && StrPushBackR(o, (x >> 40) & 0xff) &&
+                   StrPushBackR(o, (x >> 48) & 0xff) && StrPushBackR(o, ((x >> 56) & 0xff));
         }
         case ENDIAN_NATIVE :
         default : {
@@ -4170,7 +3611,8 @@ static Zstr _read_r16(Zstr i, FmtInfo *fmt_info, u16 *v) {
         fmt_info->endian = IS_LITTLE_ENDIAN() ? ENDIAN_LITTLE : ENDIAN_BIG;
     }
 
-    // Cast the input pointer to unsigned char to avoid sign extension issues.
+    // Read as u8 (not signed char) to avoid sign extension on platforms
+    // where `char` is signed.
     const u8 *p = (const u8 *)i;
 
     switch (fmt_info->endian) {
@@ -4184,8 +3626,6 @@ static Zstr _read_r16(Zstr i, FmtInfo *fmt_info, u16 *v) {
         default :
             LOG_FATAL("Invalid endianness provided. Unexpected code reached in _read_r16.");
     }
-
-    *v = TO_NATIVE_ENDIAN2(*v);
 
     return i + 2; // Advance the stream pointer by 2 bytes.
 }
@@ -4213,8 +3653,6 @@ static Zstr _read_r32(Zstr i, FmtInfo *fmt_info, u32 *v) {
         default :
             LOG_FATAL("Invalid endianness provided. Unexpected code reached in _read_r32.");
     }
-
-    *v = TO_NATIVE_ENDIAN4(*v);
 
     return i + 4; // Advance the stream pointer by 4 bytes.
 }
@@ -4244,8 +3682,6 @@ static Zstr _read_r64(Zstr i, FmtInfo *fmt_info, u64 *v) {
         default :
             LOG_FATAL("Invalid endianness provided. Unexpected code reached in _read_r64.");
     }
-
-    *v = TO_NATIVE_ENDIAN8(*v);
 
     return i + 8; // Advance the stream pointer by 8 bytes.
 }

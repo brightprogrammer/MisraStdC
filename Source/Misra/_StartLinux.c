@@ -1,4 +1,4 @@
-/// file      : Source/Misra/_StartLinux.c
+/// file      : _startlinux.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -14,9 +14,9 @@
 ///
 /// Pair this with `-nostartfiles` at link time so the CRT's own
 /// entry object (`crt1.o`) isn't pulled in alongside ours. Linker
-/// keeps libc itself linked -- we still need it for the few
-/// libc-shaped pieces that survive elsewhere (Proc.c fork/execve,
-/// Debug.c when alloc_debug is on, etc.).
+/// keeps libc itself linked only for the few libc-shaped pieces
+/// that still survive (Debug.c when alloc_debug is on, etc.);
+/// Proc.c's fork/execve path now goes through direct syscalls.
 ///
 /// What we lose by skipping the CRT entry:
 ///   - C++ static dtors via `__cxa_finalize` (we have no C++).
@@ -64,7 +64,7 @@ extern unsigned long __stack_chk_guard;
 // Linux ELF aux-vector tag for "16 bytes of kernel-CSPRNG entropy
 // at this address". See <elf.h> AT_RANDOM. Hardcoded here so the
 // freestanding build doesn't include a libc header for one value.
-#    define MISRA_AT_RANDOM 25
+#    define AUXV_AT_RANDOM 25
 
 // `no_stack_protector` is critical: every other function with
 // stack instrumentation reads __stack_chk_guard in its prologue,
@@ -82,7 +82,7 @@ __attribute__((no_stack_protector, used)) static void init_stack_canary(char **e
     }
     unsigned long *auxv = (unsigned long *)(envp + 1);
     for (; *auxv != 0; auxv += 2) {
-        if (auxv[0] == MISRA_AT_RANDOM) {
+        if (auxv[0] == AUXV_AT_RANDOM) {
             const unsigned char *src = (const unsigned char *)auxv[1];
             unsigned char       *dst = (unsigned char *)&__stack_chk_guard;
             for (unsigned long i = 0; i < sizeof __stack_chk_guard; i += 1) {

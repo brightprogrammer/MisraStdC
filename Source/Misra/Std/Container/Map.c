@@ -1,4 +1,4 @@
-/// file      : std/map.c
+/// file      : std/container/map.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -143,8 +143,6 @@ void validate_map_policy(const MapPolicy *policy) {
         size capacity = capacities[cap_i];
         u64  hash     = 0x9e3779b97f4a7c15ULL;
         size first    = map_validate_policy_index(policy->first_index(hash, capacity), capacity, "first_index");
-
-        map_validate_policy_index(policy->first_index(hash, capacity), capacity, "first_index");
 
         if ((capacity > 1) && (policy->max_probe_count > 1)) {
             size next = map_validate_policy_index(policy->next_index(hash, capacity, first, 1), capacity, "next_index");
@@ -405,6 +403,13 @@ void validate_map(const GenericMap *map) {
 
     if (!map->key_compare || !map->key_hash) {
         LOG_FATAL("Map must have valid key compare and key hash callbacks");
+    }
+
+    // Maps have no stack-init form; a NULL allocator means the handle
+    // is corrupted between magic check and use. Surface that before
+    // dereferencing the method table below.
+    if (!map->allocator) {
+        LOG_FATAL("Map allocator pointer is NULL");
     }
 
     if (!map->allocator->allocate || !map->allocator->resize || !map->allocator->remap || !map->allocator->deallocate) {

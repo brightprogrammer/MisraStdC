@@ -345,7 +345,13 @@ static void parse_hosts_table(HostsTable *table, Allocator *alloc) {
                 MemCopy(e.ip, v6, 16);
                 e.is_ipv6 = true;
             }
-            VecPushBackR(table, e);
+            if (!VecPushBackR(table, e)) {
+                // VecPushBackR is R-form (copy semantics) -- on
+                // failure ownership of `e.name` stays with us. Release
+                // it to avoid leaking the cstr allocation.
+                StrDeinit(&e.name);
+                break;
+            }
         }
 
         // Trailing `# ...` comment (if any) plus the newline.
@@ -558,9 +564,8 @@ static bool try_one_query(
     // page-backed chunk handles a typical response with zero per-free
     // bookkeeping.
     ArenaAllocator scratch = ArenaAllocatorInit();
-    Allocator     *sa      = ALLOCATOR_OF(&scratch);
 
-    DnsWireBuf query = VecInitT(query, sa);
+    DnsWireBuf query = VecInitT(query, &scratch);
     u16        id    = random_query_id();
     if (!DnsBuildQuery(&query, id, hostname, qtype)) {
         VecDeinit(&query);
@@ -578,7 +583,9 @@ static bool try_one_query(
     }
 
     DnsResponse resp = {0};
-    bool        ok   = DnsParseResponse(&resp, resp_buf, (u64)got, sa);
+    // DnsParseResponse takes `Allocator *` -- legitimate erasure
+    // boundary; pass at the call site, no intermediate variable.
+    bool        ok   = DnsParseResponse(&resp, resp_buf, (u64)got, ALLOCATOR_OF(&scratch));
     if (!ok || resp.id != id || resp.rcode != DNS_RCODE_NOERROR) {
         DnsResponseDeinit(&resp);
         ArenaAllocatorDeinit(&scratch);
@@ -742,7 +749,7 @@ bool dns_resolve_4_vec_str(DnsResolver *self, const Str *spec, SocketKind kind, 
     return dns_resolve_4_vec_zstr(self, StrBegin(spec), kind, out);
 }
 
-bool DnsResolve_4_one(DnsResolver *self, Zstr spec, SocketKind kind, SocketAddr *out) {
+bool dns_resolve_4_one_zstr(DnsResolver *self, Zstr spec, SocketKind kind, SocketAddr *out) {
     if (!self || !spec || !out) {
         return false;
     }
@@ -754,4 +761,11 @@ bool DnsResolve_4_one(DnsResolver *self, Zstr spec, SocketKind kind, SocketAddr 
     }
     VecDeinit(&addrs);
     return have_one;
+}
+
+bool dns_resolve_4_one_str(DnsResolver *self, const Str *spec, SocketKind kind, SocketAddr *out) {
+    if (!self || !spec || !out) {
+        return false;
+    }
+    return dns_resolve_4_one_zstr(self, StrBegin(spec), kind, out);
 }

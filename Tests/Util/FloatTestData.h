@@ -1,3 +1,11 @@
+/// file      : Tests/Util/FloatTestData.h
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
+/// This is free and unencumbered software released into the public domain.
+///
+/// Long-digit-run string literals shared by the Float.* test suites.
+/// Each macro expands to a string of repeated digits used to stress
+/// the Float parser's high-precision paths. No code; header-only data.
+
 #ifndef MISRA_TEST_FLOAT_DATA_H
 #define MISRA_TEST_FLOAT_DATA_H
 

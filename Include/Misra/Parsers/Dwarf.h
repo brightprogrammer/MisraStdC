@@ -1,4 +1,4 @@
-/// file      : Dwarf.h
+/// file      : parsers/dwarf.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -94,7 +94,7 @@ typedef struct DwarfLines {
 /// TAGS: Parser, DWARF, Lines
 ///
 bool dwarf_lines_build_from_elf(DwarfLines *out, const Elf *elf, Allocator *alloc);
-#define DwarfLinesBuildFromElf(...)               MISRA_OVERLOAD(DwarfLinesBuildFromElf, __VA_ARGS__)
+#define DwarfLinesBuildFromElf(...)               OVERLOAD(DwarfLinesBuildFromElf, __VA_ARGS__)
 #define DwarfLinesBuildFromElf_2(out, elf)        dwarf_lines_build_from_elf((out), (elf), MisraScope)
 #define DwarfLinesBuildFromElf_3(out, elf, alloc) dwarf_lines_build_from_elf((out), (elf), ALLOCATOR_OF(alloc))
 
@@ -197,7 +197,7 @@ typedef struct DwarfCfi {
 /// TAGS: Parser, DWARF, CFI
 ///
 bool dwarf_cfi_build_from_elf(DwarfCfi *out, const Elf *elf, Allocator *alloc);
-#define DwarfCfiBuildFromElf(...)               MISRA_OVERLOAD(DwarfCfiBuildFromElf, __VA_ARGS__)
+#define DwarfCfiBuildFromElf(...)               OVERLOAD(DwarfCfiBuildFromElf, __VA_ARGS__)
 #define DwarfCfiBuildFromElf_2(out, elf)        dwarf_cfi_build_from_elf((out), (elf), MisraScope)
 #define DwarfCfiBuildFromElf_3(out, elf, alloc) dwarf_cfi_build_from_elf((out), (elf), ALLOCATOR_OF(alloc))
 
@@ -209,6 +209,8 @@ bool dwarf_cfi_build_from_elf(DwarfCfi *out, const Elf *elf, Allocator *alloc);
 ///           `self` (valid until `DwarfCfiDeinit`).
 /// FAILURE : Returns NULL when no FDE covers `vaddr`.
 ///
+/// TAGS: Parser, DWARF, CFI, Lookup
+///
 const DwarfFde *DwarfCfiFindFde(const DwarfCfi *self, u64 vaddr);
 
 ///
@@ -217,6 +219,8 @@ const DwarfFde *DwarfCfiFindFde(const DwarfCfi *self, u64 vaddr);
 /// SUCCESS : Returns a pointer to the CIE at `cie_offset`, borrowed
 ///           from `self` (valid until `DwarfCfiDeinit`).
 /// FAILURE : Returns NULL when no CIE sits at that offset.
+///
+/// TAGS: Parser, DWARF, CFI, Lookup
 ///
 const DwarfCie *DwarfCfiFindCie(const DwarfCfi *self, u64 cie_offset);
 
@@ -356,7 +360,7 @@ typedef struct DwarfFunctions {
 /// TAGS: Parser, DWARF, Info
 ///
 bool dwarf_functions_build_from_elf(DwarfFunctions *out, const Elf *elf, Allocator *alloc);
-#define DwarfFunctionsBuildFromElf(...)               MISRA_OVERLOAD(DwarfFunctionsBuildFromElf, __VA_ARGS__)
+#define DwarfFunctionsBuildFromElf(...)               OVERLOAD(DwarfFunctionsBuildFromElf, __VA_ARGS__)
 #define DwarfFunctionsBuildFromElf_2(out, elf)        dwarf_functions_build_from_elf((out), (elf), MisraScope)
 #define DwarfFunctionsBuildFromElf_3(out, elf, alloc) dwarf_functions_build_from_elf((out), (elf), ALLOCATOR_OF(alloc))
 
@@ -400,6 +404,19 @@ bool DwarfFunctionsBuildFromSlices(
 ///
 const DwarfFunction *DwarfFunctionsResolve(const DwarfFunctions *self, u64 vaddr);
 
+///
+/// Release the function table built by `DwarfFunctionsFromInfo`. Frees
+/// the owned function-name pool and the sorted entries vector, then
+/// zeroes the struct so any later use trips the NULL-self diagnostic.
+///
+/// self[in,out] : DwarfFunctions instance, or NULL.
+///
+/// SUCCESS : Function returns. Every `DwarfFunction` previously
+///           handed out by `DwarfFunctionsResolve` is invalid.
+/// FAILURE : No action when `self` is NULL.
+///
+/// TAGS: Parser, DWARF, Cleanup
+///
 void DwarfFunctionsDeinit(DwarfFunctions *self);
 
 #endif // MISRA_PARSERS_DWARF_H

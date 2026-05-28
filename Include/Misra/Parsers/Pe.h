@@ -1,4 +1,4 @@
-/// file      : Pe.h
+/// file      : parsers/pe.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -18,6 +18,7 @@
 
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Buf.h>
+#include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Types.h>
@@ -80,9 +81,9 @@ typedef struct PeCodeViewInfo {
 /// `FromMemoryCopy` constructors (mirrors `VecInsertL` / `VecInsertR`).
 ///
 /// FIELDS:
-/// - allocator     : Allocator for `data` and the sections vector.
-/// - data          : Pointer to the raw PE bytes (owned).
-/// - data_size     : Length of `data` in bytes.
+/// - data          : Raw PE bytes as a `Buf` (owned). Carries its
+///                   own length and allocator -- read via
+///                   `BufLength` / `BufData` / `BufAllocator`.
 /// - machine       : Decoded `IMAGE_FILE_HEADER.Machine`.
 /// - is_pe32_plus  : True for PE32+ (64-bit). v1 supports both PE32
 ///                   and PE32+ headers, but the address-bearing fields
@@ -119,37 +120,40 @@ typedef struct Pe {
 /// TAGS: Parser, PE, File
 ///
 bool pe_open(Pe *out, Zstr path, Allocator *alloc);
-#define PeOpen(...) MISRA_OVERLOAD(PeOpen, __VA_ARGS__)
+#define PeOpen(...) OVERLOAD(PeOpen, __VA_ARGS__)
 #define PeOpen_2(out, path)                                                                                            \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: pe_open((out), (Zstr)StrBegin((Str *)(path)), MisraScope),                                                      \
-        Zstr: pe_open((out), (Zstr)(path), MisraScope),                                                 \
-        char *: pe_open((out), (Zstr)(path), MisraScope)                                                 \
+        Str *: pe_open((out), (Zstr)StrBegin((Str *)(path)), MisraScope),                                              \
+        Zstr: pe_open((out), (Zstr)(path), MisraScope),                                                                \
+        char *: pe_open((out), (Zstr)(path), MisraScope)                                                               \
     )
 #define PeOpen_3(out, path, alloc)                                                                                     \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: pe_open((out), (Zstr)StrBegin((Str *)(path)), ALLOCATOR_OF(alloc)),                                             \
-        Zstr: pe_open((out), (Zstr)(path), ALLOCATOR_OF(alloc)),                                        \
-        char *: pe_open((out), (Zstr)(path), ALLOCATOR_OF(alloc))                                        \
+        Str *: pe_open((out), (Zstr)StrBegin((Str *)(path)), ALLOCATOR_OF(alloc)),                                     \
+        Zstr: pe_open((out), (Zstr)(path), ALLOCATOR_OF(alloc)),                                                       \
+        char *: pe_open((out), (Zstr)(path), ALLOCATOR_OF(alloc))                                                      \
     )
 
 ///
 /// Parse a PE image from an in-memory byte range -- **L-value /
 /// ownership-transfer form** (mirrors `VecInsertL`).
 ///
-/// `data` is `u8 **`: ownership is moving from caller to parser. On
-/// entry `*data` is the caller's buffer (allocated through `alloc`);
-/// on exit (success OR failure) `*data == NULL`. Calling code:
+/// Takes the caller's `Buf` by pointer. The parser snapshots the Buf
+/// and zeroes the caller's `*in` so any post-call use sees an empty
+/// Buf instead of a stale alias. Allocator comes from the Buf. The
+/// zero-on-take invariant holds on success and failure.
 ///
-///   u8 *buf = my_buffer;
-///   PeOpenFromMemory(&pe, &buf, n, &alloc);
-///   // buf == NULL afterwards.
+/// USAGE:
+///   Buf buf = BufInit(&alloc);
+///   FileRead(&f, &buf);
+///   PeOpenFromMemory(&pe, &buf);
+///   // buf is now zeroed.
 ///
-/// SUCCESS : Returns true; `out` owns the bytes; `*data == NULL`.
-/// FAILURE : Returns false; the bytes have been freed through `alloc`;
-///           `*data == NULL`; `out` is left zeroed.
+/// SUCCESS : Returns true; `out` owns the bytes; `*in` is zeroed.
+/// FAILURE : Returns false; the bytes have been freed through the Buf's
+///           allocator; `*in` is zeroed; `out` is left zeroed.
 ///
 /// TAGS: Parser, PE, Memory, Ownership
 ///
@@ -168,7 +172,7 @@ bool PeOpenFromMemory(Pe *out, Buf *in);
 /// TAGS: Parser, PE, Memory, Copy
 ///
 bool pe_open_from_memory_copy(Pe *out, const u8 *data, size data_size, Allocator *alloc);
-#define PeOpenFromMemoryCopy(...)                    MISRA_OVERLOAD(PeOpenFromMemoryCopy, __VA_ARGS__)
+#define PeOpenFromMemoryCopy(...)                    OVERLOAD(PeOpenFromMemoryCopy, __VA_ARGS__)
 #define PeOpenFromMemoryCopy_3(out, data, data_size) pe_open_from_memory_copy((out), (data), (data_size), MisraScope)
 #define PeOpenFromMemoryCopy_4(out, data, data_size, alloc)                                                            \
     pe_open_from_memory_copy((out), (data), (data_size), ALLOCATOR_OF(alloc))
@@ -193,7 +197,17 @@ void PeDeinit(Pe *self);
 ///           from `self` (valid until `PeDeinit`).
 /// FAILURE : Returns NULL when no section matches.
 ///
-const PeSection *PeFindSection(const Pe *self, Zstr name);
+/// TAGS: Parser, PE, Section, Query
+///
+const PeSection *pe_find_section_zstr(const Pe *self, Zstr name);
+const PeSection *pe_find_section_str(const Pe *self, const Str *name);
+#define PeFindSection(self, name)                                                                                      \
+    _Generic(                                                                                                          \
+        (name),                                                                                                        \
+        Str *: pe_find_section_str,                                                                                    \
+        Zstr: pe_find_section_zstr,                                                                                    \
+        char *: pe_find_section_zstr                                                                                   \
+    )((self), (name))
 
 ///
 /// Convert an RVA (offset from `ImageBase`) to a file offset by

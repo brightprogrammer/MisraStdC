@@ -27,9 +27,9 @@ what you use.
 - [Build and Install](#build-and-install)
 - [Feature Flags](#feature-flags)
 - [Freestanding (Libc-Free Binaries)](#freestanding-libc-free-binaries)
-- [Allocator Performance](#allocator-performance)
+- [Choosing an Allocator](#choosing-an-allocator)
 - [Six Core Ideas](#six-core-ideas)
-  - [1. Allocators are user-owned values, never global state](#1-allocators-are-user-owned-values-never-global-state)
+  - [1. Allocators define shared lifetimes, not per-object state](#1-allocators-define-shared-lifetimes-not-per-object-state)
   - [2. `Scope` is lexical RAII, in plain C](#2-scope-is-lexical-raii-in-plain-c)
   - [3. Every object carries a magic; type-confusion dies at the dispatch](#3-every-object-carries-a-magic-type-confusion-dies-at-the-dispatch)
   - [4. Macros + `_Generic` give you generics without a template compiler](#4-macros--_generic-give-you-generics-without-a-template-compiler)
@@ -142,8 +142,9 @@ when the `Scope` ends.
   tools (`beam`, `resolve`) link against zero libc by default: direct
   syscalls on
   Linux + macOS (XNU BSD subset on Mac, custom `_start`, in-tree mem* and
-  setjmp), `/NODEFAULTLIB` + custom `mainCRTStartup` on Windows. CI
-  asserts the import table per OS — see [Libc-Diet](#libc-diet-freestanding-build).
+  setjmp), `/NODEFAULTLIB` + custom `misra_start` entry on Windows. CI
+  asserts the import table per OS — see
+  [Freestanding (Libc-Free Binaries)](#freestanding-libc-free-binaries).
 
 ---
 
@@ -166,26 +167,46 @@ meson setup builddir -Db_sanitize=address,undefined -Db_lundef=false
 
 ### A minimal build
 
-If you only need `Vec`, `Str`, `Io`, and the default heap allocator, turn the
-rest off:
+If you only need `Vec`, `Str`, `Buf`, `Io`, and the default heap allocator,
+turn the rest off. Every optional feature has to be disabled by name --
+several of them are pulled in by other defaults (e.g. `alloc_debug`
+auto-enables `map` + `sys_backtrace`, which in turn pulls in `parser_elf`
++ `parser_dwarf`), so a partial disable list still ships most of the
+library. Note also that `file`, `iter`, and `alloc_arena` cannot be
+disabled today -- `Io.c` uses `StrIter` internally, the binary parsers
+(`elf`/`pe`/`macho`) slurp via `FileRead`, and `Sys/Dns` uses
+`ArenaAllocator` for its in-arena resolution. The dependency edges
+aren't optional yet.
 
 ```bash
 meson setup builddir-min \
-    -Dalloc_arena=false -Dalloc_slab=false -Dalloc_budget=false \
+    -Dalloc_slab=false -Dalloc_budget=false -Dalloc_debug=false \
     -Dbitvec=false -Dlist=false -Dmap=false -Dgraph=false \
     -Dint=false -Dfloat=false \
-    -Dfile=false -Diter=false \
-    -Dsys_dir=false -Dsys_proc=false \
-    -Dparser_json=false -Dparser_kvconfig=false
-ninja -C builddir-min
+    -Dsys_dir=false -Dsys_proc=false -Dsys_socket=false \
+    -Dsys_procmaps=false -Dsys_symresolve=false -Dsys_backtrace=false \
+    -Dsys_dns=false \
+    -Dparser_json=false -Dparser_kvconfig=false -Dparser_http=false \
+    -Dparser_elf=false -Dparser_dwarf=false \
+    -Dparser_pe=false -Dparser_pdb=false -Dparser_macho=false \
+    -Dparser_dns=false
+ninja -C builddir-min libmisra_std.a
 ninja -C builddir-min install
 ```
 
-The resulting `libmisra_std.a` contains only the ten foundation translation
-units, and the install prefix contains only forty headers — about a third of
-the default build. Adding `int` automatically pulls in `bitvec`; adding
-`graph` pulls in `vec` (already foundation); adding `parser_kvconfig` pulls in
-`map`. Dependencies between features resolve transitively at configure time.
+The resulting `libmisra_std.a` contains only the foundation translation
+units plus the three load-bearing optional ones noted above, and the
+install prefix shrinks to about a third of the default build. Adding
+`int` automatically pulls in `bitvec`; adding `graph` pulls in `vec`
+(already foundation); adding `parser_kvconfig` pulls in `map`; enabling
+`alloc_debug` pulls in `map` + `sys_backtrace` (and, on Linux, the full
+ELF/DWARF symbolizer chain behind it). Dependencies between features
+resolve transitively at configure time.
+
+Note: the in-tree test suite assumes the default (everything-on) build.
+Running `ninja test` against a minimal config will fail to link tests
+for the disabled features; build `libmisra_std.a` directly (as above)
+or stick with the default configuration when running the test suite.
 
 ---
 
@@ -220,15 +241,18 @@ the default build. Adding `int` automatically pulls in `bitvec`; adding
 | `parser_http`                     | HTTP/1.1 request + response parsing / serialization (transport-agnostic)                                            | —                                |
 | `parser_dns`                      | DNS wire-format encode/decode per RFC 1035                                                                          | —                                |
 
-Every enabled feature also defines `MISRA_HAVE_<NAME>` (= 1) in the
-generated `Misra/Config.h`. User code can `#if MISRA_HAVE_BITVEC` to compile
+Every enabled feature also defines `FEATURE_<NAME>` (= 1) in the
+generated `Misra/Config.h`. User code can `#if FEATURE_BITVEC` to compile
 against a partial install.
 
 The foundation — always built, can't be opted out — is:
-`Sys`, `Sys/Mutex`, `Std/Log`, `Std/Memory`, `Std/Allocator` (core + Page +
-Heap = `DefaultAllocator`), `Std/Container/Vec`, `Std/Container/Str`,
-`Std/Io`. `LOG_FATAL` formats its message through `Str` + `Io`, so those
-two are foundation by transitive necessity.
+`Sys`, `Sys/Mutex`, `Std/Log`, `Std/Memory`, `Std/Zstr`, `Std/Allocator`
+(core + `_Os` + Page + Heap = `DefaultAllocator`), `Std/Container/Vec`,
+`Std/Container/Str`, `Std/Io`, `Std/Prng`, `Std/ArgParse`. `LOG_FATAL`
+formats its message through `Str` + `Io`, so those two are foundation by
+transitive necessity; `Prng` and `ArgParse` are kept in the foundation
+because the shipping Bin/ tools (`beam`, `resolve`) depend on them and
+they have no platform/feature gating to make optional.
 
 ### What it actually costs
 
@@ -384,9 +408,6 @@ A regression in either fails CI independently.
   but untested — GitHub's `macos-latest` is Apple Silicon.
 - **Linux aarch64** paths are gated correctly but only Linux x86_64 has
   full CI coverage.
-- **Sys/Mutex on Mac** still uses libSystem's `os_unfair_lock`. Not in
-  the Bin tools' `nm -u` (they don't pull Mutex via tree-shaking) but
-  it's there in `libmisra_std.a`.
 - **Windows freestanding is clang-cl only.** MSVC bundles its
   compiler-runtime helpers inside `libcmt` and can't be cleanly
   separated. The MSVC CI job runs the standard (with-UCRT) path.
@@ -472,7 +493,7 @@ that work-unit shares an allocator and dies with it. This is not a small
 optimisation — it is the deliberate substitute for tracking per-object
 lifetimes by hand.
 
-The library ships five backends:
+The library ships six backends:
 
 - **`PageAllocator`** — raw `mmap` / `VirtualAlloc`. The foundation under every
   growing allocator, no libc heap.
@@ -600,7 +621,7 @@ single 64-bit comparison; the upside is that:
   reach `mmap`-mapped pages.
 
 Each allocator type has its own magic constant
-(`MISRA_HEAP_ALLOCATOR_MAGIC`, `MISRA_PAGE_ALLOCATOR_MAGIC`, ...). Adding a
+(`HEAP_ALLOCATOR_MAGIC`, `PAGE_ALLOCATOR_MAGIC`, ...). Adding a
 new typed allocator means defining its magic and adding it to the
 `ALLOCATOR_OF` `_Generic` whitelist.
 
@@ -656,10 +677,20 @@ you call. That's the magic check from idea #3 doing its job.
 ```
 
 is enough. `Misra.h` is an umbrella that recursively pulls in every module
-the current build enabled, via `#if MISRA_HAVE_<NAME>` checks against the
+the current build enabled, via `#if FEATURE_<NAME>` checks against the
 generated `Misra/Config.h`. If you disabled `parser_json` at configure time,
 `<Misra/Parsers/JSON.h>` is neither installed nor pulled in by `Misra.h` —
 but everything else is reachable through that one include.
+
+A handful of optional headers stay outside the umbrella because they
+expose ELF / DWARF / Mach-O / PE / PDB constant names that downstream
+code may already carry: `<Misra/Parsers/Elf.h>`,
+`<Misra/Parsers/Dwarf.h>`, `<Misra/Parsers/MachO.h>`,
+`<Misra/Parsers/Pe.h>`, `<Misra/Parsers/Pdb.h>`,
+`<Misra/Sys/SymbolResolver.h>`, `<Misra/Sys/Backtrace.h>`,
+`<Misra/Sys/PdbCache.h>`, and `<Misra/Sys/MachoCache.h>`. Include
+those directly when you want the parser, the resolver, the backtrace
+formatter, or the symbol caches.
 
 You can still include sub-umbrellas (`<Misra/Std/Container.h>`,
 `<Misra/Sys.h>`) when you want a narrower preprocessor cost, but you never

@@ -49,27 +49,28 @@ void LogWrite(LogMessageType type, Zstr tag, u64 line, Zstr msg) {
     };
 
     HeapAllocator h    = HeapAllocatorInit();
-    Allocator    *a    = ALLOCATOR_OF(&h);
-    Str           full = StrInit(a);
+    Str           full = StrInit(&h);
     StrAppendFmt(&full, "[{}] [{}:{}] {}\n", (Zstr)NAMES[type], (Zstr)tag, line, (Zstr)msg);
 
     File out = (type == LOG_MESSAGE_TYPE_INFO) ? FileFromFd(1) : FileFromFd(2);
     (void)FileWrite(&out, StrBegin(&full), StrLen(&full));
 
-#if !defined(MISRA_LOG_NO_BACKTRACE) || !MISRA_LOG_NO_BACKTRACE
+#if !defined(LOG_NO_BACKTRACE) || !LOG_NO_BACKTRACE
     if (type == LOG_MESSAGE_TYPE_FATAL) {
         // Append captured stack trace so the diagnostic carries the
         // call site context up to Abort(). Skip our own + LogWrite's
         // frame (1 frame).
         StackFrame frames[32];
         size       n     = CaptureStackTrace(frames, 32, 1);
-        Str        trace = StrInit(a);
-        FormatStackTrace(&trace, frames, n, a);
+        Str        trace = StrInit(&h);
+        // FormatStackTrace takes `Allocator *` -- legitimate erasure
+        // boundary; pass at the call site, no intermediate variable.
+        FormatStackTrace(&trace, frames, n, ALLOCATOR_OF(&h));
         (void)FileWrite(&out, StrBegin(&trace), StrLen(&trace));
         StrDeinit(&trace);
     }
 #else
-    // MISRA_LOG_NO_BACKTRACE: deadend test binaries opt out of the
+    // LOG_NO_BACKTRACE: deadend test binaries opt out of the
     // FATAL backtrace because (a) they install an abort callback that
     // longjmps over the trace anyway, and (b) on macOS each backtrace
     // re-parses the binary's Mach-O + dSYM + DWARF (MachoCache lives

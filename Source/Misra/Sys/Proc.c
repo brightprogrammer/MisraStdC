@@ -1,19 +1,14 @@
-/// file      : Proc.c
+/// file      : sys/proc.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// System functions for cross-platform process creation and interaction
-///
-
-
-// kill, readlink and usleep don't work without this
-#define _DEFAULT_SOURCE
 
 #include <Misra/Sys/Proc.h>
+#include <Misra/Std/Log.h>
+#include <Misra/Std/Memory.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Sys.h>
-#include <Misra/Std/Memory.h>
-#include <Misra/Std/Log.h>
 #include "../_Syscall.h"
 #if PLATFORM_WINDOWS
 #    include <windows.h>
@@ -23,21 +18,14 @@
 #    include <io.h>
 #    define FILENO _fileno
 #else
-#    include <dirent.h>
-#    include <pthread.h>
-#    include <sys/stat.h>
-#    include <sys/wait.h>
-#    include <fcntl.h>
-#    include <signal.h>
-#    include <unistd.h>
-#    if PLATFORM_DARWIN
-#        include <mach-o/dyld.h>
-#    endif
+#    include <signal.h>   // SIGTERM
+#    include <sys/wait.h> // WIFEXITED / WIFSIGNALED / WEXITSTATUS / WTERMSIG / WNOHANG
+#    include <unistd.h>   // ssize_t, pid_t, fileno
 #    define FILENO fileno
 #endif
 
-// Sleep for `us` microseconds. Linux: direct nanosleep syscall.
-// macOS / BSD: nanosleep from libSystem. Windows: kernel32 Sleep.
+// Sleep for `us` microseconds. Linux + Darwin: direct nanosleep syscall.
+// Windows: kernel32 Sleep.
 static inline void proc_sleep_us(u64 us) {
 #if PLATFORM_WINDOWS
     Sleep((DWORD)(us / 1000));
@@ -51,30 +39,22 @@ static inline void proc_sleep_us(u64 us) {
     ts.nsec = (long)((us % 1000000) * 1000);
     (void)misra_sys2(MISRA_SYS_nanosleep, (long)(u64)&ts, 0);
 #else
-    struct timespec ts = {(time_t)(us / 1000000), (long)((us % 1000000) * 1000)};
-    nanosleep(&ts, NULL);
+#    error "proc_sleep_us: unsupported platform/architecture (no direct-syscall path)"
 #endif
 }
 
 #if FEATURE_DIRECT_SYSCALL
-// Linux: thin direct-syscall wrappers for the POSIX I/O / process
-// primitives used below. macOS / BSD keep libSystem (Apple disallows
-// direct user syscalls); Windows takes a different code path entirely.
+// Direct-syscall macro shims for the POSIX I/O / process primitives
+// used below. Each expands to the kernel's value (negative = -errno,
+// otherwise success); the callers already handle the "< 0" failure
+// shape that POSIX wrappers expose.
 //
-// The aarch64 syscall table dropped the "legacy" variants (open,
-// stat, fork, pipe, dup2, readlink, ...) so each wrapper handles
-// the x86_64 vs aarch64 ABI divergence inline.
+// The aarch64 syscall table dropped the "legacy" variants (pipe,
+// dup2, fork, readlink) so the static helpers below resolve the
+// x86_64 vs aarch64 ABI divergence inline. The rest are direct
+// macro forwards.
 
-static inline long misra_proc_close(int fd) {
-    return misra_sys1(MISRA_SYS_close, (long)fd);
-}
-static inline long misra_proc_read(int fd, void *buf, unsigned long n) {
-    return misra_sys3(MISRA_SYS_read, (long)fd, (long)(u64)buf, (long)n);
-}
-static inline long misra_proc_write(int fd, const void *buf, unsigned long n) {
-    return misra_sys3(MISRA_SYS_write, (long)fd, (long)(u64)buf, (long)n);
-}
-static inline long misra_proc_pipe(int fds[2]) {
+static inline long proc_pipe(int fds[2]) {
 #    if PLATFORM_DARWIN
     // Darwin pipe ignores its arg and returns fds in registers.
     return misra_darwin_pipe(fds);
@@ -84,14 +64,14 @@ static inline long misra_proc_pipe(int fds[2]) {
     return misra_sys2(MISRA_SYS_pipe2, (long)(u64)fds, 0);
 #    endif
 }
-static inline long misra_proc_dup2(int oldfd, int newfd) {
+static inline long proc_dup2(int oldfd, int newfd) {
 #    if PLATFORM_DARWIN || ARCHITECTURE_X86_64
     return misra_sys2(MISRA_SYS_dup2, (long)oldfd, (long)newfd);
 #    else
     return misra_sys3(MISRA_SYS_dup3, (long)oldfd, (long)newfd, 0);
 #    endif
 }
-static inline long misra_proc_fork(void) {
+static inline long proc_fork(void) {
 #    if PLATFORM_DARWIN || ARCHITECTURE_X86_64
     // Darwin has fork (#2); Linux x86_64 has fork (#57). Same shape:
     // returns 0 in child, pid in parent.
@@ -102,13 +82,7 @@ static inline long misra_proc_fork(void) {
     return misra_sys5(MISRA_SYS_clone, 17, 0, 0, 0, 0);
 #    endif
 }
-static inline long misra_proc_execve(Zstr path, char *const *argv, char *const *envp) {
-    return misra_sys3(MISRA_SYS_execve, (long)(u64)path, (long)(u64)argv, (long)(u64)envp);
-}
-static inline long misra_proc_kill(int pid, int sig) {
-    return misra_sys2(MISRA_SYS_kill, (long)pid, (long)sig);
-}
-static inline long misra_proc_readlink(Zstr path, char *buf, unsigned long sz) {
+static inline long proc_readlink(Zstr path, char *buf, unsigned long sz) {
 #    if PLATFORM_DARWIN || ARCHITECTURE_X86_64
     return misra_sys3(MISRA_SYS_readlink, (long)(u64)path, (long)(u64)buf, (long)sz);
 #    else
@@ -116,28 +90,7 @@ static inline long misra_proc_readlink(Zstr path, char *buf, unsigned long sz) {
     return misra_sys4(MISRA_SYS_readlinkat, -100L, (long)(u64)path, (long)(u64)buf, (long)sz);
 #    endif
 }
-static inline long misra_proc_waitpid(int pid, int *status, int options) {
-    return misra_sys4(MISRA_SYS_wait4, (long)pid, (long)(u64)status, (long)options, 0);
-}
 
-// Macro shims so the existing POSIX call sites use our direct-syscall
-// wrappers without per-line edits. Each returns the kernel's value
-// (negative = -errno, otherwise success), and the callers already
-// handle the "< 0" failure shape that POSIX wrappers expose. No outer
-// cast: callers that bind the result get the implicit conversion
-// (long -> int / pid_t / etc.), and callers that discard the result
-// don't get `-Wunused-value` from a cast in expression-statement
-// position.
-#    define close(fd)                  misra_proc_close(fd)
-#    define read(fd, buf, n)           misra_proc_read((fd), (buf), (n))
-#    define write(fd, buf, n)          misra_proc_write((fd), (buf), (n))
-#    define pipe(fds)                  misra_proc_pipe(fds)
-#    define dup2(oldfd, newfd)         misra_proc_dup2((oldfd), (newfd))
-#    define fork()                     misra_proc_fork()
-#    define execve(p, a, e)            misra_proc_execve((p), (a), (e))
-#    define kill(pid, sig)             misra_proc_kill((pid), (sig))
-#    define readlink(p, b, n)          misra_proc_readlink((p), (b), (n))
-#    define waitpid(pid, status, opts) misra_proc_waitpid((pid), (status), (opts))
 #endif
 
 #ifndef STDIN_FILENO
@@ -161,75 +114,75 @@ Proc proc_init(Zstr filepath, char **argv, char **envp, Allocator *alloc) {
     Proc proc = {0};
 #if PLATFORM_UNIX
     (void)alloc; // POSIX path doesn't need an allocator
-    int stdin_pipe[2]  = {-1};
-    int stdout_pipe[2] = {-1};
-    int stderr_pipe[2] = {-1};
+    int stdin_pipe[2]  = {-1, -1};
+    int stdout_pipe[2] = {-1, -1};
+    int stderr_pipe[2] = {-1, -1};
 
     // Capture the failing-call return so the error log can name the
     // errno without having to read libc's `errno` TLS slot. On
     // Linux+direct-syscall this is the kernel's -errno; on macOS
     // libSystem it's just -1 and ErrnoOf falls back to errno.
-    long pipe_ret = pipe(stdin_pipe);
+    long pipe_ret = proc_pipe(stdin_pipe);
     if (pipe_ret == 0)
-        pipe_ret = pipe(stdout_pipe);
+        pipe_ret = proc_pipe(stdout_pipe);
     if (pipe_ret == 0)
-        pipe_ret = pipe(stderr_pipe);
+        pipe_ret = proc_pipe(stderr_pipe);
     if (pipe_ret < 0) {
-        LOG_SYS_ERROR(ErrnoOf(pipe_ret), "pipe() failed");
+        LOG_SYS_ERROR(ErrnoOf(pipe_ret), "proc_pipe() failed");
         if (stdin_pipe[READ_END] >= 0)
-            close(stdin_pipe[READ_END]);
+            misra_sys1(MISRA_SYS_close, (long)(stdin_pipe[READ_END]));
         if (stdout_pipe[READ_END] >= 0)
-            close(stdout_pipe[READ_END]);
+            misra_sys1(MISRA_SYS_close, (long)(stdout_pipe[READ_END]));
         if (stderr_pipe[READ_END] >= 0)
-            close(stderr_pipe[READ_END]);
+            misra_sys1(MISRA_SYS_close, (long)(stderr_pipe[READ_END]));
         if (stdin_pipe[WRITE_END] >= 0)
-            close(stdin_pipe[WRITE_END]);
+            misra_sys1(MISRA_SYS_close, (long)(stdin_pipe[WRITE_END]));
         if (stdout_pipe[WRITE_END] >= 0)
-            close(stdout_pipe[WRITE_END]);
+            misra_sys1(MISRA_SYS_close, (long)(stdout_pipe[WRITE_END]));
         if (stderr_pipe[WRITE_END] >= 0)
-            close(stderr_pipe[WRITE_END]);
+            misra_sys1(MISRA_SYS_close, (long)(stderr_pipe[WRITE_END]));
         return proc; // _pid == 0 -> ProcOk() returns false
     }
 
-    pid_t pid = fork();
+    pid_t pid = proc_fork();
     if (pid < 0) {
         LOG_SYS_ERROR(ErrnoOf(pid), "fork");
-        close(stdin_pipe[READ_END]);
-        close(stdout_pipe[READ_END]);
-        close(stderr_pipe[READ_END]);
-        close(stdin_pipe[WRITE_END]);
-        close(stdout_pipe[WRITE_END]);
-        close(stderr_pipe[WRITE_END]);
+        misra_sys1(MISRA_SYS_close, (long)(stdin_pipe[READ_END]));
+        misra_sys1(MISRA_SYS_close, (long)(stdout_pipe[READ_END]));
+        misra_sys1(MISRA_SYS_close, (long)(stderr_pipe[READ_END]));
+        misra_sys1(MISRA_SYS_close, (long)(stdin_pipe[WRITE_END]));
+        misra_sys1(MISRA_SYS_close, (long)(stdout_pipe[WRITE_END]));
+        misra_sys1(MISRA_SYS_close, (long)(stderr_pipe[WRITE_END]));
         return proc;
     }
 
     if (pid == 0) {
         // Child: wire stdin/stdout/stderr to pipe ends, then exec.
-        dup2(stdin_pipe[READ_END], STDIN_FILENO);
-        dup2(stdout_pipe[WRITE_END], STDOUT_FILENO);
-        dup2(stderr_pipe[WRITE_END], STDERR_FILENO);
-        close(stdin_pipe[WRITE_END]);
-        close(stdout_pipe[READ_END]);
-        close(stderr_pipe[READ_END]);
+        proc_dup2(stdin_pipe[READ_END], STDIN_FILENO);
+        proc_dup2(stdout_pipe[WRITE_END], STDOUT_FILENO);
+        proc_dup2(stderr_pipe[WRITE_END], STDERR_FILENO);
+        misra_sys1(MISRA_SYS_close, (long)(stdin_pipe[WRITE_END]));
+        misra_sys1(MISRA_SYS_close, (long)(stdout_pipe[READ_END]));
+        misra_sys1(MISRA_SYS_close, (long)(stderr_pipe[READ_END]));
 
-        long exec_ret = execve(filepath, argv, envp);
+        long exec_ret = misra_sys3(MISRA_SYS_execve, (long)(u64)(filepath), (long)(u64)(argv), (long)(u64)(envp));
 
-        // Only reached if execve failed.
+        // Only reached if execve failed. We CANNOT return -- this is the
+        // forked child; falling back into the caller would run the
+        // parent's continuation as a second process. Log + exit
+        // immediately via SYS_exit_group (127 is the conventional shell
+        // "command not found" / exec-failed status).
         LOG_SYS_ERROR(ErrnoOf(exec_ret), "execve() failed");
-        close(stdin_pipe[READ_END]);
-        close(stdout_pipe[READ_END]);
-        close(stderr_pipe[READ_END]);
-        close(stdin_pipe[WRITE_END]);
-        close(stdout_pipe[WRITE_END]);
-        close(stderr_pipe[WRITE_END]);
-        // Best-effort exit; we can't return from the child.
+        (void)misra_sys1(MISRA_SYS_exit_group, 127);
+        // exit_group does not return; the unreachable proc return is
+        // here only so the compiler can see a terminal statement.
         return proc;
     }
 
     // Parent: close the ends only the child uses.
-    close(stdin_pipe[READ_END]);
-    close(stdout_pipe[WRITE_END]);
-    close(stderr_pipe[WRITE_END]);
+    misra_sys1(MISRA_SYS_close, (long)(stdin_pipe[READ_END]));
+    misra_sys1(MISRA_SYS_close, (long)(stdout_pipe[WRITE_END]));
+    misra_sys1(MISRA_SYS_close, (long)(stderr_pipe[WRITE_END]));
 
     proc._pid       = pid;
     proc._stdin_fd  = stdin_pipe[WRITE_END];
@@ -298,7 +251,7 @@ Proc proc_init(Zstr filepath, char **argv, char **envp, Allocator *alloc) {
 
     // Copy PROCESS_INFORMATION fields into our layout-compatible
     // struct. We can't whole-struct-assign because the public header
-    // declares `_pi` as MisraProcessInfo_ (so it doesn't have to
+    // declares `_pi` as Win32ProcessInfo_ (so it doesn't have to
     // pull <windows.h>); the field shape matches but the types are
     // distinct at the C level.
     proc._pi.hProcess    = pi.hProcess;
@@ -320,7 +273,7 @@ ProcStatus ProcWait(Proc *proc) {
 
 #if PLATFORM_UNIX
     int  status;
-    long wait_ret = waitpid(proc->_pid, &status, 0);
+    long wait_ret = misra_sys4(MISRA_SYS_wait4, (long)(proc->_pid), (long)(u64)(&status), (long)(0), 0);
     if (wait_ret < 0) {
         LOG_SYS_ERROR(ErrnoOf(wait_ret), "Failed to wait for child process");
         return SYS_PROC_STATUS_ERROR;
@@ -392,15 +345,18 @@ ProcStatus ProcWaitFor(Proc *proc, u64 timeout_ms) {
 
     if (timeout_ms == 0) {
         // Infinite blocking wait
-        res = waitpid(proc->_pid, &status, 0);
+        res = misra_sys4(MISRA_SYS_wait4, (long)(proc->_pid), (long)(u64)(&status), (long)(0), 0);
     } else {
         // Simulate timeout using polling
         u64       elapsed_ms        = 0;
         const u64 sleep_interval_ms = 10;
 
         while (elapsed_ms < timeout_ms) {
-            res = waitpid(proc->_pid, &status, WNOHANG);
-            if (res == -1) {
+            res = misra_sys4(MISRA_SYS_wait4, (long)(proc->_pid), (long)(u64)(&status), (long)(WNOHANG), 0);
+            if (res < 0) {
+                // Direct-syscall path returns -errno (e.g. -EINTR = -4);
+                // checking against -1 alone misclassified those as
+                // "process exited."
                 return SYS_PROC_STATUS_ERROR;
             } else if (res == 0) {
                 proc_sleep_us(sleep_interval_ms * 1000);
@@ -441,14 +397,14 @@ void ProcTerminate(Proc *proc) {
     }
 
 #if PLATFORM_UNIX
-    long kill_ret = kill(proc->_pid, SIGTERM);
+    long kill_ret = misra_sys2(MISRA_SYS_kill, (long)(proc->_pid), (long)(SIGTERM));
     if (kill_ret < 0) {
-        LOG_SYS_ERROR(ErrnoOf(kill_ret), "kill(pid, SIGTERM) failed");
+        LOG_SYS_ERROR(ErrnoOf(kill_ret), "misra_sys2(MISRA_SYS_kill, (long)(pid), (long)(SIGTERM)) failed");
     }
 
     // Now wait for it to exit and capture the exit code
     int  status;
-    long wait_ret = waitpid(proc->_pid, &status, 0);
+    long wait_ret = misra_sys4(MISRA_SYS_wait4, (long)(proc->_pid), (long)(u64)(&status), (long)(0), 0);
     if (wait_ret < 0) {
         LOG_SYS_ERROR(ErrnoOf(wait_ret), "waitpid after SIGTERM failed");
         return;
@@ -497,9 +453,9 @@ void ProcDeinit(Proc *proc) {
     if (ProcOk(proc)) {
         ProcTerminate(proc);
 #if PLATFORM_UNIX
-        close(proc->_stdin_fd);
-        close(proc->_stdout_fd);
-        close(proc->_stderr_fd);
+        misra_sys1(MISRA_SYS_close, (long)(proc->_stdin_fd));
+        misra_sys1(MISRA_SYS_close, (long)(proc->_stdout_fd));
+        misra_sys1(MISRA_SYS_close, (long)(proc->_stderr_fd));
 #else
         CloseHandle(proc->_hStdinWrite);
         CloseHandle(proc->_hStdoutRead);
@@ -511,13 +467,13 @@ void ProcDeinit(Proc *proc) {
     MemSet(proc, 0, sizeof(*proc));
 }
 
-i32 ProcWriteToStdin(Proc *proc, Str *buf) {
+i32 ProcWriteToStdin(Proc *proc, const Str *buf) {
     if (!proc || !buf) {
         LOG_FATAL("Invalid arguments");
     }
 
 #if PLATFORM_UNIX
-    return write(proc->_stdin_fd, StrBegin(buf), StrLen(buf));
+    return misra_sys3(MISRA_SYS_write, (long)(proc->_stdin_fd), (long)(u64)(StrBegin(buf)), (long)(StrLen(buf)));
 #else
     DWORD written = 0;
     if (!WriteFile(proc->_hStdinWrite, StrBegin(buf), StrLen(buf), &written, NULL))
@@ -526,7 +482,7 @@ i32 ProcWriteToStdin(Proc *proc, Str *buf) {
 #endif
 }
 
-i32 sys_proc_read_internal(Proc *proc, Str *buf, bool is_stdout) {
+static i32 sys_proc_read_internal(Proc *proc, Str *buf, bool is_stdout) {
     if (!proc || !buf) {
         LOG_FATAL("Invalid argument");
     }
@@ -546,7 +502,7 @@ i32 sys_proc_read_internal(Proc *proc, Str *buf, bool is_stdout) {
         i32 rfd = is_stdout ? proc->_stdout_fd : proc->_stderr_fd;
 
         while (true) {
-            ssize_t n = read(rfd, StrBegin(&tmpbuf), 1023);
+            ssize_t n = misra_sys3(MISRA_SYS_read, (long)(rfd), (long)(u64)(StrBegin(&tmpbuf)), (long)(1023));
             if (n > 0) {
                 StrResize(&tmpbuf, (size)n);
                 StrMergeR(buf, &tmpbuf);
@@ -625,27 +581,42 @@ i32 ProcGetId(Proc *proc) {
 #endif
 }
 
-i32 ProcIsRunning(Proc *proc) {
+ProcStatus ProcGetStatus(Proc *proc) {
     if (!proc) {
         LOG_FATAL("Invalid argument");
     }
 
 #if PLATFORM_UNIX
-    int   status;
-    pid_t result = waitpid(proc->_pid, &status, WNOHANG);
+    int   status = 0;
+    pid_t result = misra_sys4(MISRA_SYS_wait4, (long)(proc->_pid), (long)(u64)(&status), (long)(WNOHANG), 0);
     if (result == 0) {
-        return 1;  // Still running
-    } else if (result == proc->_pid) {
-        return 0;  // Exited
-    } else {
-        return -1; // Error
+        return SYS_PROC_STATUS_RUNNING;
     }
+    if (result != proc->_pid) {
+        return SYS_PROC_STATUS_ERROR;
+    }
+    proc->_completed = true;
+    if (WIFEXITED(status)) {
+        proc->_exit_code = WEXITSTATUS(status);
+        return SYS_PROC_STATUS_COMPLETED;
+    }
+    if (WIFSIGNALED(status)) {
+        proc->_exit_code = 128 + WTERMSIG(status);
+        return SYS_PROC_STATUS_TERMINATED;
+    }
+    proc->_exit_code = -1;
+    return SYS_PROC_STATUS_ERROR;
 #else
     DWORD code = 0;
     if (!GetExitCodeProcess(proc->_pi.hProcess, &code)) {
-        return -1; // API error
+        return SYS_PROC_STATUS_ERROR;
     }
-    return (code == STILL_ACTIVE) ? 1 : 0;
+    if (code == STILL_ACTIVE) {
+        return SYS_PROC_STATUS_RUNNING;
+    }
+    proc->_completed = true;
+    proc->_exit_code = (i32)code;
+    return SYS_PROC_STATUS_COMPLETED;
 #endif
 }
 
@@ -692,12 +663,13 @@ Str *GetCurrentExecutablePath(Str *exe_path) {
 #else
     // Stack-backed staging buffer for `readlink`. The `-1` keeps room
     // for the NUL we write at `data[len]` before recording the length
-    // via `StrResize`.
+    // via `StrResize`. Direct-syscall return: `< 0` means `-errno`, so
+    // we accept `>= 0` as success rather than the legacy `!= -1` shape.
     bool got = false;
     StrInitStack(buffer, 4096) {
         char   *data = StrBegin(&buffer);
-        ssize_t len  = readlink("/proc/self/exe", data, 4095);
-        if (len != -1) {
+        ssize_t len  = proc_readlink("/proc/self/exe", data, 4095);
+        if (len >= 0) {
             data[len] = '\0';
             StrResize(&buffer, (size)len);
             *exe_path = StrInitFromStr(&buffer, alloc);

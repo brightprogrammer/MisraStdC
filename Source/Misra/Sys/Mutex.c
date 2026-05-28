@@ -1,4 +1,4 @@
-/// file      : Sys/Mutex.c
+/// file      : sys/mutex.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -43,7 +43,7 @@
 #        define FUTEX_WAKE_PRIVATE 129 // FUTEX_WAKE | FUTEX_PRIVATE_FLAG
 #    endif
 #else
-#    include <pthread.h>
+#    error "Mutex: unsupported platform/architecture (no direct-syscall path)"
 #endif
 
 // struct Mutex lives in <Misra/Sys/Mutex.h> -- exposed so callers can
@@ -94,12 +94,15 @@ void MutexDeinit(Mutex *m) {
 #elif FEATURE_DIRECT_SYSCALL
     // futex/ulock int has no destroy call; zeroing happens below.
 #else
-    pthread_mutex_destroy(&m->_lock);
+#    error "MutexDeinit: unsupported platform/architecture (no direct-syscall path)"
 #endif
     MemSet(m, 0, sizeof(Mutex));
 }
 
 Mutex *MutexLock(Mutex *m) {
+    if (!m) {
+        LOG_FATAL("MutexLock: NULL mutex");
+    }
 #if PLATFORM_WINDOWS
     // Cast through (SRWLOCK *) -- the header keeps `_lock` as a
     // bare void* so it doesn't have to pull <windows.h>. SRWLOCK is
@@ -131,12 +134,15 @@ Mutex *MutexLock(Mutex *m) {
         c = atomic_load_explicit(&m->_state, memory_order_relaxed);
     }
 #else
-    pthread_mutex_lock(&m->_lock);
+#    error "MutexLock: unsupported platform/architecture (no direct-syscall path)"
 #endif
     return m;
 }
 
 Mutex *MutexUnlock(Mutex *m) {
+    if (!m) {
+        LOG_FATAL("MutexUnlock: NULL mutex");
+    }
 #if PLATFORM_WINDOWS
     ReleaseSRWLockExclusive((SRWLOCK *)&m->_lock);
 #elif FEATURE_DIRECT_SYSCALL
@@ -148,7 +154,7 @@ Mutex *MutexUnlock(Mutex *m) {
         mutex_wake_one(&m->_state);
     }
 #else
-    pthread_mutex_unlock(&m->_lock);
+#    error "MutexUnlock: unsupported platform/architecture (no direct-syscall path)"
 #endif
     return m;
 }

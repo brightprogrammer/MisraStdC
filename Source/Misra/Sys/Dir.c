@@ -1,21 +1,14 @@
+/// file      : sys/dir.c
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
+/// This is free and unencumbered software released into the public domain.
+///
+/// Cross-platform directory enumeration and file/directory mutation.
+
 #include <Misra/Sys/Dir.h>
 #include <Misra/Std/Log.h>
 
 #if PLATFORM_WINDOWS
 #    include <windows.h>
-#    include <tlhelp32.h>
-#    include <psapi.h>
-#    include <signal.h>
-#else
-#    include <dirent.h>
-#    include <pthread.h>
-#    include <sys/stat.h>
-#    include <sys/wait.h>
-#    include <signal.h>
-#    include <unistd.h>
-#    if PLATFORM_DARWIN
-#        include <mach-o/dyld.h>
-#    endif
 #endif
 
 #include <Misra/Std.h>
@@ -46,7 +39,7 @@ Zstr DirEntryTypeToZstr(DirEntryType type) {
 }
 
 
-DirEntry *DirEntryInitCopy(DirEntry *dst, DirEntry *src) {
+DirEntry *DirEntryInitCopy(DirEntry *dst, const DirEntry *src) {
     if (!dst || !src) {
         LOG_FATAL("invalid arguments.");
     }
@@ -159,7 +152,7 @@ DirContents dir_get_contents(Zstr path, Allocator *alloc) {
 // d_ino / d_seekoff / d_reclen / d_namlen / d_type / d_name. d_name
 // is fixed-size in the system header but in the kernel-emitted
 // records only the first d_namlen bytes are valid.
-struct misra_kernel_dirent {
+struct kernel_dirent {
     u64  d_ino;
     u64  d_seekoff;
     u16  d_reclen;
@@ -170,7 +163,7 @@ struct misra_kernel_dirent {
 #    else
 // Linux's struct linux_dirent64. d_name is null-terminated; the next
 // record starts d_reclen bytes from the start of this one.
-struct misra_kernel_dirent {
+struct kernel_dirent {
     u64  d_ino;
     i64  d_off;
     u16  d_reclen;
@@ -232,7 +225,7 @@ DirContents dir_get_contents(Zstr path, Allocator *alloc) {
     long fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(u64)path, O_RDONLY | O_DIRECTORY | O_CLOEXEC, 0);
 #    endif
     if (fd < 0) {
-        LOG_ERROR("DirGetContents: open(\"{}\") failed (errno {})", path, (i32)-fd);
+        LOG_SYS_ERROR(ErrnoOf(fd), "DirGetContents: open(\"{}\")", path);
         return dc;
     }
 
@@ -252,11 +245,11 @@ DirContents dir_get_contents(Zstr path, Allocator *alloc) {
             break; // end of stream
         }
         if (n < 0) {
-            LOG_ERROR("DirGetContents: getdents64 failed (errno {})", (i32)-n);
+            LOG_SYS_ERROR(ErrnoOf(n), "DirGetContents: getdents64");
             break;
         }
         for (long off = 0; off < n;) {
-            struct misra_kernel_dirent *de = (struct misra_kernel_dirent *)(void *)(buf + off);
+            struct kernel_dirent *de = (struct kernel_dirent *)(void *)(buf + off);
             Zstr                        nm = de->d_name;
 #    if PLATFORM_DARWIN
             // Darwin gives d_namlen explicitly (not null-terminated
@@ -283,69 +276,7 @@ DirContents dir_get_contents(Zstr path, Allocator *alloc) {
     return dc;
 }
 #else
-// APPLE or other Unix-based system implementation using opendir/readdir.
-DirContents dir_get_contents(Zstr path, Allocator *alloc) {
-    if (!path || !alloc) {
-        LOG_FATAL("invalid arguments.");
-    }
-
-    DirContents dc = (DirContents)VecInit(alloc);
-
-    DIR *dir = opendir(path);
-    if (NULL == dir) {
-        // macOS-only path -- opendir is libc and sets errno on failure.
-        // ErrnoOf routes to errno here since FEATURE_DIRECT_SYSCALL
-        // is off on macOS.
-        LOG_SYS_ERROR(ErrnoOf(-1), "opendir(\"{}\") failed", path);
-        return dc;
-    }
-
-    // Go through each directory entry
-    struct dirent *entry = NULL;
-    while (NULL != (entry = readdir(dir))) {
-        if ('.' == entry->d_name[0] && 0 == entry->d_name[1]) {
-            continue;
-        } else if ('.' == entry->d_name[0] && '.' == entry->d_name[1] && 0 == entry->d_name[2]) {
-            continue;
-        } else {
-            Str         entry_path = StrInit(alloc);
-            Zstr dir_name   = &entry->d_name[0];
-            StrAppendFmt(&entry_path, "{}/{}", path, dir_name);
-
-            struct stat path_stat;
-            stat(StrBegin(&entry_path), &path_stat);
-
-            StrDeinit(&entry_path);
-
-            DirEntry direntry = {0};
-            if (S_ISREG(path_stat.st_mode)) {
-                direntry.type = SYS_DIR_ENTRY_TYPE_REGULAR_FILE;
-            } else if (S_ISDIR(path_stat.st_mode)) {
-                direntry.type = SYS_DIR_ENTRY_TYPE_DIRECTORY;
-            } else if (S_ISFIFO(path_stat.st_mode)) {
-                direntry.type = SYS_DIR_ENTRY_TYPE_PIPE;
-            } else if (S_ISCHR(path_stat.st_mode)) {
-                direntry.type = SYS_DIR_ENTRY_TYPE_CHARACTER_DEVICE;
-            } else if (S_ISBLK(path_stat.st_mode)) {
-                direntry.type = SYS_DIR_ENTRY_TYPE_BLOCK_DEVICE;
-            } else if (S_ISLNK(path_stat.st_mode)) {
-                direntry.type = SYS_DIR_ENTRY_TYPE_SYMBOLIC_LINK;
-            } else {
-                direntry.type = SYS_DIR_ENTRY_TYPE_UNKNOWN;
-            }
-#    if PLATFORM_DARWIN
-            direntry.name = StrInitFromCstr(entry->d_name, entry->d_namlen, alloc);
-#    else
-            direntry.name = StrInitFromCstr(entry->d_name, ZstrLen(entry->d_name), alloc);
-#    endif
-            VecPushBack(&dc, direntry);
-        }
-    }
-
-    closedir(dir);
-
-    return dc;
-}
+#    error "dir_get_contents: unsupported platform/architecture (no direct-syscall path)"
 #endif
 
 // Cross-platform function to get file size
@@ -385,27 +316,18 @@ i64 file_get_size(Zstr filename) {
     long fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(u64)filename, O_RDONLY | O_CLOEXEC, 0);
 #    endif
     if (fd < 0) {
-        LOG_ERROR("FileGetSize: open(\"{}\") failed (errno {})", filename, (i32)-fd);
+        LOG_SYS_ERROR(ErrnoOf(fd), "FileGetSize: open(\"{}\")", filename);
         return -1;
     }
     long sz = misra_sys3(MISRA_SYS_lseek, fd, 0, SEEK_END_);
     (void)misra_sys1(MISRA_SYS_close, fd);
     if (sz < 0) {
-        LOG_ERROR("FileGetSize: lseek failed on \"{}\" (errno {})", filename, (i32)-sz);
+        LOG_SYS_ERROR(ErrnoOf(sz), "FileGetSize: lseek on \"{}\"", filename);
         return -1;
     }
     return (i64)sz;
 #else
-    // Unix-like systems (Linux/macOS) code using stat. Only reached
-    // when FEATURE_DIRECT_SYSCALL is off (i.e., macOS); ErrnoOf
-    // collapses to reading errno on that path.
-    struct stat file_stat;
-    if (stat(filename, &file_stat) == 0) {
-        return (i64)file_stat.st_size;
-    } else {
-        LOG_SYS_ERROR(ErrnoOf(-1), "stat() failed");
-        return -1;
-    }
+#    error "file_get_size: unsupported platform/architecture (no direct-syscall path)"
 #endif
 }
 
@@ -614,8 +536,10 @@ i8 dir_remove_all(Zstr path) {
     // we don't know the entry count in advance. The per-entry path
     // string is stack-backed via StrInitStack below.
     HeapAllocator ha = HeapAllocatorInit();
-    Allocator    *al = ALLOCATOR_OF(&ha);
-    DirContents   dc = dir_get_contents(path, al);
+    // dir_get_contents takes `Allocator *` (it's a generic helper used
+    // by both typed and erased callers) -- legitimate erasure boundary;
+    // pass at the call site, no intermediate variable.
+    DirContents   dc = dir_get_contents(path, ALLOCATOR_OF(&ha));
 
     bool ok        = true;
     size path_len  = ZstrLen(path);

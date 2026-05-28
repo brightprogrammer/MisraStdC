@@ -4,9 +4,11 @@
 ///
 /// Caller-buffer, fixed-budget pool allocator. Carves a user-provided
 /// memory region into N fixed-size slots at init, where
-/// N = floor(buf_bytes / padded_slot_size), and serves alloc/free out of
-/// an intrusive free list over those slots. There is **no growth path**:
-/// once the free list is empty, `AllocatorAlloc` returns NULL.
+/// N = floor(buf_bytes / padded_slot_size), and serves alloc/free out
+/// of a u64-word bitmap over those slots (ctz-scan for a free bit on
+/// alloc; bit-clear + double-free check on free). There is **no
+/// growth path**: once every bitmap bit is set, `AllocatorAlloc`
+/// returns NULL.
 ///
 /// `BudgetAllocator` is stateless with respect to the OS: it never calls
 /// `mmap` / `VirtualAlloc` / `malloc` and never embeds another
@@ -23,9 +25,9 @@
 ///
 ///     u8              buf[4096];
 ///     BudgetAllocator bp = BudgetAllocatorInit(buf, sizeof(buf), 64);
-///     void           *a  = AllocatorAlloc(ALLOCATOR_OF(&bp), 64, true);
+///     void           *a  = AllocatorAlloc(&bp, 64, true);
 ///     ...
-///     AllocatorFree(ALLOCATOR_OF(&bp), a);
+///     AllocatorFree(&bp, a);
 ///     BudgetAllocatorDeinit(&bp);  // no-op; the caller owns `buf`
 
 #ifndef MISRA_STD_ALLOCATOR_BUDGET_H
@@ -82,10 +84,63 @@ extern "C" {
         size      slot_count;
     } BudgetAllocator;
 
-    void *budget_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
-    i8    budget_allocator_resize(Allocator *self, void *ptr, size new_size);
-    void *budget_allocator_remap(Allocator *self, void *ptr, size new_size);
-    size  budget_allocator_deallocate(Allocator *self, void *ptr);
+    ///
+    /// Serve a fixed-budget slot. `bytes` must fit within the budget
+    /// allocator's configured `slot_size` (set at init). The bitmap is
+    /// scanned word-by-word via `ctz` for the first free bit; that
+    /// bit is set and the corresponding slot returned.
+    ///
+    /// SUCCESS: Returns a writable, `base.alignment`-aligned pointer
+    ///          to one slot. Zeroed when `zeroed` is non-zero.
+    /// FAILURE: Returns NULL when every bitmap bit is set (pool full)
+    ///          or `bytes` exceeds `slot_size` -- there is no growth
+    ///          path for a `BudgetAllocator`.
+    ///
+    /// TAGS: Allocator, Budget, Memory, Allocation
+    ///
+    void *budget_allocator_allocate(BudgetAllocator *self, size bytes, i8 zeroed);
+
+    ///
+    /// In-place resize. Slots are fixed-size, so a resize succeeds iff
+    /// `new_size` still fits in `slot_size`.
+    ///
+    /// SUCCESS: Returns 1 when `new_size <= slot_size`. The pointer
+    ///          stays valid; no bitmap state changes.
+    /// FAILURE: Returns 0 when `new_size > slot_size`. The slot is
+    ///          unchanged.
+    ///
+    /// TAGS: Allocator, Budget, Memory, InPlace
+    ///
+    i8 budget_allocator_resize(BudgetAllocator *self, void *ptr, size new_size);
+
+    ///
+    /// Resize with relocation allowed. Slots are fixed-size, so any
+    /// request that fits in `slot_size` returns the same pointer; any
+    /// request larger than `slot_size` fails outright.
+    ///
+    /// SUCCESS: Returns `ptr` unchanged when `new_size <= slot_size`.
+    ///          When `ptr` is NULL this behaves like
+    ///          `budget_allocator_allocate(self, new_size, 0)`.
+    /// FAILURE: Returns NULL when `new_size > slot_size`. The old
+    ///          allocation is left untouched.
+    ///
+    /// TAGS: Allocator, Budget, Memory, Reallocation
+    ///
+    void *budget_allocator_remap(BudgetAllocator *self, void *ptr, size new_size);
+
+    ///
+    /// Free a slot. Computes the slot index from `ptr` and the slot
+    /// region base, validates the pointer against the slot range and
+    /// alignment, and clears the bitmap bit.
+    ///
+    /// SUCCESS: Returns `slot_size` (what stats accounting sees).
+    /// FAILURE: Aborts via `LOG_FATAL` when `ptr` is foreign to this
+    ///          allocator's slot region, mis-aligned, or its bitmap
+    ///          bit is already clear (double-free).
+    ///
+    /// TAGS: Allocator, Budget, Memory, Deallocation
+    ///
+    size budget_allocator_deallocate(BudgetAllocator *self, void *ptr);
 
 ///
 /// Initialize a `BudgetAllocator` over a caller-owned memory region.
@@ -153,10 +208,10 @@ extern "C" {
      ),                                                                                                                \
      ((BudgetAllocator) {                                                                                              \
          .base =                                                                                                       \
-             {.allocate    = budget_allocator_allocate,                                                                \
-                    .resize      = budget_allocator_resize,                                                                  \
-                    .remap       = budget_allocator_remap,                                                                   \
-                    .deallocate  = budget_allocator_deallocate,                                                              \
+             {.allocate    = (AllocatorAllocateFn)budget_allocator_allocate,                                           \
+                    .resize      = (AllocatorResizeFn)budget_allocator_resize,                                               \
+                    .remap       = (AllocatorRemapFn)budget_allocator_remap,                                                 \
+                    .deallocate  = (AllocatorDeallocateFn)budget_allocator_deallocate,                                       \
                     .alignment   = (alignment_value),                                                                        \
                     .effort      = ALLOCATOR_EFFORT_ONCE,                                                                    \
                     .retry_limit = 0,                                                                                        \
@@ -221,5 +276,14 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
+
+///
+/// Total slot capacity carved out of the caller's buffer at init.
+/// Fixed for the lifetime of the allocator: subtract live allocations
+/// to get the remaining budget.
+///
+/// TAGS: Allocator, Budget, Query
+///
+#define BudgetAllocatorSlotCount(b) ((void)0, (b)->slot_count)
 
 #endif // MISRA_STD_ALLOCATOR_BUDGET_H

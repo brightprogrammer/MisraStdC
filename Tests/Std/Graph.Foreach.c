@@ -63,8 +63,8 @@ static bool city_reachable_from(GraphNode node, GraphNodeId goal_id) {
 }
 
 static bool city_reachable(CityGraph *graph, CityIndex *index, const Str *from, const Str *to) {
-    GraphNodeId *from_id = MapTryGetPtr(index, *from);
-    GraphNodeId *to_id   = MapTryGetPtr(index, *to);
+    GraphNodeId *from_id = MapGetFirstPtr(index, *from);
+    GraphNodeId *to_id   = MapGetFirstPtr(index, *to);
 
     if (!from_id || !to_id) {
         return false;
@@ -156,10 +156,10 @@ static bool test_graph_foreach_with_external_map_counts(void) {
         }
     }
 
-    bool result = *MapTryGetPtr(&counts, a) == 0;
-    result      = result && *MapTryGetPtr(&counts, b) == 1;
-    result      = result && *MapTryGetPtr(&counts, c) == 1;
-    result      = result && *MapTryGetPtr(&counts, d) == 2;
+    bool result = *MapGetFirstPtr(&counts, a) == 0;
+    result      = result && *MapGetFirstPtr(&counts, b) == 1;
+    result      = result && *MapGetFirstPtr(&counts, c) == 1;
+    result      = result && *MapGetFirstPtr(&counts, d) == 2;
 
     MapDeinit(&counts);
     GraphDeinit(&graph);

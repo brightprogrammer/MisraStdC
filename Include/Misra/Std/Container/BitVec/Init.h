@@ -61,7 +61,7 @@ extern "C" {
 ///
 /// TAGS: BitVec, Init, API
 ///
-#define BitVecInit(...) MISRA_OVERLOAD(BitVecInit, __VA_ARGS__)
+#define BitVecInit(...) OVERLOAD(BitVecInit, __VA_ARGS__)
 #define BitVecInit_0()  BitVecInit_1(MisraScope)
 #ifdef __cplusplus
 #    define BitVecInit_1(allocator_ptr)                                                                                \
@@ -97,11 +97,9 @@ extern "C" {
     /// TAGS: BitVec, Init, Capacity, Construct
     ///
     BitVec bitvec_init_with_capacity(u64 cap, Allocator *alloc);
-#define BitVecInitWithCapacity(...)         MISRA_OVERLOAD(BitVecInitWithCapacity, __VA_ARGS__)
+#define BitVecInitWithCapacity(...)         OVERLOAD(BitVecInitWithCapacity, __VA_ARGS__)
 #define BitVecInitWithCapacity_1(cap)         bitvec_init_with_capacity((cap), MisraScope)
 #define BitVecInitWithCapacity_2(cap, alloc)  bitvec_init_with_capacity((cap), ALLOCATOR_OF(alloc))
-// Backwards-compat shim for the old explicit-allocator-only call shape.
-#define BitVecInitWithCapacityMacro(cap, allocator_ptr) bitvec_init_with_capacity((cap), ALLOCATOR_OF(allocator_ptr))
 
     ///
     /// Release all storage owned by `bv` and reset it to the zeroed state.

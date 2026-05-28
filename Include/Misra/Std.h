@@ -21,7 +21,9 @@
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
+#include <Misra/Std/Math.h>
 #include <Misra/Std/Memory.h>
+#include <Misra/Std/Prng.h>
 #include <Misra/Std/Utility.h>
 #include <Misra/Std/Zstr.h>
 
@@ -33,6 +35,9 @@
 #endif
 #if FEATURE_ALLOC_BUDGET
 #    include <Misra/Std/Allocator/Budget.h>
+#endif
+#if FEATURE_ALLOC_DEBUG
+#    include <Misra/Std/Allocator/Debug.h>
 #endif
 
 #if FEATURE_FILE

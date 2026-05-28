@@ -525,7 +525,13 @@
     (ValidateVec(vd),                                                                                                  \
      ValidateVec(vs),                                                                                                  \
      VecDeinit(vd),                                                                                                    \
-     *(vd) = (TYPE_OF(*(vd)))VEC_INIT_WITH_DEEP_COPY_VALUE((vs)->copy_init, (vs)->copy_deinit, (vs)->allocator),       \
+     *(vd) = (TYPE_OF(*(vd))) {.length      = 0,                                                                       \
+                               .capacity    = 0,                                                                       \
+                               .copy_init   = VecCopyInit(vs),                                                         \
+                               .copy_deinit = VecCopyDeinit(vs),                                                       \
+                               .data        = NULL,                                                                    \
+                               .allocator   = VecAllocator(vs),                                                        \
+                               .__magic     = VEC_MAGIC},                                                              \
      clone_vec(GENERIC_VEC(vd), GENERIC_VEC(vs), sizeof(VEC_DATATYPE(vd))))
 
 ///

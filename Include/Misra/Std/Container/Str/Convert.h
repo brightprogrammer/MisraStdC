@@ -48,10 +48,13 @@ extern "C" {
     ///
     /// str[out]    : String to store the result in
     /// value[in]   : Value to convert
-    /// config[in]  : Formatting configuration (NULL for base 10, no prefix)
+    /// config[in]  : Formatting configuration. May be `NULL` (uses the
+    ///               default: base 10, no prefix).
     ///
     /// SUCCESS : Returns `str`
-    /// FAILURE : Returns `NULL` when `config` is invalid; the destination string is untouched
+    /// FAILURE : Returns `NULL` on allocator OOM while appending to `str`,
+    ///           or when a non-NULL `config` has an invalid base. The
+    ///           destination string is untouched.
     ///
     /// TAGS: Str, Convert, U64
     ///
@@ -62,10 +65,13 @@ extern "C" {
     ///
     /// str[out]    : String to store the result in
     /// value[in]   : Value to convert
-    /// config[in]  : Formatting configuration (NULL for base 10, no prefix)
+    /// config[in]  : Formatting configuration. May be `NULL` (uses the
+    ///               default: base 10, no prefix).
     ///
     /// SUCCESS : Returns `str`
-    /// FAILURE : Returns `NULL` when `config` is invalid; the destination string is untouched
+    /// FAILURE : Returns `NULL` on allocator OOM while appending to `str`,
+    ///           or when a non-NULL `config` has an invalid base. The
+    ///           destination string is untouched.
     ///
     /// TAGS: Str, Convert, I64
     ///
@@ -76,10 +82,13 @@ extern "C" {
     ///
     /// str[out]     : String to store the result in
     /// value[in]    : Value to convert
-    /// config[in]   : Formatting configuration (NULL for 6 decimal places)
+    /// config[in]   : Formatting configuration. May be `NULL` (uses the
+    ///                default: 6 decimal places).
     ///
     /// SUCCESS : Returns `str`
-    /// FAILURE : Returns `NULL` when `config` is invalid; the destination string is untouched
+    /// FAILURE : Returns `NULL` on allocator OOM while appending to `str`,
+    ///           or when a non-NULL `config` has an invalid precision
+    ///           (> 17). The destination string is untouched.
     ///
     /// TAGS: Str, Convert, F64
     ///

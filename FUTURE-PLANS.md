@@ -89,8 +89,8 @@ Items below have landed; kept here as a history of what each branch closed out.
 - `Parsers/MachO`: 64-bit Mach-O parser (LC_SEGMENT_64 + LC_SYMTAB + LC_UUID).
 - `Sys/MachoCache`: dSYM-aware resolver (main symtab → dSYM symtab → dSYM DWARF) with UUID-match enforcement.
 - `Sys/Backtrace`: macOS / Darwin backend (FP walk + dyld image lookup + MachoCache); brings the in-tree symbolizer to all three desktop platforms.
-- `Sys/Backtrace`: raw + Vec shapes for `CaptureStackTrace` / `CaptureStackTraceCfi` / `FormatStackTrace` / `FormatStackTraceWith` via `MISRA_OVERLOAD`; preserves the alloc-free path the DebugAllocator depends on.
-- `Std/Container/BitVec`: raw + Vec shapes for `BitVecFindAllPattern` (Vec of indices) and `BitVecRunLengths` (Vec of `{length, value}` records); same `MISRA_OVERLOAD` dispatch.
+- `Sys/Backtrace`: raw + Vec shapes for `CaptureStackTrace` / `CaptureStackTraceCfi` / `FormatStackTrace` / `FormatStackTraceWith` via `OVERLOAD`; preserves the alloc-free path the DebugAllocator depends on.
+- `Std/Container/BitVec`: raw + Vec shapes for `BitVecFindAllPattern` (Vec of indices) and `BitVecRunLengths` (Vec of `{length, value}` records); same `OVERLOAD` dispatch.
 - `Std/Allocator/Debug`: backtrace + symbol resolution now goes through the in-tree chain end-to-end; no libc `backtrace()` or `dladdr` dependency. Static functions resolve through `.symtab` or `.debug_info`.
 - `Parsers/MachO`: `N_STAB` filter fix -- per the Mach-O spec any high bit of `n_type` (mask `0xE0`) flags an entry as a debug stab; the original check required all three bits set so common stab types (`N_SO`, `N_FUN`, `N_OSO`, `N_BNSYM`) were polluting symbol lookups. Caught when explicit Backtrace tests ran on the macOS host.
 - `Tests/Std/MachO`: Darwin-only round-trip against the running test binary via `_NSGetExecutablePath` + `MachoFileOpen` + `MachoFileResolveAddress`; structural parallel of the Linux `Tests/Std/Elf` `/proc/self/exe` smoke tests.

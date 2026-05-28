@@ -1,4 +1,4 @@
-/// file      : Elf.h
+/// file      : parsers/elf.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -89,7 +89,7 @@ typedef enum ElfSymbolType {
 /// Decoded ELF file header (just the fields users care about).
 ///
 typedef struct ElfHeader {
-    ElfClass class;
+    ElfClass elf_class;
     ElfData data;
     ElfType type;
     u16     machine;
@@ -203,7 +203,7 @@ typedef struct Elf {
 /// TAGS: Parser, ELF, File
 ///
 bool elf_open(Elf *out, Zstr path, Allocator *alloc);
-#define ElfOpen(...) MISRA_OVERLOAD(ElfOpen, __VA_ARGS__)
+#define ElfOpen(...) OVERLOAD(ElfOpen, __VA_ARGS__)
 #define ElfOpen_2(out, path)                                                                                           \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
@@ -272,7 +272,7 @@ bool ElfOpenFromMemory(Elf *out, Buf *in);
 /// TAGS: Parser, ELF, Memory, Copy
 ///
 bool elf_open_from_memory_copy(Elf *out, const u8 *data, size data_size, Allocator *alloc);
-#define ElfOpenFromMemoryCopy(...)                    MISRA_OVERLOAD(ElfOpenFromMemoryCopy, __VA_ARGS__)
+#define ElfOpenFromMemoryCopy(...)                    OVERLOAD(ElfOpenFromMemoryCopy, __VA_ARGS__)
 #define ElfOpenFromMemoryCopy_3(out, data, data_size) elf_open_from_memory_copy((out), (data), (data_size), MisraScope)
 #define ElfOpenFromMemoryCopy_4(out, data, data_size, alloc)                                                           \
     elf_open_from_memory_copy((out), (data), (data_size), ALLOCATOR_OF(alloc))
@@ -315,7 +315,7 @@ const ElfSymbol *ElfResolveAddress(const Elf *self, u64 vaddr);
 /// Find a section by name (first match) within the parsed ELF.
 ///
 /// self[in] : Parsed Elf object.
-/// name[in] : NUL-terminated section name to look up (case-sensitive).
+/// name[in] : Section name to look up (case-sensitive).
 ///
 /// SUCCESS : Returns a pointer to the first matching `ElfSection` in
 ///           `self->sections`. The pointer is borrowed and valid until
@@ -325,6 +325,14 @@ const ElfSymbol *ElfResolveAddress(const Elf *self, u64 vaddr);
 ///
 /// TAGS: Parser, ELF, Section, Query
 ///
-const ElfSection *ElfFindSection(const Elf *self, Zstr name);
+const ElfSection *elf_find_section_zstr(const Elf *self, Zstr name);
+const ElfSection *elf_find_section_str(const Elf *self, const Str *name);
+#define ElfFindSection(self, name)                                                                                     \
+    _Generic(                                                                                                          \
+        (name),                                                                                                        \
+        Str *: elf_find_section_str,                                                                                   \
+        Zstr: elf_find_section_zstr,                                                                                   \
+        char *: elf_find_section_zstr                                                                                  \
+    )((self), (name))
 
 #endif // MISRA_PARSERS_ELF_H

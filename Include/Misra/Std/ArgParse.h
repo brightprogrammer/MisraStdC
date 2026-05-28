@@ -111,13 +111,13 @@ extern "C" {
     /// time, mutated during `ArgParseRun`.
     ///
     typedef struct ArgSpec {
-        Zstr short_name; // "-l" or NULL; ignored for positionals
-        Zstr long_name;  // "--listen" for options; metavar (e.g. "hostname") for positionals
-        Zstr help;       // one-line description for `--help`
-        ArgRole     role;
-        ArgKind     kind;
-        void       *target;
-        bool        seen; // set during parse so missing-required can be checked
+        Zstr    short_name; // "-l" or NULL; ignored for positionals
+        Zstr    long_name;  // "--listen" for options; metavar (e.g. "hostname") for positionals
+        Zstr    help;       // one-line description for `--help`
+        ArgRole role;
+        ArgKind kind;
+        void   *target;
+        bool    seen; // set during parse so missing-required can be checked
     } ArgSpec;
 
     typedef Vec(ArgSpec) ArgSpecs;
@@ -130,10 +130,10 @@ extern "C" {
     /// `alloc` -- where the `specs` Vec and any owned strings come from.
     ///
     typedef struct ArgParse {
-        Allocator  *alloc;
-        Zstr name;
-        Zstr about;
-        ArgSpecs    specs;
+        Allocator *alloc;
+        Zstr       name;
+        Zstr       about;
+        ArgSpecs   specs;
     } ArgParse;
 
     ///
@@ -152,13 +152,12 @@ extern "C" {
     /// FAILURE: Cannot fail at construction; first allocator OOM
     ///          surfaces from later spec-Vec growth.
     ///
-#define ArgParseInit(...)                     MISRA_OVERLOAD(ArgParseInit, __VA_ARGS__)
+#define ArgParseInit(...)                     OVERLOAD(ArgParseInit, __VA_ARGS__)
 #define ArgParseInit_2(prog_name, prog_about) ArgParseInit_3((prog_name), (prog_about), MisraScope)
 #define ArgParseInit_3(prog_name, prog_about, alloc_ptr)                                                               \
-    ((ArgParse) {.alloc = ALLOCATOR_OF(alloc_ptr),                                                                     \
-                 .name  = (prog_name),                                                                                 \
-                 .about = (prog_about),                                                                                \
-                 .specs = VecInit_1(alloc_ptr)})
+    ((                                                                                                                 \
+        ArgParse                                                                                                       \
+    ) {.alloc = ALLOCATOR_OF(alloc_ptr), .name = (prog_name), .about = (prog_about), .specs = VecInit_1(alloc_ptr)})
 
     ///
     /// Release the spec Vec. Safe on a fully-initialised parser; not
@@ -199,21 +198,13 @@ extern "C" {
     /// FAILURE : Aborts via `LOG_FATAL` when `self` is NULL, when
     ///           `target.kind` is `ARG_KIND_INVALID`, when the role
     ///           is incompatible with the target type (flag without a
-    ///           `bool *`, count without an unsigned-int pointer),
-    ///           when a positional is missing its `long_name`, or
-    ///           when an option has neither `short_name` nor
-    ///           `long_name`.
+    ///           `bool *`, count without a `u8/u16/u32/u64 *`), when
+    ///           a positional is missing its `long_name`, or when an
+    ///           option has neither `short_name` nor `long_name`.
     ///
     /// TAGS: ArgParse, Register, Internal
     ///
-    void arg_register(
-        ArgParse   *self,
-        ArgRole     role,
-        Zstr short_name,
-        Zstr long_name,
-        Zstr help,
-        ArgTarget   target
-    );
+    void arg_register(ArgParse *self, ArgRole role, Zstr short_name, Zstr long_name, Zstr help, ArgTarget target);
 
     ///
     /// Type-aware target tag generator. Inspects the pointee type of
@@ -234,7 +225,7 @@ extern "C" {
 #define ARG_TARGET(t)                                                                                                  \
     _Generic(                                                                                                          \
         (t),                                                                                                           \
-        Zstr *: ((ArgTarget) {ARG_KIND_ZSTR, (void *)(t)}),                                                     \
+        Zstr *: ((ArgTarget) {ARG_KIND_ZSTR, (void *)(t)}),                                                            \
         char **: ((ArgTarget) {ARG_KIND_ZSTR, (void *)(t)}),                                                           \
         Str *: ((ArgTarget) {ARG_KIND_STR, (void *)(t)}),                                                              \
         bool *: ((ArgTarget) {ARG_KIND_BOOL, (void *)(t)}),                                                            \

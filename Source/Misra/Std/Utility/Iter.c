@@ -1,3 +1,11 @@
+/// file      : std/utility/iter.c
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
+/// This is free and unencumbered software released into the public domain.
+///
+/// Runtime backends for the generic `Iter` cursor (bounds checks, move,
+/// peek-index, validate). The macros in `Std/Utility/Iter/*.h` wrap
+/// these via `GENERIC_ITER` so element-typed iters share one body.
+
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Utility/Iter.h>
 
@@ -64,8 +72,12 @@ bool iter_try_move(GenericIter *it, i64 n) {
 }
 
 void validate_iter(GenericIter *i) {
-    if ((i->dir != -1 && i->dir != 1) || !i->alignment || !i->length || i->pos >= i->length) {
+    // Structural-validity check only. Length-0 is a legal initial state
+    // (per `IterInit()`). Forward iters consider `pos == length` exhausted;
+    // reverse iters use `pos == (size)-1` (== UINT64_MAX) as the past-start
+    // sentinel. Both are valid here -- the position checks belong in the
+    // iter-move helpers, not in the structural validator.
+    if ((i->dir != -1 && i->dir != 1) || !i->alignment) {
         LOG_FATAL("Invalid iter object.");
     }
-    (void)(*(char *)(void *)(i->data));
 }

@@ -34,7 +34,7 @@
 ///
 /// TAGS: Init, Vec, Length, Size
 ///
-#define VecInit(...) MISRA_OVERLOAD(VecInit, __VA_ARGS__)
+#define VecInit(...) OVERLOAD(VecInit, __VA_ARGS__)
 #define VecInit_0()  VecInit_1(MisraScope)
 #define VecInit_1(allocator_ptr)                                                                                       \
     {.length      = 0,                                                                                                 \
@@ -54,7 +54,7 @@
 ///
 /// TAGS: Vec, Init, API
 ///
-#define VecInitT(v, ...) MISRA_OVERLOAD(VecInitT, v, __VA_ARGS__)
+#define VecInitT(v, ...) OVERLOAD(VecInitT, v, __VA_ARGS__)
 #ifdef __cplusplus
 #    define VecInitT_1(v)            (TYPE_OF(v) VecInit_1(MisraScope))
 #    define VecInitT_2(v, alloc_ptr) (TYPE_OF(v) VecInit_1(alloc_ptr))
@@ -70,7 +70,7 @@
 ///
 /// TAGS: Vec, Init, DeepCopy, Copy
 ///
-#define VecInitWithDeepCopy(...)      MISRA_OVERLOAD(VecInitWithDeepCopy, __VA_ARGS__)
+#define VecInitWithDeepCopy(...)      OVERLOAD(VecInitWithDeepCopy, __VA_ARGS__)
 #define VecInitWithDeepCopy_2(ci, cd) VecInitWithDeepCopy_3(ci, cd, MisraScope)
 #define VecInitWithDeepCopy_3(ci, cd, allocator_ptr)                                                                   \
     {.length      = 0,                                                                                                 \
@@ -81,7 +81,7 @@
      .allocator   = ALLOCATOR_OF(allocator_ptr),                                                                       \
      .__magic     = VEC_MAGIC}
 
-#define VecInitWithDeepCopyT(v, ...) MISRA_OVERLOAD(VecInitWithDeepCopyT, v, __VA_ARGS__)
+#define VecInitWithDeepCopyT(v, ...) OVERLOAD(VecInitWithDeepCopyT, v, __VA_ARGS__)
 #ifdef __cplusplus
 #    define VecInitWithDeepCopyT_3(v, ci, cd)            (TYPE_OF(v) VecInitWithDeepCopy_3(ci, cd, MisraScope))
 #    define VecInitWithDeepCopyT_4(v, ci, cd, alloc_ptr) (TYPE_OF(v) VecInitWithDeepCopy_3(ci, cd, alloc_ptr))
@@ -136,11 +136,12 @@
 ///           jumps to the inner for's update clause, which zeroes
 ///           `name` and exits the scope; treat it as a silent
 ///           early-exit, not a loop control.
-///           `ne` is evaluated four times in the macro body (twice
-///           in the array dimension `sizeof(T) * ((ne) + 1)`, once
-///           for the `Vec(T)` capacity assignment, and once for the
-///           `_s.d` `sizeof` MemSet); pass a side-effect-free
-///           expression (literal or simple variable).
+///           `ne` is evaluated twice in the macro body (once in the
+///           array dimension `sizeof(T) * ((ne) + 1)`, once in the
+///           `Vec(T)` capacity assignment); `sizeof(UNPL(_s).d)`
+///           reads the array's type, not `ne`. Pass a
+///           side-effect-free expression (literal or simple
+///           variable) regardless.
 ///
 /// TAGS: Vec, Init, Stack, Scope
 ///

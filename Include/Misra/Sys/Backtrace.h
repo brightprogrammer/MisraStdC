@@ -1,4 +1,4 @@
-/// file      : Backtrace.h
+/// file      : sys/backtrace.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -21,7 +21,7 @@
 ///     `SymGetLineFromAddr64` when the PDB can't be located.
 ///
 /// Each capture / format function has two callable shapes via
-/// `MISRA_OVERLOAD`:
+/// `OVERLOAD`:
 ///
 ///   - **Raw**: caller passes a fixed `StackFrame *` buffer (typically
 ///     stack-allocated). No allocations happen anywhere in the walk
@@ -46,8 +46,8 @@
 // declare here -- the FormatStackTraceWith APIs only take a pointer,
 // so including the full header would pull `<Misra/Parsers/Elf.h>`
 // (and its enum names) transitively into every TU that uses
-// Backtrace, including files like `Bin/ElfInfo.c` that maintain
-// their own ELF enum vocabulary. Callers who actually construct a
+// Backtrace, where downstream code that carries its own ELF enum
+// vocabulary would collide. Callers who actually construct a
 // SymbolResolver should include the full header themselves.
 #if FEATURE_SYS_SYMRESOLVE
 typedef struct SymbolResolver SymbolResolver;
@@ -128,9 +128,9 @@ bool capture_stack_trace_cfi_vec(StackFrames *out, size skip_frames, SymbolResol
 ///
 /// SUCCESS : Returns to the caller; `out` is appended to (one line per
 ///           input frame). Unresolved frames render as `#N 0x<ip>`.
-/// FAILURE : Cannot fail. Allocator OOM during the append is logged via
-///           the underlying StrAppendFmt and silently truncates; the
-///           formatter never reports failure to the caller.
+/// FAILURE : Function cannot fail. Allocator OOM while growing `*out`
+///           aborts via `LOG_FATAL` (Str's standard must-succeed
+///           contract).
 ///
 /// TAGS: Backtrace, Format, Trace, Stack
 ///
@@ -140,8 +140,9 @@ void format_stack_trace_raw(Str *out, const StackFrame *frames, size count, Allo
 /// Vec formatter: same as raw but consumes a `StackFrames *`.
 ///
 /// SUCCESS : Returns to the caller; `out` is appended to.
-/// FAILURE : Cannot fail. See `format_stack_trace_raw` for the OOM
-///           behaviour.
+/// FAILURE : Function cannot fail. Allocator OOM while growing `*out`
+///           aborts via `LOG_FATAL` (Str's standard must-succeed
+///           contract).
 ///
 /// TAGS: Backtrace, Format, Trace, Stack
 ///
@@ -154,8 +155,9 @@ void format_stack_trace_vec(Str *out, const StackFrames *frames, Allocator *allo
 ///
 /// SUCCESS : Returns to the caller; `out` is appended to using
 ///           `resolver`'s already-built symbol tables.
-/// FAILURE : Cannot fail. OOM during append is logged + silently
-///           truncates; the formatter never reports failure.
+/// FAILURE : Function cannot fail. Allocator OOM while growing `*out`
+///           aborts via `LOG_FATAL` (Str's standard must-succeed
+///           contract).
 ///
 /// TAGS: Backtrace, Format, Trace, Symbol, Stack
 ///
@@ -192,7 +194,7 @@ void format_stack_trace_with_vec(Str *out, const StackFrames *frames, SymbolReso
 ///
 /// TAGS: Sys, Backtrace, Unwind
 ///
-#define CaptureStackTrace(...)              MISRA_OVERLOAD(CaptureStackTrace, __VA_ARGS__)
+#define CaptureStackTrace(...)              OVERLOAD(CaptureStackTrace, __VA_ARGS__)
 #define CaptureStackTrace_3(out, max, skip) capture_stack_trace_raw((out), (max), (skip))
 #define CaptureStackTrace_2(out, skip)      capture_stack_trace_vec((out), (skip))
 
@@ -214,7 +216,7 @@ void format_stack_trace_with_vec(Str *out, const StackFrames *frames, SymbolReso
 ///
 /// TAGS: Sys, Backtrace, CFI, Unwind
 ///
-#    define CaptureStackTraceCfi(...)                   MISRA_OVERLOAD(CaptureStackTraceCfi, __VA_ARGS__)
+#    define CaptureStackTraceCfi(...)                   OVERLOAD(CaptureStackTraceCfi, __VA_ARGS__)
 #    define CaptureStackTraceCfi_4(out, max, skip, res) capture_stack_trace_cfi_raw((out), (max), (skip), (res))
 #    define CaptureStackTraceCfi_3(out, skip, res)      capture_stack_trace_cfi_vec((out), (skip), (res))
 #endif
@@ -237,7 +239,7 @@ void format_stack_trace_with_vec(Str *out, const StackFrames *frames, SymbolReso
 ///
 /// TAGS: Sys, Backtrace, Format
 ///
-#define FormatStackTrace(...)                         MISRA_OVERLOAD(FormatStackTrace, __VA_ARGS__)
+#define FormatStackTrace(...)                         OVERLOAD(FormatStackTrace, __VA_ARGS__)
 #define FormatStackTrace_4(out, frames, count, alloc) format_stack_trace_raw((out), (frames), (count), (alloc))
 #define FormatStackTrace_3(out, frames, alloc)        format_stack_trace_vec((out), (frames), (alloc))
 
@@ -258,7 +260,7 @@ void format_stack_trace_with_vec(Str *out, const StackFrames *frames, SymbolReso
 ///
 /// TAGS: Sys, Backtrace, Format
 ///
-#    define FormatStackTraceWith(...)                       MISRA_OVERLOAD(FormatStackTraceWith, __VA_ARGS__)
+#    define FormatStackTraceWith(...)                       OVERLOAD(FormatStackTraceWith, __VA_ARGS__)
 #    define FormatStackTraceWith_4(out, frames, count, res) format_stack_trace_with_raw((out), (frames), (count), (res))
 #    define FormatStackTraceWith_3(out, frames, res)        format_stack_trace_with_vec((out), (frames), (res))
 #endif

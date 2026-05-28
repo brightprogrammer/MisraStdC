@@ -1,4 +1,4 @@
-/// file      : Elf.c
+/// file      : parsers/elf.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -143,7 +143,7 @@ static bool elf_decode_header(Elf *self) {
         return false;
     }
 
-    self->header.class = ELF_CLASS_64;
+    self->header.elf_class = ELF_CLASS_64;
     self->header.data  = ELF_DATA_LSB;
 
     BufIter iter = BufIterFromBuf(&self->data);
@@ -533,7 +533,7 @@ const ElfSymbol *ElfResolveAddress(const Elf *self, u64 vaddr) {
     return elf_search_symbols(&self->dynamic_symbols, vaddr);
 }
 
-const ElfSection *ElfFindSection(const Elf *self, Zstr name) {
+const ElfSection *elf_find_section_zstr(const Elf *self, Zstr name) {
     if (!self || !name)
         return NULL;
     for (u64 i = 0; i < VecLen(&self->sections); ++i) {
@@ -543,4 +543,10 @@ const ElfSection *ElfFindSection(const Elf *self, Zstr name) {
         }
     }
     return NULL;
+}
+
+const ElfSection *elf_find_section_str(const Elf *self, const Str *name) {
+    if (!self || !name)
+        return NULL;
+    return elf_find_section_zstr(self, StrBegin(name));
 }

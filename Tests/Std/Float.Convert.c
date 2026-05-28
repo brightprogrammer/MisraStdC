@@ -25,7 +25,7 @@ bool test_float_from_unsigned_integer(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Float value = float_from_u64(42, &alloc.base);
+    Float value = float_from_u64(42, ALLOCATOR_OF(&alloc));
     Str   text  = FloatToStr(&value);
 
     bool result = ZstrCompare(StrBegin(&text), "42") == 0;
@@ -42,7 +42,7 @@ bool test_float_from_signed_integer(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Float value = float_from_i64(-42, &alloc.base);
+    Float value = float_from_i64(-42, ALLOCATOR_OF(&alloc));
     Str   text  = FloatToStr(&value);
 
     bool result = ZstrCompare(StrBegin(&text), "-42") == 0;
@@ -59,8 +59,8 @@ bool test_float_from_int_container(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int   integer = IntFromStr("12345678901234567890", &alloc.base);
-    Float value   = float_from_int(&integer, &alloc.base);
+    Int   integer = IntFromStr("12345678901234567890", ALLOCATOR_OF(&alloc));
+    Float value   = float_from_int(&integer, ALLOCATOR_OF(&alloc));
     Str   text    = FloatToStr(&value);
 
     bool result = ZstrCompare(StrBegin(&text), "12345678901234567890") == 0;
@@ -77,9 +77,9 @@ bool test_float_to_int_exact(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Float value        = FloatFromStr("1234500e-2", &alloc.base);
-    Int   result_value = IntInit(&alloc.base);
-    Str   text         = StrInit(&alloc.base);
+    Float value        = FloatFromStr("1234500e-2", ALLOCATOR_OF(&alloc));
+    Int   result_value = IntInit(ALLOCATOR_OF(&alloc));
+    Str   text         = StrInit(ALLOCATOR_OF(&alloc));
 
     bool result = FloatToInt(&result_value, &value);
     text        = IntToStr(&result_value);
@@ -97,8 +97,8 @@ bool test_float_to_int_fractional_failure(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Float value        = FloatFromStr("123.45", &alloc.base);
-    Int   result_value = IntFrom(99, &alloc.base);
+    Float value        = FloatFromStr("123.45", ALLOCATOR_OF(&alloc));
+    Int   result_value = IntFrom(99, ALLOCATOR_OF(&alloc));
 
     bool result = !FloatToInt(&result_value, &value);
     result      = result && IntEQ(&result_value, 99);
@@ -114,8 +114,8 @@ bool test_float_to_int_negative_failure(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Float value        = FloatFromStr("-42", &alloc.base);
-    Int   result_value = IntFrom(99, &alloc.base);
+    Float value        = FloatFromStr("-42", ALLOCATOR_OF(&alloc));
+    Int   result_value = IntFrom(99, ALLOCATOR_OF(&alloc));
 
     bool result = !FloatToInt(&result_value, &value);
     result      = result && IntEQ(&result_value, 99);
@@ -131,7 +131,7 @@ bool test_float_string_round_trip(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Float value = FloatFromStr("-123.45", &alloc.base);
+    Float value = FloatFromStr("-123.45", ALLOCATOR_OF(&alloc));
     Str   text  = FloatToStr(&value);
 
     bool result = ZstrCompare(StrBegin(&text), "-123.45") == 0;
@@ -149,12 +149,15 @@ bool test_float_try_to_str_allocator_inheritance(void) {
     Str              text;
     bool             ok;
 
+    // intentional bypass: no public setter on `Allocator` for effort /
+    // retry_limit -- pre-seeded directly so the inheritance path below
+    // can be observed end-to-end.
     alloc.base.effort      = ALLOCATOR_EFFORT_RETRY;
     alloc.base.retry_limit = 5;
 
-    Float value = FloatFromStr("-123.45", &alloc.base);
+    Float value = FloatFromStr("-123.45", ALLOCATOR_OF(&alloc));
 
-    ok = float_try_to_str(&text, &value, &alloc.base);
+    ok = float_try_to_str(&text, &value, ALLOCATOR_OF(&alloc));
 
     bool result = ok && (ZstrCompare(StrBegin(&text), "-123.45") == 0) &&
                   (StrAllocator(&text)->effort == alloc.base.effort) &&
@@ -171,7 +174,7 @@ bool test_float_very_large_string_round_trip(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Float value = FloatFromStr(FLOAT_TEST_VERY_LARGE_ONES, &alloc.base);
+    Float value = FloatFromStr(FLOAT_TEST_VERY_LARGE_ONES, ALLOCATOR_OF(&alloc));
     Str   text  = FloatToStr(&value);
 
     bool result = ZstrCompare(StrBegin(&text), FLOAT_TEST_VERY_LARGE_ONES) == 0;
@@ -187,7 +190,7 @@ bool test_float_scientific_parse(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Float value = FloatFromStr("1.2300e3", &alloc.base);
+    Float value = FloatFromStr("1.2300e3", ALLOCATOR_OF(&alloc));
     Str   text  = FloatToStr(&value);
 
     bool result = ZstrCompare(StrBegin(&text), "1230") == 0;
@@ -203,8 +206,8 @@ bool test_float_from_str_invalid(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Float parsed = FloatFromStr("12.3.4", &alloc.base);
-    Float value  = FloatInit(&alloc.base);
+    Float parsed = FloatFromStr("12.3.4", ALLOCATOR_OF(&alloc));
+    Float value  = FloatInit(ALLOCATOR_OF(&alloc));
     bool  result = !FloatTryFromStr(&value, "12.3.4");
 
     result = result && FloatIsZero(&parsed);
@@ -221,8 +224,8 @@ bool test_float_from_str_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Float parsed = FloatFromStr((Zstr)NULL, &alloc.base);
-    Float value  = FloatInit(&alloc.base);
+    Float parsed = FloatFromStr((Zstr)NULL, ALLOCATOR_OF(&alloc));
+    Float value  = FloatInit(ALLOCATOR_OF(&alloc));
     bool  result = !FloatTryFromStr(&value, (Zstr)NULL);
 
     result = result && FloatIsZero(&parsed);

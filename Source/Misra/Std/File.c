@@ -1,4 +1,4 @@
-/// file      : file.c
+/// file      : std/file.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -581,7 +581,7 @@ File file_open_temp(Str *out_path, Allocator *alloc) {
         fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(u64)StrBegin(out_path), (long)flags, 0600L);
 #        endif
 #    else
-        extern int open(Zstr , int, ...);
+        extern int open(Zstr, int, ...);
         fd = open(StrBegin(out_path), flags, 0600);
         if (fd < 0) {
             fd = -Errno();

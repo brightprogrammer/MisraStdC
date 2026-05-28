@@ -1,4 +1,4 @@
-/// file      : fuzz/VecStrHarness.h
+/// file      : Fuzz/Harness/VecStr.h
 /// author    : Generated for MisraStdC fuzzing
 /// This is free and unencumbered software released into the public domain.
 ///

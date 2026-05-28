@@ -1,6 +1,6 @@
 # Allocator benchmark. Off by default; enable with -Dbenchmark=true.
 #
-# Builds six binaries that share the same Google Benchmark suite and
+# Builds eight binaries that share the same Google Benchmark suite and
 # differ only in which allocator they exercise:
 #
 #   bench-glibc              -- default malloc resolution, no extra link
@@ -15,10 +15,15 @@
 #                               HeapAllocator for mixed-size benches.
 #                               Honours the bench_use_fixed_size hint
 #                               that the bench harness emits.
+#   bench-misra-arena        -- ArenaAllocator: bump-pointer with bulk
+#                               O(1) reset. Targets BM_ArenaBumpReset.
+#   bench-misra-page         -- PageAllocator: one mmap per alloc, page-
+#                               rounded. Targets page-aligned sizes.
 #
 # Each backend is one C/C++ source file plus the shared bench harness.
-# The libc-shape backends share Allocator_libc.c; the two misra backends
-# each have their own (Allocator_misra.c / Allocator_misra_correct.c).
+# The libc-shape backends share Allocator_libc.c; the four misra backends
+# each have their own (Allocator_misra.c, Allocator_misra_correct.c,
+# Allocator_misra_arena.c, Allocator_misra_page.c).
 #
 # All binaries link the same misra_std the parent project just built --
 # no separate library build, no flake, no nix dependency. Run them via

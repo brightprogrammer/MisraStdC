@@ -1,4 +1,4 @@
-/// file      : Socket.h
+/// file      : sys/socket.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -178,7 +178,7 @@ bool socket_addr_parse_str(SocketAddr *out, const Str *spec, SocketKind kind);
 /// TAGS: Socket, Address, Format
 ///
 Str socket_addr_format(const SocketAddr *addr, Allocator *alloc);
-#define SocketAddrFormat(...)           MISRA_OVERLOAD(SocketAddrFormat, __VA_ARGS__)
+#define SocketAddrFormat(...)           OVERLOAD(SocketAddrFormat, __VA_ARGS__)
 #define SocketAddrFormat_1(addr)        socket_addr_format((addr), MisraScope)
 #define SocketAddrFormat_2(addr, alloc) socket_addr_format((addr), ALLOCATOR_OF(alloc))
 
@@ -370,7 +370,7 @@ bool SocketSetRecvTimeoutMs(SockFd fd, u32 ms);
 /// FAILURE : Returns false. The fd is unchanged; the failing syscall
 ///           is logged.
 ///
-/// TAGS: Socket, Set, Send, Timeout, Iterator, End
+/// TAGS: Socket, Set, Send, Timeout
 ///
 bool SocketSetSendTimeoutMs(SockFd fd, u32 ms);
 

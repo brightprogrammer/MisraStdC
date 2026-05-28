@@ -1,5 +1,5 @@
 /// file      : std/container/bitvec/math.h
-/// author    : Generated following Misra project patterns
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Mathematical and statistical operations for bitvectors.
@@ -251,7 +251,7 @@ extern "C" {
     u64  bitvec_run_lengths_raw(BitVec *bv, u64 *runs, bool *values, u64 max_runs);
     bool bitvec_run_lengths_vec(BitVec *bv, BitVecRuns *out);
 
-#define BitVecRunLengths(...)                     MISRA_OVERLOAD(BitVecRunLengths, __VA_ARGS__)
+#define BitVecRunLengths(...)                     OVERLOAD(BitVecRunLengths, __VA_ARGS__)
 #define BitVecRunLengths_4(bv, runs, values, max) bitvec_run_lengths_raw((bv), (runs), (values), (max))
 #define BitVecRunLengths_2(bv, out_vec)           bitvec_run_lengths_vec((bv), (out_vec))
 

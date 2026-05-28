@@ -1,8 +1,8 @@
-/// file      : List.h
+/// file      : std/container/list.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Provides a type-safe vector implementation in C
+/// Provides a type-safe doubly-linked list implementation in C
 
 #ifndef MISRA_STD_CONTAINER_LIST_H
 #define MISRA_STD_CONTAINER_LIST_H

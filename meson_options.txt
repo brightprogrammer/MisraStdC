@@ -12,8 +12,8 @@
 # automatically turned back on because `Graph` links into `vec_*` runtime
 # helpers.
 #
-# Each enabled feature also defines `MISRA_HAVE_<FEATURE>=1` at the
-# compile-time level, so downstream consumers can `#ifdef MISRA_HAVE_VEC`
+# Each enabled feature also defines `FEATURE_<FEATURE>=1` at the
+# compile-time level, so downstream consumers can `#ifdef FEATURE_VEC`
 # in their own code if they need to compile against a partial build.
 
 # --- Optional allocator backends --------------------------------------------
@@ -48,12 +48,12 @@ option('sys_proc',   type: 'boolean', value: true, description: 'Build process-s
 option('sys_socket',    type: 'boolean', value: true, description: 'Build TCP/UDP socket abstraction (Listener, Socket, SocketPoll, ...). POSIX only at present.')
 option('sys_procmaps',  type: 'boolean', value: true, description: 'Build /proc/self/maps parser (Linux only). Used by the in-tree dladdr replacement.')
 option('sys_symresolve',type: 'boolean', value: true, description: 'Build SymbolResolver (in-tree dladdr replacement). Requires parser_elf + sys_procmaps.')
-option('sys_backtrace', type: 'boolean', value: true, description: 'Build Sys/Backtrace (in-tree frame-pointer unwinder + symbol-resolving formatter). Requires sys_symresolve.')
+option('sys_backtrace', type: 'boolean', value: true, description: 'Build Sys/Backtrace (frame-pointer unwinder + symbol-resolving formatter). Linux pulls in sys_symresolve (in-tree ELF/DWARF + ProcMaps); Windows uses dbghelp + parser_pdb/parser_pe; Darwin uses parser_macho + Sys/MachoCache.')
 option('sys_dns',       type: 'boolean', value: true, description: 'Build Sys/Dns (in-tree DNS resolver: /etc/hosts + /etc/resolv.conf + UDP query/response). Requires parser_dns + sys_socket.')
 
 # --- Parsers ----------------------------------------------------------------
 option('parser_json',     type: 'boolean', value: true, description: 'Build JSON reader/writer.')
-option('parser_kvconfig', type: 'boolean', value: true, description: 'Build key-value config parser. Requires map, str.')
+option('parser_kvconfig', type: 'boolean', value: true, description: 'Build key-value config parser. Requires map.')
 option('parser_http',     type: 'boolean', value: true, description: 'Build HTTP/1.1 request + response parser/serializer.')
 option('parser_elf',      type: 'boolean', value: true, description: 'Build ELF64 parser (header, sections, symbol tables). Used by the in-tree dladdr replacement.')
 option('parser_dwarf',    type: 'boolean', value: true, description: 'Build DWARF parsers: .debug_line (IP → file:line) and .eh_frame CFI (frame-pointer-less stack unwinding). Requires parser_elf.')

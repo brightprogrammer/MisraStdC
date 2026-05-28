@@ -1,5 +1,5 @@
 /// file      : std/container/float/init.h
-/// author    : Generated following Misra project patterns
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Initialization helpers for Float.
@@ -27,7 +27,7 @@
 ///
 /// TAGS: Float, Init, Zero, Construct
 ///
-#define FloatInit(...)             MISRA_OVERLOAD(FloatInit, __VA_ARGS__)
+#define FloatInit(...)             OVERLOAD(FloatInit, __VA_ARGS__)
 #define FloatInit_0()              ((Float) {.negative = false, .significand = IntInit_1(MisraScope), .exponent = 0})
 #define FloatInit_1(allocator_ptr) ((Float) {.negative = false, .significand = IntInit_1(allocator_ptr), .exponent = 0})
 

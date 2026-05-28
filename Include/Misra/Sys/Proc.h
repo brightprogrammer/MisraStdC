@@ -1,4 +1,4 @@
-/// file      : Misra/Sys/Proc.h
+/// file      : sys/proc.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -50,7 +50,7 @@ extern "C" {
         void *hThread;
         u32   dwProcessId;
         u32   dwThreadId;
-    } MisraProcessInfo_;
+    } Win32ProcessInfo_;
 #endif
 
     ///
@@ -65,7 +65,7 @@ extern "C" {
         int  _exit_code;
         bool _completed;
 #if PLATFORM_WINDOWS
-        MisraProcessInfo_ _pi;          // layout-compat with PROCESS_INFORMATION
+        Win32ProcessInfo_ _pi;          // layout-compat with PROCESS_INFORMATION
         void             *_hStdinWrite; // HANDLE
         void             *_hStdoutRead; // HANDLE
         void             *_hStderrRead; // HANDLE
@@ -97,7 +97,7 @@ extern "C" {
     ///
     Proc proc_init(Zstr path, char **argv, char **envp, Allocator *alloc);
 
-#define ProcInit(...)                       MISRA_OVERLOAD(ProcInit, __VA_ARGS__)
+#define ProcInit(...)                       OVERLOAD(ProcInit, __VA_ARGS__)
 #define ProcInit_3(path, argv, envp)        proc_init((path), (argv), (envp), MisraScope)
 #define ProcInit_4(path, argv, envp, alloc) proc_init((path), (argv), (envp), ALLOCATOR_OF(alloc))
 
@@ -163,7 +163,8 @@ extern "C" {
     ProcStatus ProcWaitFor(Proc *proc, u64 timeout_ms);
 
     ///
-    /// Terminate the child process. Sends `SIGKILL` on POSIX,
+    /// Terminate the child process. Sends `SIGTERM` on POSIX (giving
+    /// the child a chance to clean up before exiting), calls
     /// `TerminateProcess` on Windows.
     ///
     /// SUCCESS : Returns to the caller. The child has been signalled
@@ -184,7 +185,7 @@ extern "C" {
     ///
     /// TAGS: Proc, Write, Stdio
     ///
-    i32 ProcWriteToStdin(Proc *proc, Str *buf);
+    i32 ProcWriteToStdin(Proc *proc, const Str *buf);
 
     ///
     /// Exit code of the child. Only meaningful after `ProcWait` /
@@ -203,8 +204,9 @@ extern "C" {
     ///
     /// SUCCESS : Returns the number of bytes appended to `buf` (>= 0).
     ///           Zero indicates EOF on the pipe.
-    /// FAILURE : Returns -1. `buf` is left in its pre-call state; the
-    ///           failure cause is logged.
+    /// FAILURE : Returns -1. Any bytes read before the failing read are
+    ///           still appended to `buf` (drain is incremental, not
+    ///           transactional); the failure cause is logged.
     ///
     /// TAGS: Proc, Read, Stdio
     ///
@@ -215,8 +217,9 @@ extern "C" {
     ///
     /// SUCCESS : Returns the number of bytes appended to `buf` (>= 0).
     ///           Zero indicates EOF on the pipe.
-    /// FAILURE : Returns -1. `buf` is left in its pre-call state; the
-    ///           failure cause is logged.
+    /// FAILURE : Returns -1. Any bytes read before the failing read are
+    ///           still appended to `buf` (drain is incremental, not
+    ///           transactional); the failure cause is logged.
     ///
     /// TAGS: Proc, Read, Stdio
     ///

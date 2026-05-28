@@ -1,5 +1,5 @@
 /// file      : std/container/bitvec/access.h
-/// author    : Generated following Misra project patterns
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Bit vector access operations
@@ -29,7 +29,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Access, Get, Boolean
     ///
-    bool BitVecGet(BitVec *bv, u64 idx);
+    bool BitVecGet(const BitVec *bv, u64 idx);
 
     ///
     /// Set the value of bit at given index in bitvector.
@@ -73,44 +73,26 @@ extern "C" {
     void BitVecFlip(BitVec *bv, u64 idx);
 
 ///
-/// Get number of bits currently in bitvector.
-///
-/// bv[in] : Bitvector to get length of
-///
-/// RETURNS : Number of bits in bitvector
-///
-/// USAGE:
-///   u64 num_bits = BitVecLen(&flags);
+/// Number of bits currently held by the bitvector.
 ///
 /// TAGS: BitVec, Length, Size
 ///
 #define BitVecLen(bv) ((void)0, (bv)->length)
 
 ///
-/// Get capacity of bitvector in bits.
-///
-/// bv[in] : Bitvector to get capacity of
-///
-/// RETURNS : Maximum number of bits bitvector can hold without reallocation
-///
-/// USAGE:
-///   u64 max_bits = BitVecCapacity(&flags);
+/// Maximum number of bits the bitvector can hold without reallocation.
 ///
 /// TAGS: BitVec, Capacity, Size
 ///
 #define BitVecCapacity(bv) ((void)0, (bv)->capacity)
 
 ///
-/// Pointer to the raw u64-packed storage backing the bitvector. The
+/// Pointer to the raw byte-packed storage backing the bitvector. The
 /// caller MUST NOT free this pointer or write past `BitVecByteSize(bv)`
 /// bytes. Useful for serialising the underlying bits or for hand-rolled
 /// bit-level routines outside the standard `BitVecGet`/`Set`/`Flip`
-/// access pattern.
-///
-/// bv[in] : Bitvector to query.
-///
-/// RETURNS : Pointer to the backing u64 array, or NULL when the
-///           bitvector has never been allocated into.
+/// access pattern. Returns NULL when the bitvector has never been
+/// allocated into.
 ///
 /// TAGS: BitVec, Access, Data
 ///
@@ -133,15 +115,7 @@ extern "C" {
 #define BitVecEmpty(bv) (BitVecLen(bv) == 0)
 
 ///
-/// Get u64 of bitvector in bytes.
-/// This returns the actual memory used by the bit data.
-///
-/// bv[in] : Bitvector to get byte u64 of
-///
-/// RETURNS : Number of bytes used to store bits
-///
-/// USAGE:
-///   u64 bytes_used = BitVecByteSize(&flags);
+/// Size in bytes of the backing storage allocated for `bv`.
 ///
 /// TAGS: BitVec, Size, Bytes, Memory
 ///
@@ -161,7 +135,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Count, Ones, Population
     ///
-    u64 BitVecCountOnes(BitVec *bv);
+    u64 BitVecCountOnes(const BitVec *bv);
 
     ///
     /// Count number of bits set to 0 in bitvector.
@@ -177,7 +151,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Count, Zeros
     ///
-    u64 BitVecCountZeros(BitVec *bv);
+    u64 BitVecCountZeros(const BitVec *bv);
 
     ///
     /// Find index of first occurrence of a specific bit value.
@@ -196,7 +170,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Find, Search, Access
     ///
-    u64 BitVecFind(BitVec *bv, bool value);
+    u64 BitVecFind(const BitVec *bv, bool value);
 
     ///
     /// Find index of last occurrence of a specific bit value.
@@ -214,7 +188,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, FindLast, Search, Access
     ///
-    u64 BitVecFindLast(BitVec *bv, bool value);
+    u64 BitVecFindLast(const BitVec *bv, bool value);
 
     ///
     /// Check if all bits in bitvector match the given value.
@@ -233,7 +207,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, All, Check, Predicate
     ///
-    bool BitVecAll(BitVec *bv, bool value);
+    bool BitVecAll(const BitVec *bv, bool value);
 
     ///
     /// Check if any bit in bitvector matches the given value.
@@ -251,7 +225,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Any, Check, Predicate
     ///
-    bool BitVecAny(BitVec *bv, bool value);
+    bool BitVecAny(const BitVec *bv, bool value);
 
     ///
     /// Check if no bits in bitvector match the given value.
@@ -270,7 +244,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, None, Check, Predicate
     ///
-    bool BitVecNone(BitVec *bv, bool value);
+    bool BitVecNone(const BitVec *bv, bool value);
 
     ///
     /// Find the longest consecutive sequence of a specific bit value.
@@ -288,7 +262,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, LongestRun, Analysis, Sequence
     ///
-    u64 BitVecLongestRun(BitVec *bv, bool value);
+    u64 BitVecLongestRun(const BitVec *bv, bool value);
 
 #ifdef __cplusplus
 }

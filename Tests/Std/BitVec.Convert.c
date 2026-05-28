@@ -264,6 +264,9 @@ bool test_bitvec_try_conversion_allocators(void) {
     WriteFmt("Testing BitVec try conversion allocator behavior\n");
 
     DefaultAllocator alloc = DefaultAllocatorInit();
+    // intentional bypass: no public setter on `Allocator` for effort /
+    // retry_limit -- pre-seeded directly so the inheritance path below
+    // can be observed end-to-end.
     alloc.base.effort      = ALLOCATOR_EFFORT_RETRY;
     alloc.base.retry_limit = 3;
 

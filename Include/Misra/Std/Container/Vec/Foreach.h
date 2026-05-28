@@ -1,4 +1,4 @@
-/// file      : std/container/vec/access.h
+/// file      : std/container/vec/foreach.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 
 #ifndef MISRA_STD_CONTAINER_VEC_FOREACH_H

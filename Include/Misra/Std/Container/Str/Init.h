@@ -88,7 +88,7 @@ extern "C" {
 ///
 /// TAGS: Str, Init, Cstr, API
 ///
-#define StrInitFromCstr(...)                MISRA_OVERLOAD(StrInitFromCstr, __VA_ARGS__)
+#define StrInitFromCstr(...)                OVERLOAD(StrInitFromCstr, __VA_ARGS__)
 #define StrInitFromCstr_2(cstr, len)        str_init_from_cstr((cstr), (len), MisraScope)
 #define StrInitFromCstr_3(cstr, len, alloc) str_init_from_cstr((cstr), (len), ALLOCATOR_OF(alloc))
 
@@ -106,7 +106,7 @@ extern "C" {
 ///
 /// TAGS: Str, Init, Zstr, API
 ///
-#define StrInitFromZstr(...)       MISRA_OVERLOAD(StrInitFromZstr, __VA_ARGS__)
+#define StrInitFromZstr(...)       OVERLOAD(StrInitFromZstr, __VA_ARGS__)
 #define StrInitFromZstr_1(zstr)    StrInitFromCstr_2((zstr), ZstrLen(zstr))
 #define StrInitFromZstr_2(zstr, a) StrInitFromCstr_3((zstr), ZstrLen(zstr), (a))
 
@@ -122,7 +122,7 @@ extern "C" {
 ///
 /// TAGS: Str, Init, Zstr, Alias, API
 ///
-#define StrZ(...)       MISRA_OVERLOAD(StrZ, __VA_ARGS__)
+#define StrZ(...)       OVERLOAD(StrZ, __VA_ARGS__)
 #define StrZ_1(zstr)    StrInitFromZstr_1((zstr))
 #define StrZ_2(zstr, a) StrInitFromZstr_2((zstr), (a))
 
@@ -141,7 +141,7 @@ extern "C" {
 ///
 /// TAGS: Str, Init, Copy, API
 ///
-#define StrInitFromStr(...)      MISRA_OVERLOAD(StrInitFromStr, __VA_ARGS__)
+#define StrInitFromStr(...)      OVERLOAD(StrInitFromStr, __VA_ARGS__)
 #define StrInitFromStr_1(str)    StrInitFromCstr_2(StrBegin(str), StrLen(str))
 #define StrInitFromStr_2(str, a) StrInitFromCstr_3(StrBegin(str), StrLen(str), (a))
 
@@ -158,7 +158,7 @@ extern "C" {
 ///
 /// TAGS: Str, Init, Copy, Alias, API
 ///
-#define StrDup(...)      MISRA_OVERLOAD(StrDup, __VA_ARGS__)
+#define StrDup(...)      OVERLOAD(StrDup, __VA_ARGS__)
 #define StrDup_1(str)    StrInitFromStr_1((str))
 #define StrDup_2(str, a) StrInitFromStr_2((str), (a))
 
@@ -169,7 +169,7 @@ extern "C" {
 ///
 /// TAGS: Str, Init, API
 ///
-#define StrInit(...) MISRA_OVERLOAD(StrInit, __VA_ARGS__)
+#define StrInit(...) OVERLOAD(StrInit, __VA_ARGS__)
 #ifdef __cplusplus
 #    define StrInit_0()          (Str VecInit_1(MisraScope))
 #    define StrInit_1(alloc_ptr) (Str VecInit_1(alloc_ptr))
@@ -221,11 +221,11 @@ extern "C" {
 ///           `name` and then re-checks the (already-false)
 ///           condition, exiting the scope. Treat it as a silent
 ///           early-exit, not a loop control.
-///           `ne` is evaluated three times (the `+1` for the array
-///           dimension, the `sizeof` against the resulting array
-///           through `_d`, and the capacity assignment); pass a
-///           side-effect-free expression (literal or simple
-///           variable).
+///           `ne` is evaluated twice (the `+1` for the array
+///           dimension, and the `capacity` assignment);
+///           `sizeof(UNPL(_d))` reads the array's type, not `ne`.
+///           Pass a side-effect-free expression (literal or simple
+///           variable) regardless.
 ///
 /// TAGS: Str, Init, Stack, Scope
 ///

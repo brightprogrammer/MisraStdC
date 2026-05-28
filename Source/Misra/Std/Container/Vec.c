@@ -1,17 +1,14 @@
-/// file      : std/vec.c
+/// file      : std/container/vec.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Generic vector implementation
 
-// ct
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 #include <Misra/Sys.h>
-
-// libc
 
 // Vec keeps a NUL sentinel byte at `data[length]` so Str (which is a
 // Vec(char)) is implicitly C-string-compatible. Allocated capacity is
@@ -347,7 +344,7 @@ void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size 
         // make copy of data if user want's a copy
         MemCopy(removed_data, vec_ptr_at(vec, start, item_size), count * vec_aligned_size(vec, item_size));
     } else {
-        // if no space provided to copy data over to, just destroy or memset it
+        // if no space provided to copy data over to, just destroy or `MemSet` it
         if (vec->copy_deinit) {
             u8 *vec_data = vec_ptr_at(vec, start, item_size);
             for (size s = 0; s < count; s++) {
@@ -379,6 +376,11 @@ void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size 
 void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size start, size count) {
     ValidateVec(vec);
 
+    // `start + count` can wrap if both are huge -- a wrapped sum
+    // below length would pass the bound check. Catch it first.
+    if (count > (size)-1 - start) {
+        LOG_FATAL("vector fast remove range: start + count overflows size");
+    }
     if (start + count > vec->length) {
         LOG_FATAL("vector range out of bounds.");
     }
@@ -425,7 +427,7 @@ void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, 
 
     vec->length -= count;
 
-    // Make sure space just after vector length is memset to 0
+    // Make sure space just after vector length is `MemSet` to 0
     MemSet(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
 }
 

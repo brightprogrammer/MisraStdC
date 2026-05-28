@@ -1,4 +1,4 @@
-/// file      : fuzz/VecIntHarness.c
+/// file      : Fuzz/Harness/VecInt.c
 /// author    : Generated for MisraStdC fuzzing
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -394,12 +394,7 @@ void fuzz_int_vec(
                 VecPushBack(&temp, value);
             }
 
-            // VecInitClone macro is currently broken upstream
-            // (references missing VEC_INIT_WITH_DEEP_COPY_VALUE),
-            // so exercise the clone path manually via clone_vec.
-            VecDeinit(vec);
-            *vec = VecInitT(*vec, alloc);
-            clone_vec(GENERIC_VEC(vec), GENERIC_VEC(&temp), sizeof(i32));
+            VecInitClone(vec, &temp);
 
             VecDeinit(&temp); // Clean up temp to prevent memory leak
             break;

@@ -1,4 +1,4 @@
-/// file      : SymbolResolver.h
+/// file      : sys/symbol_resolver.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -128,7 +128,7 @@ typedef struct SymbolResolver {
 /// TAGS: Sys, Symbol, Resolver
 ///
 bool symbol_resolver_init(SymbolResolver *out, Allocator *alloc);
-#define SymbolResolverInit(...)          MISRA_OVERLOAD(SymbolResolverInit, __VA_ARGS__)
+#define SymbolResolverInit(...)          OVERLOAD(SymbolResolverInit, __VA_ARGS__)
 #define SymbolResolverInit_1(out)        symbol_resolver_init((out), MisraScope)
 #define SymbolResolverInit_2(out, alloc) symbol_resolver_init((out), ALLOCATOR_OF(alloc))
 

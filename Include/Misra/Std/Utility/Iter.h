@@ -2,7 +2,7 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Pairs up memory pointer with it's size
+/// Cursor (Iter) over a typed range with optional alignment; sister to Buf.
 
 #ifndef MISRA_STD_UTILITY_ITER_H
 #define MISRA_STD_UTILITY_ITER_H

@@ -1,3 +1,4 @@
+/// file      : std/utility/iter/type.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 
@@ -55,7 +56,7 @@ typedef struct GenericIter {
 ///
 /// TAGS: Iter, Validate, API
 ///
-#define ValidateIter(mi) validate_iter((GenericIter *)mi)
+#define ValidateIter(mi) validate_iter((GenericIter *)(mi))
 
 ///
 /// Get data type of `Iter` elements

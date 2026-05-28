@@ -40,7 +40,7 @@ typedef Vec(Zstr) Zstrs;
 /// str[in] : Null-terminated string.
 ///
 /// SUCCESS: Returns number of characters before null terminator.
-/// FAILURE: Function cannot fail if str is valid.
+/// FAILURE: Aborts via LOG_FATAL when `str` is NULL.
 ///
 /// TAGS: Zstr, Length
 size ZstrLen(Zstr str);
@@ -52,7 +52,7 @@ size ZstrLen(Zstr str);
 /// s2[in] : Second string.
 ///
 /// SUCCESS: Returns 0 if equal, <0 if s1<s2, >0 if s1>s2.
-/// FAILURE: Function cannot fail if strings are valid.
+/// FAILURE: Aborts via LOG_FATAL when either string pointer is NULL.
 ///
 /// TAGS: Zstr, Comparison
 i32 ZstrCompare(Zstr s1, Zstr s2);
@@ -101,7 +101,7 @@ i32 zstr_compare(const Zstr *a, const Zstr *b, u32 size);
 /// (case-sensitive).
 ///
 /// SUCCESS: Returns 0 if equal, <0 if s1<s2, >0 if s1>s2.
-/// FAILURE: Function cannot fail if strings are valid.
+/// FAILURE: Aborts via LOG_FATAL when either string pointer is NULL.
 ///
 /// TAGS: Zstr, Comparison
 i32 ZstrCompareN(Zstr s1, Zstr s2, size n);
@@ -112,7 +112,7 @@ i32 ZstrCompareN(Zstr s1, Zstr s2, size n);
 ///
 /// SUCCESS: Returns 0 if equal under ASCII-case folding, <0 if
 ///          lowered s1 < lowered s2, >0 otherwise.
-/// FAILURE: Function cannot fail if strings are valid.
+/// FAILURE: Aborts via LOG_FATAL when either string pointer is NULL.
 ///
 /// TAGS: Zstr, Comparison, IgnoreCase
 i32 ZstrCompareIgnoreCase(Zstr s1, Zstr s2);
@@ -122,7 +122,7 @@ i32 ZstrCompareIgnoreCase(Zstr s1, Zstr s2);
 ///
 /// SUCCESS: Returns 0 if equal under ASCII-case folding, <0 / >0
 ///          otherwise.
-/// FAILURE: Function cannot fail if strings are valid.
+/// FAILURE: Aborts via LOG_FATAL when either string pointer is NULL.
 ///
 /// TAGS: Zstr, Comparison, IgnoreCase
 i32 ZstrCompareNIgnoreCase(Zstr s1, Zstr s2, size n);
@@ -131,7 +131,7 @@ i32 ZstrCompareNIgnoreCase(Zstr s1, Zstr s2, size n);
 /// Find the first occurrence of a character in a null-terminated string.
 ///
 /// SUCCESS: Returns pointer to first occurrence or NULL if not found.
-/// FAILURE: Function cannot fail if `str` is valid.
+/// FAILURE: Aborts via LOG_FATAL when `str` is NULL.
 ///
 /// TAGS: Zstr, Search
 Zstr ZstrFindChar(Zstr str, char ch);
@@ -140,7 +140,7 @@ Zstr ZstrFindChar(Zstr str, char ch);
 /// Find first occurrence of `needle` in `haystack`.
 ///
 /// SUCCESS: Returns pointer to first occurrence or NULL if not found.
-/// FAILURE: Returns NULL if either string is invalid.
+/// FAILURE: Aborts via LOG_FATAL when either pointer is NULL.
 ///
 /// TAGS: Zstr, Search
 Zstr ZstrFindSubstring(Zstr haystack, Zstr needle);
@@ -149,7 +149,7 @@ Zstr ZstrFindSubstring(Zstr haystack, Zstr needle);
 /// Find first occurrence of a substring of specified length.
 ///
 /// SUCCESS: Returns pointer to first occurrence or NULL if not found.
-/// FAILURE: Returns NULL if haystack is invalid or needle is NULL.
+/// FAILURE: Aborts via LOG_FATAL when either pointer is NULL.
 ///
 /// TAGS: Zstr, Search
 Zstr ZstrFindSubstringN(Zstr haystack, Zstr needle, size needle_len);
@@ -165,7 +165,7 @@ Zstr ZstrFindSubstringN(Zstr haystack, Zstr needle, size needle_len);
 ///
 /// TAGS: Zstr, Allocation
 Zstr zstr_dup_n(Zstr src, size n, Allocator *alloc);
-#define ZstrDupN(...)             MISRA_OVERLOAD(ZstrDupN, __VA_ARGS__)
+#define ZstrDupN(...)             OVERLOAD(ZstrDupN, __VA_ARGS__)
 #define ZstrDupN_2(src, n)        zstr_dup_n((src), (n), MisraScope)
 #define ZstrDupN_3(src, n, alloc) zstr_dup_n((src), (n), ALLOCATOR_OF(alloc))
 
@@ -179,7 +179,7 @@ Zstr zstr_dup_n(Zstr src, size n, Allocator *alloc);
 ///
 /// TAGS: Zstr, Allocation
 Zstr zstr_dup(Zstr src, Allocator *alloc);
-#define ZstrDup(...)          MISRA_OVERLOAD(ZstrDup, __VA_ARGS__)
+#define ZstrDup(...)          OVERLOAD(ZstrDup, __VA_ARGS__)
 #define ZstrDup_1(src)        zstr_dup((src), MisraScope)
 #define ZstrDup_2(src, alloc) zstr_dup((src), ALLOCATOR_OF(alloc))
 
@@ -206,7 +206,7 @@ void zstr_deinit(void *zs, const Allocator *alloc);
 /// FAILURE: Returns -1 when `c` is not a valid hex / decimal digit.
 ///
 /// TAGS: Zstr, Parse, Hex
-int ZstrHexDigitValue(char c);
+i32 ZstrHexDigitValue(char c);
 
 ///
 /// Decode one escape sequence starting at `*str`. `*str` must point at

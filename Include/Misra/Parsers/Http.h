@@ -1,4 +1,4 @@
-/// file      : Http.h
+/// file      : parsers/http.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -46,7 +46,7 @@ typedef struct HttpHeader {
 ///
 /// TAGS: Http, Header, Init
 ///
-#define HttpHeaderInit(...)         MISRA_OVERLOAD(HttpHeaderInit, __VA_ARGS__)
+#define HttpHeaderInit(...)         OVERLOAD(HttpHeaderInit, __VA_ARGS__)
 #define HttpHeaderInit_0()          HttpHeaderInit_1(MisraScope)
 #define HttpHeaderInit_1(alloc_ptr) ((HttpHeader) {.key = StrInit_1(alloc_ptr), .value = StrInit_1(alloc_ptr)})
 
@@ -244,7 +244,7 @@ typedef struct HttpRequest {
 ///
 /// TAGS: Http, Request, Init
 ///
-#define HttpRequestInit(...) MISRA_OVERLOAD(HttpRequestInit, __VA_ARGS__)
+#define HttpRequestInit(...) OVERLOAD(HttpRequestInit, __VA_ARGS__)
 #define HttpRequestInit_0()  HttpRequestInit_1(MisraScope)
 #define HttpRequestInit_1(alloc_ptr)                                                                                   \
     ((HttpRequest) {.allocator = ALLOCATOR_OF(alloc_ptr),                                                              \
@@ -296,7 +296,7 @@ typedef struct HttpResponse {
     Str              body;
 } HttpResponse;
 
-#define HttpResponseInit(...) MISRA_OVERLOAD(HttpResponseInit, __VA_ARGS__)
+#define HttpResponseInit(...) OVERLOAD(HttpResponseInit, __VA_ARGS__)
 #define HttpResponseInit_0()  HttpResponseInit_1(MisraScope)
 #define HttpResponseInit_1(alloc_ptr)                                                                                  \
     ((HttpResponse) {.allocator    = ALLOCATOR_OF(alloc_ptr),                                                          \
@@ -359,7 +359,7 @@ HttpResponse *
 /// TAGS: Http, Serialize, Response
 ///
 Str http_response_serialize(const HttpResponse *response, Allocator *alloc);
-#define HttpResponseSerialize(...)               MISRA_OVERLOAD(HttpResponseSerialize, __VA_ARGS__)
+#define HttpResponseSerialize(...)               OVERLOAD(HttpResponseSerialize, __VA_ARGS__)
 #define HttpResponseSerialize_1(response)        http_response_serialize((response), MisraScope)
 #define HttpResponseSerialize_2(response, alloc) http_response_serialize((response), ALLOCATOR_OF(alloc))
 

@@ -1,4 +1,4 @@
-/// file      : MachO.h
+/// file      : parsers/macho.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -24,6 +24,7 @@
 
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Buf.h>
+#include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Types.h>
@@ -87,10 +88,9 @@ typedef Vec(MachoSymbol) MachoSymbols;
 /// `VecInsertR`).
 ///
 /// FIELDS:
-/// - allocator     : Allocator backing `data` and the
-///                   segments/sections/symbols vectors.
-/// - data          : Raw Mach-O bytes (owned).
-/// - data_size     : Length of `data` in bytes.
+/// - data          : Raw Mach-O bytes as a `Buf` (owned). Carries
+///                   its own length and allocator -- read via
+///                   `BufLength` / `BufData` / `BufAllocator`.
 /// - cputype       : Mach-O `cputype` value (e.g. 0x01000007 = x86_64,
 ///                   0x0100000C = arm64).
 /// - filetype      : `MachoType` value.
@@ -122,20 +122,20 @@ typedef struct Macho {
 /// TAGS: Parser, MachO, File
 ///
 bool macho_open(Macho *out, Zstr path, Allocator *alloc);
-#define MachoOpen(...) MISRA_OVERLOAD(MachoOpen, __VA_ARGS__)
+#define MachoOpen(...) OVERLOAD(MachoOpen, __VA_ARGS__)
 #define MachoOpen_2(out, path)                                                                                         \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: macho_open((out), (Zstr)StrBegin((Str *)(path)), MisraScope),                                                   \
-        Zstr: macho_open((out), (Zstr)(path), MisraScope),                                              \
-        char *: macho_open((out), (Zstr)(path), MisraScope)                                              \
+        Str *: macho_open((out), (Zstr)StrBegin((Str *)(path)), MisraScope),                                           \
+        Zstr: macho_open((out), (Zstr)(path), MisraScope),                                                             \
+        char *: macho_open((out), (Zstr)(path), MisraScope)                                                            \
     )
 #define MachoOpen_3(out, path, alloc)                                                                                  \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: macho_open((out), (Zstr)StrBegin((Str *)(path)), ALLOCATOR_OF(alloc)),                                          \
-        Zstr: macho_open((out), (Zstr)(path), ALLOCATOR_OF(alloc)),                                     \
-        char *: macho_open((out), (Zstr)(path), ALLOCATOR_OF(alloc))                                     \
+        Str *: macho_open((out), (Zstr)StrBegin((Str *)(path)), ALLOCATOR_OF(alloc)),                                  \
+        Zstr: macho_open((out), (Zstr)(path), ALLOCATOR_OF(alloc)),                                                    \
+        char *: macho_open((out), (Zstr)(path), ALLOCATOR_OF(alloc))                                                   \
     )
 
 ///
@@ -175,7 +175,7 @@ bool MachoOpenFromMemory(Macho *out, Buf *in);
 /// TAGS: Parser, MachO, Memory, Copy
 ///
 bool macho_open_from_memory_copy(Macho *out, const u8 *data, size data_size, Allocator *alloc);
-#define MachoOpenFromMemoryCopy(...) MISRA_OVERLOAD(MachoOpenFromMemoryCopy, __VA_ARGS__)
+#define MachoOpenFromMemoryCopy(...) OVERLOAD(MachoOpenFromMemoryCopy, __VA_ARGS__)
 #define MachoOpenFromMemoryCopy_3(out, data, data_size)                                                                \
     macho_open_from_memory_copy((out), (data), (data_size), MisraScope)
 #define MachoOpenFromMemoryCopy_4(out, data, data_size, alloc)                                                         \
@@ -200,7 +200,25 @@ void MachoDeinit(Macho *self);
 ///           borrowed from `self` (valid until `MachoDeinit`).
 /// FAILURE : Returns NULL when no section matches.
 ///
-const MachoSection *MachoFindSection(const Macho *self, Zstr segment, Zstr section);
+/// TAGS: Parser, MachO, Section, Query
+///
+const MachoSection *macho_find_section(const Macho *self, Zstr segment, Zstr section);
+#define MachoFindSection(self, segment, section)                                                                       \
+    macho_find_section(                                                                                                \
+        (self),                                                                                                        \
+        _Generic(                                                                                                      \
+            (segment),                                                                                                 \
+            Str *: (Zstr)StrBegin((Str *)(segment)),                                                                   \
+            Zstr: (Zstr)(segment),                                                                                     \
+            char *: (Zstr)(segment)                                                                                    \
+        ),                                                                                                             \
+        _Generic(                                                                                                      \
+            (section),                                                                                                 \
+            Str *: (Zstr)StrBegin((Str *)(section)),                                                                   \
+            Zstr: (Zstr)(section),                                                                                     \
+            char *: (Zstr)(section)                                                                                    \
+        )                                                                                                              \
+    )
 
 ///
 /// Look up the symbol whose `value` is closest-not-greater than
@@ -212,6 +230,8 @@ const MachoSection *MachoFindSection(const Macho *self, Zstr segment, Zstr secti
 ///
 /// SUCCESS : Returns a pointer to the matching `MachoSymbol`.
 /// FAILURE : Returns NULL.
+///
+/// TAGS: Parser, MachO, Symbol, Resolve
 ///
 const MachoSymbol *MachoResolveAddress(const Macho *self, u64 vaddr);
 
