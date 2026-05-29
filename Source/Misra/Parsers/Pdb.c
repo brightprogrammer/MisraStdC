@@ -639,21 +639,19 @@ static bool parse_pdb_functions(Pdb *self) {
     }
 
     // Per-function names need an offset-into-pool indirection because
-    // the pool may grow during the walk.
-    Str         name_pool = StrInit(BufAllocator(&self->data));
-    PendingPubs pending   = VecInitT(pending, BufAllocator(&self->data));
-    bool        ok        = walk_publics(self, dbi.symrec_stream, sections, num_sections, &name_pool, &pending);
+    // the pool may grow during the walk -- StrBegin() can move under
+    // us each time pool_append_cstr() grows the backing storage.
+    PendingPubs pending = VecInitT(pending, BufAllocator(&self->data));
+    bool        ok      = walk_publics(self, dbi.symrec_stream, sections, num_sections, &self->name_pool, &pending);
     AllocatorFree(BufAllocator(&self->data), sections);
 
     if (!ok) {
         VecDeinit(&pending);
-        StrDeinit(&name_pool);
         return false;
     }
 
     if (VecLen(&pending) == 0) {
         VecDeinit(&pending);
-        StrDeinit(&name_pool);
         return true;
     }
 
@@ -662,14 +660,13 @@ static bool parse_pdb_functions(Pdb *self) {
 
     // Re-anchor PendingPub.name_offset_in_pool to pointers into the
     // (now-stable) pool buffer, push into self->functions, and fill
-    // sizes by next-rva diff. Steal the pool's buffer at the end so
-    // names stay alive for the lifetime of the Pdb.
+    // sizes by next-rva diff.
     for (size i = 0; i < VecLen(&pending); ++i) {
         const PendingPub *pp = VecPtrAt(&pending, i);
         PdbFunction       f  = {
                    .rva  = pp->rva,
                    .size = 0,
-                   .name = StrBegin(&name_pool) + pp->name_offset_in_pool,
+                   .name = StrBegin(&self->name_pool) + pp->name_offset_in_pool,
         };
         if (i + 1 < VecLen(&pending)) {
             // Although `pending` is sorted ascending by rva, treat the
@@ -687,28 +684,7 @@ static bool parse_pdb_functions(Pdb *self) {
     }
     VecDeinit(&pending);
 
-    if (!ok) {
-        StrDeinit(&name_pool);
-        return false;
-    }
-
-    // Transfer ownership of the name-pool buffer to the Pdb so the
-    // function->name pointers stay valid. We stash it in a dedicated
-    // field for cleanup; see PdbDeinit.
-    //
-    // intentional bypass: no public StrTakeBuffer primitive exists for
-    // the Str's backing buffer into self->name_pool. The assigns below
-    // ARE the ownership-extract path.
-    self->name_pool      = name_pool.data;
-    self->name_pool_size = name_pool.capacity;
-    self->name_pool_used = name_pool.length;
-    // Suppress the Str's own free of `data` so we don't double-free.
-    name_pool.data     = NULL;
-    name_pool.length   = 0;
-    name_pool.capacity = 0;
-    StrDeinit(&name_pool);
-
-    return true;
+    return ok;
 }
 
 // ---------------------------------------------------------------------------
@@ -728,6 +704,7 @@ bool PdbOpenFromMemory(Pdb *out, Buf *in) {
     MemSet(out, 0, sizeof(*out));
     out->data      = taken;
     out->functions = VecInitT(out->functions, BufAllocator(&taken));
+    out->name_pool = StrInit(BufAllocator(&taken));
 
     u32 num_dir_bytes  = 0;
     u32 block_map_addr = 0;
@@ -781,10 +758,7 @@ void PdbDeinit(Pdb *self) {
     if (!self)
         return;
     Allocator *alloc = BufAllocator(&self->data);
-    BufDeinit(&self->data);
     if (alloc) {
-        if (self->name_pool)
-            AllocatorFree(alloc, self->name_pool);
         if (self->stream_dir)
             AllocatorFree(alloc, self->stream_dir);
         if (self->stream_sizes)
@@ -794,7 +768,9 @@ void PdbDeinit(Pdb *self) {
         if (self->stream_block_counts)
             AllocatorFree(alloc, self->stream_block_counts);
     }
+    StrDeinit(&self->name_pool);
     VecDeinit(&self->functions);
+    BufDeinit(&self->data);
     MemSet(self, 0, sizeof(*self));
 }
 

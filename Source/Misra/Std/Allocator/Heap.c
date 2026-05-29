@@ -32,109 +32,66 @@
 
 static const u16 heap_class_size[HEAP_NUM_CLASSES] = {
     16u,
-    24u,
     32u,
-    48u,
-    64u, // S
-    80u,
-    96u,
+    64u,
     128u,
-    160u,
-    192u,
     256u,
-    384u,
-    512u, // M
-    768u,
+    512u,
     1024u,
-    1536u,
-    2048u, // L
+    2048u,
 };
 
-// Slots per page per class = floor(HEAP_PAGE_SIZE / class_size). The
-// per-class waste = HEAP_PAGE_SIZE - class_size * slots. Largest waste
-// is the 1536 class (4096 / 1536 = 2 slots, 1024 B waste); within the
-// S/M tier waste is <= 96 B per page.
+// Slots per page per class = HEAP_PAGE_SIZE / class_size. Every class
+// is a power of two that divides HEAP_PAGE_SIZE exactly, so the page
+// has no wasted bytes. Classes 3..7 (slot counts 32, 16, 8, 4, 2)
+// share a single bitmap word with tail bits past the live slot range;
+// those bits are pre-set to 1 by `heap_set_tail_bits` so the alloc-
+// side `ctz(~word)` skips them.
 static const u16 heap_class_slots[HEAP_NUM_CLASSES] = {
     256u,
-    170u,
     128u,
-    85u,
-    64u, // S
-    51u,
-    42u,
+    64u,
     32u,
-    25u,
-    21u,
     16u,
-    10u,
-    8u, // M
-    5u,
+    8u,
     4u,
     2u,
-    2u, // L
 };
 
-// ceil(slots / 64) for each class. Used to bound the bitmap word
-// scan on alloc and to know how many words to pre-tail-mask on insert.
+// ceil(slots / 64) for each class. The 16-byte class needs 4 words
+// (256 slots), 32-byte needs 2 (128 slots), all others fit in one.
 static const u8 heap_class_bm_words[HEAP_NUM_CLASSES] = {
     4u,
-    3u,
     2u,
-    2u,
-    1u, // S
     1u,
     1u,
     1u,
     1u,
     1u,
     1u,
-    1u,
-    1u, // M
-    1u,
-    1u,
-    1u,
-    1u, // L
 };
 
 // Map a request size in bytes to a class index in [0, HEAP_NUM_CLASSES),
-// or (u8)-1 for "this request is XL". Long if-ladder because of the
-// non-uniform spacing between bins; gcc compiles this to a balanced
-// decision tree at -O3.
+// or (u8)-1 for "this request is XL". Every class is a power of two:
+// requests round up to the smallest class >= n, which is the bit-
+// position of the next power-of-two above max(n-1, 15).
 static FORCE_INLINE u8 heap_class_idx_for(size n) {
     if (n <= 16u)
         return 0u;
-    if (n <= 24u)
-        return 1u;
     if (n <= 32u)
-        return 2u;
-    if (n <= 48u)
-        return 3u;
+        return 1u;
     if (n <= 64u)
-        return 4u;
-    if (n <= 80u)
-        return 5u;
-    if (n <= 96u)
-        return 6u;
+        return 2u;
     if (n <= 128u)
-        return 7u;
-    if (n <= 160u)
-        return 8u;
-    if (n <= 192u)
-        return 9u;
+        return 3u;
     if (n <= 256u)
-        return 10u;
-    if (n <= 384u)
-        return 11u;
+        return 4u;
     if (n <= 512u)
-        return 12u;
-    if (n <= 768u)
-        return 13u;
+        return 5u;
     if (n <= 1024u)
-        return 14u;
-    if (n <= 1536u)
-        return 15u;
+        return 6u;
     if (n <= 2048u)
-        return 16u;
+        return 7u;
     return (u8)-1; // XL
 }
 
@@ -148,18 +105,21 @@ static FORCE_INLINE u8 heap_class_idx_for(size n) {
 //   bit clear -> deep-check verified since last structural mutation
 //   bit set   -> deep checks must re-run
 //
-// Only mutations that could break the deep-check invariants (hash
-// table grow / rebuild, XL hash grow / rebuild, recycle storage grow)
-// set the bit. Per-slot ops (bitmap flips, used_count++/--, warm-list
+// Only mutations that could break the deep-check invariants (pages
+// hash table grow / rebuild, xl_in_use / xl_freed array grow,
+// recycle storage grow) set the bit. Per-slot ops (bitmap flips,
+// used_count++/--, warm-list
 // linkage, single-bucket insert/remove) leave it alone -- those touch
 // fields the deep check doesn't inspect, so they're guaranteed-safe
 // to skip the re-validation.
 
-// Cast through void* to drop const for the cache-bit write. The
-// mutation is observably a no-op (caches a freshly-verified
-// validation result); the underlying storage is the allocator's
-// own __magic field which it owns.
-#define HEAP_MARK_DIRTY(h) ((HeapAllocator *)(h))->base.__magic |= HEAP_MAGIC_VALIDATED_BIT
+// Sets the cache-dirty bit. Called only from mutators that hold a
+// non-const HeapAllocator * (alloc / free / remap paths and the
+// internal storage-grow helpers), so no const-stripping cast is
+// needed here. The matching clean-side write lives in
+// `heap_validate_self_full`, which DOES cast through const because
+// the deep validator takes the allocator by `const HeapAllocator *`.
+#define HEAP_MARK_DIRTY(h) (h)->base.__magic |= HEAP_MAGIC_VALIDATED_BIT
 
 // Fast path: NULL check + magic check on the allocator. Catches
 // uninitialised / post-deinit / _Generic mismatch escape. Always on,
@@ -193,20 +153,34 @@ static void heap_validate_self_full_inner(const HeapAllocator *h) {
     if (h->pages_cap != 0 && (h->pages_cap & (h->pages_cap - 1)) != 0) {
         LOG_FATAL("HeapAllocator: pages_cap {} is not a power of two", (u64)h->pages_cap);
     }
-    if (h->xl_count > h->xl_cap) {
-        LOG_FATAL("HeapAllocator: xl_count {} exceeds xl_cap {}", (u64)h->xl_count, (u64)h->xl_cap);
+    if (h->xl_in_use_len > h->xl_in_use_cap) {
+        LOG_FATAL(
+            "HeapAllocator: xl_in_use_len {} exceeds xl_in_use_cap {}",
+            (u64)h->xl_in_use_len,
+            (u64)h->xl_in_use_cap
+        );
     }
-    if ((h->xl == NULL) != (h->xl_cap == 0)) {
-        LOG_FATAL("HeapAllocator: xl / xl_cap mismatch ({x} / {})", (u64)h->xl, (u64)h->xl_cap);
+    if ((h->xl_in_use == NULL) != (h->xl_in_use_cap == 0)) {
+        LOG_FATAL(
+            "HeapAllocator: xl_in_use / xl_in_use_cap mismatch ({x} / {})",
+            (u64)h->xl_in_use,
+            (u64)h->xl_in_use_cap
+        );
     }
-    if (h->xl_cap != 0 && (h->xl_cap & (h->xl_cap - 1)) != 0) {
-        LOG_FATAL("HeapAllocator: xl_cap {} is not a power of two", (u64)h->xl_cap);
+    if (h->xl_freed_len > h->xl_freed_cap) {
+        LOG_FATAL("HeapAllocator: xl_freed_len {} exceeds xl_freed_cap {}", (u64)h->xl_freed_len, (u64)h->xl_freed_cap);
+    }
+    if ((h->xl_freed == NULL) != (h->xl_freed_cap == 0)) {
+        LOG_FATAL("HeapAllocator: xl_freed / xl_freed_cap mismatch ({x} / {})", (u64)h->xl_freed, (u64)h->xl_freed_cap);
     }
     if (h->pages) {
         (void)(*(const volatile u8 *)(const void *)h->pages);
     }
-    if (h->xl) {
-        (void)(*(const volatile u8 *)(const void *)h->xl);
+    if (h->xl_in_use) {
+        (void)(*(const volatile u8 *)(const void *)h->xl_in_use);
+    }
+    if (h->xl_freed) {
+        (void)(*(const volatile u8 *)(const void *)h->xl_freed);
     }
 }
 
@@ -234,14 +208,10 @@ static bool heap_alignment_demands_passthrough(const HeapAllocator *h) {
 }
 
 // =============================================================================
-// Descriptor-storage helpers. Both `pages` (S/M/L user pages) and `xl`
-// (XL allocations) are open-addressed hash tables keyed by the user
-// pointer; both back their storage with direct os_page_map mmaps -- no
-// intermediate allocator. The first field of every descriptor type is
-// a `void *page` (the lookup key, also the empty-bucket sentinel when
-// NULL).
-
-#define HEAP_XL_INITIAL_CAP 16u // power of two, must be >= 1
+// Descriptor-storage helpers. `pages[]` is an open-addressed hash table
+// keyed by user-page base; xl_in_use[] / xl_freed[] are flat arrays of
+// HeapPageXL descriptors. Both back their storage with direct
+// os_page_map mmaps -- no intermediate allocator.
 
 // =============================================================================
 // pages[]: open-addressed hash table on (page_base -> HeapPage descriptor).
@@ -420,114 +390,90 @@ static bool heap_hash_resize(HeapAllocator *heap, u32 new_cap) {
 }
 
 // =============================================================================
-// xl[]: open-addressed hash table on (alloc_base -> HeapPageXL descriptor).
+// xl_in_use[] and xl_freed[]: parallel descriptor arrays.
 //
-// Same shape as pages[] above, just over a smaller (16 B) entry and
-// without the warm-list bookkeeping. Linear probing, power-of-two cap,
-// empty bucket sentinel is `page == NULL`, back-shift delete with no
-// tombstones. Sized to keep load factor below 50% (grow when
-// xl_count*2 > xl_cap).
+// xl_in_use holds descriptors for live XL allocations. xl_freed holds
+// descriptors for retained mappings (freed but not yet returned to the
+// kernel; the shrink policy may unmap them later). Lookup on free is a
+// linear scan over xl_in_use -- O(N_live), but for typical XL counts
+// (< 100) faster than the prior hash because each probe is a single
+// contiguous read.
+//
+// Storage for both arrays is itself mmap-backed and grown by doubling
+// (one OS page worth initially).
 // =============================================================================
 
-static FORCE_INLINE u32 heap_xl_hash_bucket(u64 alloc_base, u32 mask) {
-    // XL allocations are page-aligned u64s. Same Fibonacci hash as
-    // pages_hash_bucket; the page-base shift keeps low-bit zero entropy
-    // from collapsing the index space.
-    u64 h = (alloc_base >> 12) * 0x9E3779B97F4A7C15ULL;
-    return (u32)(h >> 32) & mask;
-}
-
-static FORCE_INLINE u32 heap_xl_hash_lookup(const HeapPageXL *xl, u32 mask, void *alloc_base) {
-    if (!xl)
-        return HEAP_BUCKET_NONE;
-    u32 idx = heap_xl_hash_bucket((u64)alloc_base, mask);
-    while (xl[idx].page) {
-        if (xl[idx].page == alloc_base)
-            return idx;
-        idx = (idx + 1u) & mask;
-    }
-    return HEAP_BUCKET_NONE;
-}
-
-static FORCE_INLINE u32 heap_xl_hash_insert_into(HeapPageXL *xl, u32 mask, const HeapPageXL *desc) {
-    u32 idx = heap_xl_hash_bucket((u64)desc->page, mask);
-    while (xl[idx].page) {
-        idx = (idx + 1u) & mask;
-    }
-    xl[idx] = *desc;
-    return idx;
-}
-
-// Knuth Algorithm R back-shift delete. No warm-list pointers to fix
-// (XL has none), so the body is the bare cluster-repair loop.
-static void heap_xl_hash_remove(HeapAllocator *heap, u32 idx) {
-    HeapPageXL *xl    = heap->xl;
-    u32         mask  = heap->xl_cap - 1u;
-    xl[idx].page      = NULL;
-    heap->xl_count   -= 1u;
-    u32 cursor        = (idx + 1u) & mask;
-    while (xl[cursor].page) {
-        u32  natural = heap_xl_hash_bucket((u64)xl[cursor].page, mask);
-        bool can_move;
-        if (cursor >= idx) {
-            can_move = !(natural > idx && natural <= cursor);
-        } else {
-            // cursor wrapped past 0; idx is in the high half.
-            can_move = !(natural > idx || natural <= cursor);
-        }
-        if (can_move) {
-            xl[idx]         = xl[cursor];
-            xl[cursor].page = NULL;
-            idx             = cursor;
-        }
-        cursor = (cursor + 1u) & mask;
-    }
-}
-
-// Resize (or initial allocate) to `new_cap` (power of two). Re-inserts
-// every live entry; bucket indices change but XL holds no back-pointers
-// so the re-probe is the only work.
-static bool heap_xl_hash_resize(HeapAllocator *heap, u32 new_cap) {
-    size        raw_bytes = (size)new_cap * sizeof(HeapPageXL);
-    size        new_bytes = os_page_round_up(raw_bytes);
-    HeapPageXL *fresh     = (HeapPageXL *)os_page_map(&heap->base, new_bytes);
+static bool heap_xl_array_reserve(HeapAllocator *heap, HeapPageXL **arr, u32 *cap_inout, u32 len) {
+    if (len < *cap_inout)
+        return true;
+    u32         want_cap   = *cap_inout ? *cap_inout * 2u : 0u;
+    size        want_bytes = (size)want_cap * sizeof(HeapPageXL);
+    size        new_bytes  = os_page_round_up(want_bytes ? want_bytes : sizeof(HeapPageXL));
+    u32         new_cap    = (u32)(new_bytes / sizeof(HeapPageXL));
+    HeapPageXL *fresh      = (HeapPageXL *)os_page_map(&heap->base, new_bytes);
     if (!fresh)
         return false;
-    // Kernel zeros the mmap; HeapPageXL.page reads NULL on every bucket.
-    u32         new_mask = new_cap - 1u;
-    HeapPageXL *old_xl   = heap->xl;
-    u32         old_cap  = heap->xl_cap;
-    for (u32 i = 0; i < old_cap; i++) {
-        if (!old_xl[i].page)
-            continue;
-        u32 ins = heap_xl_hash_bucket((u64)old_xl[i].page, new_mask);
-        while (fresh[ins].page) {
-            ins = (ins + 1u) & new_mask;
-        }
-        fresh[ins] = old_xl[i];
+    if (*arr && len) {
+        MemCopy(fresh, *arr, (size)len * sizeof(HeapPageXL));
     }
-    if (old_xl) {
-        size old_bytes = os_page_round_up((size)old_cap * sizeof(HeapPageXL));
-        os_page_unmap(&heap->base, old_xl, old_bytes);
+    if (*arr) {
+        os_page_unmap(&heap->base, *arr, os_page_round_up((size)(*cap_inout) * sizeof(HeapPageXL)));
     }
-    heap->xl     = fresh;
-    heap->xl_cap = new_cap;
+    *arr       = fresh;
+    *cap_inout = new_cap;
     HEAP_MARK_DIRTY(heap);
     return true;
 }
 
-// Reserve room for one more XL entry. Returns false on mmap failure.
-static bool heap_xl_reserve(HeapAllocator *heap) {
-    if (heap->xl_cap == 0u) {
-        return heap_xl_hash_resize(heap, HEAP_XL_INITIAL_CAP);
+static FORCE_INLINE bool heap_xl_in_use_reserve(HeapAllocator *heap) {
+    return heap_xl_array_reserve(heap, &heap->xl_in_use, &heap->xl_in_use_cap, heap->xl_in_use_len);
+}
+
+static FORCE_INLINE bool heap_xl_freed_reserve(HeapAllocator *heap) {
+    return heap_xl_array_reserve(heap, &heap->xl_freed, &heap->xl_freed_cap, heap->xl_freed_len);
+}
+
+// Linear scan of xl_in_use for `ptr`. Returns HEAP_BUCKET_NONE if not
+// found. The hot caller is heap_allocator_deallocate / resize / remap.
+static FORCE_INLINE u32 heap_xl_in_use_find(const HeapAllocator *heap, void *ptr) {
+    for (u32 i = 0; i < heap->xl_in_use_len; i++) {
+        if (heap->xl_in_use[i].page == ptr)
+            return i;
     }
-    if ((heap->xl_count + 1u) * 2u > heap->xl_cap) {
-        // Load would exceed 50% after the next insert; double.
-        if (heap->xl_cap > ((u32)-1) / 2u)
-            return false;
-        return heap_xl_hash_resize(heap, heap->xl_cap * 2u);
+    return HEAP_BUCKET_NONE;
+}
+
+// Linear scan of xl_freed for an entry with matching os_pages. LIFO
+// preference: scan from the top so hot-reuse hits the most recently
+// freed entry first.
+static FORCE_INLINE u32 heap_xl_freed_find_match(const HeapAllocator *heap, u32 want_os_pages) {
+    for (u32 j = heap->xl_freed_len; j != 0u; --j) {
+        u32 i = j - 1u;
+        if (heap->xl_freed[i].os_pages == want_os_pages)
+            return i;
     }
-    return true;
+    return HEAP_BUCKET_NONE;
+}
+
+// O(1) swap-remove: move the last entry into `idx` (no-op when idx is
+// already the last) and shrink the length. Order is not preserved --
+// fine because both arrays are pure sets of descriptors.
+static FORCE_INLINE HeapPageXL heap_xl_in_use_swap_remove(HeapAllocator *heap, u32 idx) {
+    HeapPageXL out       = heap->xl_in_use[idx];
+    heap->xl_in_use_len -= 1u;
+    if (idx != heap->xl_in_use_len) {
+        heap->xl_in_use[idx] = heap->xl_in_use[heap->xl_in_use_len];
+    }
+    return out;
+}
+
+static FORCE_INLINE HeapPageXL heap_xl_freed_swap_remove(HeapAllocator *heap, u32 idx) {
+    HeapPageXL out      = heap->xl_freed[idx];
+    heap->xl_freed_len -= 1u;
+    if (idx != heap->xl_freed_len) {
+        heap->xl_freed[idx] = heap->xl_freed[heap->xl_freed_len];
+    }
+    return out;
 }
 
 // =============================================================================
@@ -565,20 +511,23 @@ static bool heap_recycle_reserve(HeapAllocator *heap) {
 
 // Try to park `page` (size HEAP_OS_PAGE_SIZE) in the recycle stack.
 // Returns false on storage growth failure -- caller MUST then
-// os_page_unmap to avoid leaking.
+// os_page_unmap to avoid leaking. Maintains `retention_bytes` so the
+// shrink policy has an accurate accounting.
 static FORCE_INLINE bool heap_recycle_push(HeapAllocator *heap, void *page) {
     if (!heap_recycle_reserve(heap))
         return false;
-    heap->recycle[heap->recycle_len++] = page;
+    heap->recycle[heap->recycle_len++]  = page;
+    heap->retention_bytes              += HEAP_OS_PAGE_SIZE;
     return true;
 }
 
 // Pop the most recently retained HEAP_OS_PAGE_SIZE region, or NULL if
-// the stack is empty.
+// the stack is empty. Maintains `retention_bytes`.
 static FORCE_INLINE void *heap_recycle_pop(HeapAllocator *heap) {
     if (heap->recycle_len == 0u)
         return NULL;
-    heap->recycle_len -= 1u;
+    heap->recycle_len     -= 1u;
+    heap->retention_bytes -= HEAP_OS_PAGE_SIZE;
     return heap->recycle[heap->recycle_len];
 }
 
@@ -588,15 +537,22 @@ static FORCE_INLINE void *heap_recycle_pop(HeapAllocator *heap) {
 // Only safe when HEAP_PAGES_PER_OS_PAGE == 1; on macOS-aarch64 the user
 // page is one of several sub-pages in one mmap and the sibling-page
 // grouping logic isn't in this branch.
-//
-// Guard: keep at least one descriptor of this class so the next alloc
-// of the same class still finds a warm page.
 #if HEAP_PAGES_PER_OS_PAGE == 1u
 static FORCE_INLINE void heap_reclaim_empty_page(HeapAllocator *heap, u32 idx) {
     HeapPage *d   = &heap->pages[idx];
     u8        cls = d->class_idx;
-    if (heap->class_count[cls] <= 1u) {
-        return; // keep one warm page per class
+    // Keep one warm page per class. Reclaiming the only warm page of a
+    // class makes the next alloc grow_class right back, pop from recycle,
+    // and re-stamp a fresh HeapPage descriptor (two 32-byte AVX moves on
+    // x86_64) -- the cycles that the AllocFreePair-shaped workload pays
+    // again and again if the guard is missing.
+    //
+    // The check is intentionally only against the warm list, not full
+    // pages: if every other page of this class is full, this empty page
+    // IS the warm one the next alloc will use, so we keep it. If there's
+    // any other warm page already, reclaiming this one is safe.
+    if (heap->class_warm_head[cls] == idx && d->next_warm == HEAP_BUCKET_NONE) {
+        return;
     }
     void *page = d->page;
     // An empty page (used_count == 0) is in its class's warm list. Unlink
@@ -604,13 +560,54 @@ static FORCE_INLINE void heap_reclaim_empty_page(HeapAllocator *heap, u32 idx) {
     // stale link.
     heap_warm_unlink(heap, idx, cls);
     heap_hash_remove(heap, idx);
-    heap->class_count[cls] -= 1u;
     if (!heap_recycle_push(heap, page)) {
         os_page_unmap(&heap->base, page, HEAP_OS_PAGE_SIZE);
     }
     HEAP_MARK_DIRTY(heap);
 }
 #endif
+
+// Slow path for the shrink policy. Unmaps retained mappings (xl_freed
+// first, then recycle) until footprint is at most three-quarters of
+// its old value. Only entered when the inlined fast check below has
+// already confirmed the policy is triggered, so the body never runs
+// on hot AllocFreePair iterations.
+static void heap_shrink_retention(HeapAllocator *heap) {
+    u64 footprint = (u64)heap->base.footprint_bytes;
+    u64 target    = footprint - footprint / 4u; // 75% of current
+    while (heap->base.footprint_bytes > target && heap->xl_freed_len > 0u) {
+        HeapPageXL ent         = heap_xl_freed_swap_remove(heap, heap->xl_freed_len - 1u);
+        size       bytes       = (size)ent.os_pages * HEAP_OS_PAGE_SIZE;
+        heap->retention_bytes -= (u64)bytes;
+        os_page_unmap(&heap->base, ent.page, bytes);
+    }
+    while (heap->base.footprint_bytes > target && heap->recycle_len > 0u) {
+        void *page             = heap->recycle[--heap->recycle_len];
+        heap->retention_bytes -= HEAP_OS_PAGE_SIZE;
+        os_page_unmap(&heap->base, page, HEAP_OS_PAGE_SIZE);
+    }
+    HEAP_MARK_DIRTY(heap);
+}
+
+// Shrink policy entry point: when footprint is at least
+// HEAP_FOOTPRINT_SHRINK_THRESHOLD AND retention_bytes exceeds half the
+// footprint, hand off to the slow drain. Called from the free-path
+// tail; the two-compare fast check inlines into
+// heap_allocator_deallocate so the common case (no shrink needed)
+// doesn't cost a function call.
+//
+// The threshold protects benchmarks at small sizes -- AllocFreePair at
+// any size stays well under 1 MiB footprint, so retention persists for
+// hot reuse. Real workloads holding tens of MiB or more get retention
+// bled back to the kernel when their working set shrinks.
+static FORCE_INLINE void heap_maybe_shrink_retention(HeapAllocator *heap) {
+    u64 footprint = (u64)heap->base.footprint_bytes;
+    if (footprint < HEAP_FOOTPRINT_SHRINK_THRESHOLD)
+        return;
+    if (heap->retention_bytes <= footprint / 2u)
+        return;
+    heap_shrink_retention(heap);
+}
 
 // =============================================================================
 // Per-class page allocation / freeing.
@@ -696,7 +693,6 @@ static u32 heap_grow_class(HeapAllocator *heap, u8 cls) {
               .bitmap     = {0, 0, 0, 0},
               .used_count = 0u,
               .class_idx  = cls,
-              ._pad0      = 0u,
               .prev_warm  = HEAP_BUCKET_NONE,
               .next_warm  = HEAP_BUCKET_NONE,
         };
@@ -705,7 +701,6 @@ static u32 heap_grow_class(HeapAllocator *heap, u8 cls) {
         heap->pages_count += 1u;
         heap_warm_push(heap, idx, cls);
     }
-    heap->class_count[cls] += HEAP_PAGES_PER_OS_PAGE;
     HEAP_MARK_DIRTY(heap);
     // Return the warm-list head, NOT the first inserted page. With
     // HEAP_PAGES_PER_OS_PAGE > 1 (macOS-aarch64) the LIFO push order
@@ -727,28 +722,47 @@ static void *heap_alloc_xl(HeapAllocator *heap, size bytes, i8 zeroed) {
     size os_pages = (bytes + HEAP_OS_PAGE_SIZE - 1u) / HEAP_OS_PAGE_SIZE;
     if (os_pages > (size)(u32)-1)
         return NULL;
-    if (!heap_xl_reserve(heap))
+    if (!heap_xl_in_use_reserve(heap))
         return NULL;
+
     size  total = os_pages * HEAP_OS_PAGE_SIZE;
-    void *ptr   = os_page_map(&heap->base, total);
-    if (!ptr)
-        return NULL;
-    // os_page_map returns kernel-zeroed memory so the `zeroed` flag is
-    // already satisfied without an extra MemSet.
-    (void)zeroed;
-    HeapPageXL desc = {.page = ptr, .os_pages = (u32)os_pages};
-    (void)heap_xl_hash_insert_into(heap->xl, heap->xl_cap - 1u, &desc);
-    heap->xl_count += 1u;
+    void *ptr   = NULL;
+
+    // Try to reclaim a retained mapping of the same os_pages count.
+    u32 fr_idx = heap_xl_freed_find_match(heap, (u32)os_pages);
+    if (fr_idx != HEAP_BUCKET_NONE) {
+        HeapPageXL ent         = heap_xl_freed_swap_remove(heap, fr_idx);
+        ptr                    = ent.page;
+        heap->retention_bytes -= (u64)total;
+        if (zeroed)
+            MemSet(ptr, 0, total);
+    } else {
+        ptr = os_page_map(&heap->base, total);
+        if (!ptr)
+            return NULL;
+        // os_page_map returns kernel-zeroed memory, so the `zeroed`
+        // flag is already satisfied without an extra MemSet.
+        (void)zeroed;
+    }
+
+    HeapPageXL desc                        = {.page = ptr, .os_pages = (u32)os_pages};
+    heap->xl_in_use[heap->xl_in_use_len++] = desc;
     HEAP_MARK_DIRTY(heap);
     return ptr;
 }
 
 static void heap_free_xl(HeapAllocator *heap, u32 idx) {
-    void *ptr   = heap->xl[idx].page;
-    size  total = (size)heap->xl[idx].os_pages * HEAP_OS_PAGE_SIZE;
-    heap_xl_hash_remove(heap, idx);
+    HeapPageXL ent   = heap_xl_in_use_swap_remove(heap, idx);
+    size       total = (size)ent.os_pages * HEAP_OS_PAGE_SIZE;
     HEAP_MARK_DIRTY(heap);
-    os_page_unmap(&heap->base, ptr, total);
+    // Try to retain the mapping; on storage growth failure, return it
+    // to the kernel directly.
+    if (heap_xl_freed_reserve(heap)) {
+        heap->xl_freed[heap->xl_freed_len++]  = ent;
+        heap->retention_bytes                += (u64)total;
+    } else {
+        os_page_unmap(&heap->base, ent.page, total);
+    }
 }
 
 // =============================================================================
@@ -816,9 +830,9 @@ void *heap_allocator_allocate(HeapAllocator *self, size bytes, i8 zeroed) {
     return out;
 }
 
-// Look up the slot size for `ptr` and the descriptor index. Both XL
-// and S/M/L use hash tables keyed on the user-page base -- one probe
-// on hit either way. Returns 0 on foreign ptr.
+// Look up the slot size for `ptr` and the descriptor index. XL uses a
+// linear scan over the live array; S/M/L uses the bucket hash. Returns
+// 0 on foreign ptr.
 //
 // `is_xl_out` distinguishes which structure `idx_out` indexes -- callers
 // branch on it to choose the right free path.
@@ -828,24 +842,19 @@ static size heap_recover_size(HeapAllocator *heap, void *ptr, u32 *idx_out, bool
     if (!ptr)
         return 0;
 
-    void *page_base = (void *)((u64)ptr & ~(u64)(HEAP_PAGE_SIZE - 1u));
-
-    // Try XL first: XL allocations are page-aligned but use the full
-    // mapped region as the descriptor's `page` field. Match the
-    // descriptor only when ptr equals its base exactly -- a
-    // mid-allocation pointer (page_base of an interior heap page in
-    // an XL region) must trip the foreign-ptr abort, not silently
-    // fix up to the base.
-    if (heap->xl_cap) {
-        u32 i = heap_xl_hash_lookup(heap->xl, heap->xl_cap - 1u, page_base);
-        if (i != HEAP_BUCKET_NONE && ptr == heap->xl[i].page) {
-            *idx_out   = i;
-            *is_xl_out = true;
-            return (size)heap->xl[i].os_pages * HEAP_OS_PAGE_SIZE;
-        }
+    // Try XL first: XL allocations are page-aligned and recorded with
+    // their original `page` pointer. Match the descriptor only when
+    // ptr equals its base exactly -- a mid-allocation pointer must
+    // trip the foreign-ptr abort, not silently fix up to the base.
+    u32 xi = heap_xl_in_use_find(heap, ptr);
+    if (xi != HEAP_BUCKET_NONE) {
+        *idx_out   = xi;
+        *is_xl_out = true;
+        return (size)heap->xl_in_use[xi].os_pages * HEAP_OS_PAGE_SIZE;
     }
 
-    u32 b = heap_hash_lookup(heap->pages, heap->pages_cap - 1u, page_base);
+    void *page_base = (void *)((u64)ptr & ~(u64)(HEAP_PAGE_SIZE - 1u));
+    u32   b         = heap_hash_lookup(heap->pages, heap->pages_cap - 1u, page_base);
     if (b != HEAP_BUCKET_NONE) {
         *idx_out = b;
         return (size)heap_class_size[heap->pages[b].class_idx];
@@ -908,7 +917,7 @@ i8 heap_allocator_resize(HeapAllocator *self, void *ptr, size new_size) {
         return 0;
     i8 ok;
     if (is_xl) {
-        u32 op = self->xl[idx].os_pages;
+        u32 op = self->xl_in_use[idx].os_pages;
         u32 np = (u32)((new_size + HEAP_OS_PAGE_SIZE - 1u) / HEAP_OS_PAGE_SIZE);
         ok     = (op == np) ? 1 : 0;
     } else if (heap_alignment_demands_passthrough(self) || new_size > 2048u) {
@@ -966,7 +975,7 @@ void *heap_allocator_remap(HeapAllocator *self, void *ptr, size new_size) {
     void *result        = NULL;
     size  new_effective = cur;
     if (is_xl) {
-        size old_pages = (size)self->xl[idx].os_pages;
+        size old_pages = (size)self->xl_in_use[idx].os_pages;
         size new_pages = (new_size + HEAP_OS_PAGE_SIZE - 1u) / HEAP_OS_PAGE_SIZE;
         if (new_pages == old_pages) {
             result = ptr;
@@ -979,29 +988,11 @@ void *heap_allocator_remap(HeapAllocator *self, void *ptr, size new_size) {
         void *new_ptr   = os_page_remap(&self->base, ptr, old_total, new_total);
         if (!new_ptr)
             goto fallback;
-        if (new_ptr == ptr) {
-            self->xl[idx].os_pages = (u32)new_pages;
-            HEAP_MARK_DIRTY(self);
-            result        = ptr;
-            new_effective = new_total;
-            goto done;
-        }
-        // Hash table keyed on `.page`. The remapped region sits at a
-        // new address, so drop the old bucket and re-insert. Reserve
-        // first so we don't strand the kernel's resized region on
-        // capacity grow failure -- the new descriptor would replace
-        // the old slot we've already cleared, leaving us no way back.
-        heap_xl_hash_remove(self, idx);
-        if (!heap_xl_reserve(self)) {
-            // xl[] capacity grow failed -- unmap the kernel's resized
-            // region so we don't leak it. Caller sees NULL.
-            os_page_unmap(&self->base, new_ptr, new_total);
-            result = NULL;
-            goto done;
-        }
-        HeapPageXL desc = {.page = new_ptr, .os_pages = (u32)new_pages};
-        (void)heap_xl_hash_insert_into(self->xl, self->xl_cap - 1u, &desc);
-        self->xl_count += 1u;
+        // The descriptor stays at the same index in xl_in_use; we
+        // overwrite its `page` (kernel may have moved the mapping) and
+        // its `os_pages`. No hash bucket to maintain.
+        self->xl_in_use[idx].page     = new_ptr;
+        self->xl_in_use[idx].os_pages = (u32)new_pages;
         HEAP_MARK_DIRTY(self);
         result        = new_ptr;
         new_effective = new_total;
@@ -1083,6 +1074,7 @@ size heap_allocator_deallocate(HeapAllocator *self, void *ptr) {
         self->base.stats.bytes_in_use = 0u;
     }
 #endif
+    heap_maybe_shrink_retention(self);
     return cur;
 }
 
@@ -1107,26 +1099,28 @@ void HeapAllocatorDeinit(HeapAllocator *self) {
 #endif
         }
     }
-    // XL allocations were mmap'd at OS-page granularity. The table is
-    // a sparse hash, so walk every bucket and act only on occupied ones
-    // (page != NULL).
-    for (u32 i = 0; i < self->xl_cap; i++) {
-        if (self->xl[i].page) {
-            os_page_unmap(&self->base, self->xl[i].page, (size)self->xl[i].os_pages * HEAP_OS_PAGE_SIZE);
-        }
+    // XL live allocations -- one mmap each at the descriptor's stored
+    // os_pages count.
+    for (u32 i = 0; i < self->xl_in_use_len; i++) {
+        os_page_unmap(&self->base, self->xl_in_use[i].page, (size)self->xl_in_use[i].os_pages * HEAP_OS_PAGE_SIZE);
     }
-    // Drain the recycle pool itself.
+    // XL retention pool -- same shape, just freed-but-not-yet-shrunk.
+    for (u32 i = 0; i < self->xl_freed_len; i++) {
+        os_page_unmap(&self->base, self->xl_freed[i].page, (size)self->xl_freed[i].os_pages * HEAP_OS_PAGE_SIZE);
+    }
+    // Drain the binned retention pool.
     for (u32 i = 0; i < self->recycle_len; i++) {
         os_page_unmap(&self->base, self->recycle[i], HEAP_OS_PAGE_SIZE);
     }
-    // Release the bookkeeping arrays' own mmaps. Each was created via
-    // heap_hash_resize / heap_xl_hash_resize / heap_recycle_reserve with
+    // Release the bookkeeping arrays' own mmaps. Each was created with
     // a page-rounded byte count; the same rounding recovers the unmap
     // size deterministically.
     if (self->pages)
         os_page_unmap(&self->base, self->pages, os_page_round_up((size)self->pages_cap * sizeof(HeapPage)));
-    if (self->xl)
-        os_page_unmap(&self->base, self->xl, os_page_round_up((size)self->xl_cap * sizeof(HeapPageXL)));
+    if (self->xl_in_use)
+        os_page_unmap(&self->base, self->xl_in_use, os_page_round_up((size)self->xl_in_use_cap * sizeof(HeapPageXL)));
+    if (self->xl_freed)
+        os_page_unmap(&self->base, self->xl_freed, os_page_round_up((size)self->xl_freed_cap * sizeof(HeapPageXL)));
     if (self->recycle)
         os_page_unmap(&self->base, self->recycle, os_page_round_up((size)self->recycle_cap * sizeof(void *)));
     MemSet(self, 0, sizeof(*self));

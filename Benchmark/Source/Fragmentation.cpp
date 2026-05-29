@@ -156,9 +156,10 @@ static void BM_Frag_LifetimeMix(benchmark::State &state) {
     std::mt19937                          rng(0xC0FFEE);
     std::uniform_int_distribution<int>    coin(0, 1);
     std::uniform_int_distribution<size_t> size_pick(0, 5);
-    // Sizes chosen to span MisraStdC Heap's three small-class bins
-    // (16/32/64), medium-class bins (128/256/512), and one L bin
-    // (1024). Hits jemalloc/mimalloc/tcmalloc bins similarly.
+    // Sizes chosen to span six of MisraStdC Heap's eight power-of-two
+    // bin classes (16/32/64/128/256/1024), skipping 512 and 2048 to
+    // keep the working set compact. Hits jemalloc/mimalloc/tcmalloc
+    // bins similarly.
     const size_t sizes[] = {16, 32, 64, 128, 256, 1024};
 
     for (auto _ : state) {

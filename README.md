@@ -436,7 +436,7 @@ MisraStdC ships six allocators. Each has a sweet spot; numbers cited below come 
 
 | Your workload | Use | Why |
 |---|---|---|
-| Mixed sizes, varied lifetimes | `HeapAllocator` | The general-purpose default. Multi-size bins + sorted descriptor arrays. |
+| Mixed sizes, varied lifetimes | `HeapAllocator` | The general-purpose default. Power-of-two bins (16-2048 B) over a hashed page-descriptor table, plus XL passthrough with retention. |
 | One fixed size, high churn | `SlabAllocator(size)` | Bitmap-backed pool, slot lookup by `ptr & ~PAGE_MASK`. O(log N) free. |
 | Per-scope (request, frame, parser run) | `ArenaAllocator` + `Reset` | Bump-pointer alloc; `Reset` releases the whole batch in O(1). |
 | Page-aligned regions (shm, JIT, mmap'd files) | `PageAllocator` | One mmap per alloc. Foundation everything else builds on. |

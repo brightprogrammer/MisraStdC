@@ -565,6 +565,23 @@ up-cast.
   API. If a caller would need to stamp their own, the abstraction
   belongs as a `_Generic` dispatch or a typed helper, not as a public
   stamp macro.
+- **Don't pad structs by hand.** The compiler already inserts
+  alignment padding correctly for the target ABI; explicit `_pad`
+  fields are over-engineering. The C standard, the platform ABI, and
+  the compiler are the authorities on layout. Hand-rolled padding
+  pretends to pin the layout but actually just clutters the struct
+  and risks getting the alignment wrong on a target the author didn't
+  anticipate. Trust the compiler. The same rule covers other "I'll
+  guess what the compiler will do" reach-arounds: don't second-guess
+  the optimizer with `__attribute__((aligned))` or `__attribute__((packed))`
+  unless you have a documented hardware or wire-format constraint
+  forcing the choice, and write the reason inline when you do.
+- **Over-engineering is not entertained.** The simplest design that
+  satisfies the requirements is the right one. Indirection layers,
+  caches that aren't proven necessary, classes / freelists / state
+  machines added "for symmetry" or "in case we need it later" all
+  earn deletion at review time. If you don't have a measured reason
+  for the complexity, it doesn't go in.
 
 ## Sub-range iteration
 

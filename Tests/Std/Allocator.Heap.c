@@ -180,8 +180,11 @@ static bool test_fill_class_grows_new_page(void) {
     return ok;
 }
 
-static bool test_alloc_across_every_sub_bin(void) {
-    // Exercise every (class, sub-bin) at least once.
+static bool test_alloc_across_every_size_class(void) {
+    // Exercise each of the HEAP_NUM_CLASSES = 8 binned size classes
+    // (one allocation per class). The eight sizes are the exact class
+    // set after the power-of-two rewrite, so each alloc lands in a
+    // distinct class and provisions its own page(s).
     HeapAllocator heap  = HeapAllocatorInit();
     Allocator    *alloc = ALLOCATOR_OF(&heap);
 
@@ -193,17 +196,17 @@ static bool test_alloc_across_every_sub_bin(void) {
         if (!ptrs[i])
             ok = false;
     }
-    // Pointers across sub-bins must be distinct.
+    // Pointers across size classes must be distinct.
     for (u32 i = 0; ok && i < 8; i++) {
         for (u32 j = i + 1; ok && j < 8; j++) {
             if (ptrs[i] == ptrs[j])
                 ok = false;
         }
     }
-    // Pages list now mixes S/M/L; each of the 8 sizes lands in a
-    // distinct class so the unified pages array has >= 8 descriptors
-    // after the loop (and possibly more if HEAP_PAGES_PER_OS_PAGE > 1
-    // since each grow creates that many siblings).
+    // Each of the 8 sizes lands in a distinct class so the unified
+    // pages array has >= 8 descriptors after the loop (and possibly
+    // more if HEAP_PAGES_PER_OS_PAGE > 1 since each grow creates that
+    // many siblings).
     ok = ok && (HeapAllocatorPageCount(&heap) >= 8u);
 
     for (u32 i = 0; i < 8; i++) {
@@ -366,7 +369,7 @@ int main(void) {
         test_alloc_returns_distinct_pointers,
         test_free_then_alloc_recycles,
         test_fill_class_grows_new_page,
-        test_alloc_across_every_sub_bin,
+        test_alloc_across_every_size_class,
         // Large + alignment
         test_large_alloc_passthrough,
         test_overaligned_alloc,

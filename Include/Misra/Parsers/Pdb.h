@@ -27,6 +27,7 @@
 
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Buf.h>
+#include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Types.h>
@@ -103,9 +104,7 @@ typedef struct Pdb {
     // Owned name pool for function-name strings. `functions[i].name`
     // is a borrowed pointer into here; pool and entries are freed
     // together in `PdbDeinit`.
-    char *name_pool; // mutable: this is the owned buffer the parser writes into; `name` fields above point into it
-    size  name_pool_size;
-    size  name_pool_used;
+    Str name_pool;
 } Pdb;
 
 ///

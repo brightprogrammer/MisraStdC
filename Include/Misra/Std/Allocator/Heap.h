@@ -9,19 +9,19 @@
 /// mappings; HeapAllocator does not chain through any other in-tree
 /// allocator.
 ///
-/// Sizes route into one of 17 size classes plus an XL passthrough.
+/// Sizes route into one of 8 size classes plus an XL passthrough.
 /// One slot size per user page (no co-located sub-bins): a page that
 /// holds 128-byte slots only holds 128-byte slots, never mixed with
-/// 256-byte slots on the same page. The pure-page-per-class layout
-/// lets the class table grow without the per-page alignment waste
-/// cascading across sub-bins.
+/// 256-byte slots on the same page. Every class is a power of two
+/// that divides `HEAP_PAGE_SIZE` cleanly, so there is no per-page
+/// alignment waste -- the bitmap covers the page exactly.
 ///
 /// Class set (bytes):
 ///
-///   S  -- 16, 24, 32, 48, 64
-///   M  -- 80, 96, 128, 160, 192, 256, 384, 512
-///   L  -- 768, 1024, 1536, 2048
-///   XL -- anything larger (one page-aligned mmap per allocation)
+///   16, 32, 64, 128, 256, 512, 1024, 2048
+///   XL -- anything larger (one page-aligned mmap per allocation,
+///         retained in `xl_freed[]` until the footprint-shrink
+///         policy returns it to the kernel)
 ///
 /// HEAP_PAGE_SIZE is fixed at 4096. macOS-aarch64 has 16 KiB OS pages
 /// and asks the kernel for one OS page per grow; that mmap is then
@@ -32,12 +32,16 @@
 /// Every per-page descriptor stores: page base, class index, in-use
 /// slot count, a 256-bit bitmap (the widest any class needs), and
 /// warm-list links. The "S/M/L" tier names are a documentation
-/// convenience; internally every descriptor lives in an
+/// convenience; internally every binned descriptor lives in an
 /// open-addressed hash table keyed by user-page base, so free is one
-/// hash probe regardless of class. XL descriptors live in a SECOND
-/// open-addressed hash table keyed by allocation base (same shape
-/// as the S/M/L table, no warm-list bookkeeping), so XL alloc / free
-/// / lookup are also O(1) probe-and-write.
+/// hash probe regardless of class. XL descriptors live in two
+/// parallel flat arrays (`xl_in_use[]` for live regions, `xl_freed[]`
+/// for retained mappings); alloc looks for a matching `os_pages`
+/// entry in `xl_freed[]` (LIFO scan) before falling back to a fresh
+/// mmap, and free is a swap-remove from `xl_in_use[]` + swap-push
+/// onto `xl_freed[]`. Linear scan on free is O(N_live), faster than
+/// the prior hash for the typical < 100 live XL regions because each
+/// probe is a contiguous read.
 
 #ifndef MISRA_STD_ALLOCATOR_HEAP_H
 #define MISRA_STD_ALLOCATOR_HEAP_H
@@ -69,23 +73,38 @@
 //
 // The fast validator masks this bit when comparing magic, so neither
 // state breaks type-confusion detection. Structural-mutation sites
-// (hash table grow / rebuild, XL hash grow / rebuild, recycle storage
-// grow) set the bit; per-slot ops (bitmap flips, used_count++/--,
-// warm-list linkage, single-bucket insert/remove) leave it alone.
+// (pages hash table grow / rebuild, xl_in_use / xl_freed array grow,
+// recycle storage grow) set the bit; per-slot ops (bitmap flips,
+// used_count++/--, warm-list linkage, single-bucket insert/remove,
+// XL array swap-remove / swap-push) leave it alone.
 // Exposed in the header so other modules (DebugAllocator) can mask
 // the bit when sanity-checking the embedded heap's magic field.
 #define HEAP_MAGIC_VALIDATED_BIT (1ULL << 63)
 
-// Number of S/M/L size classes. Indexed 0..HEAP_NUM_CLASSES-1.
+// Number of binned size classes. Indexed 0..HEAP_NUM_CLASSES-1.
 // XL is "class HEAP_NUM_CLASSES" by convention -- it has its own
-// descriptor type and its own array.
-#define HEAP_NUM_CLASSES 17u
+// descriptor type and its own arrays.
+#define HEAP_NUM_CLASSES 8u
 
 // Max slots in any single class's page. The 16-byte class fits 256
-// slots in 4 KiB; bitmaps are sized to cover this and unused tail
-// bits are pre-set to 1 at descriptor init so ctz never reports them.
+// slots in 4 KiB; bitmaps are sized to cover this. Every class's
+// slot count is a power of two that divides HEAP_PAGE_SIZE exactly,
+// so the page itself has no wasted bytes. The bitmap word the slot
+// count lives in may still carry tail bits (e.g. 32 slots = bits
+// 0..31 of one 64-bit word); those are pre-set to 1 by
+// `heap_set_tail_bits` so the alloc-side `ctz(~word)` never finds
+// them as free.
 #define HEAP_MAX_SLOTS_PER_PAGE 256u
 #define HEAP_BITMAP_WORDS       4u
+
+// Trigger the retention shrink policy when the allocator's footprint
+// is at least this large AND the in-use ratio drops below the half-
+// of-footprint mark. Below this threshold the allocator keeps every
+// freed page retained -- AllocFreePair-style hot-reuse workloads
+// stay hot and benchmarks at small sizes don't churn munmap/mmap.
+// Real workloads holding tens of MiB or more get retention bled back
+// to the kernel when their working set shrinks.
+#define HEAP_FOOTPRINT_SHRINK_THRESHOLD (1u << 20) // 1 MiB
 
 #ifdef __cplusplus
 extern "C" {
@@ -119,23 +138,30 @@ extern "C" {
     ///                `HEAP_BUCKET_NONE` when the page is full or
     ///                detached. The class's head is
     ///                `class_warm_head[class_idx]`.
+    // Cache-line aligned via C11 `_Alignas` on the first member. The
+    // pages[] hash probe is the hot path for every classed free and
+    // grow; a 64-byte HeapPage means each probe touches exactly one
+    // cache line. Without the alignment, the natural sizeof() (56)
+    // leaves the tail of every bucket bleeding into the first 8 bytes
+    // of the next cache line, doubling the probe cost on hit and
+    // adding measurable latency to BM_AllocFreePair on small sizes.
+    // This is the documented hardware-constraint carve-out in the
+    // macro-hygiene section of CODING-CONVENTIONS.md.
     typedef struct HeapPage {
-        void *page;
-        u64   bitmap[HEAP_BITMAP_WORDS];
-        u16   used_count;
-        u8    class_idx;
-        u8    _pad0;
-        u32   prev_warm;
-        u32   next_warm;
-        u8    _pad1[12];
+        _Alignas(64) void *page;
+        u64                bitmap[HEAP_BITMAP_WORDS];
+        u16                used_count;
+        u8                 class_idx;
+        u32                prev_warm;
+        u32                next_warm;
     } HeapPage;
 
     /// Per-XL-region descriptor. One per allocation >2 KiB. XL
     /// allocations are page-aligned standalone mmaps with no bitmap
-    /// and no sub-slotting; the descriptor existence IS the in-use
-    /// bit. The XL descriptors live in an open-addressed hash table
-    /// keyed by allocation base (same shape as the S/M/L `pages[]`),
-    /// so alloc / free / lookup are O(1) probe-and-write.
+    /// and no sub-slotting; the descriptor's presence in
+    /// `xl_in_use[]` IS the in-use bit, presence in `xl_freed[]` IS
+    /// the retained bit. Both arrays are grown by doubling; live /
+    /// retained lookup is a linear scan over the relevant array.
     ///
     /// FIELDS:
     /// - page     : Base of the user mmap (4 KiB-aligned).
@@ -153,12 +179,13 @@ extern "C" {
     ///     by user-page base (`pages` / `pages_cap` / `pages_count`),
     ///   - a per-class doubly-linked warm list of pages with at least
     ///     one free slot (`class_warm_head`),
-    ///   - an open-addressed hash table of XL descriptors keyed by
-    ///     allocation base (`xl` / `xl_cap` / `xl_count`),
-    ///   - a per-class live page count (`class_count`) for the reclaim
-    ///     guard,
-    ///   - and a private LIFO retention pool of reclaimed user-page
-    ///     mmaps (`recycle` / `recycle_len` / `recycle_cap`).
+    ///   - two parallel descriptor arrays for XL allocations
+    ///     (`xl_in_use` for live regions, `xl_freed` for retained),
+    ///   - a shared LIFO retention pool of reclaimed binned (1-OS-page)
+    ///     mmaps that any binned class can pop from (`recycle`),
+    ///   - and a `retention_bytes` counter the shrink policy reads at
+    ///     free time to decide when retained mappings should be
+    ///     unmapped back to the kernel.
     ///
     /// Every region comes from a direct kernel page-mapping call (or a
     /// retention pop). There is no embedded PageAllocator; HeapAllocator
@@ -182,29 +209,44 @@ extern "C" {
         /// has no such page.
         u32 class_warm_head[HEAP_NUM_CLASSES];
 
-        /// XL allocation table. Same shape as `pages` -- open-addressed
-        /// hash table keyed by allocation base, linear probing, no
-        /// tombstones (back-shift delete), capacity is a power of two,
-        /// empty bucket sentinel is `xl[i].page == NULL`. `xl_count`
-        /// tracks occupancy for the >= 50% load grow check.
-        HeapPageXL *xl;
-        u32         xl_cap;
-        u32         xl_count;
+        /// XL descriptor arrays. Each XL allocation occupies one
+        /// `HeapPageXL` slot in `xl_in_use` while live; on free the
+        /// descriptor moves to `xl_freed` (retention). Free-side
+        /// lookup is a linear scan over `xl_in_use` -- O(N_live), but
+        /// for typical XL counts (< 100) faster than the hash table
+        /// it replaced because each probe is a contiguous read.
+        ///
+        /// Alloc looks for a matching `os_pages` entry in `xl_freed`
+        /// first; on hit the descriptor is moved back to `xl_in_use`
+        /// without any syscall. Misses fall through to `os_page_map`.
+        ///
+        /// Storage for both arrays is itself page-mapped and grown by
+        /// doubling.
+        HeapPageXL *xl_in_use;
+        u32         xl_in_use_len;
+        u32         xl_in_use_cap;
+        HeapPageXL *xl_freed;
+        u32         xl_freed_len;
+        u32         xl_freed_cap;
 
-        /// LIFO retention. When a heap page becomes empty, its OS-page
-        /// mmap is pushed here instead of being returned to the kernel;
-        /// the next grow pops before falling through to a fresh
-        /// kernel page-mapping call. Storage is itself page-mapped,
-        /// sized `recycle_cap * sizeof(void *)`, grown by doubling
-        /// (one OS page worth initially).
+        /// LIFO retention for binned (single-OS-page) heap pages.
+        /// Shared across every binned class -- a 16-byte-class page
+        /// that becomes empty can satisfy a future 2048-byte-class
+        /// grow because the descriptor is re-initialised for the new
+        /// class on pop. Storage is page-mapped and grown by doubling.
         void **recycle;
         u32    recycle_len;
         u32    recycle_cap;
 
-        /// Per-class live page count. Used by the reclaim path to keep
-        /// at least one warm page per class so the next alloc of that
-        /// class doesn't have to syscall for a fresh OS page.
-        u32 class_count[HEAP_NUM_CLASSES];
+        /// Sum of bytes currently held in the retention pools
+        /// (`recycle` entries plus `xl_freed` entries). Compared
+        /// against `base.footprint_bytes` at free time: when
+        /// `footprint_bytes >= HEAP_FOOTPRINT_SHRINK_THRESHOLD` AND
+        /// `retention_bytes > footprint_bytes / 2`, the allocator
+        /// unmaps retained mappings until the new footprint is at
+        /// most three-quarters of its old value. This is the
+        /// "give memory back when the working set shrinks" policy.
+        u64 retention_bytes;
     };
 
     // Typed entry points wired into `base` by `HeapAllocatorInit*`.
@@ -216,7 +258,7 @@ extern "C" {
 
     ///
     /// Serve a bitmap-classed or XL-passthrough allocation. Routes the
-    /// request to the matching size class (or the XL hash table for
+    /// request to the matching size class (or the XL arrays for
     /// requests above the largest class), picks a free slot via
     /// `ctz` over the page bitmap, and stamps it in-use.
     ///
@@ -320,12 +362,7 @@ extern "C" {
 ///
 /// TAGS: Allocator, Heap, Query
 ///
-#define HeapAllocatorXlCount(h) ((void)0, (h)->xl_count)
-
-// Designated init for the class_count[] array. Done as a macro so
-// init macros below stay readable. C99 allows omitted designators
-// for elements; everything not named here implicitly zero-initialises.
-#define HEAP_CLASS_COUNT_ZERO {0}
+#define HeapAllocatorXlCount(h) ((void)0, (h)->xl_in_use_len)
 
 // Initializer for class_warm_head[]: every entry HEAP_BUCKET_NONE.
 // Written out explicitly because zero-init would mean "bucket 0 is the
@@ -339,17 +376,8 @@ extern "C" {
      HEAP_BUCKET_NONE,                                                                                                 \
      HEAP_BUCKET_NONE,                                                                                                 \
      HEAP_BUCKET_NONE,                                                                                                 \
-     HEAP_BUCKET_NONE,                                                                                                 \
-     HEAP_BUCKET_NONE,                                                                                                 \
-     HEAP_BUCKET_NONE,                                                                                                 \
-     HEAP_BUCKET_NONE,                                                                                                 \
-     HEAP_BUCKET_NONE,                                                                                                 \
-     HEAP_BUCKET_NONE,                                                                                                 \
-     HEAP_BUCKET_NONE,                                                                                                 \
-     HEAP_BUCKET_NONE,                                                                                                 \
-     HEAP_BUCKET_NONE,                                                                                                 \
      HEAP_BUCKET_NONE}
-_Static_assert(HEAP_NUM_CLASSES == 17, "HEAP_CLASS_WARM_HEAD_NONE has 17 entries; sync with HEAP_NUM_CLASSES");
+_Static_assert(HEAP_NUM_CLASSES == 8, "HEAP_CLASS_WARM_HEAD_NONE has 8 entries; sync with HEAP_NUM_CLASSES");
 
 /// Construct a HeapAllocator with default alignment (`1`). Use as a
 /// designated-initializer at any storage class. The allocator starts
@@ -384,13 +412,16 @@ _Static_assert(HEAP_NUM_CLASSES == 17, "HEAP_CLASS_WARM_HEAD_NONE has 17 entries
         .pages_cap       = 0,                                                                                          \
         .pages_count     = 0,                                                                                          \
         .class_warm_head = HEAP_CLASS_WARM_HEAD_NONE,                                                                  \
-        .xl              = NULL,                                                                                       \
-        .xl_count        = 0,                                                                                          \
-        .xl_cap          = 0,                                                                                          \
+        .xl_in_use       = NULL,                                                                                       \
+        .xl_in_use_len   = 0,                                                                                          \
+        .xl_in_use_cap   = 0,                                                                                          \
+        .xl_freed        = NULL,                                                                                       \
+        .xl_freed_len    = 0,                                                                                          \
+        .xl_freed_cap    = 0,                                                                                          \
         .recycle         = NULL,                                                                                       \
         .recycle_len     = 0,                                                                                          \
         .recycle_cap     = 0,                                                                                          \
-        .class_count     = HEAP_CLASS_COUNT_ZERO                                                                       \
+        .retention_bytes = 0                                                                                           \
     })
 
 /// Same as `HeapAllocatorInit()` but with a caller-supplied
@@ -423,13 +454,16 @@ _Static_assert(HEAP_NUM_CLASSES == 17, "HEAP_CLASS_WARM_HEAD_NONE has 17 entries
         .pages_cap       = 0,                                                                                          \
         .pages_count     = 0,                                                                                          \
         .class_warm_head = HEAP_CLASS_WARM_HEAD_NONE,                                                                  \
-        .xl              = NULL,                                                                                       \
-        .xl_count        = 0,                                                                                          \
-        .xl_cap          = 0,                                                                                          \
+        .xl_in_use       = NULL,                                                                                       \
+        .xl_in_use_len   = 0,                                                                                          \
+        .xl_in_use_cap   = 0,                                                                                          \
+        .xl_freed        = NULL,                                                                                       \
+        .xl_freed_len    = 0,                                                                                          \
+        .xl_freed_cap    = 0,                                                                                          \
         .recycle         = NULL,                                                                                       \
         .recycle_len     = 0,                                                                                          \
         .recycle_cap     = 0,                                                                                          \
-        .class_count     = HEAP_CLASS_COUNT_ZERO                                                                       \
+        .retention_bytes = 0                                                                                           \
     })
 
 #endif // MISRA_STD_ALLOCATOR_HEAP_H

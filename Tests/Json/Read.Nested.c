@@ -120,7 +120,7 @@ bool test_basic_iterator_functionality(void) {
         success = false;
     }
 
-    char c;
+    char c = '\0';
     if (!StrIterPeek(&si, &c) || c != '{') {
         WriteFmt("[DEBUG] Peek check failed: expected '{', got '{c}'\n", c);
         success = false;
