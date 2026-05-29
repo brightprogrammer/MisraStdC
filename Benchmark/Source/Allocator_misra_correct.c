@@ -24,21 +24,23 @@
 
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Allocator/Heap.h>
+#include <Misra/Std/Allocator/Page.h>
 #include <Misra/Std/Allocator/Slab.h>
 
-// MODE_NONE = pre-init / post-teardown. MODE_HEAP / MODE_SLAB choose
-// which of the two static allocator instances below is currently
-// live. The two are unioned by usage, not by struct -- only one is
-// initialised at any moment. We pay the (~150 + ~80 B) BSS cost to
-// avoid a heap alloc on bench_init.
+// MODE_NONE = pre-init / post-teardown. MODE_HEAP / MODE_SLAB / MODE_PAGE
+// choose which of the static allocator instances below is currently
+// live. They're unioned by usage, not by struct -- only one is
+// initialised at any moment.
 typedef enum {
     MODE_NONE = 0,
     MODE_HEAP = 1,
     MODE_SLAB = 2,
+    MODE_PAGE = 3,
 } bench_mode;
 
 static HeapAllocator g_heap;
 static SlabAllocator g_slab;
+static PageAllocator g_page;
 static bench_mode     g_mode = MODE_NONE;
 
 Zstr bench_backend_name(void) {
@@ -56,6 +58,8 @@ static void tear_current(void) {
         HeapAllocatorDeinit(&g_heap);
     } else if (g_mode == MODE_SLAB) {
         SlabAllocatorDeinit(&g_slab);
+    } else if (g_mode == MODE_PAGE) {
+        PageAllocatorDeinit(&g_page);
     }
     g_mode = MODE_NONE;
 }
@@ -69,27 +73,20 @@ void bench_teardown(void) {
     tear_current();
 }
 
-// Threshold above which the slab's slot-size design (one slab = one OS
-// page, slot_size capped at the page) can't fit a single slot. Above
-// this, the "correct" backend falls back to HeapAllocator so the bench
-// still measures a real allocation rather than NULL returns.
-//
-// Matches MisraStdC's slab max (currently 4096 B, the smallest OS page
-// size we target). If the slab grows multi-page support later, raise
-// this threshold to match.
+// SlabAllocator caps at MisraStdC's slab max (currently 4096 B, the
+// smallest OS page size we target). Above this, the "right tool" is
+// PageAllocator -- the request is already page-aligned in size, so
+// one mmap per alloc is the honest cost, no rounding waste, no
+// general-heap dispatch noise. The previous fallback to Heap measured
+// the wrong-tool case, which is exactly what the `misra` (Heap-only)
+// column is for.
 #define BENCH_SLAB_MAX_SLOT 4096u
 
 void bench_use_fixed_size(size_t slot) {
     tear_current();
     if (slot > BENCH_SLAB_MAX_SLOT) {
-        // Slab can't hold a slot this big; fall back to Heap and let
-        // it route through XL (mmap-per-alloc) the way the upstream
-        // "wrong tool" backend does. The bench's
-        // wrong-vs-right-allocator comparison still works for sizes
-        // within the slab's range; for larger sizes both backends
-        // converge on the same Heap path.
-        g_heap = HeapAllocatorInit();
-        g_mode = MODE_HEAP;
+        g_page = PageAllocatorInit();
+        g_mode = MODE_PAGE;
         return;
     }
     g_slab = SlabAllocatorInit((size)slot);
@@ -108,27 +105,26 @@ int  bench_can_reset(void) { return 0; }
 void bench_reset(void)     {}
 
 void *bench_alloc(size_t n) {
-    // _Generic in AllocatorAlloc routes to slab_allocator_allocate or
-    // heap_allocator_allocate based on the static type at each call
-    // site. The g_mode branch is perfectly predicted within a
-    // benchmark because the mode is set once before the iteration
-    // loop and never changes inside it.
+    // _Generic in AllocatorAlloc routes to the typed *_allocator_allocate
+    // statically. The g_mode branch is perfectly predicted within a
+    // benchmark -- mode is set once before the iteration loop and
+    // never changes inside it.
     if (g_mode == MODE_SLAB) {
         return AllocatorAlloc(&g_slab, (size)n, 0);
+    }
+    if (g_mode == MODE_PAGE) {
+        return AllocatorAlloc(&g_page, (size)n, 0);
     }
     return AllocatorAlloc(&g_heap, (size)n, 0);
 }
 
 void *bench_realloc(void *p, size_t n) {
-    // SlabAllocator slot size is fixed at init; realloc is not a
-    // sensible operation in slab mode. The bench's only realloc
-    // workload (BM_ReallocGrow) runs in MODE_HEAP, so this branch
-    // should never fire in slab mode. Return NULL (caller treats as
-    // alloc failure -- the bench then reads the size-class check
-    // and moves on); we avoid LOG_FATAL here because aborting the
-    // whole bench process on a routing mismatch would make the
-    // failure mode hostile to interactive debugging.
-    if (g_mode == MODE_SLAB) {
+    // Realloc is sensible only on the general-purpose Heap path.
+    // BM_ReallocGrow is the sole realloc workload and runs in
+    // MODE_HEAP, so the slab / page branches should never fire here.
+    // Return NULL (caller treats as alloc failure) instead of
+    // LOG_FATAL so a routing mismatch doesn't kill interactive runs.
+    if (g_mode == MODE_SLAB || g_mode == MODE_PAGE) {
         (void)p;
         (void)n;
         return NULL;
@@ -139,6 +135,8 @@ void *bench_realloc(void *p, size_t n) {
 void bench_free(void *p) {
     if (g_mode == MODE_SLAB) {
         AllocatorFree(&g_slab, p);
+    } else if (g_mode == MODE_PAGE) {
+        AllocatorFree(&g_page, p);
     } else {
         AllocatorFree(&g_heap, p);
     }
@@ -146,27 +144,21 @@ void bench_free(void *p) {
 
 uint64_t bench_live_bytes(void) {
 #if FEATURE_ALLOC_STATS
-    // AllocatorGetStats takes a base `Allocator *`, not a typed
-    // pointer -- both HeapAllocator and SlabAllocator embed
-    // `Allocator base` as their first field, so the cast is layout-safe.
-    AllocatorStats s;
-    if (g_mode == MODE_SLAB) {
-        s = AllocatorGetStats(ALLOCATOR_OF(&g_slab));
-    } else if (g_mode == MODE_HEAP) {
-        s = AllocatorGetStats(ALLOCATOR_OF(&g_heap));
-    } else {
-        return 0;
-    }
-    return (uint64_t)s.bytes_in_use;
+    if (g_mode == MODE_SLAB) return (uint64_t)AllocatorBytesInUse(&g_slab);
+    if (g_mode == MODE_HEAP) return (uint64_t)AllocatorBytesInUse(&g_heap);
+    if (g_mode == MODE_PAGE) return (uint64_t)AllocatorBytesInUse(&g_page);
+    return 0;
 #else
     return 0;
 #endif
 }
 
 uint64_t bench_footprint_bytes(void) {
-    // HeapAllocator and SlabAllocator no longer embed a PageAllocator;
-    // each talks to the kernel directly. Footprint measurement via the
-    // PageAllocator entries[] vector is no longer available here.
-    (void)g_mode;
+    // Only the page-backed mode can report a meaningful footprint
+    // today; Heap and Slab manage their own pages with no public
+    // committed-bytes accessor yet.
+    if (g_mode == MODE_PAGE) {
+        return (uint64_t)PageAllocatorFootprintBytes(&g_page);
+    }
     return 0;
 }

@@ -112,12 +112,22 @@ static i64 budget_first_free_bit(const u64 *bitmap, u32 words, size cap) {
 
 void *budget_allocator_allocate(BudgetAllocator *self, size bytes, i8 zeroed) {
     budget_validate_self(self);
-    if (bytes == 0 || bytes > self->slot_size)
+    if (bytes == 0 || bytes > self->slot_size) {
+#if FEATURE_ALLOC_STATS
+        if (bytes != 0) {
+            self->base.stats.failed_allocations += 1u;
+        }
+#endif
         return NULL;
+    }
 
     i64 idx = budget_first_free_bit(self->bitmap, self->bitmap_words, self->slot_count);
-    if (idx < 0)
+    if (idx < 0) {
+#if FEATURE_ALLOC_STATS
+        self->base.stats.failed_allocations += 1u;
+#endif
         return NULL;
+    }
 
     // State assertion: ctz found a 0 bit; if the corresponding bit is
     // somehow set, the bitmap memory has been corrupted.
@@ -131,13 +141,31 @@ void *budget_allocator_allocate(BudgetAllocator *self, size bytes, i8 zeroed) {
     void *slot = self->slots + (size)idx * self->slot_size;
     if (zeroed)
         MemSet(slot, 0, self->slot_size);
+#if FEATURE_ALLOC_STATS
+    self->base.stats.allocations     += 1u;
+    self->base.stats.bytes_requested += (u64)bytes;
+    self->base.stats.bytes_in_use    += (u64)bytes;
+    if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
+        self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
+    }
+#endif
     return slot;
 }
 
 i8 budget_allocator_resize(BudgetAllocator *self, void *ptr, size new_size) {
     budget_validate_self(self);
     (void)ptr;
-    return new_size <= self->slot_size ? 1 : 0;
+    i8 ok = (new_size <= self->slot_size) ? 1 : 0;
+#if FEATURE_ALLOC_STATS
+    if (ok) {
+        self->base.stats.reallocations   += 1u;
+        self->base.stats.bytes_requested += (u64)new_size;
+        if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
+            self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
+        }
+    }
+#endif
+    return ok;
 }
 
 void *budget_allocator_remap(BudgetAllocator *self, void *ptr, size new_size) {
@@ -148,7 +176,19 @@ void *budget_allocator_remap(BudgetAllocator *self, void *ptr, size new_size) {
         budget_allocator_deallocate(self, ptr);
         return NULL;
     }
-    return new_size <= self->slot_size ? ptr : NULL;
+    void *result = (new_size <= self->slot_size) ? ptr : NULL;
+#if FEATURE_ALLOC_STATS
+    if (result) {
+        self->base.stats.reallocations   += 1u;
+        self->base.stats.bytes_requested += (u64)new_size;
+        if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
+            self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
+        }
+    } else {
+        self->base.stats.failed_allocations += 1u;
+    }
+#endif
+    return result;
 }
 
 size budget_allocator_deallocate(BudgetAllocator *self, void *ptr) {
@@ -176,6 +216,14 @@ size budget_allocator_deallocate(BudgetAllocator *self, void *ptr) {
         return 0;
     }
     self->bitmap[w] &= ~((u64)1 << b);
+#if FEATURE_ALLOC_STATS
+    self->base.stats.deallocations += 1u;
+    if ((u64)self->slot_size <= self->base.stats.bytes_in_use) {
+        self->base.stats.bytes_in_use -= (u64)self->slot_size;
+    } else {
+        self->base.stats.bytes_in_use = 0u;
+    }
+#endif
     return self->slot_size;
 }
 

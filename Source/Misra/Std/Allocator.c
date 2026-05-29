@@ -6,9 +6,16 @@
 /// implementations (Page, Heap, Arena, Slab, Budget, Debug) live next
 /// to this file under `Allocator/`; this file only routes through the
 /// function-pointer table on the `Allocator` base and applies the
-/// `effort` / `retry_limit` retry policy on top. Stats updates live
-/// here too -- only the `_dyn` (Allocator *) path goes through this
-/// file, so it's the natural choke point for instrumentation.
+/// `effort` / `retry_limit` retry policy on top.
+///
+/// Stats accounting is NOT done here. Each typed allocator updates
+/// its own `base.stats.*` inline at allocate / deallocate / resize /
+/// remap success / failure points, so both the typed-direct call
+/// (`AllocatorAlloc(&heap, ...)`) and the dyn dispatch below produce
+/// identical counter movement on the same workload. Readers consume
+/// stats through the `Allocator*` accessor macros declared in
+/// `Allocator.h` (e.g. `AllocatorBytesInUse(a)`); there is no
+/// dispatched `AllocatorGetStats(...)` function.
 
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Log.h>
@@ -46,26 +53,6 @@ void ValidateAllocator(const Allocator *self) {
     }
 }
 
-#if FEATURE_ALLOC_STATS
-static void allocator_stats_on_alloc(Allocator *self, size bytes) {
-    self->stats.allocations     += 1;
-    self->stats.bytes_requested += (u64)bytes;
-    self->stats.bytes_in_use    += (u64)bytes;
-    if (self->stats.bytes_in_use > self->stats.peak_bytes_in_use) {
-        self->stats.peak_bytes_in_use = self->stats.bytes_in_use;
-    }
-}
-
-static void allocator_stats_on_free(Allocator *self, size bytes) {
-    self->stats.deallocations += 1;
-    if ((u64)bytes <= self->stats.bytes_in_use) {
-        self->stats.bytes_in_use -= (u64)bytes;
-    } else {
-        self->stats.bytes_in_use = 0;
-    }
-}
-#endif
-
 void *AllocatorAlloc_dyn(Allocator *self, size bytes, i8 zeroed) {
     ValidateAllocator(self);
 
@@ -77,31 +64,8 @@ void *AllocatorAlloc_dyn(Allocator *self, size bytes, i8 zeroed) {
             break;
         }
     }
-#if FEATURE_ALLOC_STATS
-    if (ptr) {
-        allocator_stats_on_alloc(self, bytes);
-    } else {
-        self->stats.failed_allocations += 1;
-    }
-#endif
     return ptr;
 }
-
-#if FEATURE_ALLOC_STATS
-// Bookkeeping for a successful resize/remap. bytes_in_use is NOT
-// updated here: a true in-place resize is a no-op for outstanding-byte
-// accounting, and a relocating remap moves bytes internally to the
-// typed allocator without going back through the _dyn wrapper. Stats
-// stay precise for allocate/deallocate; remap-heavy workloads should
-// expect bytes_in_use drift documented in the AllocatorStats block.
-static void allocator_stats_on_realloc(Allocator *self, size new_size) {
-    self->stats.reallocations   += 1;
-    self->stats.bytes_requested += (u64)new_size;
-    if (self->stats.bytes_in_use > self->stats.peak_bytes_in_use) {
-        self->stats.peak_bytes_in_use = self->stats.bytes_in_use;
-    }
-}
-#endif
 
 i8 AllocatorResize_dyn(Allocator *self, void *ptr, size new_size) {
     ValidateAllocator(self);
@@ -112,13 +76,7 @@ i8 AllocatorResize_dyn(Allocator *self, void *ptr, size new_size) {
     if (!ptr || new_size == 0) {
         return 0;
     }
-    i8 ok = self->resize(self, ptr, new_size);
-#if FEATURE_ALLOC_STATS
-    if (ok) {
-        allocator_stats_on_realloc(self, new_size);
-    }
-#endif
-    return ok;
+    return self->resize(self, ptr, new_size);
 }
 
 void *AllocatorRemap_dyn(Allocator *self, void *ptr, size new_size) {
@@ -132,24 +90,6 @@ void *AllocatorRemap_dyn(Allocator *self, void *ptr, size new_size) {
             break;
         }
     }
-#if FEATURE_ALLOC_STATS
-    if (new_size == 0) {
-        if (ptr) {
-            // remap(ptr, 0) is a free of ptr.
-            self->stats.deallocations += 1;
-        }
-        // remap(NULL, 0) is the trivial no-op: nothing freed,
-        // nothing allocated, nothing failed -- no counter moves.
-        // Made explicit so future readers don't read "no else
-        // clause" as a forgotten case.
-    } else if (new_ptr) {
-        allocator_stats_on_realloc(self, new_size);
-    } else {
-        // new_size > 0 and impl returned NULL: alloc-via-remap
-        // failed, or remap of an existing ptr failed.
-        self->stats.failed_allocations += 1;
-    }
-#endif
     return new_ptr;
 }
 
@@ -158,20 +98,10 @@ void AllocatorFree_dyn(Allocator *self, void *ptr) {
         return;
     }
     ValidateAllocator(self);
-    size freed = self->deallocate(self, ptr);
-#if FEATURE_ALLOC_STATS
-    allocator_stats_on_free(self, freed);
-#else
-    (void)freed;
-#endif
+    (void)self->deallocate(self, ptr);
 }
 
 #if FEATURE_ALLOC_STATS
-AllocatorStats AllocatorGetStats(const Allocator *self) {
-    ValidateAllocator(self);
-    return self->stats;
-}
-
 void AllocatorResetStats(Allocator *self) {
     ValidateAllocator(self);
     u64 in_use  = self->stats.bytes_in_use;

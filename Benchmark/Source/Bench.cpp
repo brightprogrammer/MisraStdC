@@ -120,22 +120,27 @@ BENCHMARK(BM_MixedPareto);
 // ---------------------------------------------------------------------------
 // 5. arena bump + bulk reset
 // ---------------------------------------------------------------------------
-// Allocate N small objects, then either reset the backing arena (bulk
-// O(1) free) or fall back to freeing each pointer individually. Same
-// workload on every backend; arena-shaped backends short-circuit to
-// reset. Shows the cost differential of "1 reset" vs "N individual
-// frees" for the same bump-N workload.
+// Allocate N small objects, then reset the backing arena (bulk O(1)
+// free). Reports the cost of "1 reset" for a bump-N workload. Only
+// runs on backends that actually expose a reset; everyone else gets
+// n/a so the column isn't accidentally compared against per-pointer
+// free (that comparison lives in BM_BatchAllocFree).
 static void BM_ArenaBumpReset(benchmark::State &state) {
+    if (!bench_can_reset()) {
+        // This bench is specifically the bulk-reset workload. On
+        // backends that don't support reset, running per-pointer free
+        // instead would silently duplicate BM_BatchAllocFree numbers
+        // and pretend they're an arena-vs-heap comparison. Skip so the
+        // row shows n/a on those columns honestly.
+        state.SkipWithMessage("backend has no bulk reset");
+        return;
+    }
     const size_t n  = static_cast<size_t>(state.range(0));
     const size_t sz = 32;
     std::vector<void *> ptrs(n);
     for (auto _ : state) {
         for (size_t i = 0; i < n; i++) ptrs[i] = bench_alloc(sz);
-        if (bench_can_reset()) {
-            bench_reset();
-        } else {
-            for (size_t i = 0; i < n; i++) bench_free(ptrs[i]);
-        }
+        bench_reset();
     }
     state.SetItemsProcessed(int64_t(state.iterations()) * int64_t(n));
 }

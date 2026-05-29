@@ -224,8 +224,12 @@ void *debug_allocator_allocate(DebugAllocator *self, size bytes, i8 zeroed) {
     void *user_p = self->config.force_page_backing
                        ? AllocatorAlloc(&self->page, padded, zeroed)
                        : AllocatorAlloc(&self->heap, padded, zeroed);
-    if (!user_p)
+    if (!user_p) {
+#if FEATURE_ALLOC_STATS
+        self->base.stats.failed_allocations += 1u;
+#endif
         return NULL;
+    }
 
     if (canary)
         debug_write_canary((u8 *)user_p + bytes, canary);
@@ -245,9 +249,20 @@ void *debug_allocator_allocate(DebugAllocator *self, size bytes, i8 zeroed) {
         if (self->config.force_page_backing) AllocatorFree(&self->page, user_p);
         else                                 AllocatorFree(&self->heap, user_p);
         LOG_ERROR("DebugAllocator: failed to record allocation in live map");
+#if FEATURE_ALLOC_STATS
+        self->base.stats.failed_allocations += 1u;
+#endif
         return NULL;
     }
     self->bytes_in_use += (u64)bytes;
+#if FEATURE_ALLOC_STATS
+    self->base.stats.allocations     += 1u;
+    self->base.stats.bytes_requested += (u64)bytes;
+    self->base.stats.bytes_in_use    += (u64)bytes;
+    if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
+        self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
+    }
+#endif
     return user_p;
 }
 
@@ -366,6 +381,14 @@ size debug_allocator_deallocate(DebugAllocator *self, void *ptr) {
         // backing is unconditionally the embedded heap.
         AllocatorFree(&self->heap, ptr);
     }
+#if FEATURE_ALLOC_STATS
+    self->base.stats.deallocations += 1u;
+    if ((u64)requested <= self->base.stats.bytes_in_use) {
+        self->base.stats.bytes_in_use -= (u64)requested;
+    } else {
+        self->base.stats.bytes_in_use = 0u;
+    }
+#endif
     return requested;
 }
 

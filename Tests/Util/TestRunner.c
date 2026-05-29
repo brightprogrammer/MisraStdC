@@ -24,12 +24,22 @@
 
 // JmpBuf layout per platform. Each slot is 8 bytes.
 //
-// x86_64 SysV (Linux, Darwin) and Win64 share the same callee-saved
-// integer register count after platform-specific bookkeeping, but the
-// argument register is different (RDI vs RCX), so we split the asm.
+// The hand-rolled asm pair below only works with toolchains that
+// support `__attribute__((naked))` + GNU-style inline asm: GCC,
+// Clang, and clang-cl on Windows. Plain MSVC (`cl.exe`) understands
+// neither, so the MSVC branch falls back to libc `setjmp`/`longjmp`
+// -- those bind to MSVC's `_setjmpex` intrinsic, but cl.exe's SEH
+// metadata for noreturn frames doesn't trip the unwinder the way
+// clang-cl's does (the original Windows STATUS_BAD_STACK failure),
+// so this is fine in practice.
 //
 // AArch64 (Linux, Darwin) saves x19-x28 + fp + lr + sp.
-#if (PLATFORM_LINUX || PLATFORM_DARWIN || PLATFORM_WINDOWS) && ARCHITECTURE_X86_64
+#if defined(_MSC_VER) && !defined(__clang__)
+#    include <setjmp.h>
+typedef jmp_buf JmpBuf;
+#    define SetJmp(env)        setjmp(env)
+#    define LongJmp(env, val)  longjmp((env), (val))
+#elif (PLATFORM_LINUX || PLATFORM_DARWIN || PLATFORM_WINDOWS) && ARCHITECTURE_X86_64
 typedef u64 JmpBuf[10]; // rbx, rbp, r12-r15, rdi, rsi, rsp, rip
 #elif (PLATFORM_LINUX || PLATFORM_DARWIN) && ARCHITECTURE_AARCH64
 typedef u64 JmpBuf[13]; // x19-x28, x29 (fp), x30 (lr), sp
@@ -37,7 +47,7 @@ typedef u64 JmpBuf[13]; // x19-x28, x29 (fp), x30 (lr), sp
 #    error "TestRunner: no SetJmp/LongJmp impl for this platform/arch"
 #endif
 
-#if PLATFORM_WINDOWS && ARCHITECTURE_X86_64
+#if PLATFORM_WINDOWS && ARCHITECTURE_X86_64 && defined(__clang__)
 // Win64 ABI: 1st arg in RCX, 2nd arg in RDX. Callee-saved scalars:
 // RBX, RBP, RDI, RSI, R12-R15, RSP. XMM6-XMM15 are also callee-saved
 // per Win64 but the deadend test path doesn't touch them in ways that

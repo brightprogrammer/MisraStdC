@@ -72,8 +72,7 @@ void bench_free(void *p) {
 
 uint64_t bench_live_bytes(void) {
 #if FEATURE_ALLOC_STATS
-    AllocatorStats s = AllocatorGetStats(ALLOCATOR_OF(&g_page));
-    return (uint64_t)s.bytes_in_use;
+    return (uint64_t)AllocatorBytesInUse(&g_page);
 #else
     return 0;
 #endif

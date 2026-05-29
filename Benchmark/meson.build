@@ -76,6 +76,10 @@ foreach b : bench_libc_backends
 endforeach
 
 # Misra backends. Each picks up the in-tree misra_std built above.
+# Cross-TU inlining of the trivial `bench_alloc` / `bench_free` /
+# `bench_realloc` wrappers into `Bench.cpp`'s hot loop relies on the
+# project being configured with `-Db_lto=true`; without that the
+# wrapper costs a real function call per iteration.
 executable(
     'bench-misra',
     files('Source/Allocator_misra.c') + bench_cpp_sources,

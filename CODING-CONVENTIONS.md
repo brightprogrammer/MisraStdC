@@ -221,20 +221,20 @@ of the codebase to see them in action.
 - **Allocators fail loud.** Bad free, foreign pointer, state-machine
   violation → `LOG_FATAL` with a backtrace. Soft no-op returns hide bugs;
   this project would rather you crash on the spot.
-- **Typed-direct dispatch skips stats accounting.** The
-  `AllocatorAlloc` / `AllocatorResize` / `AllocatorRemap` /
-  `AllocatorFree` `_Generic` macros route a typed pointer
-  (`HeapAllocator *`, `ArenaAllocator *`, ...) straight to the
-  concrete `*_allocator_*` backend — no `ValidateAllocator`, no retry
-  loop, **and no `AllocatorStats` updates**. The accounting only
-  happens on the `Allocator *` arm via `AllocatorAlloc_dyn` (and
-  friends), which is also the path downstream out-of-tree backends
-  use. Callers that need `AllocatorGetStats` to reflect their
-  traffic must route through `ALLOCATOR_OF(&typed)` so the dispatch
-  lands on the dyn wrapper; the typed-direct path is the fast lane
-  and trades visibility for the lower per-call cost. Documented on
-  each `AllocatorAlloc*` / `AllocatorResize*` / `AllocatorRemap*` /
-  `AllocatorFree*` macro in `<Misra/Std/Allocator.h>`.
+- **Shared per-instance state lives on the base, never duplicated per
+  typed subtype.** A typed allocator embeds `Allocator base` and reads
+  / writes any uniform metric (e.g. `AllocatorStats`) through that one
+  field. Subtypes don't carry parallel copies.
+- **Each piece of state is written from exactly one layer.** Where a
+  typed body and a dispatch wrapper both exist for the same operation,
+  the typed body owns the writes; the wrapper just routes. Two writers
+  for the same counter would double-count and force callers to know
+  which entry point they used.
+- **Read-only fields are exposed through `((void)0, ptr->field)`
+  accessor macros, not function calls.** Same shape as `BufLength`,
+  `VecCapacity`, etc. No `*GetStats`-style getter functions, no
+  `_Generic`-dispatched readers — readers stay zero-overhead lvalue-
+  rejecting macros.
 - **Stack-promote transient containers** with `*InitStack` (`StrInitStack`,
   `VecInitStack`, ...) -- see the dedicated section below.
 

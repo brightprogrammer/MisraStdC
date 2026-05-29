@@ -94,8 +94,9 @@ void *arena_allocator_allocate(ArenaAllocator *self, size bytes, i8 zeroed) {
     if (!bytes) {
         return NULL;
     }
-    size align  = arena_effective_alignment(self);
-    size padded = ALIGN_UP_POW2(bytes, align);
+    size  align  = arena_effective_alignment(self);
+    size  padded = ALIGN_UP_POW2(bytes, align);
+    void *result = NULL;
 
     ArenaChunk *chunk = self->tail;
     if (chunk) {
@@ -104,9 +105,9 @@ void *arena_allocator_allocate(ArenaAllocator *self, size bytes, i8 zeroed) {
         u64  aligned_addr = (free_addr + (u64)(align - 1)) & ~(u64)(align - 1);
         size aligned_used = (size)(aligned_addr - base_addr);
         if (aligned_used + padded <= chunk->capacity) {
-            u8 *result      = chunk->base + aligned_used;
+            u8 *out         = chunk->base + aligned_used;
             chunk->used     = aligned_used + padded;
-            self->last_ptr  = result;
+            self->last_ptr  = out;
             self->last_size = padded;
             // Fresh kernel pages are zero, but bumping into an
             // already-touched chunk (or one that was reused after
@@ -114,15 +115,16 @@ void *arena_allocator_allocate(ArenaAllocator *self, size bytes, i8 zeroed) {
             // bytes from the previous tenant. Honor `zeroed`
             // unconditionally on the in-chunk path.
             if (zeroed) {
-                MemSet(result, 0, padded);
+                MemSet(out, 0, padded);
             }
-            return result;
+            result = out;
+            goto done;
         }
     }
 
     chunk = arena_new_chunk(self, padded + align);
     if (!chunk) {
-        return NULL;
+        goto done;
     }
     if (!self->head) {
         self->head = chunk;
@@ -131,16 +133,33 @@ void *arena_allocator_allocate(ArenaAllocator *self, size bytes, i8 zeroed) {
     }
     self->tail = chunk;
 
-    u64  base_addr    = (u64)chunk->base;
-    u64  aligned_addr = (base_addr + (u64)(align - 1)) & ~(u64)(align - 1);
-    size aligned_used = (size)(aligned_addr - base_addr);
-    u8  *result       = chunk->base + aligned_used;
-    chunk->used       = aligned_used + padded;
-    self->last_ptr    = result;
-    self->last_size   = padded;
-    // Fresh chunk came from os_page_map -> kernel-zeroed, so a
-    // `zeroed` request is already satisfied without an extra MemSet.
-    (void)zeroed;
+    {
+        u64  base_addr    = (u64)chunk->base;
+        u64  aligned_addr = (base_addr + (u64)(align - 1)) & ~(u64)(align - 1);
+        size aligned_used = (size)(aligned_addr - base_addr);
+        u8  *out          = chunk->base + aligned_used;
+        chunk->used       = aligned_used + padded;
+        self->last_ptr    = out;
+        self->last_size   = padded;
+        // Fresh chunk came from os_page_map -> kernel-zeroed, so a
+        // `zeroed` request is already satisfied without an extra MemSet.
+        (void)zeroed;
+        result = out;
+    }
+
+done:
+#if FEATURE_ALLOC_STATS
+    if (result) {
+        self->base.stats.allocations     += 1u;
+        self->base.stats.bytes_requested += (u64)bytes;
+        self->base.stats.bytes_in_use    += (u64)bytes;
+        if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
+            self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
+        }
+    } else {
+        self->base.stats.failed_allocations += 1u;
+    }
+#endif
     return result;
 }
 
@@ -165,6 +184,13 @@ i8 arena_allocator_resize(ArenaAllocator *self, void *ptr, size new_size) {
     }
     chunk->used     = last_off + padded_new;
     self->last_size = padded_new;
+#if FEATURE_ALLOC_STATS
+    self->base.stats.reallocations   += 1u;
+    self->base.stats.bytes_requested += (u64)new_size;
+    if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
+        self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
+    }
+#endif
     return 1;
 }
 

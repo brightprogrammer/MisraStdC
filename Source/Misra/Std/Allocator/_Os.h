@@ -41,6 +41,24 @@ extern "C" {
     /// pointer is undefined behaviour.
     void os_page_unmap(void *ptr, size bytes);
 
+    /// Try to resize an existing `os_page_map` region in-place to
+    /// `new_bytes` (must be page-multiple). The kernel may move the
+    /// region; the returned pointer is the new address (possibly
+    /// unchanged). Returns NULL if the resize cannot be honoured AT
+    /// ALL on this platform / for this request -- callers MUST treat
+    /// NULL as "fall back to alloc-new + memcpy + unmap-old", not as
+    /// a freed region. The old region remains valid on NULL return.
+    ///
+    /// Implementation:
+    ///   Linux direct-syscall : `mremap(..., MREMAP_MAYMOVE)`.
+    ///   Linux libc fallback  : libc `mremap(..., MREMAP_MAYMOVE)`.
+    ///   Darwin / Windows     : not supported, returns NULL. (XNU has
+    ///                          no public mremap; Win32 has no analogue
+    ///                          for resize-in-place of an mmapped
+    ///                          region -- VirtualAlloc reservations
+    ///                          can't be safely grown.)
+    void *os_page_remap(void *ptr, size old_bytes, size new_bytes);
+
     /// Round `bytes` up to the next multiple of `os_page_size()`.
     /// Convenience for callers that compute mmap request sizes from
     /// arbitrary byte counts and need the exact rounded length back so

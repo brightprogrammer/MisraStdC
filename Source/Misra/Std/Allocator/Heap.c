@@ -663,22 +663,38 @@ static void heap_free_xl(HeapAllocator *heap, u32 idx) {
 void *heap_allocator_allocate(HeapAllocator *self, size bytes, i8 zeroed) {
     heap_validate_self(self);
     if (!bytes) return NULL;
+    void *out;
     if (heap_alignment_demands_passthrough(self) || bytes > 2048u) {
-        return heap_alloc_xl(self, bytes, zeroed);
+        out = heap_alloc_xl(self, bytes, zeroed);
+    } else {
+        u8  cls = heap_class_idx_for(bytes);
+        u32 idx = heap_find_class_warm_idx(self, cls);
+        if (idx == HEAP_BUCKET_NONE) {
+            idx = heap_grow_class(self, cls);
+            if (idx == HEAP_BUCKET_NONE) {
+#if FEATURE_ALLOC_STATS
+                self->base.stats.failed_allocations += 1u;
+#endif
+                return NULL;
+            }
+        }
+        out = heap_take_slot(self, idx, cls);
+        if (out && zeroed) {
+            MemSet(out, 0, heap_class_size[cls]);
+        }
     }
-
-    u8 cls = heap_class_idx_for(bytes);
-    // cls is in [0, HEAP_NUM_CLASSES) here because bytes <= 2048.
-
-    u32 idx = heap_find_class_warm_idx(self, cls);
-    if (idx == HEAP_BUCKET_NONE) {
-        idx = heap_grow_class(self, cls);
-        if (idx == HEAP_BUCKET_NONE) return NULL;
+#if FEATURE_ALLOC_STATS
+    if (out) {
+        self->base.stats.allocations     += 1u;
+        self->base.stats.bytes_requested += (u64)bytes;
+        self->base.stats.bytes_in_use    += (u64)bytes;
+        if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
+            self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
+        }
+    } else {
+        self->base.stats.failed_allocations += 1u;
     }
-    void *out = heap_take_slot(self, idx, cls);
-    if (out && zeroed) {
-        MemSet(out, 0, heap_class_size[cls]);
-    }
+#endif
     return out;
 }
 
@@ -764,20 +780,31 @@ static void heap_free_classed(HeapAllocator *heap, void *ptr, u32 idx) {
 
 i8 heap_allocator_resize(HeapAllocator *self, void *ptr, size new_size) {
     heap_validate_self(self);
-    u32   idx;
-    bool  is_xl;
-    size  cur = heap_recover_size(self, ptr, &idx, &is_xl);
+    u32  idx;
+    bool is_xl;
+    size cur = heap_recover_size(self, ptr, &idx, &is_xl);
     if (!cur) return 0;
+    i8 ok;
     if (is_xl) {
         u32 op = self->xl[idx].os_pages;
         u32 np = (u32)((new_size + HEAP_OS_PAGE_SIZE - 1u) / HEAP_OS_PAGE_SIZE);
-        return op == np ? 1 : 0;
+        ok     = (op == np) ? 1 : 0;
+    } else if (heap_alignment_demands_passthrough(self) || new_size > 2048u) {
+        ok = 0; // mixed-class transitions cannot be in-place
+    } else {
+        u8 new_cls = heap_class_idx_for(new_size);
+        ok         = (heap_class_size[new_cls] == cur) ? 1 : 0;
     }
-    if (heap_alignment_demands_passthrough(self) || new_size > 2048u) {
-        return 0; // mixed-class transitions cannot be in-place
+#if FEATURE_ALLOC_STATS
+    if (ok) {
+        self->base.stats.reallocations   += 1u;
+        self->base.stats.bytes_requested += (u64)new_size;
+        if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
+            self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
+        }
     }
-    u8 new_cls = heap_class_idx_for(new_size);
-    return heap_class_size[new_cls] == cur ? 1 : 0;
+#endif
+    return ok;
 }
 
 void *heap_allocator_remap(HeapAllocator *self, void *ptr, size new_size) {
@@ -789,12 +816,6 @@ void *heap_allocator_remap(HeapAllocator *self, void *ptr, size new_size) {
     }
     if (!ptr) return heap_allocator_allocate(self, new_size, true);
 
-    // Resolve current size from the descriptor tables. We DON'T keep
-    // the idx around: heap_allocator_allocate below may rehash pages[]
-    // (which moves every bucket) or MemMove the xl[] tail, so any
-    // cached index is invalid by the time deallocate runs. Re-resolve
-    // via heap_allocator_deallocate which does its own lookup (one
-    // hash probe for S/M/L, one bsearch for XL).
     u32  idx;
     bool is_xl;
     size cur = heap_recover_size(self, ptr, &idx, &is_xl);
@@ -802,14 +823,84 @@ void *heap_allocator_remap(HeapAllocator *self, void *ptr, size new_size) {
         LOG_FATAL("heap_remap: foreign or already-freed ptr {x}", (u64)ptr);
         return NULL;
     }
-    (void)idx;
-    (void)is_xl;
-    void *fresh = heap_allocator_allocate(self, new_size, false);
-    if (!fresh) return NULL;
-    size copy_bytes = cur < new_size ? cur : new_size;
-    MemCopy(fresh, ptr, copy_bytes);
-    (void)heap_allocator_deallocate(self, ptr);
-    return fresh;
+
+    // XL fast path: ask the kernel to resize the mapping in place. On
+    // Linux this routes to `mremap(..., MREMAP_MAYMOVE)`, which can
+    // grow a page-class region without touching the bytes -- the same
+    // trick glibc / jemalloc use for their large-block realloc. The
+    // kernel may move the region; if it does, the xl[] descriptor
+    // gets re-inserted at the new ptr's sorted position. Darwin and
+    // Windows don't expose this primitive (os_page_remap returns
+    // NULL); those paths fall through to alloc-new + memcpy.
+    void *result = NULL;
+    if (is_xl) {
+        size old_pages = (size)self->xl[idx].os_pages;
+        size new_pages = (new_size + HEAP_OS_PAGE_SIZE - 1u) / HEAP_OS_PAGE_SIZE;
+        if (new_pages == old_pages) {
+            result = ptr;
+            goto done;
+        }
+        if (new_pages > (size)(u32)-1) goto fallback;
+        size  old_total = old_pages * HEAP_OS_PAGE_SIZE;
+        size  new_total = new_pages * HEAP_OS_PAGE_SIZE;
+        void *new_ptr   = os_page_remap(ptr, old_total, new_total);
+        if (!new_ptr) goto fallback;
+        if (new_ptr == ptr) {
+            self->xl[idx].os_pages = (u32)new_pages;
+            HEAP_MARK_DIRTY(self);
+            result = ptr;
+            goto done;
+        }
+        // Sorted array: position keyed on `.page`. The remapped region
+        // sits at a new address, so we drop the old descriptor and
+        // re-insert at the new position. `heap_insert_sorted` may
+        // grow the array via heap_grow_array (which mmap-rounds the
+        // backing storage); both transitions mark dirty.
+        heap_remove_at(self, self->xl, &self->xl_len, idx, sizeof(HeapPageXL));
+        HeapPageXL desc = {.page = new_ptr, .os_pages = (u32)new_pages};
+        u32        ins  = heap_insert_sorted(
+            self, (void **)&self->xl, &self->xl_len, &self->xl_cap, sizeof(HeapPageXL), &desc);
+        if (ins == (u32)-1) {
+            // xl[] capacity grow failed -- we already kept the kernel's
+            // resized region, so unmap it and bail. Caller sees NULL.
+            os_page_unmap(new_ptr, new_total);
+            result = NULL;
+            goto done;
+        }
+        result = new_ptr;
+        goto done;
+    }
+
+fallback:
+    // S/M/L binned allocations: the slot lives inside a multi-tenant
+    // OS page; we can't ask the kernel to grow a single slot. Same
+    // story for any path where os_page_remap declined. heap_allocator_allocate
+    // bumps stats on its own; heap_allocator_deallocate bumps the free
+    // counter. We skip the reallocation bump here -- the realloc is
+    // realised as a discrete alloc + free pair below, and double-
+    // counting it would mis-report bytes_in_use.
+    {
+        void *fresh = heap_allocator_allocate(self, new_size, false);
+        if (!fresh) return NULL;
+        size copy_bytes = cur < new_size ? cur : new_size;
+        MemCopy(fresh, ptr, copy_bytes);
+        (void)heap_allocator_deallocate(self, ptr);
+        return fresh;
+    }
+
+done:
+#if FEATURE_ALLOC_STATS
+    if (result) {
+        self->base.stats.reallocations   += 1u;
+        self->base.stats.bytes_requested += (u64)new_size;
+        if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
+            self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
+        }
+    } else {
+        self->base.stats.failed_allocations += 1u;
+    }
+#endif
+    return result;
 }
 
 size heap_allocator_deallocate(HeapAllocator *self, void *ptr) {
@@ -828,6 +919,14 @@ size heap_allocator_deallocate(HeapAllocator *self, void *ptr) {
     } else {
         heap_free_classed(self, ptr, idx);
     }
+#if FEATURE_ALLOC_STATS
+    self->base.stats.deallocations += 1u;
+    if ((u64)cur <= self->base.stats.bytes_in_use) {
+        self->base.stats.bytes_in_use -= (u64)cur;
+    } else {
+        self->base.stats.bytes_in_use = 0u;
+    }
+#endif
     return cur;
 }
 

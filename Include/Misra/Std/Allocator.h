@@ -50,40 +50,40 @@ extern "C" {
 
 #if FEATURE_ALLOC_STATS
     ///
-    /// Per-allocator memory-pressure counters. Updated ONLY along the
-    /// type-erased `_dyn` dispatch path (i.e. when the caller passes
-    /// `Allocator *` to `AllocatorAlloc` / `AllocatorResize` /
-    /// `AllocatorRemap` / `AllocatorFree`). The typed-direct paths
-    /// (e.g. `AllocatorAlloc(&heap, ...)` where `&heap` is
-    /// `HeapAllocator *`) skip the dispatch wrapper, so they skip
-    /// stats too -- this is documented on each dispatch macro and is
-    /// the trade-off for the typed call's zero-overhead landing.
-    ///
-    /// Reset with `AllocatorResetStats(...)`, read with
-    /// `AllocatorGetStats(...)`.
+    /// Per-allocator memory-pressure counters. Every typed allocator
+    /// (Heap, Page, Arena, Slab, Budget, Debug) updates these inline
+    /// at its own allocate / deallocate / resize / remap success and
+    /// failure points, so the counters move the same way whether the
+    /// caller used the typed-direct call (`AllocatorAlloc(&heap, ...)`)
+    /// or the dyn dispatch wrapper. Read via the `Allocator*` macros
+    /// declared below (`AllocatorBytesInUse(a)` etc.); reset via
+    /// `AllocatorResetStats(...)`.
     ///
     /// FIELDS:
-    /// - bytes_requested    : cumulative bytes ever requested via
-    ///                        `_dyn` allocate (does not decrease on free).
-    /// - bytes_in_use       : outstanding bytes seen by the dispatch
-    ///                        layer. Tracked from `allocate` and
-    ///                        `deallocate` (which carry an explicit byte
-    ///                        delta). `resize` / `remap` do NOT update
-    ///                        this counter -- a successful in-place
-    ///                        resize is a no-op for outstanding-byte
-    ///                        accounting, and a relocating remap moves
-    ///                        bytes internally to the typed allocator
-    ///                        without going back through the `_dyn`
-    ///                        dispatch wrapper. Workloads that need
-    ///                        precise outstanding-byte tracking should
-    ///                        avoid the `remap` path or call `_dyn`
-    ///                        allocate + free explicitly.
+    /// - bytes_requested    : cumulative bytes ever requested across
+    ///                        allocate + successful resize/remap (does
+    ///                        not decrease on free).
+    /// - bytes_in_use       : outstanding bytes the allocator believes
+    ///                        the caller is holding. Bumped on allocate,
+    ///                        drawn down on deallocate. `resize` and
+    ///                        in-place `remap` do NOT touch this
+    ///                        counter -- a successful in-place resize
+    ///                        is a no-op for outstanding-byte accounting.
+    ///                        When a typed `remap` internally falls back
+    ///                        to allocate-new + free-old, the inner calls
+    ///                        each update the counter individually
+    ///                        (alloc bumps, free draws down), so the
+    ///                        net effect is bytes_in_use += (new - old).
     /// - peak_bytes_in_use  : historical max of bytes_in_use.
-    /// - allocations        : count of successful `_dyn` allocate calls.
-    /// - reallocations      : count of successful `_dyn` resize / remap calls.
-    /// - deallocations      : count of `_dyn` deallocate calls.
-    /// - failed_allocations : count of `_dyn` allocate / resize / remap
-    ///                        calls that returned NULL.
+    /// - allocations        : count of successful allocate calls.
+    /// - reallocations      : count of successful in-place resize /
+    ///                        in-place remap calls. Remaps that fell
+    ///                        back to alloc+free are counted as
+    ///                        +1 allocation +1 deallocation, not as
+    ///                        a reallocation.
+    /// - deallocations      : count of deallocate calls.
+    /// - failed_allocations : count of allocate / resize / remap calls
+    ///                        that returned NULL or 0.
     ///
     /// TAGS: Allocator, Stats, Observability
     ///
@@ -134,21 +134,26 @@ extern "C" {
 
 #if FEATURE_ALLOC_STATS
     ///
-    /// Snapshot the current stats off `self`. Returns the struct by
-    /// value; reading does not perturb the counters. `self` is run
-    /// through `ValidateAllocator` first, so a structurally invalid
-    /// allocator aborts before the read.
+    /// Read-only stats accessors. Each macro is a comma expression
+    /// (`((void)0, ...)`) so the result is not an lvalue -- assigning
+    /// to `AllocatorBytesInUse(a) = n` fails at compile time. Mutation
+    /// is the typed allocator's job; readers stay observers.
     ///
-    /// self[in] : Allocator base to query.
+    /// `a` is any typed allocator pointer (`HeapAllocator *`,
+    /// `SlabAllocator *`, ...) or a plain `Allocator *`. `ALLOCATOR_OF`
+    /// performs the typed -> base cast via `_Generic` without
+    /// dispatching, so each accessor compiles down to a direct field
+    /// load. No function call, no vtable.
     ///
-    /// SUCCESS: Returns a by-value copy of `self->stats`. Counter
-    ///          state on `self` is unchanged.
-    /// FAILURE: Does not return - `ValidateAllocator` aborts via
-    ///          `LOG_FATAL` when `self` is NULL or structurally invalid.
+    /// TAGS: Allocator, Stats, Accessor
     ///
-    /// TAGS: Allocator, Stats, Observability
-    ///
-    AllocatorStats AllocatorGetStats(const Allocator *self);
+#    define AllocatorBytesRequested(a)    ((void)0, ALLOCATOR_OF(a)->stats.bytes_requested)
+#    define AllocatorBytesInUse(a)        ((void)0, ALLOCATOR_OF(a)->stats.bytes_in_use)
+#    define AllocatorPeakBytesInUse(a)    ((void)0, ALLOCATOR_OF(a)->stats.peak_bytes_in_use)
+#    define AllocatorAllocations(a)       ((void)0, ALLOCATOR_OF(a)->stats.allocations)
+#    define AllocatorReallocations(a)     ((void)0, ALLOCATOR_OF(a)->stats.reallocations)
+#    define AllocatorDeallocations(a)     ((void)0, ALLOCATOR_OF(a)->stats.deallocations)
+#    define AllocatorFailedAllocations(a) ((void)0, ALLOCATOR_OF(a)->stats.failed_allocations)
 
     ///
     /// Zero every counter on `self`. `peak_bytes_in_use` is reset to

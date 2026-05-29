@@ -198,6 +198,7 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 #        define MISRA_SYS_mmap          9
 #        define MISRA_SYS_mprotect      10
 #        define MISRA_SYS_munmap        11
+#        define MISRA_SYS_mremap        25
 #        define MISRA_SYS_ioctl         16
 #        define MISRA_SYS_pipe          22
 #        define MISRA_SYS_dup2          33
@@ -247,6 +248,7 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 #        define MISRA_SYS_mmap          222
 #        define MISRA_SYS_mprotect      226
 #        define MISRA_SYS_munmap        215
+#        define MISRA_SYS_mremap        216
 #        define MISRA_SYS_ioctl         29
 #        define MISRA_SYS_pipe2         59
 #        define MISRA_SYS_dup3          24

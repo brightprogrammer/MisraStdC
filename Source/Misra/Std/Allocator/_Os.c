@@ -91,3 +91,29 @@ void os_page_unmap(void *ptr, size bytes) {
     munmap(ptr, (size_t)bytes);
 #endif
 }
+
+void *os_page_remap(void *ptr, size old_bytes, size new_bytes) {
+    if (!ptr || !old_bytes || !new_bytes) {
+        return NULL;
+    }
+#if PLATFORM_LINUX && FEATURE_DIRECT_SYSCALL
+    // mremap(old_addr, old_size, new_size, flags). Flag 1 = MREMAP_MAYMOVE.
+    long ret = misra_sys4(MISRA_SYS_mremap,
+                          (long)(u64)ptr,
+                          (long)old_bytes,
+                          (long)new_bytes,
+                          1L /* MREMAP_MAYMOVE */);
+    if ((unsigned long)ret >= (unsigned long)-4095) {
+        return NULL;
+    }
+    return (void *)ret;
+#else
+    // No glibc fallback: mremap is a Linux extension, not POSIX, and
+    // linking it on the non-direct-syscall path would put libc back in
+    // the dependency set. Darwin has no public mremap; Windows can't
+    // resize a VirtualAlloc reservation in place. Callers fall back
+    // to alloc-new + memcpy.
+    (void)ptr; (void)old_bytes; (void)new_bytes;
+    return NULL;
+#endif
+}

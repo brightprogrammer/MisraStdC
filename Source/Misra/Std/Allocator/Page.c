@@ -298,7 +298,8 @@ void *page_allocator_allocate(PageAllocator *self, size bytes, i8 zeroed) {
     if (!bytes) {
         return NULL;
     }
-    size rounded = page_rounded_size(self, bytes);
+    size  rounded = page_rounded_size(self, bytes);
+    void *result  = NULL;
 
     // Reuse first: if we've previously handed out a region of exactly
     // this rounded size and the user freed it, take it back instead of
@@ -320,25 +321,43 @@ void *page_allocator_allocate(PageAllocator *self, size bytes, i8 zeroed) {
             if (zeroed) {
                 MemSet(ptr, 0, rounded);
             }
-            return ptr;
+            result = ptr;
+            goto done;
         }
     }
 
     // Cache miss -- ask the kernel.
-    void *ptr = os_page_map(rounded);
-    if (!ptr) {
-        return NULL;
+    {
+        void *ptr = os_page_map(rounded);
+        if (!ptr) {
+            goto done;
+        }
+        if (!page_table_insert_sorted(self, &self->entries, &self->len, &self->cap,
+                                      &self->entries_bytes, ptr, rounded)) {
+            // Table grow failed: don't strand the user mmap we just made.
+            os_page_unmap(ptr, rounded);
+            goto done;
+        }
+        // OS-mapped pages are kernel-zeroed, no need to honour `zeroed`
+        // explicitly on this path.
+        (void)zeroed;
+        result = ptr;
     }
-    if (!page_table_insert_sorted(self, &self->entries, &self->len, &self->cap,
-                                  &self->entries_bytes, ptr, rounded)) {
-        // Table grow failed: don't strand the user mmap we just made.
-        os_page_unmap(ptr, rounded);
-        return NULL;
+
+done:
+#if FEATURE_ALLOC_STATS
+    if (result) {
+        self->base.stats.allocations     += 1u;
+        self->base.stats.bytes_requested += (u64)bytes;
+        self->base.stats.bytes_in_use    += (u64)bytes;
+        if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
+            self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
+        }
+    } else {
+        self->base.stats.failed_allocations += 1u;
     }
-    // OS-mapped pages are kernel-zeroed, no need to honour `zeroed`
-    // explicitly on this path.
-    (void)zeroed;
-    return ptr;
+#endif
+    return result;
 }
 
 // In-place resize: succeeds only when old + new sizes round to the
@@ -357,7 +376,17 @@ i8 page_allocator_resize(PageAllocator *self, void *ptr, size new_size) {
     }
     size old_rounded = self->entries[idx].bytes;
     size new_rounded = page_rounded_size(self, new_size);
-    return old_rounded == new_rounded ? 1 : 0;
+    i8   ok          = (old_rounded == new_rounded) ? 1 : 0;
+#if FEATURE_ALLOC_STATS
+    if (ok) {
+        self->base.stats.reallocations   += 1u;
+        self->base.stats.bytes_requested += (u64)new_size;
+        if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
+            self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
+        }
+    }
+#endif
+    return ok;
 }
 
 void *page_allocator_remap(PageAllocator *self, void *ptr, size new_size) {
@@ -381,8 +410,18 @@ void *page_allocator_remap(PageAllocator *self, void *ptr, size new_size) {
     size old_rounded = self->entries[idx].bytes;
     size new_rounded = page_rounded_size(self, new_size);
     if (old_rounded == new_rounded) {
+#if FEATURE_ALLOC_STATS
+        self->base.stats.reallocations   += 1u;
+        self->base.stats.bytes_requested += (u64)new_size;
+        if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
+            self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
+        }
+#endif
         return ptr;
     }
+    // Discrete alloc + free below; the inner calls do their own stats
+    // bookkeeping, so we skip the realloc bump here to avoid double-
+    // counting bytes_in_use.
     void *fresh = page_allocator_allocate(self, new_size, true);
     if (!fresh) {
         return NULL;
@@ -420,6 +459,14 @@ size page_allocator_deallocate(PageAllocator *self, void *ptr) {
         os_page_unmap(ptr, bytes);
     }
     page_table_remove_sorted_at(self->entries, &self->len, idx);
+#if FEATURE_ALLOC_STATS
+    self->base.stats.deallocations += 1u;
+    if ((u64)bytes <= self->base.stats.bytes_in_use) {
+        self->base.stats.bytes_in_use -= (u64)bytes;
+    } else {
+        self->base.stats.bytes_in_use = 0u;
+    }
+#endif
     return bytes;
 }
 

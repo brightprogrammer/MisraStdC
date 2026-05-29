@@ -267,6 +267,11 @@ void *slab_allocator_allocate(SlabAllocator *self, size bytes, i8 zeroed) {
     slab_validate_self(self);
 
     if (bytes == 0 || bytes > self->slot_size) {
+#if FEATURE_ALLOC_STATS
+        if (bytes != 0) {
+            self->base.stats.failed_allocations += 1u;
+        }
+#endif
         return NULL;
     }
 
@@ -300,6 +305,14 @@ void *slab_allocator_allocate(SlabAllocator *self, size bytes, i8 zeroed) {
             if (zeroed) {
                 MemSet(slot, 0, self->slot_size);
             }
+#if FEATURE_ALLOC_STATS
+            self->base.stats.allocations     += 1u;
+            self->base.stats.bytes_requested += (u64)bytes;
+            self->base.stats.bytes_in_use    += (u64)bytes;
+            if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
+                self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
+            }
+#endif
             return slot;
         }
     }
@@ -307,6 +320,9 @@ void *slab_allocator_allocate(SlabAllocator *self, size bytes, i8 zeroed) {
     // All slabs full -- grow and take the first slot of the new slab.
     u32 idx = slab_grow_one(self);
     if (idx == (u32)-1) {
+#if FEATURE_ALLOC_STATS
+        self->base.stats.failed_allocations += 1u;
+#endif
         return NULL;
     }
     // bitmap_words_per_slab might have just been set by the first
@@ -318,13 +334,31 @@ void *slab_allocator_allocate(SlabAllocator *self, size bytes, i8 zeroed) {
     if (zeroed) {
         MemSet(slot, 0, self->slot_size);
     }
+#if FEATURE_ALLOC_STATS
+    self->base.stats.allocations     += 1u;
+    self->base.stats.bytes_requested += (u64)bytes;
+    self->base.stats.bytes_in_use    += (u64)bytes;
+    if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
+        self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
+    }
+#endif
     return slot;
 }
 
 i8 slab_allocator_resize(SlabAllocator *self, void *ptr, size new_size) {
     slab_validate_self(self);
     (void)ptr;
-    return new_size <= self->slot_size ? 1 : 0;
+    i8 ok = (new_size <= self->slot_size) ? 1 : 0;
+#if FEATURE_ALLOC_STATS
+    if (ok) {
+        self->base.stats.reallocations   += 1u;
+        self->base.stats.bytes_requested += (u64)new_size;
+        if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
+            self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
+        }
+    }
+#endif
+    return ok;
 }
 
 void *slab_allocator_remap(SlabAllocator *self, void *ptr, size new_size) {
@@ -336,7 +370,19 @@ void *slab_allocator_remap(SlabAllocator *self, void *ptr, size new_size) {
         slab_allocator_deallocate(self, ptr);
         return NULL;
     }
-    return new_size <= self->slot_size ? ptr : NULL;
+    void *result = (new_size <= self->slot_size) ? ptr : NULL;
+#if FEATURE_ALLOC_STATS
+    if (result) {
+        self->base.stats.reallocations   += 1u;
+        self->base.stats.bytes_requested += (u64)new_size;
+        if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
+            self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
+        }
+    } else {
+        self->base.stats.failed_allocations += 1u;
+    }
+#endif
+    return result;
 }
 
 size slab_allocator_deallocate(SlabAllocator *self, void *ptr) {
@@ -375,6 +421,14 @@ size slab_allocator_deallocate(SlabAllocator *self, void *ptr) {
         return 0;
     }
     bm[w] &= ~mask;
+#if FEATURE_ALLOC_STATS
+    self->base.stats.deallocations += 1u;
+    if ((u64)self->slot_size <= self->base.stats.bytes_in_use) {
+        self->base.stats.bytes_in_use -= (u64)self->slot_size;
+    } else {
+        self->base.stats.bytes_in_use = 0u;
+    }
+#endif
     return self->slot_size;
 }
 
