@@ -88,10 +88,10 @@ static bool test_map_rehash_policy_switch(void) {
 
     MapRehashWithPolicy(&map, MapPairCount(&map), MapPolicyQuadratic);
 
-    bool result = (map.policy.first_index == MapPolicyQuadratic.first_index) &&
-                  (map.policy.next_index == MapPolicyQuadratic.next_index) &&
-                  (map.policy.next_capacity == MapPolicyQuadratic.next_capacity) &&
-                  (map.policy.should_rehash == MapPolicyQuadratic.should_rehash);
+    bool result = (MapPolicy(&map).first_index == MapPolicyQuadratic.first_index) &&
+                  (MapPolicy(&map).next_index == MapPolicyQuadratic.next_index) &&
+                  (MapPolicy(&map).next_capacity == MapPolicyQuadratic.next_capacity) &&
+                  (MapPolicy(&map).should_rehash == MapPolicyQuadratic.should_rehash);
 
     for (int i = 0; i < 24; i++) {
         int *value = MapGetFirstPtr(&map, i);
@@ -122,7 +122,7 @@ static bool test_map_custom_policy_growth(void) {
     }
 
     result = result && (MapCapacity(&map) == 10);
-    result = result && (map.policy.next_capacity == custom_next_capacity);
+    result = result && (MapPolicy(&map).next_capacity == custom_next_capacity);
 
     for (int i = 0; i < 6; i++) {
         int *value = MapGetFirstPtr(&map, i);

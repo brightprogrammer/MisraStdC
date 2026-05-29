@@ -8,7 +8,7 @@ Parking lot for items we've identified during real implementation work but defer
 
 ## Sys / Networking
 - `Sys/Socket`: move `SocketPoll` from `poll()` to `epoll` / `kqueue` for >1000-fd scale.
-- `Sys/Backtrace`: consider symbolize-once cache so repeated `FormatStackTrace` calls don't redo `dladdr` work.
+- `Sys/Backtrace`: consider symbolize-once cache so repeated `FormatStackTrace` calls don't redo `SymbolResolver` lookups for already-seen IPs.
 - `Sys/Backtrace` (Linux/macOS x86-64): sigsetjmp-guarded `read_u64_at` so a wild RIP during CFI / FP walking aborts the walk instead of crashing the whole process.
 - `Sys/Backtrace`: aarch64 CFI walker — same shape as the x86-64 path but reads x29 / x30 / sp registers; deferred until we have an arm64 host to test on.
 - `Sys/Dns`: DNS-over-TLS / DNS-over-HTTPS — currently plain UDP/TCP only.
@@ -45,7 +45,7 @@ Parking lot for items we've identified during real implementation work but defer
 Items below have landed; kept here as a history of what each branch closed out.
 
 ### Allocator vtable split: resize + remap (May 2026)
-- Allocator vtable gains a `resize(self, ptr, old, new) -> i8` slot alongside the renamed `remap(self, ptr, old, new) -> void *` (was `reallocate`). `AllocatorRealloc` stays as the realloc-shaped public API but is now a thin cascade: tries `AllocatorResize` first (no copy, pointer stays valid), falls back to `AllocatorRemap` (may move). All existing callers (`Vec`, `BitVec`, `Str`, `File`, JSON, etc.) keep using `AllocatorRealloc` and auto-benefit from the in-place fast path with zero source changes.
+- Allocator vtable gains a `resize(self, ptr, new_size) -> i8` slot alongside the renamed `remap(self, ptr, new_size) -> void *` (was `reallocate`). Old size is recovered from the allocator's own bookkeeping, so the caller never passes it -- the API boundary forecloses the "wrong size hint" class of bug. `AllocatorRealloc` stays as the realloc-shaped public API but is now a thin cascade: tries `AllocatorResize` first (no copy, pointer stays valid), falls back to `AllocatorRemap` (may move). All existing callers (`Vec`, `BitVec`, `Str`, `File`, JSON, etc.) keep using `AllocatorRealloc` and auto-benefit from the in-place fast path with zero source changes.
 - Per-allocator semantics:
   - `HeapAllocator`: resize succeeds when old + new sizes round to the same bin (no slot change needed).
   - `PageAllocator`: resize succeeds when old + new round to the same page count (no kernel work).
@@ -93,7 +93,7 @@ Items below have landed; kept here as a history of what each branch closed out.
 - `Std/Container/BitVec`: raw + Vec shapes for `BitVecFindAllPattern` (Vec of indices) and `BitVecRunLengths` (Vec of `{length, value}` records); same `OVERLOAD` dispatch.
 - `Std/Allocator/Debug`: backtrace + symbol resolution now goes through the in-tree chain end-to-end; no libc `backtrace()` or `dladdr` dependency. Static functions resolve through `.symtab` or `.debug_info`.
 - `Parsers/MachO`: `N_STAB` filter fix -- per the Mach-O spec any high bit of `n_type` (mask `0xE0`) flags an entry as a debug stab; the original check required all three bits set so common stab types (`N_SO`, `N_FUN`, `N_OSO`, `N_BNSYM`) were polluting symbol lookups. Caught when explicit Backtrace tests ran on the macOS host.
-- `Tests/Std/MachO`: Darwin-only round-trip against the running test binary via `_NSGetExecutablePath` + `MachoFileOpen` + `MachoFileResolveAddress`; structural parallel of the Linux `Tests/Std/Elf` `/proc/self/exe` smoke tests.
+- `Tests/Std/MachO`: Darwin-only round-trip against the running test binary via `_NSGetExecutablePath` + `MachoOpen` + `MachoResolveAddress`; structural parallel of the Linux `Tests/Std/Elf` `/proc/self/exe` smoke tests.
 
 ### libc-diet (May 2026)
 - Project-wide: dropped 65 of 67 imported libc symbols from `libmisra_std.a`. The remaining 2 are compiler-emitted (`__errno_location`, `__stack_chk_fail`) and would need different build flags to drop.

@@ -180,10 +180,10 @@ typedef enum {
 typedef struct AttrVal {
     AttrValKind kind;
     union {
-        u64         u;
-        i64         i;
+        u64  u;
+        i64  i;
         Zstr s;
-        u64         off;
+        u64  off;
     };
 } AttrVal;
 
@@ -367,13 +367,13 @@ static bool walk_cu_dies(
 
         // For subprograms, collect interesting attrs; for everything
         // else, just advance the cursor past their data.
-        bool        is_subprogram = (e->tag == DW_TAG_subprogram);
-        bool        have_name = false, have_low = false, have_high = false;
-        u64         low_pc = 0, high_pc = 0;
-        bool        high_pc_is_offset = false;
+        bool is_subprogram = (e->tag == DW_TAG_subprogram);
+        bool have_name = false, have_low = false, have_high = false;
+        u64  low_pc = 0, high_pc = 0;
+        bool high_pc_is_offset = false;
         Zstr name              = NULL;
-        u64         name_str_off      = 0;
-        bool        name_from_strp    = false;
+        u64  name_str_off      = 0;
+        bool name_from_strp    = false;
 
         for (size ai = 0; ai < VecLen(&e->attrs); ++ai) {
             const AbbrevAttr *a = VecPtrAt(&e->attrs, ai);
@@ -539,7 +539,7 @@ bool DwarfFunctionsBuildFromSlices(
 
     bool ok = true;
     while (IterRemainingLength(&info_cur) > 0) {
-        size unit_start_pos = info_cur.pos;
+        size unit_start_pos = IterIndex(&info_cur);
 
         u32 unit_length;
         if (!BufReadU32LE(&info_cur, &unit_length)) {
@@ -552,7 +552,7 @@ bool DwarfFunctionsBuildFromSlices(
             break;
         }
         size unit_end_pos = unit_start_pos + 4u + unit_length;
-        if (unit_end_pos > info_cur.length || unit_end_pos < unit_start_pos) {
+        if (unit_end_pos > IterLength(&info_cur) || unit_end_pos < unit_start_pos) {
             LOG_ERROR("DWARF info: CU overruns section");
             ok = false;
             break;
@@ -570,7 +570,8 @@ bool DwarfFunctionsBuildFromSlices(
         if (version != 4) {
             // Skip CUs in versions we don't yet parse; we still pick
             // up the rest of the binary's CUs in case some are v4.
-            info_cur.pos = unit_end_pos;
+            // unit_end_pos was bounded above against IterLength(&info_cur).
+            IterMustMove(&info_cur, (i64)(unit_end_pos - IterIndex(&info_cur)));
             continue;
         }
 
@@ -589,7 +590,8 @@ bool DwarfFunctionsBuildFromSlices(
 
         // DIE iter spans the DIE body within this CU (from current
         // info_cur position up to unit_end_pos).
-        BufIter die_cur = BufIterFromMemory(info_cur.data + info_cur.pos, unit_end_pos - info_cur.pos);
+        BufIter die_cur =
+            BufIterFromMemory(IterDataAt(&info_cur, IterIndex(&info_cur)), unit_end_pos - IterIndex(&info_cur));
         if (!walk_cu_dies(die_cur, &abbrevs, addr_size, str_bytes, str_size, &out->string_pool, &pending)) {
             abbrev_table_deinit(&abbrevs);
             ok = false;
@@ -597,7 +599,8 @@ bool DwarfFunctionsBuildFromSlices(
         }
         abbrev_table_deinit(&abbrevs);
 
-        info_cur.pos = unit_end_pos;
+        // Same bounds proof: unit_end_pos was bounded above.
+        IterMustMove(&info_cur, (i64)(unit_end_pos - IterIndex(&info_cur)));
     }
 
     if (ok) {
@@ -643,11 +646,11 @@ bool dwarf_functions_build_from_elf(DwarfFunctions *out, const Elf *elf, Allocat
     const ElfSection *abbrev_sec = ElfFindSection(elf, ".debug_abbrev");
     const ElfSection *str_sec    = ElfFindSection(elf, ".debug_str");
 
-    const u8 *info_b   = info_sec ? BufData(&elf->data) + info_sec->offset : NULL;
+    const u8 *info_b   = info_sec ? BufData(ElfBuf(elf)) + info_sec->offset : NULL;
     u64       info_n   = info_sec ? info_sec->size : 0;
-    const u8 *abbrev_b = abbrev_sec ? BufData(&elf->data) + abbrev_sec->offset : NULL;
+    const u8 *abbrev_b = abbrev_sec ? BufData(ElfBuf(elf)) + abbrev_sec->offset : NULL;
     u64       abbrev_n = abbrev_sec ? abbrev_sec->size : 0;
-    const u8 *str_b    = str_sec ? BufData(&elf->data) + str_sec->offset : NULL;
+    const u8 *str_b    = str_sec ? BufData(ElfBuf(elf)) + str_sec->offset : NULL;
     u64       str_n    = str_sec ? str_sec->size : 0;
     return DwarfFunctionsBuildFromSlices(out, info_b, info_n, abbrev_b, abbrev_n, str_b, str_n, alloc);
 }

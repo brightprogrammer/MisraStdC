@@ -105,9 +105,10 @@ extern "C" {
     /// id[in]    : Caller-supplied transaction id, echoed back by the
     ///             nameserver. Pick randomly for cache-poisoning
     ///             resistance.
-    /// name[in]  : Null-terminated hostname, e.g. "example.com".
-    ///             Trailing dot is optional. Each label must be
-    ///             1..63 bytes; total wire length must be < 255.
+    /// name[in]  : Hostname to encode, e.g. "example.com". Prefer
+    ///             `Str *`; `Zstr` accepted. Trailing dot is optional.
+    ///             Each label must be 1..63 bytes; total wire length
+    ///             must be < 255.
     /// type[in]  : Question type (typically `DNS_TYPE_A` or
     ///             `DNS_TYPE_AAAA`).
     ///

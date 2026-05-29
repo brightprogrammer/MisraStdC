@@ -5,16 +5,6 @@
 
 #include "../Util/TestRunner.h"
 
-// Build argv with argv[0] = program name. The casts mimic real argv,
-// which is `char **` rather than `Zstr *`. We always pass
-// string literals; the parser never writes through them.
-#define ARGV(...)                                                                                                      \
-    (char *[]) {                                                                                                       \
-        (char *)"prog", __VA_ARGS__                                                                                    \
-    }
-
-#define ARGC(...) (1 + (int)(sizeof((char *[]) {__VA_ARGS__}) / sizeof(char *)))
-
 // ----------------------------------------------------------------------------
 // Each verb in isolation
 // ----------------------------------------------------------------------------

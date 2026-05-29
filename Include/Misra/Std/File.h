@@ -2,11 +2,13 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// File helper utilities
+/// Cross-platform `File` handle and the open / read / write / seek /
+/// tell / flush / eof / temp-create surface that wraps it. Linux uses
+/// direct syscalls, macOS routes through libSystem's open/read/write,
+/// Windows uses CreateFile / ReadFile / WriteFile.
 
 #ifndef MISRA_STD_FILE_H
 #define MISRA_STD_FILE_H
-
 
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Buf.h>
@@ -163,7 +165,8 @@ bool FileIsOpen(const File *f);
 /// form, a benign sentinel byte for Buf).
 ///
 /// SUCCESS : 3-arg form returns bytes read (>= 0); 2-arg form
-///           returns total bytes loaded (== `out->length`).
+///           returns total bytes loaded (== `BufLength(out)` /
+///           `StrLen(out)`).
 /// FAILURE : Returns -1 on I/O error. The 2-arg form may leave `out`
 ///           in a partial state.
 ///

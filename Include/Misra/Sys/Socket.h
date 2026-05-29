@@ -34,7 +34,7 @@
 ///
 /// Portable socket-descriptor type. `u64` on Windows so it can carry a
 /// real Winsock `SOCKET` (UINT_PTR), `i32` everywhere else so it stays
-/// printf-friendly and matches the POSIX `int` fd.
+/// format-friendly and matches the POSIX `int` fd.
 ///
 /// TAGS: Socket, Type, FileDescriptor
 ///

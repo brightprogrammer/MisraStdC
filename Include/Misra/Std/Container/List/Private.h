@@ -13,7 +13,7 @@
 void             deinit_list(GenericList *list, u64 item_size);
 bool             insert_into_list(GenericList *list, const void *item_data, u64 item_size, u64 idx);
 void             remove_range_list(GenericList *list, void *removed_data, u64 item_size, u64 start, u64 count);
-bool             qsort_list(GenericList *list, u64 item_size, GenericCompare comp);
+bool             list_sort(GenericList *list, u64 item_size, GenericCompare comp);
 void             swap_list(GenericList *list, u64 item_size, u64 idx1, u64 idx2);
 void             reverse_list(GenericList *list, u64 item_size);
 bool             push_arr_list(GenericList *list, u64 item_size, const void *arr, u64 count);

@@ -48,10 +48,6 @@ struct ArenaChunk {
     size               raw_size;
 };
 
-static size arena_effective_alignment(const ArenaAllocator *self) {
-    return self->base.alignment > 1 ? self->base.alignment : 1;
-}
-
 // True if `ptr` lies inside any chunk's user region. Used by both
 // remap and deallocate to distinguish "legitimate arena-owned pointer
 // the caller is freeing/remapping" from "foreign pointer".
@@ -74,9 +70,8 @@ static size arena_chunk_size_for(size need_bytes) {
 }
 
 static ArenaChunk *arena_new_chunk(ArenaAllocator *arena, size need_bytes) {
-    (void)arena;
     size chunk_bytes = arena_chunk_size_for(need_bytes + sizeof(ArenaChunk));
-    u8  *raw         = (u8 *)os_page_map(chunk_bytes);
+    u8  *raw         = (u8 *)os_page_map(&arena->base, chunk_bytes);
     if (!raw) {
         return NULL;
     }
@@ -94,7 +89,7 @@ void *arena_allocator_allocate(ArenaAllocator *self, size bytes, i8 zeroed) {
     if (!bytes) {
         return NULL;
     }
-    size  align  = arena_effective_alignment(self);
+    size  align  = self->base.alignment;
     size  padded = ALIGN_UP_POW2(bytes, align);
     void *result = NULL;
 
@@ -150,9 +145,14 @@ void *arena_allocator_allocate(ArenaAllocator *self, size bytes, i8 zeroed) {
 done:
 #if FEATURE_ALLOC_STATS
     if (result) {
+        // bytes_in_use tracks effective reserved bytes (post-alignment
+        // padding), matching what arena_allocator_deallocate's rewound
+        // path subtracts. `bytes` (the user request) flows into
+        // bytes_requested instead -- that's the cumulative user-demand
+        // counter.
         self->base.stats.allocations     += 1u;
         self->base.stats.bytes_requested += (u64)bytes;
-        self->base.stats.bytes_in_use    += (u64)bytes;
+        self->base.stats.bytes_in_use    += (u64)padded;
         if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
             self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
         }
@@ -171,7 +171,7 @@ done:
 // could just keep the over-large slot. Same answer either way.
 i8 arena_allocator_resize(ArenaAllocator *self, void *ptr, size new_size) {
     arena_validate_self(self);
-    size align = arena_effective_alignment(self);
+    size align = self->base.alignment;
 
     if (self->last_ptr != ptr || !self->tail) {
         return 0;
@@ -185,11 +185,10 @@ i8 arena_allocator_resize(ArenaAllocator *self, void *ptr, size new_size) {
     chunk->used     = last_off + padded_new;
     self->last_size = padded_new;
 #if FEATURE_ALLOC_STATS
+    // In-place resize does NOT move bytes_in_use (see AllocatorStats
+    // doc in Allocator.h), so no peak refresh is possible here.
     self->base.stats.reallocations   += 1u;
     self->base.stats.bytes_requested += (u64)new_size;
-    if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
-        self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
-    }
 #endif
     return 1;
 }
@@ -233,6 +232,21 @@ void *arena_allocator_remap(ArenaAllocator *self, void *ptr, size new_size) {
         return NULL;
     }
     MemCopy(fresh, ptr, old_padded < new_size ? old_padded : new_size);
+#if FEATURE_ALLOC_STATS
+    // The user is abandoning the old `ptr` in favour of `fresh`. The
+    // arena keeps the old bytes physically reserved until the next
+    // reset/deinit, but from the user's perspective those bytes are
+    // gone -- draw them out of bytes_in_use so the counter stays in
+    // sync with what the caller is actually holding. The
+    // arena_allocator_allocate call above already bumped bytes_in_use
+    // for `fresh`; without this draw-down the remap would double-count
+    // the old allocation.
+    if ((u64)old_padded <= self->base.stats.bytes_in_use) {
+        self->base.stats.bytes_in_use -= (u64)old_padded;
+    } else {
+        self->base.stats.bytes_in_use = 0u;
+    }
+#endif
     return fresh;
 }
 
@@ -250,6 +264,14 @@ size arena_allocator_deallocate(ArenaAllocator *self, void *ptr) {
         }
         self->last_ptr  = NULL;
         self->last_size = 0;
+#if FEATURE_ALLOC_STATS
+        self->base.stats.deallocations += 1u;
+        if ((u64)rewound <= self->base.stats.bytes_in_use) {
+            self->base.stats.bytes_in_use -= (u64)rewound;
+        } else {
+            self->base.stats.bytes_in_use = 0u;
+        }
+#endif
         return rewound;
     }
     // Mid-stream free of an arena-owned pointer is a no-op under the
@@ -284,7 +306,7 @@ void ArenaAllocatorDeinit(ArenaAllocator *self) {
     while (chunk) {
         ArenaChunk *next      = chunk->next;
         size        raw_bytes = chunk->raw_size;
-        os_page_unmap((void *)chunk, raw_bytes);
+        os_page_unmap(&self->base, (void *)chunk, raw_bytes);
         chunk = next;
     }
     MemSet(self, 0, sizeof(*self));

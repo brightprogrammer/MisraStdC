@@ -10,24 +10,19 @@
 #include <Misra/Std/Math.h>
 #include <Misra/Types.h>
 
-// Include test utilities
 #include "../Util/TestRunner.h"
 
-// Define epsilon for float comparisons
 #define FLOAT_EPSILON  1e-6
 #define DOUBLE_EPSILON 1e-12
 
-// Helper function for comparing floats with epsilon
 static bool float_equals(f32 a, f32 b) {
     return F64Abs(a - b) < FLOAT_EPSILON;
 }
 
-// Helper function for comparing doubles with epsilon
 static bool double_equals(f64 a, f64 b) {
     return F64Abs(a - b) < DOUBLE_EPSILON;
 }
 
-// Function prototypes
 bool test_integer_decimal_reading(void);
 bool test_integer_hex_reading(void);
 bool test_integer_binary_reading(void);
@@ -43,7 +38,6 @@ bool test_bitvec_reading(void);
 bool test_int_reading(void);
 bool test_float_reading(void);
 
-// Test decimal integer reading
 bool test_integer_decimal_reading(void) {
     WriteFmt("Testing integer decimal reading\n");
 
@@ -51,7 +45,6 @@ bool test_integer_decimal_reading(void) {
 
     bool success = true;
 
-    // Test signed integers
     i8 i8_val = 0;
     z         = "-42";
     StrReadFmt(z, "{}", i8_val);
@@ -72,7 +65,6 @@ bool test_integer_decimal_reading(void) {
     StrReadFmt(z, "{}", i64_val);
     success = success && (i64_val == -1234567890LL);
 
-    // Test unsigned integers
     u8 u8_val = 0;
     z         = "42";
     StrReadFmt(z, "{}", u8_val);
@@ -93,7 +85,6 @@ bool test_integer_decimal_reading(void) {
     StrReadFmt(z, "{}", u64_val);
     success = success && (u64_val == 1234567890ULL);
 
-    // Test edge cases
     i8_val = 0;
     z      = "127";
     StrReadFmt(z, "{}", i8_val);
@@ -114,7 +105,6 @@ bool test_integer_decimal_reading(void) {
     StrReadFmt(z, "{}", u8_val);
     success = success && (u8_val == 0);
 
-    // Test leading zeros
     i32_val = 0;
     z       = "000042";
     StrReadFmt(z, "{}", i32_val);
@@ -125,7 +115,6 @@ bool test_integer_decimal_reading(void) {
     StrReadFmt(z, "{}", i32_val);
     success = success && (i32_val == -42);
 
-    // Test whitespace handling
     i32_val = 0;
     z       = "   42";
     StrReadFmt(z, "{}", i32_val);
@@ -144,7 +133,6 @@ bool test_integer_decimal_reading(void) {
     return success;
 }
 
-// Test hexadecimal integer reading
 bool test_integer_hex_reading(void) {
     WriteFmt("Testing integer hexadecimal reading\n");
 
@@ -162,7 +150,6 @@ bool test_integer_hex_reading(void) {
     StrReadFmt(z, "{}", val);
     success = success && (val == 0xDEADBEEF);
 
-    // Test hex edge cases
     val = 0;
     z   = "0x0";
     StrReadFmt(z, "{}", val);
@@ -181,7 +168,6 @@ bool test_integer_hex_reading(void) {
     return success;
 }
 
-// Test binary integer reading
 bool test_integer_binary_reading(void) {
     WriteFmt("Testing integer binary reading\n");
 
@@ -194,7 +180,6 @@ bool test_integer_binary_reading(void) {
     StrReadFmt(z, "{}", val);
     success = success && (val == 42);
 
-    // Test binary edge cases
     val = 0;
     z   = "0b0";
     StrReadFmt(z, "{}", val);
@@ -208,7 +193,6 @@ bool test_integer_binary_reading(void) {
     return success;
 }
 
-// Test octal integer reading
 bool test_integer_octal_reading(void) {
     WriteFmt("Testing integer octal reading\n");
 
@@ -226,7 +210,6 @@ bool test_integer_octal_reading(void) {
     StrReadFmt(z, "{}", val);
     success = success && (val == 755);
 
-    // Test octal edge cases
     val = 0;
     z   = "0o0";
     StrReadFmt(z, "{}", val);
@@ -240,7 +223,6 @@ bool test_integer_octal_reading(void) {
     return success;
 }
 
-// Test basic float reading
 bool test_float_basic_reading(void) {
     WriteFmt("Testing basic float reading\n");
 
@@ -248,7 +230,6 @@ bool test_float_basic_reading(void) {
 
     bool success = true;
 
-    // Test basic float values
     f32 f32_val = 0.0f;
     z           = "3.14159";
     StrReadFmt(z, "{}", f32_val);
@@ -259,7 +240,6 @@ bool test_float_basic_reading(void) {
     StrReadFmt(z, "{}", f64_val);
     success = success && double_equals(f64_val, 3.14159265359);
 
-    // Test float edge cases
     f64_val = 1.0;
     z       = "0.0";
     StrReadFmt(z, "{}", f64_val);
@@ -268,8 +248,8 @@ bool test_float_basic_reading(void) {
     f64_val = 1.0;
     z       = "-0.0";
     StrReadFmt(z, "{}", f64_val);
-    // Special case for -0.0 which compares equal to 0.0 but has different bit pattern
-    // We'll just check if it's close to zero
+    // -0.0 compares == to +0.0; the epsilon check captures the magnitude
+    // regardless of which sign bit the parser landed on.
     success = success && double_equals(f64_val, 0.0);
 
     f64_val = 0.0;
@@ -285,7 +265,6 @@ bool test_float_basic_reading(void) {
     return success;
 }
 
-// Test scientific notation reading
 bool test_float_scientific_reading(void) {
     WriteFmt("Testing scientific notation reading\n");
 
@@ -313,7 +292,6 @@ bool test_float_scientific_reading(void) {
     StrReadFmt(z, "{}", val);
     success = success && double_equals(val, 0.000123);
 
-    // Test scientific notation edge cases
     val = 0.0;
     z   = "1.0e0";
     StrReadFmt(z, "{}", val);
@@ -332,7 +310,6 @@ bool test_float_scientific_reading(void) {
     return success;
 }
 
-// Test string reading
 bool test_string_reading(void) {
     WriteFmt("Testing string reading\n");
 
@@ -343,7 +320,6 @@ bool test_string_reading(void) {
 
     bool success = true;
 
-    // Test basic string reading
     Str s = StrInit(&alloc);
     z     = "Hello";
     StrReadFmt(z, "{}", s);
@@ -353,7 +329,6 @@ bool test_string_reading(void) {
     StrDeinit(&expected);
     StrClear(&s);
 
-    // Test quoted string reading
     z = "\"Hello, World!\"";
     StrReadFmt(z, "{s}", s);
 
@@ -362,7 +337,7 @@ bool test_string_reading(void) {
     StrDeinit(&expected);
 
     {
-        char *zs = NULL;
+        Zstr zs = NULL;
 
         z = "Allocator-backed";
         StrReadFmt(z, "{s}", ZstrIO(zs, alloc_base));
@@ -380,7 +355,6 @@ bool test_string_reading(void) {
     return success;
 }
 
-// Test reading multiple arguments
 bool test_multiple_arguments_reading(void) {
     WriteFmt("Testing multiple arguments reading\n");
 
@@ -402,7 +376,6 @@ bool test_multiple_arguments_reading(void) {
     StrDeinit(&expected);
     StrClear(&name);
 
-    // Test with different order
     f64 val = 0.0;
     z       = "Value: 3.14, Name: Bob";
     StrReadFmt(z, "Value: {}, Name: {}", val, name);
@@ -419,30 +392,25 @@ bool test_multiple_arguments_reading(void) {
     return success;
 }
 
-// Test error handling
+// Each case here feeds malformed input; the contract is that the
+// destination variable is left at its pre-read value on parse failure.
 bool test_error_handling_reading(void) {
     WriteFmt("Testing error handling for reading\n");
 
     Zstr z = NULL;
 
-    // For error handling tests, we'll just verify that the variables don't change
-    // when invalid input is provided
-
     bool success = true;
 
-    // Test mismatched format
     i32 num = 42;
     z       = "Count: forty-two";
     StrReadFmt(z, "Count: {}", num);
     success = success && (num == 42);
 
-    // Test invalid integer
     num = 42;
     z   = "Count: abc";
     StrReadFmt(z, "Count: {}", num);
     success = success && (num == 42);
 
-    // Test overflow
     i8 small = 42;
     z        = "Value: 1000";
     StrReadFmt(z, "Value: {}", small);
@@ -451,7 +419,6 @@ bool test_error_handling_reading(void) {
     return success;
 }
 
-// Test character ordinal reading with :c format specifier
 bool test_character_ordinal_reading(void) {
     WriteFmt("Testing character ordinal reading with :c format specifier\n");
 
@@ -461,7 +428,6 @@ bool test_character_ordinal_reading(void) {
 
     bool success = true;
 
-    // Test reading single character into u8
     u8 u8_val = 0;
     z         = "A";
     StrReadFmt(z, "{c}", u8_val);
@@ -474,7 +440,6 @@ bool test_character_ordinal_reading(void) {
     WriteFmt("u8_val = {}, expected = {}, pass = {}\n", u8_val, 'z', (u8_val == 'z') ? "true" : "false");
     success = success && (u8_val == 'z');
 
-    // Test reading single character into signed integers
     i8 i8_val = 0;
     z         = "B";
     StrReadFmt(z, "{c}", i8_val);
@@ -499,7 +464,6 @@ bool test_character_ordinal_reading(void) {
     WriteFmt("i64_val = {}, expected = {}, pass = {}\n", i64_val, 'E', (i64_val == 'E') ? "true" : "false");
     success = success && (i64_val == 'E');
 
-    // Test reading single character into unsigned integers
     u16 u16_val = 0;
     z           = "F";
     StrReadFmt(z, "{c}", u16_val);
@@ -518,7 +482,6 @@ bool test_character_ordinal_reading(void) {
     WriteFmt("u64_val = {}, expected = {}, pass = {}\n", u64_val, 'H', (u64_val == 'H') ? "true" : "false");
     success = success && (u64_val == 'H');
 
-    // Test reading multiple characters into larger integer types
     u16_val = 0;
     z       = "AB";
     StrReadFmt(z, "{c}", u16_val);
@@ -634,7 +597,6 @@ bool test_character_ordinal_reading(void) {
     return success;
 }
 
-// Test string case conversion with :a and :A format specifiers
 bool test_string_case_conversion_reading(void) {
     WriteFmt("Testing string case conversion with :a and :A format specifiers\n");
 
@@ -843,7 +805,6 @@ bool test_string_case_conversion_reading(void) {
     return success;
 }
 
-// Test BitVec reading
 bool test_bitvec_reading(void) {
     WriteFmt("Testing BitVec reading\n");
 
@@ -854,7 +815,6 @@ bool test_bitvec_reading(void) {
 
     bool success = true;
 
-    // Test 1: Reading binary string
     BitVec bv1 = BitVecInit(alloc_base);
     z          = "10110";
     StrReadFmt(z, "{}", bv1);
@@ -868,7 +828,6 @@ bool test_bitvec_reading(void) {
     StrDeinit(&result1);
     BitVecDeinit(&bv1);
 
-    // Test 2: Reading hex format
     BitVec bv2 = BitVecInit(alloc_base);
     z          = "0xDEAD";
     StrReadFmt(z, "{}", bv2);
@@ -877,7 +836,6 @@ bool test_bitvec_reading(void) {
     WriteFmt("Test 2 - Hex: {}, Success: {}\n", value2, (value2 == 0xDEAD) ? "true" : "false");
     BitVecDeinit(&bv2);
 
-    // Test 3: Reading octal format
     BitVec bv3 = BitVecInit(alloc_base);
     z          = "0o755";
     StrReadFmt(z, "{}", bv3);
@@ -886,7 +844,6 @@ bool test_bitvec_reading(void) {
     WriteFmt("Test 3 - Octal: {}, Success: {}\n", value3, (value3 == 0755) ? "true" : "false");
     BitVecDeinit(&bv3);
 
-    // Test 4: Reading with whitespace
     BitVec bv4 = BitVecInit(alloc_base);
     z          = "   1101";
     StrReadFmt(z, "{}", bv4);
@@ -900,7 +857,6 @@ bool test_bitvec_reading(void) {
     StrDeinit(&result4);
     BitVecDeinit(&bv4);
 
-    // Test 5: Reading zero values
     BitVec bv5 = BitVecInit(alloc_base);
     z          = "0";
     StrReadFmt(z, "{}", bv5);
@@ -1014,11 +970,9 @@ bool test_float_reading(void) {
     return success;
 }
 
-// Main function that runs all tests
 int main(void) {
     WriteFmt("[INFO] Starting format reader tests\n\n");
 
-    // Array of test functions
     TestFunction tests[] = {
         test_integer_decimal_reading,
         test_integer_hex_reading,
@@ -1038,6 +992,5 @@ int main(void) {
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);
 
-    // Run all tests using the centralized test driver
     return run_test_suite(tests, total_tests, NULL, 0, "Io.Read");
 }

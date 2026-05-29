@@ -24,7 +24,8 @@ extern "C" {
     ///
     Int  int_from_u64(u64 value, Allocator *alloc);
     Int  int_from_i64(i64 value, Allocator *alloc);
-    int  int_compare(const Int *lhs, const Int *rhs);
+    bool int_try_from_u64(Int *out, u64 value, Allocator *alloc);
+    i32  int_compare(const void *lhs, const void *rhs);
     bool int_add(Int *result, const Int *a, const Int *b);
     bool int_sub(Int *result, const Int *a, const Int *b);
     bool int_mul(Int *result, const Int *a, const Int *b);

@@ -13,9 +13,9 @@
 #include <Misra/Std/Memory.h>
 #include <Misra/Std/Utility/StrIter.h>
 
-/* ------------------------------------------------------------------ */
-/* Small helpers                                                       */
-/* ------------------------------------------------------------------ */
+// ---------------------------------------------------------------------------
+// Small helpers
+// ---------------------------------------------------------------------------
 
 // Human-readable type name used in invalid-value error messages. Lines
 // up 1:1 with the ArgKind enum; new entries get a label here.
@@ -85,9 +85,12 @@ static bool parse_unsigned(Zstr s, u64 hi, u64 *out) {
         if (v > (~(u64)0 - d) / 10)
             return false; // would overflow u64
         v = v * 10 + d;
+        // Audit: precondition is the loop-head StrIterPeek above; a successful
+        // peek proves >=1 byte remains, which is exactly what MustNext consumes.
         StrIterMustNext(&si);
     }
-    if (si.pos == 0 || StrIterRemainingLength(&si) != 0)
+    // No digits consumed (cursor at entry) or trailing junk after digits.
+    if (StrIterRemainingLength(&si) == StrIterLength(&si) || StrIterRemainingLength(&si) != 0)
         return false;
     if (v > hi)
         return false;
@@ -228,9 +231,9 @@ static bool count_bump(ArgKind kind, void *target) {
     }
 }
 
-/* ------------------------------------------------------------------ */
-/* Spec lookup                                                         */
-/* ------------------------------------------------------------------ */
+// ---------------------------------------------------------------------------
+// Spec lookup
+// ---------------------------------------------------------------------------
 
 static ArgSpec *find_long(ArgParse *self, Zstr long_name) {
     VecForeachPtr(&self->specs, sp) {
@@ -252,9 +255,9 @@ static ArgSpec *find_short(ArgParse *self, Zstr short_name) {
     return NULL;
 }
 
-/* ------------------------------------------------------------------ */
-/* Help printing                                                       */
-/* ------------------------------------------------------------------ */
+// ---------------------------------------------------------------------------
+// Help printing
+// ---------------------------------------------------------------------------
 
 // Build the metavar for a value option. Either the explicit override
 // stashed in long_name post-`=` (we don't support that yet) or the
@@ -412,9 +415,9 @@ static void print_help(ArgParse *self) {
     }
 }
 
-/* ------------------------------------------------------------------ */
-/* Registration                                                        */
-/* ------------------------------------------------------------------ */
+// ---------------------------------------------------------------------------
+// Registration
+// ---------------------------------------------------------------------------
 
 void arg_register(ArgParse *self, ArgRole role, Zstr short_name, Zstr long_name, Zstr help, ArgTarget target) {
     if (!self)
@@ -450,9 +453,9 @@ void arg_register(ArgParse *self, ArgRole role, Zstr short_name, Zstr long_name,
     VecPushBack(&self->specs, sp);
 }
 
-/* ------------------------------------------------------------------ */
-/* Lifecycle + run                                                     */
-/* ------------------------------------------------------------------ */
+// ---------------------------------------------------------------------------
+// Lifecycle + run
+// ---------------------------------------------------------------------------
 
 void ArgParseDeinit(ArgParse *self) {
     if (!self)
@@ -465,7 +468,7 @@ void ArgParseDeinit(ArgParse *self) {
 // `ARG_RUN_ERROR` on failure (after printing the error).
 static ArgRun handle_option_token(
     ArgParse *self,
-    Zstr      tok,  // the current argv[i] token
+    Zstr      tok,
     int      *i_io, // walked forward by 1 when we consume a value
     int       argc,
     char    **argv,

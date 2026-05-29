@@ -3,13 +3,14 @@
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Allocator base type and dispatch API. Concrete allocator types
-/// (`HeapAllocator`, `PageAllocator`, `ArenaAllocator`, `SlabAllocator`)
-/// embed an `Allocator base` at offset 0 and carry their state inline so
-/// the library never owns mutable global state. Users construct typed
-/// allocators with their `*Init` macros and pass `&heap` / `&arena` /
-/// `&page` / `&slab` to container constructors - the container macros
-/// compile-check that the argument has an `Allocator base` and store a
-/// pointer to it.
+/// (`HeapAllocator`, `PageAllocator`, `ArenaAllocator`, `SlabAllocator`,
+/// `BudgetAllocator`, `DebugAllocator`) embed an `Allocator base` at
+/// offset 0 and carry their state inline so the library never owns
+/// mutable global state. Users construct typed allocators with their
+/// `*Init` macros and pass `&heap` / `&arena` / `&page` / `&slab` /
+/// `&budget` / `&debug` to container constructors - the container
+/// macros compile-check that the argument has an `Allocator base` and
+/// store a pointer to it.
 
 #ifndef MISRA_STD_ALLOCATOR_H
 #define MISRA_STD_ALLOCATOR_H
@@ -42,8 +43,8 @@ extern "C" {
     typedef void *(*AllocatorAllocateFn)(Allocator *self, size bytes, i8 zeroed);
     // `resize`, `remap`, and `deallocate` all recover the existing
     // allocation size from the allocator's own bookkeeping -- callers
-    // do not pass it. Lying about an allocation-time fact is no longer
-    // possible at the API boundary.
+    // do not pass it, so the API boundary forecloses the "wrong size
+    // hint" class of bug entirely.
     typedef i8 (*AllocatorResizeFn)(Allocator *self, void *ptr, size new_size);
     typedef void *(*AllocatorRemapFn)(Allocator *self, void *ptr, size new_size);
     typedef size (*AllocatorDeallocateFn)(Allocator *self, void *ptr);
@@ -52,7 +53,7 @@ extern "C" {
     ///
     /// Per-allocator memory-pressure counters. Every typed allocator
     /// (Heap, Page, Arena, Slab, Budget, Debug) updates these inline
-    /// at its own allocate / deallocate / resize / remap success and
+    /// at its own allocate / resize / remap / deallocate success and
     /// failure points, so the counters move the same way whether the
     /// caller used the typed-direct call (`AllocatorAlloc(&heap, ...)`)
     /// or the dyn dispatch wrapper. Read via the `Allocator*` macros
@@ -62,18 +63,33 @@ extern "C" {
     /// FIELDS:
     /// - bytes_requested    : cumulative bytes ever requested across
     ///                        allocate + successful resize/remap (does
-    ///                        not decrease on free).
-    /// - bytes_in_use       : outstanding bytes the allocator believes
-    ///                        the caller is holding. Bumped on allocate,
-    ///                        drawn down on deallocate. `resize` and
-    ///                        in-place `remap` do NOT touch this
-    ///                        counter -- a successful in-place resize
-    ///                        is a no-op for outstanding-byte accounting.
-    ///                        When a typed `remap` internally falls back
-    ///                        to allocate-new + free-old, the inner calls
-    ///                        each update the counter individually
-    ///                        (alloc bumps, free draws down), so the
-    ///                        net effect is bytes_in_use += (new - old).
+    ///                        not decrease on free). Tracks the user's
+    ///                        raw `bytes` argument across the API.
+    /// - bytes_in_use       : outstanding *effective* bytes reserved by
+    ///                        the allocator on behalf of the caller --
+    ///                        what each typed `*_allocator_deallocate`
+    ///                        will release when the caller frees the
+    ///                        pointer. Concretely: the slot size for
+    ///                        binned allocators (Heap S/M/L, Slab,
+    ///                        Budget), the page-rounded mapping length
+    ///                        for page-grain allocators (Page, Heap XL),
+    ///                        the alignment-padded bump width for the
+    ///                        arena. Allocator-side units, not user-side
+    ///                        units -- alloc bumps and free draws stay
+    ///                        in lock-step so the counter is consistent
+    ///                        across alloc / free pairs. `resize` and
+    ///                        in-place `remap` do NOT touch this counter
+    ///                        -- a successful in-place resize doesn't
+    ///                        change the effective reservation, so it's
+    ///                        a no-op for accounting. An XL remap that
+    ///                        actually resized the kernel mapping (same
+    ///                        ptr or relocated) DOES adjust the counter
+    ///                        by the page-count delta. When a typed
+    ///                        `remap` falls back to allocate-new +
+    ///                        free-old, the inner calls each update the
+    ///                        counter individually (alloc bumps by new
+    ///                        effective, free draws down by old
+    ///                        effective).
     /// - peak_bytes_in_use  : historical max of bytes_in_use.
     /// - allocations        : count of successful allocate calls.
     /// - reallocations      : count of successful in-place resize /
@@ -119,14 +135,22 @@ extern "C" {
         AllocatorResizeFn resize;
         // `remap` may move the allocation. Returns the new pointer
         // (possibly equal to `ptr` if the allocator could grow in
-        // place anyway), or NULL on failure. The relocation-allowed
-        // resize entry point that's been here since v1.
+        // place anyway), or NULL on failure. This is the
+        // relocation-allowed counterpart to `resize`.
         AllocatorRemapFn      remap;
         AllocatorDeallocateFn deallocate;
         size                  alignment;
         AllocatorEffort       effort;
         u32                   retry_limit;
         u64                   __magic;
+        // Live mmapped bytes attributable to this allocator.
+        // Maintained inline by the internal page-map shim whenever a
+        // typed backend passes `&base` as the owner, so reading it is
+        // a single direct field load through
+        // `AllocatorFootprintBytes(a)`. Not gated on
+        // FEATURE_ALLOC_STATS -- footprint is independently useful
+        // (e.g. fragmentation ratios for the benchmark harness).
+        size footprint_bytes;
 #if FEATURE_ALLOC_STATS
         AllocatorStats stats;
 #endif
@@ -245,8 +269,9 @@ extern "C" {
     /// ptr[in]      : Pointer to the allocation, or NULL.
     ///
     /// The allocator recovers the original allocation size from its own
-    /// bookkeeping -- callers do not pass it. Stats accounting reads
-    /// the freed-byte count from the dispatch return value.
+    /// bookkeeping -- callers do not pass it. Stats accounting is done
+    /// inline inside the typed `*_allocator_deallocate` body that this
+    /// wrapper delegates to.
     ///
     /// SUCCESS: Function returns. The allocation is reclaimed.
     /// FAILURE: No action is taken when `ptr` is NULL. A `ptr` that the
@@ -352,6 +377,13 @@ extern "C" {
 /// call site would explode the dispatch surface; keeping the
 /// shared name makes the type-erasure step searchable.
 ///
+/// SUCCESS: Expands to an `Allocator *` referring to the same instance.
+/// FAILURE: Compile-time `_Generic` mismatch on any pointer type that
+///          is not `Allocator *` or one of the listed typed allocator
+///          pointers.
+///
+/// TAGS: Allocator, Dispatch, Cast
+///
 #define ALLOCATOR_OF(allocator_ptr)                                                                                    \
     _Generic(                                                                                                          \
         (allocator_ptr),                                                                                               \
@@ -373,10 +405,11 @@ extern "C" {
 /// type-erased path. Wrong types fail at the `_Generic` mismatch.
 ///
 /// The typed direct path skips the dynamic wrapper's outer
-/// `ValidateAllocator`, retry loop, and stats accounting. The typed
-/// `*_allocator_*` body still self-validates (magic check etc.).
-/// Callers that need stats accounting must take the `Allocator *`
-/// route, which uses `AllocatorAlloc_dyn`.
+/// `ValidateAllocator` and retry loop. Stats accounting happens
+/// inline inside each typed `*_allocator_*` body (and the typed body
+/// also self-validates via magic check etc.), so both the typed
+/// direct call and the dyn dispatch produce identical counter
+/// movement on the same workload.
 ///
 /// self[in,out] : Typed allocator pointer or `Allocator *`.
 /// bytes[in]    : Number of bytes to allocate.
@@ -397,8 +430,9 @@ extern "C" {
 ///
 /// Try to grow / shrink an allocation in place. The pointer never moves.
 /// Same dispatch shape as `AllocatorAlloc`: typed paths skip
-/// `ValidateAllocator`, the retry loop, and stats accounting; the
-/// `Allocator *` arm routes through the dyn wrapper.
+/// `ValidateAllocator` and the retry loop; the `Allocator *` arm
+/// routes through the dyn wrapper. Stats accounting lives inline in
+/// each typed body either way.
 ///
 /// self[in,out] : Typed allocator pointer or `Allocator *`.
 /// ptr[in]      : Existing allocation pointer (non-NULL).
@@ -419,8 +453,9 @@ extern "C" {
 ///
 /// Resize an allocation, allowing relocation. May return a new pointer
 /// that differs from `ptr`. Same dispatch shape as `AllocatorAlloc`:
-/// typed paths skip `ValidateAllocator`, the retry loop, and stats
-/// accounting; the `Allocator *` arm routes through the dyn wrapper.
+/// typed paths skip `ValidateAllocator` and the retry loop; the
+/// `Allocator *` arm routes through the dyn wrapper. Stats accounting
+/// lives inline in each typed body either way.
 ///
 /// self[in,out] : Typed allocator pointer or `Allocator *`.
 /// ptr[in]      : Existing allocation pointer, or NULL.
@@ -444,8 +479,9 @@ extern "C" {
 /// `AllocatorRemap`. Both sub-calls are `_Generic`-dispatched, so for
 /// a typed pointer the whole cascade resolves to two typed-direct
 /// function calls -- no indirect dispatch and no outer wrapper frame.
-/// `Allocator *` routes both halves through the dyn wrappers, keeping
-/// `ValidateAllocator` + stats accounting.
+/// `Allocator *` routes both halves through the dyn wrappers, picking
+/// up `ValidateAllocator` and the retry loop on each. Stats accounting
+/// lives inline in each typed body and fires either way.
 ///
 /// Macro hygiene: `self` is evaluated up to twice, `ptr` up to three
 /// times, `new_size` up to three times. Pass simple lvalues; do not
@@ -469,9 +505,11 @@ extern "C" {
 ///
 /// Free memory through an allocator. Typed paths dispatch directly to
 /// the concrete `*_allocator_deallocate`, whose `size` return value is
-/// the freed-byte count (discarded here -- stats live on the dynamic
-/// wrapper path). Type-erased `Allocator *` routes through
-/// `AllocatorFree_dyn` (with `ValidateAllocator` + stats).
+/// the freed-byte count (discarded here -- stats are updated inline
+/// inside the typed body, not through the return). Type-erased
+/// `Allocator *` routes through `AllocatorFree_dyn`, which adds the
+/// outer `ValidateAllocator` before delegating to the same typed
+/// body, so stats counter movement is identical on both paths.
 ///
 /// self[in,out] : Typed allocator pointer or `Allocator *`.
 /// ptr[in]      : Pointer to the allocation, or NULL.
@@ -488,6 +526,40 @@ extern "C" {
         (self),                                                                                                                                                                                                                                                                                                                       \
         (ptr)                                                                                                                                                                                                                                                                                                                         \
     )
+
+///
+/// Total committed bytes the allocator currently holds: live user
+/// regions + retained / cached regions + the allocator's own
+/// bookkeeping mmaps. The honest "what does the kernel think this
+/// allocator costs" number, distinct from `AllocatorBytesInUse(a)`
+/// which only counts live user bytes. Maintained as an inline
+/// counter on the base, kept in sync by the internal page-map shim
+/// (every typed backend passes its `&base` so accounting flows
+/// without per-call bookkeeping at the typed layer). Same
+/// `((void)0, ...)` accessor shape as the stats; `ALLOCATOR_OF`
+/// performs the typed -> base cast via `_Generic` without
+/// dispatching, so the macro compiles down to a direct field load.
+/// No function call, no vtable.
+///
+/// TAGS: Allocator, Memory, Observability
+///
+#define AllocatorFootprintBytes(a) ((void)0, ALLOCATOR_OF(a)->footprint_bytes)
+
+///
+/// Power-of-two alignment (in bytes) that the allocator promises for
+/// every region it hands out. Set at `*AllocatorInit` time and never
+/// mutated -- the validator asserts it stays a power of two greater
+/// than zero. Containers consult this to size their per-element stride
+/// (`Vec` rounds `sizeof(T)` up to the allocator's alignment so element
+/// pointers stay aligned even when the type's natural alignment is
+/// smaller). Same `((void)0, ...)` accessor shape as the stats;
+/// `ALLOCATOR_OF` performs the typed -> base cast via `_Generic`
+/// without dispatching, so the macro compiles down to a direct field
+/// load. No function call, no vtable.
+///
+/// TAGS: Allocator, Alignment, Accessor
+///
+#define AllocatorAlignment(a) ((void)0, ALLOCATOR_OF(a)->alignment)
 
 // Typed allocator headers (PageAllocator, HeapAllocator, ArenaAllocator,
 // SlabAllocator) are NOT included here to avoid include-guard cycles:

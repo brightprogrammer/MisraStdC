@@ -1,6 +1,10 @@
 /// file      : std/utility/pair.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
+///
+/// `Pair(xT, yT)` -- a comma-clean anonymous struct that nests inside
+/// container type slots without tripping the preprocessor's argument-
+/// splitting (see `T(...)` for the matching delay-expansion wrapper).
 
 #ifndef MISRA_STD_UTILITY_PAIR_H
 #define MISRA_STD_UTILITY_PAIR_H

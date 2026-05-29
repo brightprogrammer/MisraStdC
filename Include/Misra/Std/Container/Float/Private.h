@@ -28,7 +28,7 @@ extern "C" {
     Float float_from_f32(float value, Allocator *alloc);
     Float float_from_f64(double value, Allocator *alloc);
     int   float_compare_with_error(const Float *lhs, const Float *rhs, bool *error);
-    int   float_compare(const Float *lhs, const Float *rhs);
+    i32   float_compare(const void *lhs, const void *rhs);
     bool  float_add(Float *result, const Float *a, const Float *b);
     bool  float_sub(Float *result, const Float *a, const Float *b);
     bool  float_mul(Float *result, const Float *a, const Float *b);

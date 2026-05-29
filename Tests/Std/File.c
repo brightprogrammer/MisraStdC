@@ -8,8 +8,7 @@
 
 #include "../Util/TestRunner.h"
 
-// Writes `text` into a freshly-created unique temp file (FileOpenTemp
-// = atomic O_CREAT|O_EXCL + Prng64 16-hex name in CWD). `out_path`
+// Writes `text` into a freshly-created unique temp file. `out_path`
 // is the caller's Str; on success it holds the resolved name so the
 // caller can read it back and remove it.
 static bool write_test_file(Zstr text, Str *out_path, Allocator *alloc) {

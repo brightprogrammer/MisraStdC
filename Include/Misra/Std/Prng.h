@@ -12,7 +12,7 @@
 /// no caller to thread an allocator through (the Abort callback slot
 /// in `Sys.c`, the Windows-only `dbghelp` init flag and Winsock
 /// once-init state under `Sys/`). PRNG is one of these: its state is
-/// wholly encapsulated inside `prng_internal` (in `Prng.c`) and not
+/// wholly encapsulated as function-local statics in `Prng.c` and not
 /// accessible by any other TU or identifier. Each such singleton is
 /// documented where it lives; outside this small set, the rule is
 /// still init-by-value.

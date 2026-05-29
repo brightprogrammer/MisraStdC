@@ -21,10 +21,9 @@
 ///   - mid-allocation XL ptr (ptr != XL descriptor base)
 ///   - double-free           (target bit already 0)
 ///
-/// Note: there is no "wrong size hint" rejection edge any more. `Free`
-/// no longer takes a size -- the size class is derived from where the
-/// pointer lies within its page, so a wrong-size hint is structurally
-/// impossible to pass.
+/// `Free` does not take a size -- the size class is recovered from where
+/// the pointer lies within its page -- so a wrong-size hint is
+/// structurally impossible to pass and gets no rejection edge here.
 ///
 /// Each rejection edge below aborts the program via LOG_FATAL. The
 /// tests are registered as DEADEND tests (run_test_suite picks them

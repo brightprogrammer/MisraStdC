@@ -139,8 +139,8 @@ bool test_float_hash_determinism(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Float a = FloatFromStr("1.23", &alloc.base);
-    Float b = FloatFromStr("123e-2", &alloc.base);
+    Float a     = FloatFromStr("1.23", &alloc.base);
+    Float b     = FloatFromStr("123e-2", &alloc.base);
     Float zero1 = FloatFromStr("0", &alloc.base);
     Float zero2 = FloatFromStr("0", &alloc.base);
 
@@ -162,11 +162,11 @@ bool test_float_hash_distinguishes(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Float pos  = FloatFromStr("1.5e3", &alloc.base);
-    Float neg  = FloatFromStr("-1.5e3", &alloc.base);
+    Float pos   = FloatFromStr("1.5e3", &alloc.base);
+    Float neg   = FloatFromStr("-1.5e3", &alloc.base);
     Float small = FloatFromStr("1.5e2", &alloc.base);
-    Float zero = FloatFromStr("0", &alloc.base);
-    Float one  = FloatFromStr("1", &alloc.base);
+    Float zero  = FloatFromStr("0", &alloc.base);
+    Float one   = FloatFromStr("1", &alloc.base);
 
     u64 h_pos   = float_hash(&pos, 0);
     u64 h_neg   = float_hash(&neg, 0);
@@ -174,7 +174,7 @@ bool test_float_hash_distinguishes(void) {
     u64 h_zero  = float_hash(&zero, 0);
     u64 h_one   = float_hash(&one, 0);
 
-    bool result = (h_pos != h_neg);     // sign matters
+    bool result = (h_pos != h_neg);             // sign matters
     result      = result && (h_pos != h_small); // exponent matters
     result      = result && (h_neg != h_small);
     result      = result && (h_zero != h_one);
@@ -190,7 +190,7 @@ bool test_float_hash_distinguishes(void) {
 }
 
 // End-to-end: plug float_hash + float_compare into a Map and verify
-// the GenericHash / GenericCompare cast through MapInit works.
+// the GenericHash / GenericCompare-shaped helpers wire in directly.
 bool test_float_hash_as_map_key(void) {
     WriteFmt("Testing float_hash as Map<Float, u64> key\n");
 

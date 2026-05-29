@@ -157,23 +157,27 @@ static bool decode_line_program_header(BufIter *cur, LineProgHeader *out) {
     out->std_opcode_lengths_count = out->opcode_base ? (u64)(out->opcode_base - 1) : 0;
     if (IterRemainingLength(cur) < out->std_opcode_lengths_count)
         return false;
-    out->standard_opcode_lengths  = cur->data + cur->pos;
-    cur->pos                     += out->std_opcode_lengths_count;
-    out->strings_start            = cur->data + cur->pos;
+    out->standard_opcode_lengths = IterDataAt(cur, IterIndex(cur));
+    // Must-precondition: the `IterRemainingLength < count` guard above
+    // proves the cursor has at least `count` bytes left in the buffer.
+    IterMustMove(cur, (i64)out->std_opcode_lengths_count);
+    out->strings_start = IterDataAt(cur, IterIndex(cur));
     return true;
 }
 
 // Walk past include_directories + file_names, leaving cur at the
 // start of the line number program body.
 static bool skip_line_program_tables(BufIter *cur) {
-    while (cur->pos < cur->length && cur->data[cur->pos] != 0) {
+    while (IterIndex(cur) < IterLength(cur) && *IterDataAt(cur, IterIndex(cur)) != 0) {
         if (!BufReadZstr(cur))
             return false;
     }
-    if (cur->pos < cur->length)
-        ++cur->pos; // empty terminator
+    // Must-precondition: the surrounding `IterIndex < IterLength` test
+    // proves there is at least one more byte to consume (the NUL).
+    if (IterIndex(cur) < IterLength(cur))
+        IterMustNext(cur); // empty terminator
 
-    while (cur->pos < cur->length && cur->data[cur->pos] != 0) {
+    while (IterIndex(cur) < IterLength(cur) && *IterDataAt(cur, IterIndex(cur)) != 0) {
         if (!BufReadZstr(cur))
             return false;
         u64 dir_idx = 0, mtime = 0, length_ = 0;
@@ -184,8 +188,10 @@ static bool skip_line_program_tables(BufIter *cur) {
         if (!BufReadULeb128(cur, &length_))
             return false;
     }
-    if (cur->pos < cur->length)
-        ++cur->pos; // empty terminator
+    // Must-precondition: same `IterIndex < IterLength` proof as the
+    // include_directories terminator above.
+    if (IterIndex(cur) < IterLength(cur))
+        IterMustNext(cur); // empty terminator
     return true;
 }
 
@@ -220,7 +226,7 @@ static void cu_strings_deinit(CuStrings *cs) {
 // continue from there.
 static bool collect_cu_strings(BufIter cur, Str *pool, CuStrings *cs) {
     // include_directories
-    while (cur.pos < cur.length && cur.data[cur.pos] != 0) {
+    while (IterIndex(&cur) < IterLength(&cur) && *IterDataAt(&cur, IterIndex(&cur)) != 0) {
         Zstr dir = BufReadZstr(&cur);
         if (!dir)
             return false;
@@ -230,11 +236,13 @@ static bool collect_cu_strings(BufIter cur, Str *pool, CuStrings *cs) {
         if (!VecPushBackR(&cs->dir_offsets, off))
             return false;
     }
-    if (cur.pos < cur.length)
-        ++cur.pos; // empty terminator
+    // Must-precondition: `IterIndex < IterLength` proves there is a
+    // terminator byte left to consume.
+    if (IterIndex(&cur) < IterLength(&cur))
+        IterMustNext(&cur); // empty terminator
 
     // file_names
-    while (cur.pos < cur.length && cur.data[cur.pos] != 0) {
+    while (IterIndex(&cur) < IterLength(&cur) && *IterDataAt(&cur, IterIndex(&cur)) != 0) {
         Zstr name = BufReadZstr(&cur);
         if (!name)
             return false;
@@ -333,7 +341,7 @@ static bool run_line_program(
     LnpState st;
     lnp_reset(&st, hdr->default_is_stmt);
 
-    while (cur.data + cur.pos < prog_end) {
+    while (IterDataAt(&cur, IterIndex(&cur)) < prog_end) {
         u8 op = 0;
         if (!BufReadU8(&cur, &op))
             return false;
@@ -343,9 +351,9 @@ static bool run_line_program(
             u64 length = 0;
             if (!BufReadULeb128(&cur, &length))
                 return false;
-            if (length == 0 || (u64)(prog_end - (cur.data + cur.pos)) < length)
+            if (length == 0 || (u64)(prog_end - IterDataAt(&cur, IterIndex(&cur))) < length)
                 return false;
-            const u8 *body_end = cur.data + cur.pos + length;
+            const u8 *body_end = IterDataAt(&cur, IterIndex(&cur)) + length;
             u8        sub_op   = 0;
             if (!BufReadU8(&cur, &sub_op))
                 return false;
@@ -358,10 +366,10 @@ static bool run_line_program(
                     break;
                 case DW_LNE_SET_ADDRESS :
                     // operand size = remaining body bytes; on x86-64 always 8.
-                    if (body_end - (cur.data + cur.pos) == 8) {
+                    if (body_end - IterDataAt(&cur, IterIndex(&cur)) == 8) {
                         if (!BufReadU64LE(&cur, &st.address))
                             return false;
-                    } else if (body_end - (cur.data + cur.pos) == 4) {
+                    } else if (body_end - IterDataAt(&cur, IterIndex(&cur)) == 4) {
                         u32 a32 = 0;
                         if (!BufReadU32LE(&cur, &a32))
                             return false;
@@ -384,7 +392,10 @@ static bool run_line_program(
                 default :
                     break; // ignore unknown
             }
-            cur.pos = (size)(body_end - cur.data);
+            // body_end was bounded inside the live record: length check
+            // above proved `length <= prog_end - here`, and switch arms
+            // only consume bytes within the body. Jump to body_end.
+            IterMustMove(&cur, (i64)((size)(body_end - IterDataAt(&cur, 0)) - IterIndex(&cur)));
         } else if (op < hdr->opcode_base) {
             // Standard opcode
             switch (op) {
@@ -546,11 +557,11 @@ bool dwarf_lines_build_from_elf(DwarfLines *out, const Elf *elf, Allocator *allo
     U64Vec pending_file_offsets = VecInitT(pending_file_offsets, alloc);
     U64Vec pending_dir_offsets  = VecInitT(pending_dir_offsets, alloc);
 
-    BufIter section_cur = BufIterFromMemory(BufData(&elf->data) + line_section->offset, line_section->size);
+    BufIter section_cur = BufIterFromMemory(BufData(ElfBuf(elf)) + line_section->offset, line_section->size);
 
     bool ok = true;
     while (IterRemainingLength(&section_cur) > 0) {
-        const u8 *unit_start  = section_cur.data + section_cur.pos;
+        const u8 *unit_start  = IterDataAt(&section_cur, IterIndex(&section_cur));
         u32       unit_length = 0;
         BufIter   peek        = section_cur;
         if (!BufReadU32LE(&peek, &unit_length)) {
@@ -567,7 +578,7 @@ bool dwarf_lines_build_from_elf(DwarfLines *out, const Elf *elf, Allocator *allo
             break;
         }
         const u8 *unit_end     = unit_start + 4 + unit_length;
-        size      unit_end_pos = section_cur.pos + 4 + unit_length;
+        size      unit_end_pos = IterIndex(&section_cur) + 4 + unit_length;
 
         // Decode header (fields only), then walk the directory / file
         // tables once to populate the shared string pool, then run
@@ -578,7 +589,8 @@ bool dwarf_lines_build_from_elf(DwarfLines *out, const Elf *elf, Allocator *allo
             // Unsupported version (5+) or malformed: skip this CU and
             // keep parsing the rest. The unit_length field we already
             // consumed gives us the size of this whole unit.
-            section_cur.pos = unit_end_pos;
+            // unit_end_pos was bounded above against the section end.
+            IterMustMove(&section_cur, (i64)(unit_end_pos - IterIndex(&section_cur)));
             continue;
         }
 
@@ -587,9 +599,12 @@ bool dwarf_lines_build_from_elf(DwarfLines *out, const Elf *elf, Allocator *allo
 
         // String/program iters cover the bytes from `hdr.strings_start`
         // up to the end of this CU.
-        size    strings_start_pos = (size)(hdr.strings_start - section_cur.data);
-        BufIter str_cur           = BufIterFromMemory(section_cur.data, unit_end_pos);
-        str_cur.pos               = strings_start_pos;
+        size    strings_start_pos = (size)(hdr.strings_start - IterDataAt(&section_cur, 0));
+        BufIter str_cur           = BufIterFromMemory(IterDataAt(&section_cur, 0), unit_end_pos);
+        // strings_start_pos lies within `[0, unit_end_pos]` by construction
+        // -- `hdr.strings_start` was assigned from inside this section's
+        // data window during header decode.
+        IterMustMove(&str_cur, (i64)strings_start_pos);
         if (!collect_cu_strings(str_cur, &out->string_pool, &cs)) {
             cu_strings_deinit(&cs);
             ok = false;
@@ -597,8 +612,11 @@ bool dwarf_lines_build_from_elf(DwarfLines *out, const Elf *elf, Allocator *allo
         }
 
         // Skip past the tables to find the program body start.
-        BufIter prog_anchor = BufIterFromMemory(section_cur.data, unit_end_pos);
-        prog_anchor.pos     = strings_start_pos;
+        BufIter prog_anchor = BufIterFromMemory(IterDataAt(&section_cur, 0), unit_end_pos);
+        // Must-precondition: same bounds proof as `str_cur` above --
+        // `strings_start_pos` is inside `[0, unit_end_pos]` by header
+        // decode, and `prog_anchor` covers the same window.
+        IterMustMove(&prog_anchor, (i64)strings_start_pos);
         if (!skip_line_program_tables(&prog_anchor)) {
             cu_strings_deinit(&cs);
             ok = false;
@@ -613,18 +631,17 @@ bool dwarf_lines_build_from_elf(DwarfLines *out, const Elf *elf, Allocator *allo
         }
 
         cu_strings_deinit(&cs);
-        section_cur.pos = unit_end_pos;
+        // Same bounds proof as the unsupported-version branch above.
+        IterMustMove(&section_cur, (i64)(unit_end_pos - IterIndex(&section_cur)));
     }
 
     // Resolve offsets -> pointers now that string_pool won't grow.
     if (ok) {
         for (u64 i = 0; i < VecLen(&out->entries); ++i) {
-            u64 fo                       = VecAt(&pending_file_offsets, i);
-            u64 dofs                     = VecAt(&pending_dir_offsets, i);
-            VecPtrAt(&out->entries, i)->file =
-                fo ? (Zstr)(StrBegin(&out->string_pool) + fo) : NULL;
-            VecPtrAt(&out->entries, i)->dir =
-                dofs ? (Zstr)(StrBegin(&out->string_pool) + dofs) : NULL;
+            u64 fo                           = VecAt(&pending_file_offsets, i);
+            u64 dofs                         = VecAt(&pending_dir_offsets, i);
+            VecPtrAt(&out->entries, i)->file = fo ? (Zstr)(StrBegin(&out->string_pool) + fo) : NULL;
+            VecPtrAt(&out->entries, i)->dir  = dofs ? (Zstr)(StrBegin(&out->string_pool) + dofs) : NULL;
         }
     }
 

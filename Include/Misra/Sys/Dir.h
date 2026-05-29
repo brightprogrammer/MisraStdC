@@ -2,13 +2,13 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Directory enumeration and per-entry types. Wraps `opendir`/`readdir`
-/// on POSIX, `FindFirstFile`/`FindNextFile` on Windows. Entries are
-/// returned as a typed `DirContents` vector of `DirEntry` structs; each
-/// entry owns its filename `Str` and must be released via
-/// `DirEntryDeinitCopy` (or implicitly by `VecDeinit`-ing the
-/// `DirContents` if `copy_init` / `copy_deinit` were wired at
-/// container init).
+/// Directory enumeration and per-entry types. The POSIX backend issues
+/// `getdents64` direct syscalls; the Windows backend uses
+/// `FindFirstFile`/`FindNextFile`. Entries are returned as a typed
+/// `DirContents` vector of `DirEntry` structs; each entry owns its
+/// filename `Str` and must be released via `DirEntryDeinitCopy` (or
+/// implicitly by `VecDeinit`-ing the `DirContents` if `copy_init` /
+/// `copy_deinit` were wired at container init).
 #ifndef MISRA_SYS_DIR_H
 #define MISRA_SYS_DIR_H
 
@@ -89,7 +89,7 @@ typedef Vec(DirEntry) DirContents;
 
 // Path-arg dispatch. Library design: `Str *` is the canonical path
 // form -- it carries length, can't silently lose the NUL terminator,
-// and the no-libc allocators / fmt machinery already operate on it.
+// and the in-tree allocators / fmt machinery already operate on it.
 // `char *` is accepted as a bare-pointer convenience for string
 // literals and borrowed NUL-terminated buffers.
 //
@@ -116,16 +116,16 @@ DirContents dir_get_contents(Zstr path, Allocator *alloc);
 #define DirGetContents_1(path)                                                                                         \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: dir_get_contents((Zstr)StrBegin((Str *)(path)), MisraScope),                                                    \
-        Zstr: dir_get_contents((Zstr)(path), MisraScope),                                               \
-        char *: dir_get_contents((Zstr)(path), MisraScope)                                               \
+        Str *: dir_get_contents((Zstr)StrBegin((Str *)(path)), MisraScope),                                            \
+        Zstr: dir_get_contents((Zstr)(path), MisraScope),                                                              \
+        char *: dir_get_contents((Zstr)(path), MisraScope)                                                             \
     )
 #define DirGetContents_2(path, alloc)                                                                                  \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: dir_get_contents((Zstr)StrBegin((Str *)(path)), ALLOCATOR_OF(alloc)),                                           \
-        Zstr: dir_get_contents((Zstr)(path), ALLOCATOR_OF(alloc)),                                      \
-        char *: dir_get_contents((Zstr)(path), ALLOCATOR_OF(alloc))                                      \
+        Str *: dir_get_contents((Zstr)StrBegin((Str *)(path)), ALLOCATOR_OF(alloc)),                                   \
+        Zstr: dir_get_contents((Zstr)(path), ALLOCATOR_OF(alloc)),                                                     \
+        char *: dir_get_contents((Zstr)(path), ALLOCATOR_OF(alloc))                                                    \
     )
 
 ///
@@ -142,9 +142,9 @@ i64 file_get_size(Zstr filename);
 #define FileGetSize(path)                                                                                              \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: file_get_size((Zstr)StrBegin((Str *)(path))),                                                                   \
-        Zstr: file_get_size((Zstr)(path)),                                                              \
-        char *: file_get_size((Zstr)(path))                                                              \
+        Str *: file_get_size((Zstr)StrBegin((Str *)(path))),                                                           \
+        Zstr: file_get_size((Zstr)(path)),                                                                             \
+        char *: file_get_size((Zstr)(path))                                                                            \
     )
 
 ///
@@ -158,8 +158,8 @@ i64 file_get_size(Zstr filename);
 /// identifier ends up meaning different types across TUs. Callers
 /// can still use the result as a boolean (`if (FileRemove(p)) ...`).
 ///
-/// path[in] : Path of the file to remove. Prefer `Str *`; `const
-///            char *` accepted for literals / borrowed buffers.
+/// path[in] : Path of the file to remove. Prefer `Str *`; `Zstr`
+///            accepted for literals / borrowed buffers.
 ///
 /// SUCCESS : Returns 1; the directory entry is gone.
 /// FAILURE : Returns 0; logs the failing syscall.
@@ -170,9 +170,9 @@ i8 file_remove(Zstr path);
 #define FileRemove(path)                                                                                               \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: file_remove((Zstr)StrBegin((Str *)(path))),                                                                     \
-        Zstr: file_remove((Zstr)(path)),                                                                \
-        char *: file_remove((Zstr)(path))                                                                \
+        Str *: file_remove((Zstr)StrBegin((Str *)(path))),                                                             \
+        Zstr: file_remove((Zstr)(path)),                                                                               \
+        char *: file_remove((Zstr)(path))                                                                              \
     )
 
 ///
@@ -193,9 +193,9 @@ i8 dir_remove(Zstr path);
 #define DirRemove(path)                                                                                                \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: dir_remove((Zstr)StrBegin((Str *)(path))),                                                                      \
-        Zstr: dir_remove((Zstr)(path)),                                                                 \
-        char *: dir_remove((Zstr)(path))                                                                 \
+        Str *: dir_remove((Zstr)StrBegin((Str *)(path))),                                                              \
+        Zstr: dir_remove((Zstr)(path)),                                                                                \
+        char *: dir_remove((Zstr)(path))                                                                               \
     )
 
 ///
@@ -216,9 +216,9 @@ i8 dir_create(Zstr path);
 #define DirCreate(path)                                                                                                \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: dir_create((Zstr)StrBegin((Str *)(path))),                                                                      \
-        Zstr: dir_create((Zstr)(path)),                                                                 \
-        char *: dir_create((Zstr)(path))                                                                 \
+        Str *: dir_create((Zstr)StrBegin((Str *)(path))),                                                              \
+        Zstr: dir_create((Zstr)(path)),                                                                                \
+        char *: dir_create((Zstr)(path))                                                                               \
     )
 
 ///
@@ -226,8 +226,8 @@ i8 dir_create(Zstr path);
 /// Existing components are treated as success (EEXIST is not an
 /// error). Trailing slashes are tolerated.
 ///
-/// path[in] : Path of the directory tree. Prefer `Str *`; `const
-///            char *` accepted.
+/// path[in] : Path of the directory tree. Prefer `Str *`; `Zstr`
+///            accepted.
 ///
 /// SUCCESS : Returns 1; the full path now exists as a directory.
 /// FAILURE : Returns 0 on first un-recoverable error.
@@ -238,9 +238,9 @@ i8 dir_create_all(Zstr path);
 #define DirCreateAll(path)                                                                                             \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: dir_create_all((Zstr)StrBegin((Str *)(path))),                                                                  \
-        Zstr: dir_create_all((Zstr)(path)),                                                             \
-        char *: dir_create_all((Zstr)(path))                                                             \
+        Str *: dir_create_all((Zstr)StrBegin((Str *)(path))),                                                          \
+        Zstr: dir_create_all((Zstr)(path)),                                                                            \
+        char *: dir_create_all((Zstr)(path))                                                                           \
     )
 
 ///
@@ -259,9 +259,9 @@ i8 dir_remove_all(Zstr path);
 #define DirRemoveAll(path)                                                                                             \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: dir_remove_all((Zstr)StrBegin((Str *)(path))),                                                                  \
-        Zstr: dir_remove_all((Zstr)(path)),                                                             \
-        char *: dir_remove_all((Zstr)(path))                                                             \
+        Str *: dir_remove_all((Zstr)StrBegin((Str *)(path))),                                                          \
+        Zstr: dir_remove_all((Zstr)(path)),                                                                            \
+        char *: dir_remove_all((Zstr)(path))                                                                           \
     )
 
 #endif // MISRA_SYS_DIR_H

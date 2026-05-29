@@ -103,7 +103,7 @@ extern "C" {
     ///
     /// TAGS: Allocator, Slab, Memory, InPlace
     ///
-    i8    slab_allocator_resize(SlabAllocator *self, void *ptr, size new_size);
+    i8 slab_allocator_resize(SlabAllocator *self, void *ptr, size new_size);
 
     ///
     /// Resize a slab allocation with relocation allowed. Because every
@@ -114,7 +114,10 @@ extern "C" {
     ///
     /// SUCCESS: Returns `ptr` unchanged when `new_size <= slot_size`.
     ///          When `ptr` is NULL this behaves like
-    ///          `slab_allocator_allocate(self, new_size, 0)`.
+    ///          `slab_allocator_allocate(self, new_size, true)` --
+    ///          fresh allocations from a remap-NULL are zeroed. When
+    ///          `new_size == 0` the allocation is freed and NULL is
+    ///          returned.
     /// FAILURE: Returns NULL when `new_size > slot_size`. The old
     ///          allocation is left untouched.
     ///
@@ -134,7 +137,7 @@ extern "C" {
     ///
     /// TAGS: Allocator, Slab, Memory, Deallocation
     ///
-    size  slab_allocator_deallocate(SlabAllocator *self, void *ptr);
+    size slab_allocator_deallocate(SlabAllocator *self, void *ptr);
 
     ///
     /// Release every slab page and the bitmaps buffer owned by `self`,
@@ -178,15 +181,15 @@ extern "C" {
 ///
 /// TAGS: Slab, Macro, PowerOfTwo, Utility
 #define SLAB_ROUNDUP_POW2(s)                                                                                           \
-    ((s) <= 16u     ? 16u                                                                                              \
-     : (s) <= 32u   ? 32u                                                                                              \
-     : (s) <= 64u   ? 64u                                                                                              \
-     : (s) <= 128u  ? 128u                                                                                             \
-     : (s) <= 256u  ? 256u                                                                                             \
-     : (s) <= 512u  ? 512u                                                                                             \
-     : (s) <= 1024u ? 1024u                                                                                            \
-     : (s) <= 2048u ? 2048u                                                                                            \
-                    : 4096u)
+    ((s) <= 16u   ? 16u :                                                                                              \
+     (s) <= 32u   ? 32u :                                                                                              \
+     (s) <= 64u   ? 64u :                                                                                              \
+     (s) <= 128u  ? 128u :                                                                                             \
+     (s) <= 256u  ? 256u :                                                                                             \
+     (s) <= 512u  ? 512u :                                                                                             \
+     (s) <= 1024u ? 1024u :                                                                                            \
+     (s) <= 2048u ? 2048u :                                                                                            \
+                    4096u)
 
 ///
 /// Compile-time `ctz` for the supported slot sizes. Folded to a
@@ -206,16 +209,16 @@ extern "C" {
 ///
 /// TAGS: Slab, Macro, BitScan, Utility
 #define SLAB_SHIFT_FROM_SIZE(s)                                                                                        \
-    ((s) == 16u     ? 4u                                                                                               \
-     : (s) == 32u   ? 5u                                                                                               \
-     : (s) == 64u   ? 6u                                                                                               \
-     : (s) == 128u  ? 7u                                                                                               \
-     : (s) == 256u  ? 8u                                                                                               \
-     : (s) == 512u  ? 9u                                                                                               \
-     : (s) == 1024u ? 10u                                                                                              \
-     : (s) == 2048u ? 11u                                                                                              \
-     : (s) == 4096u ? 12u                                                                                              \
-                    : 0u)
+    ((s) == 16u   ? 4u :                                                                                               \
+     (s) == 32u   ? 5u :                                                                                               \
+     (s) == 64u   ? 6u :                                                                                               \
+     (s) == 128u  ? 7u :                                                                                               \
+     (s) == 256u  ? 8u :                                                                                               \
+     (s) == 512u  ? 9u :                                                                                               \
+     (s) == 1024u ? 10u :                                                                                              \
+     (s) == 2048u ? 11u :                                                                                              \
+     (s) == 4096u ? 12u :                                                                                              \
+                    0u)
 
 ///
 /// Initialize a `SlabAllocator` with the given slot size. Slot size
@@ -241,20 +244,21 @@ extern "C" {
 #define SlabAllocatorInit(slot_size_bytes)                                                                             \
     ((SlabAllocator) {                                                                                                 \
         .base =                                                                                                        \
-            {.allocate    = (AllocatorAllocateFn)slab_allocator_allocate,                                              \
-                   .resize      = (AllocatorResizeFn)slab_allocator_resize,                                                  \
-                   .remap       = (AllocatorRemapFn)slab_allocator_remap,                                                    \
-                   .deallocate  = (AllocatorDeallocateFn)slab_allocator_deallocate,                                          \
-                   .alignment   = 16,                                                                                        \
-                   .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
-                   .retry_limit = 0,                                                                                         \
-                   .__magic     = SLAB_ALLOCATOR_MAGIC},                                                                         \
+            {.allocate        = (AllocatorAllocateFn)slab_allocator_allocate,                                          \
+                   .resize          = (AllocatorResizeFn)slab_allocator_resize,                                              \
+                   .remap           = (AllocatorRemapFn)slab_allocator_remap,                                                \
+                   .deallocate      = (AllocatorDeallocateFn)slab_allocator_deallocate,                                      \
+                   .alignment       = 16,                                                                                    \
+                   .effort          = ALLOCATOR_EFFORT_ONCE,                                                                 \
+                   .retry_limit     = 0,                                                                                     \
+                   .__magic         = SLAB_ALLOCATOR_MAGIC,                                                                  \
+                   .footprint_bytes = 0},                                                                                    \
         .slabs                 = NULL,                                                                                 \
         .slabs_len             = 0,                                                                                    \
         .slabs_cap             = 0,                                                                                    \
         .bitmaps               = NULL,                                                                                 \
-        .slot_size             = SLAB_ROUNDUP_POW2(slot_size_bytes),                                             \
-        .slot_size_shift       = (u8)SLAB_SHIFT_FROM_SIZE(SLAB_ROUNDUP_POW2(slot_size_bytes)),             \
+        .slot_size             = SLAB_ROUNDUP_POW2(slot_size_bytes),                                                   \
+        .slot_size_shift       = (u8)SLAB_SHIFT_FROM_SIZE(SLAB_ROUNDUP_POW2(slot_size_bytes)),                         \
         .bitmap_words_per_slab = 0,                                                                                    \
     })
 
@@ -281,20 +285,21 @@ extern "C" {
 #define SlabAllocatorInitAligned(slot_size_bytes, alignment_value)                                                     \
     ((SlabAllocator) {                                                                                                 \
         .base =                                                                                                        \
-            {.allocate    = (AllocatorAllocateFn)slab_allocator_allocate,                                              \
-                   .resize      = (AllocatorResizeFn)slab_allocator_resize,                                                  \
-                   .remap       = (AllocatorRemapFn)slab_allocator_remap,                                                    \
-                   .deallocate  = (AllocatorDeallocateFn)slab_allocator_deallocate,                                          \
-                   .alignment   = (alignment_value) ? (alignment_value) : 16,                                                \
-                   .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
-                   .retry_limit = 0,                                                                                         \
-                   .__magic     = SLAB_ALLOCATOR_MAGIC},                                                                         \
+            {.allocate        = (AllocatorAllocateFn)slab_allocator_allocate,                                          \
+                   .resize          = (AllocatorResizeFn)slab_allocator_resize,                                              \
+                   .remap           = (AllocatorRemapFn)slab_allocator_remap,                                                \
+                   .deallocate      = (AllocatorDeallocateFn)slab_allocator_deallocate,                                      \
+                   .alignment       = (alignment_value) ? (alignment_value) : 16,                                            \
+                   .effort          = ALLOCATOR_EFFORT_ONCE,                                                                 \
+                   .retry_limit     = 0,                                                                                     \
+                   .__magic         = SLAB_ALLOCATOR_MAGIC,                                                                  \
+                   .footprint_bytes = 0},                                                                                    \
         .slabs                 = NULL,                                                                                 \
         .slabs_len             = 0,                                                                                    \
         .slabs_cap             = 0,                                                                                    \
         .bitmaps               = NULL,                                                                                 \
-        .slot_size             = SLAB_ROUNDUP_POW2(slot_size_bytes),                                             \
-        .slot_size_shift       = (u8)SLAB_SHIFT_FROM_SIZE(SLAB_ROUNDUP_POW2(slot_size_bytes)),             \
+        .slot_size             = SLAB_ROUNDUP_POW2(slot_size_bytes),                                                   \
+        .slot_size_shift       = (u8)SLAB_SHIFT_FROM_SIZE(SLAB_ROUNDUP_POW2(slot_size_bytes)),                         \
         .bitmap_words_per_slab = 0,                                                                                    \
     })
 

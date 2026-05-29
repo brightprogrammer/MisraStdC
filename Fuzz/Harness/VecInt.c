@@ -29,18 +29,18 @@ void fuzz_int_vec(
     VecIntFunction    func,
     const uint8_t    *data,
     size_t           *offset,
-    size_t            size,
+    size_t            data_size,
     DefaultAllocator *alloc
 ) {
     switch (func) {
         case VEC_INT_PUSH_BACK : {
-            i32 value = (i32)extract_u32(data, offset, size);
+            i32 value = (i32)extract_u32(data, offset, data_size);
             VecPushBack(vec, value);
             break;
         }
 
         case VEC_INT_PUSH_FRONT : {
-            i32 value = (i32)extract_u32(data, offset, size);
+            i32 value = (i32)extract_u32(data, offset, data_size);
             VecPushFront(vec, value);
             break;
         }
@@ -62,8 +62,8 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_INSERT : {
-            uint16_t idx   = extract_u16(data, offset, size);
-            i32      value = (i32)extract_u32(data, offset, size);
+            uint16_t idx   = extract_u16(data, offset, data_size);
+            i32      value = (i32)extract_u32(data, offset, data_size);
 
             if (idx <= VecLen(vec)) {
                 VecInsert(vec, value, idx);
@@ -72,7 +72,7 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_REMOVE : {
-            uint16_t idx = extract_u16(data, offset, size);
+            uint16_t idx = extract_u16(data, offset, data_size);
             if (idx < VecLen(vec)) {
                 i32 removed;
                 VecRemove(vec, &removed, idx);
@@ -81,7 +81,7 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_DELETE : {
-            uint16_t idx = extract_u16(data, offset, size);
+            uint16_t idx = extract_u16(data, offset, data_size);
             if (idx < VecLen(vec)) {
                 VecDelete(vec, idx);
             }
@@ -89,7 +89,7 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_AT : {
-            uint16_t idx = extract_u16(data, offset, size);
+            uint16_t idx = extract_u16(data, offset, data_size);
             if (idx < VecLen(vec)) {
                 volatile i32 value = VecAt(vec, idx);
                 (void)value; // Prevent optimization
@@ -126,14 +126,14 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_RESIZE : {
-            uint16_t new_size = extract_u16(data, offset, size);
+            uint16_t new_size = extract_u16(data, offset, data_size);
             new_size          = new_size % 1000; // Limit to reasonable size
             VecResize(vec, new_size);
             break;
         }
 
         case VEC_INT_RESERVE : {
-            uint16_t capacity = extract_u16(data, offset, size);
+            uint16_t capacity = extract_u16(data, offset, data_size);
             capacity          = capacity % 1000; // Limit to reasonable capacity
             VecReserve(vec, capacity);
             break;
@@ -157,8 +157,8 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_SWAP_ITEMS : {
-            uint16_t idx1 = extract_u16(data, offset, size);
-            uint16_t idx2 = extract_u16(data, offset, size);
+            uint16_t idx1 = extract_u16(data, offset, data_size);
+            uint16_t idx2 = extract_u16(data, offset, data_size);
 
             uint64_t len = VecLen(vec);
             if (len > 1 && idx1 < len && idx2 < len) {
@@ -169,14 +169,14 @@ void fuzz_int_vec(
 
         // Range operations
         case VEC_INT_INSERT_RANGE : {
-            uint16_t idx   = extract_u16(data, offset, size);
-            uint8_t  count = extract_u8(data, offset, size);
+            uint16_t idx   = extract_u16(data, offset, data_size);
+            uint8_t  count = extract_u8(data, offset, data_size);
             count          = count % 16;
 
             if (idx <= VecLen(vec) && count > 0) {
                 i32 values[16];
-                for (uint8_t i = 0; i < count && *offset + 4 <= size; i++) {
-                    values[i] = (i32)extract_u32(data, offset, size);
+                for (uint8_t i = 0; i < count && *offset + 4 <= data_size; i++) {
+                    values[i] = (i32)extract_u32(data, offset, data_size);
                 }
                 VecInsertRangeR(vec, values, idx, count);
             }
@@ -184,8 +184,8 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_REMOVE_RANGE : {
-            uint16_t start = extract_u16(data, offset, size);
-            uint8_t  count = extract_u8(data, offset, size);
+            uint16_t start = extract_u16(data, offset, data_size);
+            uint8_t  count = extract_u8(data, offset, data_size);
             count          = count % 16;
 
             uint64_t len = VecLen(vec);
@@ -197,8 +197,8 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_DELETE_RANGE : {
-            uint16_t start = extract_u16(data, offset, size);
-            uint8_t  count = extract_u8(data, offset, size);
+            uint16_t start = extract_u16(data, offset, data_size);
+            uint8_t  count = extract_u8(data, offset, data_size);
             count          = count % 16;
 
             uint64_t len = VecLen(vec);
@@ -209,8 +209,8 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_INSERT_FAST : {
-            uint16_t idx   = extract_u16(data, offset, size);
-            i32      value = (i32)extract_u32(data, offset, size);
+            uint16_t idx   = extract_u16(data, offset, data_size);
+            i32      value = (i32)extract_u32(data, offset, data_size);
 
             if (idx <= VecLen(vec)) {
                 VecInsertFast(vec, value, idx);
@@ -219,7 +219,7 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_REMOVE_FAST : {
-            uint16_t idx = extract_u16(data, offset, size);
+            uint16_t idx = extract_u16(data, offset, data_size);
             if (idx < VecLen(vec)) {
                 i32 removed;
                 VecRemoveFast(vec, &removed, idx);
@@ -228,8 +228,8 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_REMOVE_RANGE_FAST : {
-            uint16_t start = extract_u16(data, offset, size);
-            uint8_t  count = extract_u8(data, offset, size);
+            uint16_t start = extract_u16(data, offset, data_size);
+            uint8_t  count = extract_u8(data, offset, data_size);
             count          = count % 16;
 
             uint64_t len = VecLen(vec);
@@ -248,8 +248,8 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_DELETE_RANGE_FAST : {
-            uint16_t start = extract_u16(data, offset, size);
-            uint8_t  count = extract_u8(data, offset, size);
+            uint16_t start = extract_u16(data, offset, data_size);
+            uint8_t  count = extract_u8(data, offset, data_size);
             count          = count % 16;
 
             uint64_t len = VecLen(vec);
@@ -261,13 +261,13 @@ void fuzz_int_vec(
 
         // Array operations
         case VEC_INT_PUSH_BACK_ARRAY : {
-            uint8_t count = extract_u8(data, offset, size);
+            uint8_t count = extract_u8(data, offset, data_size);
             count         = count % 8;
 
             if (count > 0) {
                 i32 values[8];
-                for (uint8_t i = 0; i < count && *offset + 4 <= size; i++) {
-                    values[i] = (i32)extract_u32(data, offset, size);
+                for (uint8_t i = 0; i < count && *offset + 4 <= data_size; i++) {
+                    values[i] = (i32)extract_u32(data, offset, data_size);
                 }
                 VecPushBackArrR(vec, values, count);
             }
@@ -275,13 +275,13 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_PUSH_FRONT_ARRAY : {
-            uint8_t count = extract_u8(data, offset, size);
+            uint8_t count = extract_u8(data, offset, data_size);
             count         = count % 8;
 
             if (count > 0) {
                 i32 values[8];
-                for (uint8_t i = 0; i < count && *offset + 4 <= size; i++) {
-                    values[i] = (i32)extract_u32(data, offset, size);
+                for (uint8_t i = 0; i < count && *offset + 4 <= data_size; i++) {
+                    values[i] = (i32)extract_u32(data, offset, data_size);
                 }
                 VecPushFrontArrR(vec, values, count);
             }
@@ -289,13 +289,13 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_PUSH_FRONT_ARRAY_FAST : {
-            uint8_t count = extract_u8(data, offset, size);
+            uint8_t count = extract_u8(data, offset, data_size);
             count         = count % 8;
 
             if (count > 0) {
                 i32 values[8];
-                for (uint8_t i = 0; i < count && *offset + 4 <= size; i++) {
-                    values[i] = (i32)extract_u32(data, offset, size);
+                for (uint8_t i = 0; i < count && *offset + 4 <= data_size; i++) {
+                    values[i] = (i32)extract_u32(data, offset, data_size);
                 }
                 VecPushFrontArrFastR(vec, values, count);
             }
@@ -309,7 +309,7 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_BEGIN : {
-            volatile i32 *begin_ptr = (i32 *)VecBegin(vec);
+            volatile i32 *begin_ptr = VecBegin(vec);
             (void)begin_ptr;
             break;
         }
@@ -321,7 +321,7 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_PTR_AT : {
-            uint16_t idx = extract_u16(data, offset, size);
+            uint16_t idx = extract_u16(data, offset, data_size);
             if (idx < VecLen(vec)) {
                 volatile i32 *ptr = VecPtrAt(vec, idx);
                 volatile i32  val = *ptr;
@@ -332,11 +332,11 @@ void fuzz_int_vec(
 
         case VEC_INT_MERGE : {
             IntVec  temp  = VecInitT(temp, alloc);
-            uint8_t count = extract_u8(data, offset, size);
+            uint8_t count = extract_u8(data, offset, data_size);
             count         = count % 4;
 
-            for (uint8_t i = 0; i < count && *offset + 4 <= size; i++) {
-                i32 value = (i32)extract_u32(data, offset, size);
+            for (uint8_t i = 0; i < count && *offset + 4 <= data_size; i++) {
+                i32 value = (i32)extract_u32(data, offset, data_size);
                 VecPushBack(&temp, value);
             }
 
@@ -346,14 +346,14 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_INSERT_RANGE_FAST : {
-            uint16_t idx   = extract_u16(data, offset, size);
-            uint8_t  count = extract_u8(data, offset, size);
+            uint16_t idx   = extract_u16(data, offset, data_size);
+            uint8_t  count = extract_u8(data, offset, data_size);
             count          = count % 16;
 
             if (idx <= VecLen(vec) && count > 0) {
                 i32 values[16];
-                for (uint8_t i = 0; i < count && *offset + 4 <= size; i++) {
-                    values[i] = (i32)extract_u32(data, offset, size);
+                for (uint8_t i = 0; i < count && *offset + 4 <= data_size; i++) {
+                    values[i] = (i32)extract_u32(data, offset, data_size);
                 }
                 VecInsertRangeFastR(vec, values, idx, count);
             }
@@ -361,7 +361,7 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_ALIGNED_OFFSET_AT : {
-            uint16_t idx = extract_u16(data, offset, size);
+            uint16_t idx = extract_u16(data, offset, data_size);
             if (idx <= VecLen(vec)) {
                 volatile uint64_t offset_val = VecAlignedOffsetAt(vec, idx);
                 (void)offset_val;
@@ -377,7 +377,7 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_DELETE_FAST : {
-            uint16_t idx = extract_u16(data, offset, size);
+            uint16_t idx = extract_u16(data, offset, data_size);
             if (idx < VecLen(vec)) {
                 VecDeleteFast(vec, idx);
             }
@@ -386,11 +386,11 @@ void fuzz_int_vec(
 
         case VEC_INT_INIT_CLONE : {
             IntVec  temp  = VecInitT(temp, alloc);
-            uint8_t count = extract_u8(data, offset, size);
+            uint8_t count = extract_u8(data, offset, data_size);
             count         = count % 4;
 
-            for (uint8_t i = 0; i < count && *offset + 4 <= size; i++) {
-                i32 value = (i32)extract_u32(data, offset, size);
+            for (uint8_t i = 0; i < count && *offset + 4 <= data_size; i++) {
+                i32 value = (i32)extract_u32(data, offset, data_size);
                 VecPushBack(&temp, value);
             }
 
@@ -490,9 +490,9 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_FOREACH_IN_RANGE : {
-            if (VecLen(vec) > 0 && *offset + 8 <= size) {
-                size_t start = extract_u32(data, offset, size) % VecLen(vec);
-                size_t end   = extract_u32(data, offset, size) % (VecLen(vec) + 1);
+            if (VecLen(vec) > 0 && *offset + 8 <= data_size) {
+                size_t start = extract_u32(data, offset, data_size) % VecLen(vec);
+                size_t end   = extract_u32(data, offset, data_size) % (VecLen(vec) + 1);
                 if (start < end) {
                     int sum = 0;
                     VecForeachInRange(vec, item, start, end) {
@@ -505,9 +505,9 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_FOREACH_IN_RANGE_IDX : {
-            if (VecLen(vec) > 0 && *offset + 8 <= size) {
-                size_t start = extract_u32(data, offset, size) % VecLen(vec);
-                size_t end   = extract_u32(data, offset, size) % (VecLen(vec) + 1);
+            if (VecLen(vec) > 0 && *offset + 8 <= data_size) {
+                size_t start = extract_u32(data, offset, data_size) % VecLen(vec);
+                size_t end   = extract_u32(data, offset, data_size) % (VecLen(vec) + 1);
                 if (start < end) {
                     int sum = 0;
                     VecForeachInRangeIdx(vec, item, idx, start, end) {
@@ -520,9 +520,9 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_FOREACH_PTR_IN_RANGE : {
-            if (VecLen(vec) > 0 && *offset + 8 <= size) {
-                size_t start = extract_u32(data, offset, size) % VecLen(vec);
-                size_t end   = extract_u32(data, offset, size) % (VecLen(vec) + 1);
+            if (VecLen(vec) > 0 && *offset + 8 <= data_size) {
+                size_t start = extract_u32(data, offset, data_size) % VecLen(vec);
+                size_t end   = extract_u32(data, offset, data_size) % (VecLen(vec) + 1);
                 if (start < end) {
                     int sum = 0;
                     VecForeachPtrInRange(vec, item_ptr, start, end) {
@@ -535,9 +535,9 @@ void fuzz_int_vec(
         }
 
         case VEC_INT_FOREACH_PTR_IN_RANGE_IDX : {
-            if (VecLen(vec) > 0 && *offset + 8 <= size) {
-                size_t start = extract_u32(data, offset, size) % VecLen(vec);
-                size_t end   = extract_u32(data, offset, size) % (VecLen(vec) + 1);
+            if (VecLen(vec) > 0 && *offset + 8 <= data_size) {
+                size_t start = extract_u32(data, offset, data_size) % VecLen(vec);
+                size_t end   = extract_u32(data, offset, data_size) % (VecLen(vec) + 1);
                 if (start < end) {
                     int sum = 0;
                     VecForeachPtrInRangeIdx(vec, item_ptr, idx, start, end) {

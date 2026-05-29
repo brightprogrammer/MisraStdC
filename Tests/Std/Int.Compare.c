@@ -118,10 +118,10 @@ bool test_int_hash_distinguishes(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int zero    = IntFrom(0u, &alloc.base);
-    Int one     = IntFrom(1u, &alloc.base);
-    Int small   = IntFrom(42u, &alloc.base);
-    Int large   = IntFrom(1u, &alloc.base);
+    Int zero  = IntFrom(0u, &alloc.base);
+    Int one   = IntFrom(1u, &alloc.base);
+    Int small = IntFrom(42u, &alloc.base);
+    Int large = IntFrom(1u, &alloc.base);
     IntShiftLeft(&large, 80);
     Int decimal = IntFromStr("12345678901234567890", &alloc.base);
 
@@ -147,7 +147,7 @@ bool test_int_hash_distinguishes(void) {
 }
 
 // End-to-end: plug int_hash + int_compare into a Map and verify the
-// GenericHash / GenericCompare cast at the call site works.
+// GenericHash / GenericCompare-shaped helpers wire in directly.
 bool test_int_hash_as_map_key(void) {
     WriteFmt("Testing int_hash as Map<Int,u64> key\n");
 
@@ -162,10 +162,10 @@ bool test_int_hash_as_map_key(void) {
     MapInsertR(&counts, k1, 1u);
     MapInsertR(&counts, k2, 2u);
 
-    Int    probe   = IntFrom(100u, &alloc.base);
-    u64   *got     = MapGetFirstPtr(&counts, probe);
-    Int    missing = IntFrom(999u, &alloc.base);
-    u64   *gone    = MapGetFirstPtr(&counts, missing);
+    Int  probe   = IntFrom(100u, &alloc.base);
+    u64 *got     = MapGetFirstPtr(&counts, probe);
+    Int  missing = IntFrom(999u, &alloc.base);
+    u64 *gone    = MapGetFirstPtr(&counts, missing);
 
     bool result = (got != NULL && *got == 1u);
     result      = result && (gone == NULL);

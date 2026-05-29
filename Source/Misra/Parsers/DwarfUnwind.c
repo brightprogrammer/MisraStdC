@@ -238,7 +238,7 @@ static bool parse_cie(BufIter *body, u64 cie_offset, DwarfCie *out) {
             return false;
         if (aug_len > IterRemainingLength(body))
             return false;
-        size aug_end_pos = body->pos + aug_len;
+        size aug_end_pos = IterIndex(body) + aug_len;
 
         StrIter aug_it = StrIterFromZstr(augmentation + 1);
         char    a;
@@ -274,11 +274,14 @@ static bool parse_cie(BufIter *body, u64 cie_offset, DwarfCie *out) {
                     break;
             }
         }
-        // Jump to the aug-data end regardless of what we consumed.
-        body->pos = aug_end_pos;
+        // Jump to the aug-data end regardless of what we consumed. The
+        // aug-data window was bounded by `aug_len <= IterRemainingLength`
+        // before we started reading; even a partial-arm read leaves the
+        // cursor inside `[aug_start, aug_end_pos]`.
+        IterMustMove(body, (i64)(aug_end_pos - IterIndex(body)));
     }
 
-    out->initial_instructions      = body->data + body->pos;
+    out->initial_instructions      = IterDataAt(body, IterIndex(body));
     out->initial_instructions_size = IterRemainingLength(body);
     return true;
 }
@@ -303,7 +306,7 @@ static bool parse_fde(
     // pc_begin (encoded)
     u64 pc_begin = 0;
     {
-        u64 here = eh_byte_vaddr(section_data, section_addr, body->data + body->pos);
+        u64 here = eh_byte_vaddr(section_data, section_addr, IterDataAt(body, IterIndex(body)));
         if (!decode_eh_ptr(body, cie->fde_pointer_encoding, here, &pc_begin))
             return false;
     }
@@ -314,7 +317,7 @@ static bool parse_fde(
     u8  range_enc = cie->fde_pointer_encoding & 0x0f;
     u64 pc_range  = 0;
     {
-        u64 here = eh_byte_vaddr(section_data, section_addr, body->data + body->pos);
+        u64 here = eh_byte_vaddr(section_data, section_addr, IterDataAt(body, IterIndex(body)));
         if (!decode_eh_ptr(body, range_enc, here, &pc_range))
             return false;
     }
@@ -326,10 +329,13 @@ static bool parse_fde(
             return false;
         if (aug_len > IterRemainingLength(body))
             return false;
-        body->pos += aug_len;
+        // Must-precondition: the `aug_len > IterRemainingLength` check
+        // immediately above proves the body has at least `aug_len`
+        // bytes left.
+        IterMustMove(body, (i64)aug_len);
     }
 
-    out->instructions      = body->data + body->pos;
+    out->instructions      = IterDataAt(body, IterIndex(body));
     out->instructions_size = IterRemainingLength(body);
     return true;
 }
@@ -353,11 +359,11 @@ bool dwarf_cfi_build_from_elf(DwarfCfi *out, const Elf *elf, Allocator *alloc) {
     }
     out->eh_frame_addr = eh->addr;
 
-    const u8 *section_data = BufData(&elf->data) + eh->offset;
+    const u8 *section_data = BufData(ElfBuf(elf)) + eh->offset;
 
     BufIter section_cur = BufIterFromMemory(section_data, eh->size);
     while (IterRemainingLength(&section_cur) > 0) {
-        const u8 *rec_start = section_cur.data + section_cur.pos;
+        const u8 *rec_start = IterDataAt(&section_cur, IterIndex(&section_cur));
         u32       length32  = 0;
         if (!BufReadU32LE(&section_cur, &length32))
             break;
@@ -379,7 +385,7 @@ bool dwarf_cfi_build_from_elf(DwarfCfi *out, const Elf *elf, Allocator *alloc) {
         // The CIE/FDE body is `length32` bytes starting at the id field.
         // We've already consumed 4 bytes for `id`, so the body iter
         // covers (id field's start) + length32 bytes.
-        size body_pos_start = section_cur.pos - 4;
+        size body_pos_start = IterIndex(&section_cur) - 4;
 
         // In .eh_frame, id==0 means CIE; nonzero is the CIE_pointer for FDE
         // (back-offset from the start of *the id field*).
@@ -388,7 +394,7 @@ bool dwarf_cfi_build_from_elf(DwarfCfi *out, const Elf *elf, Allocator *alloc) {
             DwarfCie cie;
             // Body iter starts just after the id field (since parse_cie
             // doesn't re-read id) and spans the remainder of the record.
-            BufIter body = BufIterFromMemory(section_cur.data + section_cur.pos, length32 - 4);
+            BufIter body = BufIterFromMemory(IterDataAt(&section_cur, IterIndex(&section_cur)), length32 - 4);
             if (parse_cie(&body, cie_offset, &cie)) {
                 if (!VecPushBackR(&out->cies, cie)) {
                     DwarfCfiDeinit(out);
@@ -402,14 +408,17 @@ bool dwarf_cfi_build_from_elf(DwarfCfi *out, const Elf *elf, Allocator *alloc) {
             // the subtraction wraps to a bogus offset that would either
             // miss every CIE (best case) or alias one (worst case).
             // Skip the FDE explicitly.
-            u64 id_field_off = (u64)(section_cur.pos - 4);
+            u64 id_field_off = (u64)(IterIndex(&section_cur) - 4);
             if ((u64)id > id_field_off) {
-                section_cur.pos = body_pos_start + length32;
+                // length32 bounds were validated against IterRemainingLength
+                // when we set body_pos_start; we are jumping forward by
+                // length32 - 4 bytes from the post-id cursor.
+                IterMustMove(&section_cur, (i64)(length32 - 4));
                 continue;
             }
             u64      cie_offset = id_field_off - (u64)id;
             DwarfFde fde;
-            BufIter  body = BufIterFromMemory(section_cur.data + section_cur.pos, length32 - 4);
+            BufIter  body = BufIterFromMemory(IterDataAt(&section_cur, IterIndex(&section_cur)), length32 - 4);
             if (parse_fde(&body, rec_start, cie_offset, out, section_data, eh->addr, &fde)) {
                 if (!VecPushBackR(&out->fdes, fde)) {
                     DwarfCfiDeinit(out);
@@ -418,7 +427,8 @@ bool dwarf_cfi_build_from_elf(DwarfCfi *out, const Elf *elf, Allocator *alloc) {
             }
         }
 
-        section_cur.pos = body_pos_start + length32;
+        // Same bounds proof as above: jump past this record's body.
+        IterMustMove(&section_cur, (i64)((body_pos_start + length32) - IterIndex(&section_cur)));
     }
 
     return true;
@@ -757,7 +767,9 @@ static bool cfi_vm_step(CfiVm *vm, BufIter *cur, u64 stop_at, bool *stop_now) {
                 return false;
             if (expr_len > IterRemainingLength(cur))
                 return false;
-            cur->pos += expr_len;
+            // Must-precondition: the `expr_len > IterRemainingLength`
+            // check above proves at least `expr_len` bytes remain.
+            IterMustMove(cur, (i64)expr_len);
             return true;
         }
 

@@ -135,22 +135,26 @@ opt_parser_dns     = get_option('parser_dns')
 # for callers that already have `Str` / `Io`. Out of scope for the
 # feature-flag refactor.
 
-# Transitively resolve dependencies among the optional features.
-opt_int    = opt_int_user    or opt_float                       # float -> int
-opt_bitvec = opt_bitvec_user or opt_int                         # int -> bitvec
-opt_map    = opt_map_user    or opt_parser_kvconf or opt_alloc_debug  # kvconfig|alloc_debug -> map
-
 # DebugAllocator hard-requires sys_backtrace. Rather than letting
 # alloc_debug force backtrace on (which can re-enable an explicitly-
 # disabled platform-unavailable feature), we go the other direction:
 # alloc_debug can only be on if backtrace is. macOS / BSD / etc. with
-# backtrace disabled above also lose alloc_debug.
+# backtrace disabled above also lose alloc_debug. Clip BEFORE the
+# alloc_debug -> map dependency resolves below; otherwise `map` would
+# get force-enabled to satisfy a dependency from an alloc_debug that
+# we're about to drop, leaving the consumer with the dependee compiled
+# in but no dependent that pulls it.
 opt_alloc_debug = opt_alloc_debug and opt_sys_backtrace
 # default_alloc_debug hard-requires alloc_debug (it's a thin proxy in
 # front of a DebugAllocator). And the page-backed UAF variant
 # hard-requires default_alloc_debug itself.
 opt_default_alloc_debug = opt_default_alloc_debug and opt_alloc_debug
 opt_default_alloc_debug_page_backed = opt_default_alloc_debug_page_backed and opt_default_alloc_debug
+
+# Transitively resolve dependencies among the optional features.
+opt_int    = opt_int_user    or opt_float                       # float -> int
+opt_bitvec = opt_bitvec_user or opt_int                         # int -> bitvec
+opt_map    = opt_map_user    or opt_parser_kvconf or opt_alloc_debug  # kvconfig|alloc_debug -> map
 
 # Linux-only dependency: in-tree Sys/Backtrace pulls in SymbolResolver,
 # which pulls in ProcMaps + Parsers/Elf. The Windows backend uses
@@ -173,8 +177,34 @@ if opt_parser_pdb
     opt_parser_pe = true
 endif
 
-# parser_elf / parser_pe / parser_macho all use ReadCompleteFile.
+# sys_dns hard-requires the wire parser (DnsParseResponse /
+# DnsResponseDeinit / dns_build_query_zstr all live in Parsers/Dns.c)
+# AND ArenaAllocator (Sys/Dns.c uses ArenaAllocator unconditionally for
+# its in-arena resolution scratch). Resolve here, BEFORE the source-list
+# build below, so an explicit `-Dparser_dns=false -Dsys_dns=true` or
+# `-Dalloc_arena=false -Dsys_dns=true` still pulls in the dependees
+# instead of leaving Sys/Dns.c with undefined references. sys_dns ->
+# sys_socket is already enforced upstream by the platform-clip block
+# (`if not opt_sys_socket: opt_sys_dns = false`).
+if opt_sys_dns
+    opt_parser_dns  = true
+    opt_alloc_arena = true
+endif
+
+# parser_elf / parser_pe / parser_macho all use FileReadAndClose to slurp
+# the on-disk image before parsing.
 opt_file = opt_file_user or opt_parser_elf or opt_parser_pe or opt_parser_macho
+
+# `iter` is part of the foundation in practice: `Std/Io.c`'s
+# `buf_read_fmt` / `buf_append_fmt` / `buf_write_fmt` use
+# `IterRemainingLength` / `IterMustMove` / `IterPos` on `BufIter`, and
+# `Io.c` is unconditionally compiled (LOG_FATAL formats through it).
+# Honour the user's `-Diter=false` only as a no-op: there is no in-tree
+# code path that builds with iter actually off. The option stays in
+# `meson_options.txt` for documentation symmetry with the other
+# subsystems but is force-enabled here so dependency-resolution stays
+# centralised.
+opt_iter = true
 
 # sys_procmaps is Linux-only; verified above.
 
@@ -487,9 +517,6 @@ if opt_parser_dns
 endif
 if opt_sys_dns
     misra_std_sources += files('Source/Misra/Sys/Dns.c')
-    # sys_dns hard-requires the wire parser + the socket layer.
-    opt_parser_dns = true
-    opt_sys_socket = true
 endif
 
 # Compile-time discovery: each enabled feature exposes
@@ -649,8 +676,6 @@ misra_std_no_backtrace = static_library(
     include_directories: inc_misra,
     install: false,
 )
-
-# Main.c and misra executable have been removed
 
 # Bin/* executables. The shipping set is two tools: beam (reverse proxy)
 # and resolve (DNS CLI). Both are gated on the features they exercise.

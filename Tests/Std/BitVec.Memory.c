@@ -8,12 +8,12 @@
 
 // Function prototypes
 bool test_bitvec_shrink_to_fit(void);
-bool test_bitvec_set_capacity(void);
+bool test_bitvec_reserve(void);
 bool test_bitvec_swap(void);
 bool test_bitvec_clone(void);
 bool test_bitvec_clone_inherits_allocator_config(void);
 bool test_bitvec_shrink_to_fit_edge_cases(void);
-bool test_bitvec_set_capacity_edge_cases(void);
+bool test_bitvec_reserve_edge_cases(void);
 bool test_bitvec_swap_edge_cases(void);
 bool test_bitvec_clone_edge_cases(void);
 bool test_bitvec_memory_stress_test(void);
@@ -62,8 +62,7 @@ bool test_bitvec_shrink_to_fit(void) {
     return result;
 }
 
-// Test BitVecReserve function (replacing BitVecSetCapacity)
-bool test_bitvec_set_capacity(void) {
+bool test_bitvec_reserve(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
 
     WriteFmt("Testing BitVecReserve\n");
@@ -222,12 +221,12 @@ bool test_bitvec_clone_inherits_allocator_config(void) {
     // Clone should share the same Allocator* and therefore see identical
     // configuration fields on the base allocator.
     bool result = BitVecLen(&clone) == BitVecLen(&original) && BitVecCapacity(&clone) >= BitVecLen(&original) &&
-                  VecAllocator(&clone) == VecAllocator(&original) &&
-                  VecAllocator(&clone)->allocate == VecAllocator(&original)->allocate &&
-                  VecAllocator(&clone)->remap == VecAllocator(&original)->remap &&
-                  VecAllocator(&clone)->deallocate == VecAllocator(&original)->deallocate &&
-                  VecAllocator(&clone)->effort == VecAllocator(&original)->effort &&
-                  VecAllocator(&clone)->retry_limit == VecAllocator(&original)->retry_limit &&
+                  BitVecAllocator(&clone) == BitVecAllocator(&original) &&
+                  BitVecAllocator(&clone)->allocate == BitVecAllocator(&original)->allocate &&
+                  BitVecAllocator(&clone)->remap == BitVecAllocator(&original)->remap &&
+                  BitVecAllocator(&clone)->deallocate == BitVecAllocator(&original)->deallocate &&
+                  BitVecAllocator(&clone)->effort == BitVecAllocator(&original)->effort &&
+                  BitVecAllocator(&clone)->retry_limit == BitVecAllocator(&original)->retry_limit &&
                   BitVecGet(&clone, 0) == true && BitVecGet(&clone, 1) == false && BitVecGet(&clone, 2) == true;
 
     BitVecDeinit(&original);
@@ -271,7 +270,7 @@ bool test_bitvec_shrink_to_fit_edge_cases(void) {
     return result;
 }
 
-bool test_bitvec_set_capacity_edge_cases(void) {
+bool test_bitvec_reserve_edge_cases(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
 
     WriteFmt("Testing BitVecReserve edge cases\n");
@@ -283,20 +282,15 @@ bool test_bitvec_set_capacity_edge_cases(void) {
     BitVecReserve(&bv, 100);
     result = result && (BitVecCapacity(&bv) >= 100) && (BitVecLen(&bv) == 0);
 
-    // Test set capacity to 0
-    // BitVecReserve doesn't support shrinking to 0, use BitVecClear instead
+    // BitVecReserve is grow-only; use BitVecClear to drop length to 0.
     BitVecClear(&bv);
     result = result && (BitVecLen(&bv) == 0);
 
-    // Test set capacity smaller than current length
     for (int i = 0; i < 10; i++) {
         BitVecPush(&bv, i % 2 == 0);
     }
     u64 original_length = BitVecLen(&bv);
-    // BitVecReserve doesn't shrink, so this test is not applicable
-    // BitVecReserve(&bv, 5); // Would be ignored since length > 5
 
-    // Should not truncate data
     result = result && (BitVecLen(&bv) == original_length);
     for (u64 i = 0; i < BitVecLen(&bv); i++) {
         result = result && (BitVecGet(&bv, i) == (i % 2 == 0));
@@ -406,7 +400,6 @@ bool test_bitvec_memory_stress_test(void) {
 
     bool result = true;
 
-    // Test multiple clone/swap/reu64 cycles
     for (int cycle = 0; cycle < 10; cycle++) {
         BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
         BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
@@ -421,7 +414,6 @@ bool test_bitvec_memory_stress_test(void) {
         BitVec clone = BitVecClone(&bv1);
         BitVecSwap(&bv1, &bv2);
 
-        // Reu64 operations
         BitVecReserve(&bv1, cycle * 20);
         BitVecShrinkToFit(&bv2);
 
@@ -482,12 +474,12 @@ int main(void) {
     // Array of normal test functions
     TestFunction tests[] = {
         test_bitvec_shrink_to_fit,
-        test_bitvec_set_capacity,
+        test_bitvec_reserve,
         test_bitvec_swap,
         test_bitvec_clone,
         test_bitvec_clone_inherits_allocator_config,
         test_bitvec_shrink_to_fit_edge_cases,
-        test_bitvec_set_capacity_edge_cases,
+        test_bitvec_reserve_edge_cases,
         test_bitvec_swap_edge_cases,
         test_bitvec_clone_edge_cases,
         test_bitvec_memory_stress_test

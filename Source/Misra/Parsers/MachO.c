@@ -178,9 +178,11 @@ static bool decode_segment_64(MachoContext *ctx, BufIter *cmd) {
     }
     MachoSegment seg;
     MemSet(&seg, 0, sizeof(seg));
-    // Skip cmd(4) + cmdsize(4) prefix; copy segname[16]; read body.
-    IterMustMove(cmd, 8);
-    MemCopy(seg.name, cmd->data + cmd->pos, 16);
+    // Must-precondition for the next two moves: `cmdsize >=
+    // SEG64_CMD_SIZE_MIN` (checked above) reserves the 8-byte prefix
+    // plus the 16-byte segname plus the body.
+    IterMustMove(cmd, 8); // skip cmd(4) + cmdsize(4) prefix
+    MemCopy(seg.name, IterDataAt(cmd, IterIndex(cmd)), 16);
     seg.name[16] = '\0';
     IterMustMove(cmd, 16);
     u32 maxprot, initprot;
@@ -208,17 +210,19 @@ static bool decode_segment_64(MachoContext *ctx, BufIter *cmd) {
     // positioned just past the segment body; each section is
     // SECT64_SIZE bytes.
     for (u32 i = 0; i < seg.nsects; ++i) {
-        if (cmd->pos + SECT64_SIZE > cmd->length) {
+        if (IterIndex(cmd) + SECT64_SIZE > IterLength(cmd)) {
             LOG_ERROR("MachO: section table overruns LC_SEGMENT_64");
             return false;
         }
+        // `sec_it` is carved at exactly SECT64_SIZE bytes, so the two
+        // 16-byte moves below stay inside its window.
         BufIter      sec_it = IterCarve(cmd, SECT64_SIZE);
         MachoSection sec;
         MemSet(&sec, 0, sizeof(sec));
-        MemCopy(sec.section, sec_it.data + sec_it.pos, 16);
+        MemCopy(sec.section, IterDataAt(&sec_it, IterIndex(&sec_it)), 16);
         sec.section[16] = '\0';
         IterMustMove(&sec_it, 16);
-        MemCopy(sec.segment, sec_it.data + sec_it.pos, 16);
+        MemCopy(sec.segment, IterDataAt(&sec_it, IterIndex(&sec_it)), 16);
         sec.segment[16] = '\0';
         IterMustMove(&sec_it, 16);
         u32 align, reloff, nreloc, reserved1, reserved2, reserved3;
@@ -247,6 +251,9 @@ static bool decode_segment_64(MachoContext *ctx, BufIter *cmd) {
         (void)reserved3;
         if (!VecPushBackR(&ctx->out->sections, sec))
             return false;
+        // Must-precondition: the `IterIndex + SECT64_SIZE > IterLength`
+        // check at the top of the loop body proves the cursor still has
+        // SECT64_SIZE bytes left when we get here.
         IterMustMove(cmd, SECT64_SIZE);
     }
     return true;
@@ -257,6 +264,8 @@ static bool decode_symtab(MachoContext *ctx, BufIter *cmd) {
         LOG_ERROR("MachO: LC_SYMTAB truncated");
         return false;
     }
+    // Must-precondition: `IterLength >= SYMTAB_CMD_SIZE` (checked
+    // above) covers the 8-byte prefix and the body.
     IterMustMove(cmd, 8); // skip cmd + cmdsize prefix
     if (!BufReadFmt(cmd, FMT_MACHO_SYMTAB_BODY_LE, ctx->symoff, ctx->nsyms, ctx->stroff, ctx->strsize)) {
         LOG_ERROR("MachO: LC_SYMTAB body truncated");
@@ -271,8 +280,10 @@ static bool decode_uuid(MachoContext *ctx, BufIter *cmd) {
         LOG_ERROR("MachO: LC_UUID truncated");
         return false;
     }
+    // Must-precondition: the `IterLength >= UUID_CMD_SIZE` check above
+    // proves the 8-byte prefix plus the 16-byte UUID payload fit.
     IterMustMove(cmd, 8); // skip cmd + cmdsize prefix
-    MemCopy(ctx->out->uuid, cmd->data + cmd->pos, 16);
+    MemCopy(ctx->out->uuid, IterDataAt(cmd, IterIndex(cmd)), 16);
     ctx->out->has_uuid = true;
     return true;
 }
@@ -283,11 +294,14 @@ static bool walk_load_commands(MachoContext *ctx) {
         return false;
     }
     BufIter walker = BufIterFromBuf(&ctx->out->data);
+    // Must-precondition: the check above proves the file is at least
+    // `MH_HEADER_64_SIZE + sizeofcmds` bytes, so the header skip stays
+    // inside `walker`.
     IterMustMove(&walker, MH_HEADER_64_SIZE);
     IterTruncate(&walker, ctx->sizeofcmds);
 
     for (u32 i = 0; i < ctx->ncmds; ++i) {
-        u64 remaining = walker.length - walker.pos;
+        u64 remaining = IterRemainingLength(&walker);
         if (remaining < 8) {
             LOG_ERROR("MachO: load command prefix truncated at {}", i);
             return false;
@@ -323,6 +337,8 @@ static bool walk_load_commands(MachoContext *ctx) {
             default :
                 break;
         }
+        // Must-precondition: the `cmdsize > remaining` check above
+        // proves the walker has at least `cmdsize` bytes left.
         IterMustMove(&walker, cmdsize);
     }
     return true;
@@ -353,6 +369,8 @@ static bool decode_symbols(MachoContext *ctx) {
     }
     const u8 *str_base = BufData(&ctx->out->data) + ctx->stroff;
     BufIter   tab      = BufIterFromBuf(&ctx->out->data);
+    // Must-precondition: `tab_end > BufLength` was checked above, so
+    // `symoff <= tab_end <= BufLength` and the move stays in-bounds.
     IterMustMove(&tab, ctx->symoff);
     IterTruncate(&tab, (u64)ctx->nsyms * NLIST64_SIZE);
     for (u32 i = 0; i < ctx->nsyms; ++i) {
@@ -399,7 +417,7 @@ static bool decode_symbols(MachoContext *ctx) {
 // MemSets the caller's view to zero. Anything that fails past the
 // snapshot cleans up via MachoDeinit -- the buffer never leaks.
 bool MachoOpenFromMemory(Macho *out, Buf *in) {
-    if (!out || !in || !in->data || !in->allocator) {
+    if (!out || !in || !BufData(in) || !BufAllocator(in)) {
         LOG_FATAL("MachoOpenFromMemory: NULL argument (contract violation)");
     }
     Buf taken = *in;
@@ -407,9 +425,9 @@ bool MachoOpenFromMemory(Macho *out, Buf *in) {
 
     MemSet(out, 0, sizeof(*out));
     out->data     = taken;
-    out->segments = VecInitT(out->segments, taken.allocator);
-    out->sections = VecInitT(out->sections, taken.allocator);
-    out->symbols  = VecInitT(out->symbols, taken.allocator);
+    out->segments = VecInitT(out->segments, BufAllocator(&taken));
+    out->sections = VecInitT(out->sections, BufAllocator(&taken));
+    out->symbols  = VecInitT(out->symbols, BufAllocator(&taken));
 
     MachoContext ctx = {.out = out};
     if (!decode_header(&ctx))
@@ -435,7 +453,7 @@ bool macho_open_from_memory_copy(Macho *out, const u8 *data, size data_size, All
         LOG_ERROR("MachoOpenFromMemoryCopy: allocation failed ({} bytes)", (u64)data_size);
         return false;
     }
-    MemCopy(copy.data, data, data_size);
+    MemCopy(BufData(&copy), data, data_size);
     BufResize(&copy, (size)data_size);
     return MachoOpenFromMemory(out, &copy);
 }

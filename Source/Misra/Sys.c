@@ -2,7 +2,12 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Portable system functions
+/// Cross-platform system primitives that don't fit any narrower
+/// namespace: the errno -> Str describer (`StrError`), the abort
+/// callback hook (`OnAbort` / `Abort`), `ProcGetCurrentId`, and
+/// `EnvGet` (Linux-via-captured-`envp`, Windows-via-UCRT, Darwin-NULL).
+/// Everything here forwards either to a syscall or to a Win32 entry
+/// point; no libc surface leaks back through the API.
 
 #include <Misra/Config.h>
 
@@ -223,9 +228,19 @@ static Zstr errno_description(i32 eno) {
     }
 }
 
+// KNOWN LIMITATION: `err_str` must be heap-backed. `LOG_SYS_*` macros
+// pass a 256-byte `StrInitStack` scratch whose allocator is NULL, and
+// the `StrAppendFmt` integer formatter below builds a sub-`Str` from
+// `StrAllocator(out)` to render the errno number -- a NULL allocator
+// there trips `reserve_vec` even though the rendered text would fit
+// in 256 bytes. Callers on errno-bearing paths exercised by tests
+// (e.g. `FileOpen` on a missing file) therefore route `LOG_ERROR`
+// with a raw `errno` number instead of `LOG_SYS_ERROR`. Fix belongs
+// in the `_write_*` family (fall through to a default allocator when
+// `o`'s allocator is NULL), not here.
 Str *StrError(i32 eno, Str *err_str) {
     ValidateStr(err_str);
-    Allocator *alloc = err_str->allocator;
+    Allocator *alloc = StrAllocator(err_str);
     Str        out   = StrInit(alloc);
     StrAppendFmt(&out, "{} (errno {})", errno_description(eno), eno);
     StrDeinit(err_str);
@@ -233,7 +248,9 @@ Str *StrError(i32 eno, Str *err_str) {
     return err_str;
 }
 
-// Global callback for Abort - NULL means use default abort()
+// Optional pre-`Abort` hook. NULL = no hook; `Abort` falls straight
+// through to the hardware trap. Set by `OnAbort` -- the test harness
+// uses it to longjmp out of intentional aborts in deadend fixtures.
 static AbortCallback g_abort_callback = NULL;
 
 void OnAbort(AbortCallback callback) {

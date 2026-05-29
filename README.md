@@ -140,10 +140,11 @@ when the `Scope` ends.
   `libmisra_std.a` and their `.h` files from the install prefix.
 - **Libc-free shipping binaries** on Linux, macOS, and Windows. The Bin/
   tools (`beam`, `resolve`) link against zero libc by default: direct
-  syscalls on
-  Linux + macOS (XNU BSD subset on Mac, custom `_start`, in-tree mem* and
-  setjmp), `/NODEFAULTLIB` + custom `misra_start` entry on Windows. CI
-  asserts the import table per OS — see
+  syscalls on Linux + macOS (XNU BSD subset on Mac), in-tree mem*
+  forwarders on both, custom `_start` and naked-asm `setjmp` on Linux
+  (Mac keeps the libSystem-equivalent only inside the test harness),
+  `/NODEFAULTLIB` + custom `misra_start` entry on Windows. CI asserts
+  the import table per OS — see
   [Freestanding (Libc-Free Binaries)](#freestanding-libc-free-binaries).
 
 ---
@@ -170,13 +171,19 @@ meson setup builddir -Db_sanitize=address,undefined -Db_lundef=false
 If you only need `Vec`, `Str`, `Buf`, `Io`, and the default heap allocator,
 turn the rest off. Every optional feature has to be disabled by name --
 several of them are pulled in by other defaults (e.g. `alloc_debug`
-auto-enables `map` + `sys_backtrace`, which in turn pulls in `parser_elf`
-+ `parser_dwarf`), so a partial disable list still ships most of the
-library. Note also that `file`, `iter`, and `alloc_arena` cannot be
-disabled today -- `Io.c` uses `StrIter` internally, the binary parsers
-(`elf`/`pe`/`macho`) slurp via `FileRead`, and `Sys/Dns` uses
-`ArenaAllocator` for its in-arena resolution. The dependency edges
-aren't optional yet.
+auto-enables `map` and force-disables itself when `sys_backtrace` is off;
+`sys_backtrace` on Linux auto-enables `sys_symresolve`, which transitively
+pulls in `sys_procmaps` + `parser_elf`), so a partial disable list still
+ships most of the library. `iter` is part of the foundation in practice
+(the formatted-I/O `BufReadFmt` / `BufWriteFmt` family in `Std/Io.c` use
+`Iter(T)` over `BufIter`) and is force-enabled in `meson.build` regardless
+of `-Diter=false`. `file` and `alloc_arena` are auto-pulled by other
+features and cannot be disabled in isolation while their consumers are on:
+the binary parsers (`elf`/`pe`/`macho`) slurp via `FileRead` so
+`parser_elf|pe|macho` force `file=true`, and `Sys/Dns` uses `ArenaAllocator`
+for its in-arena resolution so `sys_dns` forces `alloc_arena=true`. The
+minimal build below turns off every consumer, so it lets `file` and
+`alloc_arena` drop too if you also pass them explicitly.
 
 ```bash
 meson setup builddir-min \
@@ -218,9 +225,9 @@ or stick with the default configuration when running the test suite.
 | `alloc_slab`                      | `SlabAllocator` (growable fixed-slot pool)                                                                          | —                                |
 | `alloc_budget`                    | `BudgetAllocator` (caller-buffer, fixed-budget)                                                                     | —                                |
 | `alloc_stats`                     | Per-`Allocator` byte / call / peak counters                                                                         | —                                |
-| `alloc_debug`                     | `DebugAllocator` (leak / double-free / canary-overflow / stack-trace tracking)                                      | `map`, `sys_backtrace`           |
-| `default_alloc_debug`             | Alias `DefaultAllocator` to `DebugAllocator` everywhere — drop-in ASan/MSan-style with no call-site changes         | `alloc_debug`                    |
-| `default_alloc_debug_page_backed` | Layer page-backed UAF detection on top: every alloc consumes whole pages, free `PROT_NONE`s the region              | `default_alloc_debug`            |
+| `alloc_debug`                     | `DebugAllocator` (leak / double-free / canary-overflow / stack-trace tracking)                                      | `map` (requires `sys_backtrace`; force-disabled when it's off) |
+| `default_alloc_debug`             | Alias `DefaultAllocator` to `DebugAllocator` everywhere — drop-in ASan/MSan-style with no call-site changes         | — (requires `alloc_debug`; force-disabled when it's off) |
+| `default_alloc_debug_page_backed` | Layer page-backed UAF detection on top: every alloc consumes whole pages, free `PROT_NONE`s the region              | — (requires `default_alloc_debug`; force-disabled when it's off) |
 | `bitvec`                          | `BitVec` packed bit container                                                                                       | —                                |
 | `list`                            | `List(T)` doubly-linked list                                                                                        | —                                |
 | `map`                             | `Map(K,V)` hash map                                                                                                 | —                                |
@@ -230,16 +237,22 @@ or stick with the default configuration when running the test suite.
 | `file`                            | `File` cross-platform handle + `FileRead{,AndClose}` / `FileWrite{,AndClose}` slurp helpers                          | —                                |
 | `iter`                            | Generic `Iter(T)` iteration helpers                                                                                 | —                                |
 | `sys_dir`                         | `DirGetContents(...)` and friends                                                                                   | —                                |
-| `sys_proc`                        | `ProcCreate(...)` / spawn / wait                                                                                    | —                                |
+| `sys_proc`                        | `ProcInit(...)` / spawn / wait                                                                                      | —                                |
 | `sys_socket`                      | BSD-sockets API (`Listener`, `Socket`, `SocketPoll`)                                                                | —                                |
 | `sys_dns`                         | `DnsResolver` (in-tree A/AAAA + getaddrinfo-free name resolution)                                                   | `sys_socket`, `parser_dns`       |
 | `sys_procmaps`                    | `ProcMaps` (process module-map snapshot for the symbolizer chain)                                                   | —                                |
-| `sys_symresolve`                  | `SymbolResolver` (cross-platform module + address-to-name chain)                                                    | `sys_procmaps`                   |
-| `sys_backtrace`                   | `CaptureStackTrace` / `FormatStackTrace`, plus the in-tree symbolizer chain on Linux                                | `parser_elf`, `parser_dwarf` (Linux); `parser_macho` (macOS); `parser_pdb`, `parser_pe` (Windows) |
+| `sys_symresolve`                  | `SymbolResolver` (cross-platform module + address-to-name chain)                                                    | `sys_procmaps`, `parser_elf`     |
+| `sys_backtrace`                   | `CaptureStackTrace` / `FormatStackTrace`, plus the in-tree symbolizer chain on Linux                                | `sys_symresolve` (Linux); used with `parser_dwarf` / `parser_macho` / `parser_pdb` / `parser_pe` when enabled |
 | `parser_json`                     | JSON read/write                                                                                                     | —                                |
 | `parser_kvconfig`                 | Key-value config parser                                                                                             | `map`                            |
 | `parser_http`                     | HTTP/1.1 request + response parsing / serialization (transport-agnostic)                                            | —                                |
+| `parser_elf`                      | ELF64 reader (header, sections, symbol tables) — drives the in-tree symbolizer                                      | `file`                           |
+| `parser_dwarf`                    | DWARF `.debug_line` + `.eh_frame` CFI reader (IP→file:line, frame-pointer-less unwinding)                            | `parser_elf`                     |
+| `parser_pe`                       | PE/COFF reader — locates the CodeView (PDB) reference in a PE binary                                                | `file`                           |
+| `parser_pdb`                      | PDB reader (MSF + DBI / Publics streams) — Windows symbol resolution without dbghelp                                | `parser_pe`                      |
+| `parser_macho`                    | Mach-O reader — walks loaded images on macOS                                                                        | `file`                           |
 | `parser_dns`                      | DNS wire-format encode/decode per RFC 1035                                                                          | —                                |
+| `heap_validate_full`              | `HeapAllocator` per-dispatch full invariant validation (cross-class checks + volatile descriptor-array probes)      | —                                |
 
 Every enabled feature also defines `FEATURE_<NAME>` (= 1) in the
 generated `Misra/Config.h`. User code can `#if FEATURE_BITVEC` to compile
@@ -556,13 +569,16 @@ Allocator       *a     = ALLOCATOR_OF(&alloc);
 Vec(int) v = VecInit(a);
 for (int i = 0; i < 10000; i++) VecMustPushBackR(&v, i);
 
-AllocatorStats s = AllocatorGetStats(a);
 WriteFmtLn("allocs={}, frees={}, in_use={} B, peak={} B",
-           s.allocations, s.deallocations, s.bytes_in_use, s.peak_bytes_in_use);
+           AllocatorAllocations(a), AllocatorDeallocations(a),
+           AllocatorBytesInUse(a),  AllocatorPeakBytesInUse(a));
 ```
 
-The seven fields are `bytes_requested`, `bytes_in_use`, `peak_bytes_in_use`,
-`allocations`, `reallocations`, `deallocations`, and `failed_allocations`.
+The accessor macros expose seven counters — `AllocatorBytesRequested`,
+`AllocatorBytesInUse`, `AllocatorPeakBytesInUse`, `AllocatorAllocations`,
+`AllocatorReallocations`, `AllocatorDeallocations`, and
+`AllocatorFailedAllocations` — each a zero-overhead direct field load
+(no dispatched `AllocatorGetStats`-style call; reading is observer-only).
 Counters live on the `Allocator` base, so every typed backend gets
 accounting for free — no per-allocator implementation cost. The whole
 machinery is gated by the `alloc_stats` feature flag (default on); when
@@ -633,7 +649,7 @@ macros:
 - `Vec(T)`, `List(T)`, `Graph(T)`, `Map(K, V)`, `Pair(xT, yT)`, `Iter(T)`
   expand to anonymous structs. Distinct expansions are distinct types — wrap
   with a `typedef` if you want to reuse the type.
-- Operations like `VecInsertR`, `VecAt`, `MapGet`, `GraphAddNodeR`, `IntAdd`,
+- Operations like `VecInsertR`, `VecAt`, `MapGetFirstPtr`, `GraphAddNodeR`, `IntAdd`,
   `FloatFrom` dispatch on the source value's type at the macro layer
   (`_Generic`) and forward to shared runtime helpers in `Source/`. Type
   information that can't be inferred is carried through `sizeof(T)` and
@@ -772,8 +788,7 @@ Scope(alloc, DefaultAllocator) {
     }
 
     StrDeinit(&text); StrDeinit(&hello); StrDeinit(&world); StrDeinit(&csv);
-    VecForeachPtr(&parts, part) { StrDeinit(part); }
-    VecDeinit(&parts);
+    VecDeinit(&parts);   // StrSplit sets copy_deinit, so this frees each part
 }
 ```
 
@@ -793,7 +808,7 @@ Scope(alloc, DefaultAllocator) {
     BufIter it = BufIterFromBuf(&bytes);
     u32     tag = 0;
     BufReadU32LE(&it, &tag);
-    const char *msg = BufReadZstr(&it);
+    Zstr msg = BufReadZstr(&it);
     WriteFmtLn("tag=0x{x}, msg={}", tag, msg);
 
     BufDeinit(&bytes);
@@ -813,7 +828,7 @@ reachable. Both keep the buffer bounds where the format puts them, instead
 of in scattered `if (pos + size > len)` checks.
 
 The format layer in `<Misra/Std/Io.h>` adds four operations on top:
-`BufReadFmt(&it, "{<4}{<2}", tag, flags)` consumes typed binary fields from
+`BufReadFmt(&it, "{<4r}{<2r}", tag, flags)` consumes typed binary fields from
 a cursor; `BufAppendFmt` / `BufWriteFmt` / `BufPatchFmt` emit them. The
 format directive `{<Nr}` means little-endian width `N` (1, 2, 4, or 8);
 `{>Nr}` is big-endian. Width must match the destination's natural size, so
@@ -830,7 +845,7 @@ Scope(alloc, DefaultAllocator) {
     ListMustPushBack(&ll, 10);
     ListMustPushBack(&ll, 20);
     ListMustPushFront(&ll, 5);
-    ListForeach(&ll, n, i) {
+    ListForeachIdx(&ll, n, i) {
         WriteFmtLn("ll[{}] = {}", i, n);
     }
     ListDeinit(&ll);
@@ -855,7 +870,7 @@ Scope(alloc, DefaultAllocator) {
 dependency traversal. For graph-owned strings, prefer `Graph(Str)` plus
 `GraphInitWithDeepCopy(NULL, StrDeinit)` and insert with
 `GraphAddNodeR(..., StrZ("..."))` so the graph deep-copies and reclaims on
-deinit. `Graph(const char *)` works too, but only when every stored pointer
+deinit. `Graph(Zstr)` works too, but only when every stored pointer
 outlives the graph (string literals, interned names).
 
 `Map(K, V)` follows the same pattern; the user supplies a key hash
@@ -896,7 +911,7 @@ string, copy a byte buffer, build from a primitive) take an explicit
 from at that moment, so passing one is the only sensible contract.
 
 `Int` operations include `IntAdd`, `IntSub`, `IntMul`, `IntDivMod`, `IntPow`,
-`IntGcd`, `IntLcm`, `IntIsPrime`, `IntModPow`, base-2/8/10/16 string
+`IntGCD`, `IntLCM`, `IntIsProbablePrime`, `IntPowMod`, base-2/8/10/16 string
 conversion, byte import/export (LE and BE), and bit-level access through the
 underlying `BitVec`. `Float` adds sign, decimal exponent, and a precision
 parameter for division.
@@ -916,17 +931,19 @@ WriteFmtLn("Hello, {}! count={}, pi={.4}", name, 42, 3.14159);
 ### What types work
 
 The macros dispatch through `IOFMT(...)` which has `_Generic` cases for
-`Str`, `Int`, `Float`, `BitVec`, `const char *`, `char *`, primitive integer
+`Str`, `Int`, `Float`, `BitVec`, `Zstr`, `char *`, primitive integer
 and floating-point types, and `char`. Anything else falls through to an
-unsupported-type handler.
+unsupported-type handler. (`char *` is the MSVC-portability synonym for
+`Zstr` — see the "C-strings everywhere use `Zstr`" rule in
+[`CODING-CONVENTIONS.md`](CODING-CONVENTIONS.md).)
 
 The catch: array types (`char[6]`, `const char[10]`) are distinct from
 pointer types under `_Generic`. Bind string literals to a pointer variable
 first.
 
 ```c
-const char *title = "Mr.";        // good
-char        name[] = "Alice";     // bad — array type
+Zstr title = "Mr.";               // good
+char name[] = "Alice";            // bad — array type
 StrWriteFmt(&buf, "{}", title);
 ```
 
@@ -978,7 +995,7 @@ StrWriteFmt(&buf, "{}", title);
 on success. Pass the cursor as an assignable variable, not a literal:
 
 ```c
-const char *cursor = "Count: 42, Name: Alice";
+Zstr cursor = "Count: 42, Name: Alice";
 i32 count = 0;
 Scope(alloc, DefaultAllocator) {
     Str user = StrInit();
@@ -993,8 +1010,8 @@ Scope(alloc, DefaultAllocator) {
 - `StrWriteFmt(&str, fmt, ...)` / `StrReadFmt(cursor, fmt, ...)`
 - `FWriteFmt(file, fmt, ...)` / `FWriteFmtLn(...)` / `FReadFmt(file, fmt, ...)`
 - `WriteFmt(fmt, ...)` / `WriteFmtLn(fmt, ...)` / `ReadFmt(fmt, ...)`
-  (normal output / standard input channel — `FileFromFd(1)` / `FileFromFd(0)`
-  on POSIX, the corresponding `GetStdHandle` on Windows)
+  (normal output / standard input channel — `FileStdout()` / `FileStdin()`
+  internally; cross-platform with no per-process state)
 - `BufReadFmt(&iter, fmt, ...)` / `BufAppendFmt(&buf, fmt, ...)` /
   `BufWriteFmt(&buf, fmt, ...)` / `BufPatchFmt(&buf, offset, fmt, ...)`
   (binary cursor / Buf — `{<Nr}` LE and `{>Nr}` BE only, `N` in `{1,2,4,8}`)
@@ -1007,13 +1024,13 @@ For the common case of "slurp this path" or "write this Buf to that path",
 ```c
 Scope(alloc, DefaultAllocator) {
     Buf payload = BufInit();
-    FileReadAndClose("input.bin", &payload);          // open + read + close
-    BufAppendFmt(&payload, "{<4}", (u32)0x4D495352);  // patch a trailer
+    FileReadAndClose("input.bin", &payload);           // open + read + close
+    BufAppendFmt(&payload, "{<4r}", (u32)0x4D495352);  // append a trailer
     FileWriteAndClose("output.bin", &payload);
 }
 ```
 
-Both helpers dispatch the path on `Str *` / `char *` and the container on
+Both helpers dispatch the path on `Str *` / `Zstr` and the container on
 `Buf *` / `Str *`. `FileRead(&file, &buf)` (and `FileRead(&file, &str)`)
 is the lower-level read-to-EOF overload when you already hold a `File`.
 `FileGetSize(path)` in `<Misra/Sys/Dir.h>` answers the path-based size
@@ -1034,7 +1051,7 @@ Scope(alloc, DefaultAllocator) {
     Str json = StrInitFromZstr("{\"x\": 10.5, \"y\": 20.0}");
     Point p = {0};
 
-    StrIter si = StrIterFromStr(&json);
+    StrIter si = StrIterFromStr(json);
     JR_OBJ(si, {
         JR_FLT_KV(si, "x", p.x);
         JR_FLT_KV(si, "y", p.y);
@@ -1059,7 +1076,8 @@ Scope(alloc, DefaultAllocator) {
         "debug = true\n"
     );
     KvConfig cfg = KvConfigInit();
-    KvConfigParse(StrIterFromStr(&text), &cfg);
+    StrIter  si  = StrIterFromStr(text);
+    KvConfigParse(si, &cfg);
 
     Str host  = KvConfigGet(&cfg, "host");
     i64 port  = 0;
@@ -1069,7 +1087,7 @@ Scope(alloc, DefaultAllocator) {
     WriteFmtLn("host={}, port={}, debug={}", host, port, dbg);
 
     StrDeinit(&host);
-    KvConfigDeinit(&cfg);
+    MapDeinit(&cfg);              // KvConfig is a typedef'd Map(Str, Str)
     StrDeinit(&text);
 }
 ```
@@ -1138,8 +1156,8 @@ capture / formatting (`Sys/Backtrace`).
 int main(int argc, char **argv, char **envp) {
     (void)argc;
     Scope(alloc, DefaultAllocator) {
-        Proc proc;
-        ProcInit(&proc, argv[1], argv + 1, envp);  // alloc defaulted via Scope
+        // ProcInit returns by value; alloc defaulted via Scope.
+        Proc proc = ProcInit(argv[1], argv + 1, envp);
         ProcWriteToStdinFmtLn(&proc, "value = {}", 42);
 
         i32 val = 0;
@@ -1161,7 +1179,7 @@ Scope(alloc, DefaultAllocator) {
     CaptureStackTrace(&frames, /*skip=*/0);
     Str rendered = StrInit(alloc);
     FormatStackTrace(&rendered, &frames, alloc);
-    WriteFmtLn("{}", &rendered);
+    WriteFmtLn("{}", rendered);
     StrDeinit(&rendered);
     VecDeinit(&frames);
 }

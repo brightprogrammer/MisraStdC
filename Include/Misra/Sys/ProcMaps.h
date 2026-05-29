@@ -2,11 +2,13 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Reads and parses `/proc/self/maps` on Linux into a `Vec(ProcMapEntry)`.
-/// Used by the in-tree dladdr replacement to figure out which loaded
-/// ELF object contains a given runtime address — equivalent to the
-/// data libc gets from glibc's internal `_r_debug` chain, but read
-/// straight from the kernel's view.
+/// Reads and parses `/proc/self/maps` on Linux into a
+/// `Vec(ProcMapEntry)`. Used by `Sys/SymbolResolver` to look up which
+/// loaded ELF object contains a given runtime address. Going through
+/// `/proc/self/maps` keeps the address-to-module mapping aligned with
+/// the kernel's own view of the process: it covers every mapped
+/// segment regardless of how it was loaded, including images mapped
+/// outside the dynamic loader's bookkeeping.
 ///
 /// POSIX (non-Linux) and Windows have no `/proc/self/maps`. They'll
 /// need different backends — `dl_iterate_phdr` on glibc / FreeBSD,

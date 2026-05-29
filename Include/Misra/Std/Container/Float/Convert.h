@@ -7,6 +7,7 @@
 #ifndef MISRA_STD_CONTAINER_FLOAT_CONVERT_H
 #define MISRA_STD_CONTAINER_FLOAT_CONVERT_H
 
+#include "Access.h"
 #include "Private.h"
 #include <Misra/Std/Container/Str.h>
 
@@ -38,23 +39,11 @@ extern "C" {
 ///
 /// TAGS: Float, Convert, Import, Generic
 ///
-#    define FloatFrom(value, allocator_ptr)                                                                            \
-        _Generic(                                                                                                      \
-            (value),                                                                                                   \
-            Int *: float_from_int,                                                                                     \
-            unsigned char: float_from_u64,                                                                             \
-            unsigned short: float_from_u64,                                                                            \
-            unsigned int: float_from_u64,                                                                              \
-            unsigned long: float_from_u64,                                                                             \
-            unsigned long long: float_from_u64,                                                                        \
-            signed char: float_from_i64,                                                                               \
-            signed short: float_from_i64,                                                                              \
-            signed int: float_from_i64,                                                                                \
-            signed long: float_from_i64,                                                                               \
-            signed long long: float_from_i64,                                                                          \
-            float: float_from_f32,                                                                                     \
-            double: float_from_f64                                                                                     \
-        )((value), ALLOCATOR_OF(allocator_ptr))
+#    define FloatFrom(value, allocator_ptr)                                                                                                                                                                                                                                                                                                                                                                            \
+        _Generic((value), Int *: float_from_int, unsigned char: float_from_u64, unsigned short: float_from_u64, unsigned int: float_from_u64, unsigned long: float_from_u64, unsigned long long: float_from_u64, signed char: float_from_i64, signed short: float_from_i64, signed int: float_from_i64, signed long: float_from_i64, signed long long: float_from_i64, float: float_from_f32, double: float_from_f64)( \
+            (value),                                                                                                                                                                                                                                                                                                                                                                                                   \
+            ALLOCATOR_OF(allocator_ptr)                                                                                                                                                                                                                                                                                                                                                                                \
+        )
 #endif
 
     ///
@@ -95,10 +84,10 @@ extern "C" {
     ///
     bool float_try_from_str_zstr(Float *out, Zstr text);
     bool float_try_from_str_str(Float *out, const Str *text);
-#define FloatTryFromStr(out, text)                                                                                                                                \
-    _Generic((text), Str *: float_try_from_str_str, char *: float_try_from_str_zstr, Zstr : float_try_from_str_zstr)( \
-        (out),                                                                                                                                                    \
-        (text)                                                                                                                                                    \
+#define FloatTryFromStr(out, text)                                                                                     \
+    _Generic((text), Str *: float_try_from_str_str, Zstr: float_try_from_str_zstr, char *: float_try_from_str_zstr)(   \
+        (out),                                                                                                         \
+        (text)                                                                                                         \
     )
 
     ///
@@ -115,15 +104,15 @@ extern "C" {
     Float float_from_str_zstr(Zstr text, Allocator *alloc);
     Float float_from_str_str(const Str *text, Allocator *alloc);
 #define FloatFromStr(...) OVERLOAD(FloatFromStr, __VA_ARGS__)
-#define FloatFromStr_1(text)                                                                                                                      \
-    _Generic((text), Str *: float_from_str_str, char *: float_from_str_zstr, Zstr : float_from_str_zstr)( \
-        (text),                                                                                                                                   \
-        MisraScope                                                                                                                                \
+#define FloatFromStr_1(text)                                                                                           \
+    _Generic((text), Str *: float_from_str_str, Zstr: float_from_str_zstr, char *: float_from_str_zstr)(               \
+        (text),                                                                                                        \
+        MisraScope                                                                                                     \
     )
-#define FloatFromStr_2(text, alloc)                                                                                                               \
-    _Generic((text), Str *: float_from_str_str, char *: float_from_str_zstr, Zstr : float_from_str_zstr)( \
-        (text),                                                                                                                                   \
-        ALLOCATOR_OF(alloc)                                                                                                                       \
+#define FloatFromStr_2(text, alloc)                                                                                    \
+    _Generic((text), Str *: float_from_str_str, Zstr: float_from_str_zstr, char *: float_from_str_zstr)(               \
+        (text),                                                                                                        \
+        ALLOCATOR_OF(alloc)                                                                                            \
     )
 
     bool float_try_to_str(Str *out, const Float *value, Allocator *alloc);
@@ -146,7 +135,7 @@ extern "C" {
 /// TAGS: Float, Convert, String, Decimal
 ///
 #define FloatTryToStr(...)                 OVERLOAD(FloatTryToStr, __VA_ARGS__)
-#define FloatTryToStr_2(out, value)        float_try_to_str((out), (value), (value)->significand.bits.allocator)
+#define FloatTryToStr_2(out, value)        float_try_to_str((out), (value), FloatAllocator((value)))
 #define FloatTryToStr_3(out, value, alloc) float_try_to_str((out), (value), (alloc))
 
 ///
@@ -163,7 +152,7 @@ extern "C" {
 /// TAGS: Float, Convert, String, Decimal
 ///
 #define FloatToStr(...)            OVERLOAD(FloatToStr, __VA_ARGS__)
-#define FloatToStr_1(value)        float_to_str((value), (value)->significand.bits.allocator)
+#define FloatToStr_1(value)        float_to_str((value), FloatAllocator((value)))
 #define FloatToStr_2(value, alloc) float_to_str((value), (alloc))
 
 #endif // MISRA_STD_CONTAINER_FLOAT_CONVERT_H

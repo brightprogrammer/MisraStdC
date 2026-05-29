@@ -11,11 +11,11 @@
 /// returns NULL.
 ///
 /// `BudgetAllocator` is stateless with respect to the OS: it never calls
-/// `mmap` / `VirtualAlloc` / `malloc` and never embeds another
-/// allocator. The caller fully controls the backing memory (stack
-/// buffer, static buffer, region carved out of an arena, ...), which
-/// makes this allocator suitable for embedded / freestanding contexts
-/// and bounded scratch pools.
+/// `mmap` / `VirtualAlloc` and never embeds another allocator. The
+/// caller fully controls the backing memory (stack buffer, static
+/// buffer, region carved out of an arena, ...), which makes this
+/// allocator suitable for embedded / freestanding contexts and bounded
+/// scratch pools.
 ///
 /// Use `BudgetAllocator` when you want a hard cap on memory consumption
 /// for a specific slot class. Use `SlabAllocator` when you want the
@@ -120,7 +120,10 @@ extern "C" {
     ///
     /// SUCCESS: Returns `ptr` unchanged when `new_size <= slot_size`.
     ///          When `ptr` is NULL this behaves like
-    ///          `budget_allocator_allocate(self, new_size, 0)`.
+    ///          `budget_allocator_allocate(self, new_size, true)` --
+    ///          fresh allocations from a remap-NULL are zeroed. When
+    ///          `new_size == 0` the allocation is freed and NULL is
+    ///          returned.
     /// FAILURE: Returns NULL when `new_size > slot_size`. The old
     ///          allocation is left untouched.
     ///
@@ -208,14 +211,15 @@ extern "C" {
      ),                                                                                                                \
      ((BudgetAllocator) {                                                                                              \
          .base =                                                                                                       \
-             {.allocate    = (AllocatorAllocateFn)budget_allocator_allocate,                                           \
-                    .resize      = (AllocatorResizeFn)budget_allocator_resize,                                               \
-                    .remap       = (AllocatorRemapFn)budget_allocator_remap,                                                 \
-                    .deallocate  = (AllocatorDeallocateFn)budget_allocator_deallocate,                                       \
-                    .alignment   = (alignment_value),                                                                        \
-                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                    \
-                    .retry_limit = 0,                                                                                        \
-                    .__magic     = BUDGET_ALLOCATOR_MAGIC},                                                                      \
+             {.allocate        = (AllocatorAllocateFn)budget_allocator_allocate,                                       \
+                    .resize          = (AllocatorResizeFn)budget_allocator_resize,                                           \
+                    .remap           = (AllocatorRemapFn)budget_allocator_remap,                                             \
+                    .deallocate      = (AllocatorDeallocateFn)budget_allocator_deallocate,                                   \
+                    .alignment       = (alignment_value),                                                                    \
+                    .effort          = ALLOCATOR_EFFORT_ONCE,                                                                \
+                    .retry_limit     = 0,                                                                                    \
+                    .__magic         = BUDGET_ALLOCATOR_MAGIC,                                                               \
+                    .footprint_bytes = 0},                                                                                   \
          .buf          = (u8 *)(buf_ptr),                                                                              \
          .buf_bytes    = (total_bytes),                                                                                \
          .bitmap       = (u64 *)PTR_ALIGN_UP_POW2((buf_ptr), 8u),                                                      \

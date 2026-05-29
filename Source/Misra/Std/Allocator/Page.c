@@ -3,13 +3,12 @@
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Page-granular allocator implementation. Routes every allocation through
-/// the OS (mmap on POSIX, VirtualAlloc on Windows) so the library does not
-/// depend on libc malloc here. Per-allocator state is inline: a cached
-/// page size plus a descriptor table that tracks (ptr, mmap-byte-length)
-/// for every live region. Free recovers the byte count from the table so
-/// the caller never supplies it -- the kernel-needed size is in the
-/// allocator's own bookkeeping, where wrong values are structurally
-/// impossible.
+/// the OS (mmap on POSIX, VirtualAlloc on Windows). Per-allocator state is
+/// inline: a cached page size plus a descriptor table that tracks
+/// (ptr, mmap-byte-length) for every live region. Free recovers the byte
+/// count from the table so the caller never supplies it -- the
+/// kernel-needed size is in the allocator's own bookkeeping, where wrong
+/// values are structurally impossible.
 ///
 /// The descriptor table itself is managed via `os_page_map` / `os_page_unmap`
 /// directly, NOT through the public Allocator dispatch -- that would
@@ -83,8 +82,11 @@ static void page_validate_self(const PageAllocator *pg) {
         LOG_FATAL("PageAllocator: free_len {} exceeds free_cap {}", (u64)pg->free_len, (u64)pg->free_cap);
     }
     if ((pg->free_entries == NULL) != (pg->free_cap == 0)) {
-        LOG_FATAL("PageAllocator: free_entries / free_cap mismatch ({x} / {})",
-                  (u64)pg->free_entries, (u64)pg->free_cap);
+        LOG_FATAL(
+            "PageAllocator: free_entries / free_cap mismatch ({x} / {})",
+            (u64)pg->free_entries,
+            (u64)pg->free_cap
+        );
     }
     if (pg->free_len > 0 && !pg->free_entries) {
         LOG_FATAL("PageAllocator: free_len {} with NULL free_entries", (u64)pg->free_len);
@@ -139,10 +141,10 @@ static size page_rounded_size(PageAllocator *self, size bytes) {
 // that would recurse). Geometric growth: first grow fills exactly one
 // OS page; doublings thereafter.
 
-// Binary search a sorted-by-ptr table for `ptr`. Returns (u32)-1 on miss.
-// Both `entries` and `free_entries` use the same sort order so the same
-// helper works for live-region lookup (foreign-ptr check) and for
-// retained-region lookup (double-free check).
+// Binary search the live-region table (sorted by `ptr` ascending) for
+// `ptr`. Returns (u32)-1 on miss. Used for foreign-ptr / already-freed
+// detection on the live-region path; the retained-region table is
+// sorted by `bytes` and uses `page_free_find_size_match` instead.
 static u32 page_find_idx_sorted(const PageEntry *arr, u32 len, const void *ptr) {
     u32 lo = 0, hi = len;
     while (lo < hi) {
@@ -159,18 +161,11 @@ static u32 page_find_idx_sorted(const PageEntry *arr, u32 len, const void *ptr) 
     return (u32)-1;
 }
 
-// Legacy name retained for the resize / remap paths that check the live
-// table only.
-static u32 page_find_idx(const PageAllocator *page, const void *ptr) {
-    return page_find_idx_sorted(page->entries, page->len, ptr);
-}
-
 // Grow a Vec-shape (arr, len, cap, mmap_bytes) by doubling. First grow
 // fills one OS page; subsequent grows double. Caller supplies all four
 // field pointers so the same helper grows either `entries` or
 // `free_entries`. Returns false on OS-allocation failure or overflow.
-static bool page_table_grow_into(PageAllocator *page,
-                                 PageEntry **arr_p, u32 *len_p, u32 *cap_p, size *bytes_p) {
+static bool page_table_grow_into(PageAllocator *page, PageEntry **arr_p, u32 *len_p, u32 *cap_p, size *bytes_p) {
     size page_size = PageAllocatorPageSize(page);
     size want_bytes;
     if (*bytes_p == 0) {
@@ -184,13 +179,13 @@ static bool page_table_grow_into(PageAllocator *page,
     if (!new_rounded) {
         return false;
     }
-    PageEntry *new_table = (PageEntry *)os_page_map(new_rounded);
+    PageEntry *new_table = (PageEntry *)os_page_map(&page->base, new_rounded);
     if (!new_table) {
         return false;
     }
     if (*arr_p) {
         MemCopy(new_table, *arr_p, (size)*len_p * sizeof(PageEntry));
-        os_page_unmap(*arr_p, *bytes_p);
+        os_page_unmap(&page->base, *arr_p, *bytes_p);
     }
     *arr_p   = new_table;
     *bytes_p = new_rounded;
@@ -200,9 +195,15 @@ static bool page_table_grow_into(PageAllocator *page,
 
 // Insert (ptr, bytes) into a sorted-by-ptr table at the right position.
 // Grows the table if full. Returns false on grow failure.
-static bool page_table_insert_sorted(PageAllocator *page,
-                                     PageEntry **arr_p, u32 *len_p, u32 *cap_p, size *bytes_p,
-                                     void *ptr, size bytes) {
+static bool page_table_insert_sorted(
+    PageAllocator *page,
+    PageEntry    **arr_p,
+    u32           *len_p,
+    u32           *cap_p,
+    size          *bytes_p,
+    void          *ptr,
+    size           bytes
+) {
     if (*len_p == *cap_p && !page_table_grow_into(page, arr_p, len_p, cap_p, bytes_p)) {
         return false;
     }
@@ -217,14 +218,14 @@ static bool page_table_insert_sorted(PageAllocator *page,
             hi = mid;
         }
     }
-    u32 ins      = lo;
-    u32 to_move  = *len_p - ins;
+    u32 ins     = lo;
+    u32 to_move = *len_p - ins;
     if (to_move > 0u) {
         MemMove(&arr[ins + 1u], &arr[ins], (size)to_move * sizeof(PageEntry));
     }
-    arr[ins].ptr   = ptr;
-    arr[ins].bytes = bytes;
-    *len_p += 1u;
+    arr[ins].ptr    = ptr;
+    arr[ins].bytes  = bytes;
+    *len_p         += 1u;
     return true;
 }
 
@@ -232,8 +233,8 @@ static bool page_table_insert_sorted(PageAllocator *page,
 // down by one. Order in both `entries` and `free_entries` IS load-bearing
 // because we binary-search both.
 static void page_table_remove_sorted_at(PageEntry *arr, u32 *len_p, u32 idx) {
-    *len_p -= 1u;
-    u32 to_move = *len_p - idx;
+    *len_p      -= 1u;
+    u32 to_move  = *len_p - idx;
     if (to_move > 0u) {
         MemMove(&arr[idx], &arr[idx + 1u], (size)to_move * sizeof(PageEntry));
     }
@@ -264,8 +265,7 @@ static u32 page_free_find_size_match(const PageAllocator *page, size bytes) {
 // back to immediate munmap rather than leak the live entry).
 static bool page_free_insert_sorted(PageAllocator *page, void *ptr, size bytes) {
     if (page->free_len == page->free_cap &&
-        !page_table_grow_into(page, &page->free_entries, &page->free_len,
-                              &page->free_cap, &page->free_entries_bytes)) {
+        !page_table_grow_into(page, &page->free_entries, &page->free_len, &page->free_cap, &page->free_entries_bytes)) {
         return false;
     }
     PageEntry *arr = page->free_entries;
@@ -284,8 +284,8 @@ static bool page_free_insert_sorted(PageAllocator *page, void *ptr, size bytes) 
     if (to_move > 0u) {
         MemMove(&arr[ins + 1u], &arr[ins], (size)to_move * sizeof(PageEntry));
     }
-    arr[ins].ptr   = ptr;
-    arr[ins].bytes = bytes;
+    arr[ins].ptr    = ptr;
+    arr[ins].bytes  = bytes;
     page->free_len += 1u;
     return true;
 }
@@ -312,8 +312,15 @@ void *page_allocator_allocate(PageAllocator *self, size bytes, i8 zeroed) {
     u32 hit = page_free_find_size_match(self, rounded);
     if (hit != (u32)-1) {
         void *ptr = self->free_entries[hit].ptr;
-        if (!page_table_insert_sorted(self, &self->entries, &self->len, &self->cap,
-                                      &self->entries_bytes, ptr, rounded)) {
+        if (!page_table_insert_sorted(
+                self,
+                &self->entries,
+                &self->len,
+                &self->cap,
+                &self->entries_bytes,
+                ptr,
+                rounded
+            )) {
             // Failed to register in the live table; leave the entry on
             // the free list and fall through to mmap.
         } else {
@@ -328,14 +335,21 @@ void *page_allocator_allocate(PageAllocator *self, size bytes, i8 zeroed) {
 
     // Cache miss -- ask the kernel.
     {
-        void *ptr = os_page_map(rounded);
+        void *ptr = os_page_map(&self->base, rounded);
         if (!ptr) {
             goto done;
         }
-        if (!page_table_insert_sorted(self, &self->entries, &self->len, &self->cap,
-                                      &self->entries_bytes, ptr, rounded)) {
+        if (!page_table_insert_sorted(
+                self,
+                &self->entries,
+                &self->len,
+                &self->cap,
+                &self->entries_bytes,
+                ptr,
+                rounded
+            )) {
             // Table grow failed: don't strand the user mmap we just made.
-            os_page_unmap(ptr, rounded);
+            os_page_unmap(&self->base, ptr, rounded);
             goto done;
         }
         // OS-mapped pages are kernel-zeroed, no need to honour `zeroed`
@@ -347,9 +361,13 @@ void *page_allocator_allocate(PageAllocator *self, size bytes, i8 zeroed) {
 done:
 #if FEATURE_ALLOC_STATS
     if (result) {
+        // bytes_in_use tracks the page-rounded byte count (what
+        // page_allocator_deallocate subtracts); bytes_requested keeps
+        // tracking the user's `bytes`. Different units, by design --
+        // see AllocatorStats doc in Allocator.h.
         self->base.stats.allocations     += 1u;
         self->base.stats.bytes_requested += (u64)bytes;
-        self->base.stats.bytes_in_use    += (u64)bytes;
+        self->base.stats.bytes_in_use    += (u64)rounded;
         if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
             self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
         }
@@ -368,7 +386,7 @@ done:
 // the caller can fall back to remap, which alloc+copy+frees.
 i8 page_allocator_resize(PageAllocator *self, void *ptr, size new_size) {
     page_validate_self(self);
-    u32 idx = page_find_idx(self, ptr);
+    u32 idx = page_find_idx_sorted(self->entries, self->len, ptr);
     if (idx == (u32)-1) {
         // Unknown pointer -- resize can't succeed without knowing the
         // real mapping length; let the caller fall back to remap.
@@ -379,11 +397,10 @@ i8 page_allocator_resize(PageAllocator *self, void *ptr, size new_size) {
     i8   ok          = (old_rounded == new_rounded) ? 1 : 0;
 #if FEATURE_ALLOC_STATS
     if (ok) {
+        // In-place resize does NOT move bytes_in_use (see AllocatorStats
+        // doc in Allocator.h), so no peak refresh is possible here.
         self->base.stats.reallocations   += 1u;
         self->base.stats.bytes_requested += (u64)new_size;
-        if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
-            self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
-        }
     }
 #endif
     return ok;
@@ -402,7 +419,7 @@ void *page_allocator_remap(PageAllocator *self, void *ptr, size new_size) {
         return page_allocator_allocate(self, new_size, true);
     }
 
-    u32 idx = page_find_idx(self, ptr);
+    u32 idx = page_find_idx_sorted(self->entries, self->len, ptr);
     if (idx == (u32)-1) {
         LOG_FATAL("page_remap: foreign or already-freed ptr {x}", (u64)ptr);
         return NULL;
@@ -411,11 +428,10 @@ void *page_allocator_remap(PageAllocator *self, void *ptr, size new_size) {
     size new_rounded = page_rounded_size(self, new_size);
     if (old_rounded == new_rounded) {
 #if FEATURE_ALLOC_STATS
+        // In-place remap does NOT move bytes_in_use, so no peak refresh
+        // is possible here.
         self->base.stats.reallocations   += 1u;
         self->base.stats.bytes_requested += (u64)new_size;
-        if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
-            self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
-        }
 #endif
         return ptr;
     }
@@ -437,13 +453,13 @@ size page_allocator_deallocate(PageAllocator *self, void *ptr) {
     if (!ptr) {
         return 0;
     }
-    u32 idx = page_find_idx(self, ptr);
+    u32 idx = page_find_idx_sorted(self->entries, self->len, ptr);
     if (idx == (u32)-1) {
         // Missing from entries[] -- either foreign or already on the
-        // free_entries[] retention list. We don't distinguish: the
-        // free table is sorted by size for fast alloc-side lookup, so
-        // ptr-based bsearch isn't available there. Combined error is
-        // what this function already reported pre-retention.
+        // free_entries[] retention list. The two cases share one
+        // message because the retention table is sorted by size (for
+        // fast alloc-side exact-match lookup), so a ptr-keyed bsearch
+        // isn't available to disambiguate.
         LOG_FATAL("page_free: foreign or already-freed ptr {x}", (u64)ptr);
         return 0;
     }
@@ -456,7 +472,7 @@ size page_allocator_deallocate(PageAllocator *self, void *ptr) {
         // Free-list grow failed: fall back to munmap so we don't strand
         // the mapping. Rare path (only on extreme address-space
         // pressure for the free-list metadata buffer itself).
-        os_page_unmap(ptr, bytes);
+        os_page_unmap(&self->base, ptr, bytes);
     }
     page_table_remove_sorted_at(self->entries, &self->len, idx);
 #if FEATURE_ALLOC_STATS
@@ -470,28 +486,6 @@ size page_allocator_deallocate(PageAllocator *self, void *ptr) {
     return bytes;
 }
 
-size PageAllocatorFootprintBytes(const PageAllocator *self) {
-    if (!self) {
-        return 0;
-    }
-    // Live regions still owned by the user.
-    size total = 0;
-    for (u32 i = 0; i < self->len; i++) {
-        total += self->entries[i].bytes;
-    }
-    // Retained regions: user freed them, but the allocator's release
-    // policy keeps the mmap around until Deinit so the kernel still
-    // counts them as part of this process's address space.
-    for (u32 i = 0; i < self->free_len; i++) {
-        total += self->free_entries[i].bytes;
-    }
-    // The descriptor tables themselves are page-mapped via os_page_map
-    // (see page_table_grow_into) and live for the allocator's lifetime,
-    // so they belong in the kernel-visible footprint too.
-    total += self->entries_bytes;
-    total += self->free_entries_bytes;
-    return total;
-}
 
 void PageAllocatorDeinit(PageAllocator *self) {
     if (!self) {
@@ -500,19 +494,19 @@ void PageAllocatorDeinit(PageAllocator *self) {
     // Anything still in `entries` is a caller leak (forgot to Free).
     // Release the kernel mappings so they don't outlive the allocator.
     for (u32 i = 0; i < self->len; i++) {
-        os_page_unmap(self->entries[i].ptr, self->entries[i].bytes);
+        os_page_unmap(&self->base, self->entries[i].ptr, self->entries[i].bytes);
     }
     // Retained-but-unowned regions: deinit is the only point where the
     // OS gets these pages back. Without this loop the process would
     // leak every region the allocator had ever held.
     for (u32 i = 0; i < self->free_len; i++) {
-        os_page_unmap(self->free_entries[i].ptr, self->free_entries[i].bytes);
+        os_page_unmap(&self->base, self->free_entries[i].ptr, self->free_entries[i].bytes);
     }
     if (self->entries) {
-        os_page_unmap(self->entries, self->entries_bytes);
+        os_page_unmap(&self->base, self->entries, self->entries_bytes);
     }
     if (self->free_entries) {
-        os_page_unmap(self->free_entries, self->free_entries_bytes);
+        os_page_unmap(&self->base, self->free_entries, self->free_entries_bytes);
     }
     MemSet(self, 0, sizeof(*self));
 }
@@ -568,8 +562,9 @@ bool PageProtect(void *ptr, size bytes, PageProtection prot) {
     }
 #    else
     if (mprotect(ptr, (size_t)bytes, posix_prot) != 0) {
-        // libc path (macOS / non-direct-syscall): mprotect returns -1
-        // and the system error is recovered through ErrnoOf below.
+        // Non-direct-syscall path (macOS or builds with FEATURE_DIRECT_SYSCALL
+        // off): mprotect returns -1 and the system error is recovered
+        // through ErrnoOf below.
         LOG_SYS_ERROR(ErrnoOf(-1), "PageProtect: mprotect failed");
         return false;
     }

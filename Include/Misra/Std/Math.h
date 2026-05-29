@@ -16,17 +16,18 @@
 extern "C" {
 #endif
 
-/// IEEE 754 positive infinity / quiet NaN constants. Replaces libc's
-/// `HUGE_VAL` / `NAN` (`<float.h>` / `<math.h>`) which are off-limits
-/// inside the library proper.
+/// IEEE 754 positive infinity / quiet NaN constants -- the in-tree
+/// equivalents of the platform's positive-infinity and quiet-NaN
+/// double-precision values, kept free of any platform-header
+/// dependency.
 ///
 /// TAGS: Math, Float, Infinity, NaN, Constant
 ///
 #if defined(_MSC_VER) && !defined(__clang__)
-    // MSVC: no `__builtin_inf` etc.; HUGE_VAL / NAN come from
-    // `<float.h>` macros, but those are also libc territory. The
-    // explicit double literal `1e+308 * 10.0` overflows to +Inf at
-    // compile time on every conforming compiler; we lean on that.
+    // MSVC: no `__builtin_inf` / `__builtin_nan`. The explicit double
+    // literal `1e308 * 10.0` overflows to +Inf at compile time on every
+    // conforming compiler, and `+Inf - +Inf` is the canonical quiet
+    // NaN; we lean on both.
 #    define F64_INFINITY ((f64)(1e308 * 10.0))
 #    define F64_NAN      ((f64)(F64_INFINITY - F64_INFINITY))
 #else
@@ -132,9 +133,9 @@ extern "C" {
         return x < 0.0f ? -x : x;
     }
 
-    /// Integer power: x raised to a small signed exponent. Replaces
-    /// the libm `pow(x, n)` idiom for cases where n is a tolerance
-    /// scale factor (10^k). Loops, so don't use for hot paths.
+    /// Integer power: x raised to a small signed exponent. Fits the
+    /// tolerance-scale-factor (10^k) shape used by the in-tree numeric
+    /// parsers and printers. Loops, so don't use for hot paths.
     ///
     /// F64Pow(2.0, 10) == 1024.0
     /// F64Pow(10.0, -3) == 0.001

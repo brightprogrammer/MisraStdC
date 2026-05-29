@@ -17,7 +17,7 @@ bool test_vec_insert_range(void);
 bool test_vec_merge(void);
 bool test_vec_init_clone_inherits_allocator_config(void);
 bool test_lvalue_rvalue_operations(void);
-bool test_lvalue_memset_after_insertion(void);
+bool test_lvalue_zero_on_take_after_insertion(void);
 
 // Test VecPushBack function
 static DefaultAllocator alloc;
@@ -315,9 +315,10 @@ bool test_vec_init_clone_inherits_allocator_config(void) {
 
     typedef Vec(int) IntVec;
 
-    HeapAllocator local_heap    = HeapAllocatorInit();
-    // White-box: no public effort/retry_limit setter on Allocator; we
-    // poke the base fields directly to exercise the retry policy.
+    HeapAllocator local_heap = HeapAllocatorInit();
+    // intentional bypass: no public setter on `Allocator` for effort /
+    // retry_limit -- pre-seeded directly so the inheritance path below
+    // can be observed end-to-end.
     local_heap.base.effort      = ALLOCATOR_EFFORT_RETRY_FALLBACK;
     local_heap.base.retry_limit = 11;
 
@@ -330,7 +331,7 @@ bool test_vec_init_clone_inherits_allocator_config(void) {
     // so alignment must be 1 (default) for src.data to be a contiguous
     // int[]. Stronger alignment is exercised separately - it's not what
     // this test is asserting.
-    IntVec dst      = VecInit(VecAllocator(&src));
+    IntVec dst = VecInit(VecAllocator(&src));
     // intentional bypass: testing hook propagation; no public VecSetCopyHooks mutator exists
     dst.copy_init   = src.copy_init;
     dst.copy_deinit = src.copy_deinit;
@@ -433,9 +434,9 @@ bool test_lvalue_rvalue_operations(void) {
     return result;
 }
 
-// Test that L-value insertions properly memset values to 0 after insertion
-bool test_lvalue_memset_after_insertion(void) {
-    WriteFmt("Testing L-value memset after insertion\n");
+// Test that L-value insertions properly zero out values after insertion
+bool test_lvalue_zero_on_take_after_insertion(void) {
+    WriteFmt("Testing L-value zero-on-take after insertion\n");
 
     // Create a vector of integers without copy_init
     typedef Vec(int) IntVec;
@@ -444,23 +445,23 @@ bool test_lvalue_memset_after_insertion(void) {
     // Test VecPushBackL
     int val1 = 10;
     VecPushBackL(&vec, val1);
-    bool result = (val1 == 0); // Should be memset to 0
+    bool result = (val1 == 0); // Should be zeroed
 
     // Test VecPushFrontL
     int val2 = 20;
     VecPushFrontL(&vec, val2);
-    result = result && (val2 == 0); // Should be memset to 0
+    result = result && (val2 == 0); // Should be zeroed
 
     // Test VecInsertL
     int val3 = 30;
     VecInsertL(&vec, val3, 1);
-    result = result && (val3 == 0); // Should be memset to 0
+    result = result && (val3 == 0); // Should be zeroed
 
     // Test array operations
     int arr[] = {40, 50, 60};
     VecPushBackArrL(&vec, arr, 3);
 
-    // Check that array elements are memset to 0
+    // Check that array elements are zeroed
     result = result && (arr[0] == 0);
     result = result && (arr[1] == 0);
     result = result && (arr[2] == 0);
@@ -468,13 +469,13 @@ bool test_lvalue_memset_after_insertion(void) {
     // Test VecInsertFastL
     int val4 = 70;
     VecInsertFastL(&vec, val4, 2);
-    result = result && (val4 == 0); // Should be memset to 0
+    result = result && (val4 == 0); // Should be zeroed
 
     // Test VecInsertRangeL
     int range[] = {80, 90, 100};
     VecInsertRangeL(&vec, range, 1, 3);
 
-    // Check that array elements are memset to 0
+    // Check that array elements are zeroed
     result = result && (range[0] == 0);
     result = result && (range[1] == 0);
     result = result && (range[2] == 0);
@@ -483,7 +484,7 @@ bool test_lvalue_memset_after_insertion(void) {
     int fast_range[] = {110, 120, 130};
     VecInsertRangeFastL(&vec, fast_range, 3, 3);
 
-    // Check that array elements are memset to 0
+    // Check that array elements are zeroed
     result = result && (fast_range[0] == 0);
     result = result && (fast_range[1] == 0);
     result = result && (fast_range[2] == 0);
@@ -526,7 +527,7 @@ int main(void) {
         test_vec_merge,
         test_vec_init_clone_inherits_allocator_config,
         test_lvalue_rvalue_operations,
-        test_lvalue_memset_after_insertion
+        test_lvalue_zero_on_take_after_insertion
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);

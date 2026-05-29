@@ -60,7 +60,7 @@
 
 #        define BEAM_SA_RESTORER 0x04000000UL
 
-struct misra_kernel_sigaction {
+struct kernel_sigaction {
     void (*sa_handler)(int);
     unsigned long sa_flags;
     void (*sa_restorer)(void);
@@ -72,7 +72,7 @@ struct misra_kernel_sigaction {
 // rt_sigreturn ourselves; the kernel doesn't restore for us. `naked`
 // keeps the compiler from emitting a prologue that'd clobber the
 // kernel-built signal frame on the stack.
-__attribute__((naked)) static void misra_sigreturn_restorer(void) {
+__attribute__((naked)) static void sigreturn_restorer(void) {
     __asm__(
         "movq $"
         "15"
@@ -83,11 +83,11 @@ __attribute__((naked)) static void misra_sigreturn_restorer(void) {
 #        endif
 
 static void install_signal(int signum, void (*handler)(int)) {
-    struct misra_kernel_sigaction sa = {0};
-    sa.sa_handler                    = handler;
+    struct kernel_sigaction sa = {0};
+    sa.sa_handler              = handler;
 #        if ARCHITECTURE_X86_64
     sa.sa_flags    = BEAM_SA_RESTORER;
-    sa.sa_restorer = misra_sigreturn_restorer;
+    sa.sa_restorer = sigreturn_restorer;
 #        endif
     // 4th arg = sigsetsize in bytes (Linux ABI requires 8 for the
     // standard signal set).
@@ -104,7 +104,7 @@ static void install_signal(int signum, void (*handler)(int)) {
 // (Headers downstream of Misra/Sys/Socket.h drag <signal.h> in
 // transitively, so we can't escape the macro.) Layout is what matters
 // to the kernel, not the field names.
-struct misra_kernel_sigaction {
+struct kernel_sigaction {
     void (*kh_handler)(int);                            // handler -> sa_handler slot
     void (*kh_tramp)(void *, int, int, void *, void *); // trampoline (calls handler+sigreturn)
     unsigned int kh_mask;                               // 32-bit signal set (sa_mask slot)
@@ -128,7 +128,7 @@ struct misra_kernel_sigaction {
 //     Then SYS_sigreturn(uctx, sigstyle). The syscall never returns.
 //
 // We only register UC_TRAD-style handlers, so just dispatch that case.
-__attribute__((naked)) static void misra_darwin_sigtramp(void) {
+__attribute__((naked)) static void darwin_sigtramp(void) {
     __asm__(
         // Save handler, uctx, sigstyle on stack.
         "stp x0, x4, [sp, #-32]!\n" // handler @0, uctx @8
@@ -155,7 +155,7 @@ __attribute__((naked)) static void misra_darwin_sigtramp(void) {
 //     %rcx = sinfo
 //     %r8  = uctx
 //   Action: handler(sig); then sigreturn(uctx, sigstyle).
-__attribute__((naked)) static void misra_darwin_sigtramp(void) {
+__attribute__((naked)) static void darwin_sigtramp(void) {
     __asm__(
         "subq $32, %rsp\n"        // 16-aligned scratch (kernel guarantees 16-aligned entry)
         "movq %rdi, 0(%rsp)\n"    // save handler
@@ -173,15 +173,15 @@ __attribute__((naked)) static void misra_darwin_sigtramp(void) {
 #        endif
 
 static void install_signal(int signum, void (*handler)(int)) {
-    struct misra_kernel_sigaction sa = {0};
-    sa.kh_handler                    = handler;
+    struct kernel_sigaction sa = {0};
+    sa.kh_handler              = handler;
     // SIG_IGN doesn't actually invoke the trampoline, but the kernel
     // still copies sa_tramp into per-thread state. Point it at our
     // trampoline unconditionally -- safe even when unused. Cast
     // through (void(*)(void)) to silence the trampoline-signature
     // mismatch (declared as 5-arg in the struct; defined as naked
     // void() with kernel-shaped register entry).
-    sa.kh_tramp = (void (*)(void *, int, int, void *, void *))(void (*)(void))misra_darwin_sigtramp;
+    sa.kh_tramp = (void (*)(void *, int, int, void *, void *))(void (*)(void))darwin_sigtramp;
     misra_sys3(MISRA_SYS_rt_sigaction, (long)signum, (long)(u64)&sa, 0);
 }
 
@@ -235,9 +235,8 @@ static void install_signal_handlers(void) {
 #else
     // Other POSIX (BSD on non-x86_64/aarch64 hardware, etc.): fall
     // back to libc sigaction.
-    struct sigaction sa;
-    MemSet(&sa, 0, sizeof(sa));
-    sa.sa_handler = on_signal;
+    struct sigaction sa = {0};
+    sa.sa_handler       = on_signal;
     sigemptyset(&sa.sa_mask);
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
@@ -245,14 +244,13 @@ static void install_signal_handlers(void) {
 #endif
 }
 
-static void log_request_summary(Allocator *alloc, Zstr client_addr, Zstr prefix_bytes, size prefix_len) {
+static void log_request_summary(Zstr client_addr, Zstr prefix_bytes, size prefix_len) {
     Scope(scope, DefaultAllocator) {
-        (void)alloc;
         Str raw = StrInit(scope);
         StrPushBackMany(&raw, prefix_bytes);
 
         HttpRequest req = HttpRequestInit(scope);
-        Zstr end = HttpRequestParse(&req, (Zstr)StrBegin(&raw));
+        Zstr        end = HttpRequestParse(&req, (Zstr)StrBegin(&raw));
         if (end == StrBegin(&raw)) {
             LOG_INFO("[{}] (unparseable request, {} bytes)", client_addr, (u64)prefix_len);
         } else {
@@ -369,7 +367,7 @@ static void handle_connection(Allocator *alloc, Socket *client, const SocketAddr
     // parser scans a NUL-terminated buffer.
     if ((size)first_n < sizeof(first)) {
         first[first_n] = 0;
-        log_request_summary(alloc, StrBegin(&peer_str), first, (size)first_n);
+        log_request_summary(StrBegin(&peer_str), first, (size)first_n);
     } else {
         LOG_INFO("[{}] (request larger than {} bytes, not logging line)", peer_str, (u64)sizeof(first));
     }

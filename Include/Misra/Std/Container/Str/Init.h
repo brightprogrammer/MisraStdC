@@ -188,8 +188,8 @@ extern "C" {
 ///
 /// No allocator -- the backing storage is the stack. The body is
 /// responsible for keeping content bounded by `ne`. Any operation
-/// that would grow `name` past `ne` lands in `reserve_vec`, sees
-/// the NULL allocator, and aborts via
+/// that would grow `name` past `ne` ends up calling `StrReserve`,
+/// which sees the NULL allocator and aborts via
 /// `LOG_FATAL("vector not growable, no allocator assigned, probably stack inited")`.
 /// Use a heap-backed `Str` if you need spill behaviour.
 ///

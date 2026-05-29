@@ -70,8 +70,9 @@ bool test_int_clone_inherits_allocator_config(void) {
     WriteFmt("Testing IntClone allocator inheritance\n");
 
     DefaultAllocator alloc = DefaultAllocatorInit();
-    // White-box: no public effort/retry_limit setter on Allocator; we
-    // poke the base fields directly to exercise the retry policy.
+    // intentional bypass: no public setter on `Allocator` for effort /
+    // retry_limit -- pre-seeded directly so the inheritance path below
+    // can be observed end-to-end.
     alloc.base.effort      = ALLOCATOR_EFFORT_RETRY_FALLBACK;
     alloc.base.retry_limit = 5;
 
@@ -84,13 +85,12 @@ bool test_int_clone_inherits_allocator_config(void) {
     Int clone = IntClone(&original);
 
     bool result =
-        BitVecLen(&clone.bits) == BitVecLen(&original.bits) &&
-        VecAllocator(&clone.bits) == VecAllocator(&original.bits) &&
-        VecAllocator(&clone.bits)->allocate == VecAllocator(&original.bits)->allocate &&
-        VecAllocator(&clone.bits)->remap == VecAllocator(&original.bits)->remap &&
-        VecAllocator(&clone.bits)->deallocate == VecAllocator(&original.bits)->deallocate &&
-        VecAllocator(&clone.bits)->effort == VecAllocator(&original.bits)->effort &&
-        VecAllocator(&clone.bits)->retry_limit == VecAllocator(&original.bits)->retry_limit &&
+        BitVecLen(&clone.bits) == BitVecLen(&original.bits) && IntAllocator(&clone) == IntAllocator(&original) &&
+        IntAllocator(&clone)->allocate == IntAllocator(&original)->allocate &&
+        IntAllocator(&clone)->remap == IntAllocator(&original)->remap &&
+        IntAllocator(&clone)->deallocate == IntAllocator(&original)->deallocate &&
+        IntAllocator(&clone)->effort == IntAllocator(&original)->effort &&
+        IntAllocator(&clone)->retry_limit == IntAllocator(&original)->retry_limit &&
         BitVecGet(&clone.bits, 0) == true && BitVecGet(&clone.bits, 1) == false && BitVecGet(&clone.bits, 2) == true;
 
     IntDeinit(&original);

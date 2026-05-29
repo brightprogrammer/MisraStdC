@@ -255,10 +255,10 @@ extern "C" {
     ///
     bool bitvec_regex_match_zstr(BitVec *bv, Zstr pattern);
     bool bitvec_regex_match_str(BitVec *bv, const Str *pattern);
-#define BitVecRegexMatch(bv, pattern)                                                                                                                                \
-    _Generic((pattern), Str *: bitvec_regex_match_str, char *: bitvec_regex_match_zstr, Zstr : bitvec_regex_match_zstr)( \
-        (bv),                                                                                                                                                        \
-        (pattern)                                                                                                                                                    \
+#define BitVecRegexMatch(bv, pattern)                                                                                   \
+    _Generic((pattern), Str *: bitvec_regex_match_str, Zstr: bitvec_regex_match_zstr, char *: bitvec_regex_match_zstr)( \
+        (bv),                                                                                                           \
+        (pattern)                                                                                                       \
     )
 
     ///

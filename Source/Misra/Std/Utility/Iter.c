@@ -78,6 +78,6 @@ void validate_iter(GenericIter *i) {
     // sentinel. Both are valid here -- the position checks belong in the
     // iter-move helpers, not in the structural validator.
     if ((i->dir != -1 && i->dir != 1) || !i->alignment) {
-        LOG_FATAL("Invalid iter object.");
+        LOG_FATAL("Invalid iter object");
     }
 }

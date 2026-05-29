@@ -87,7 +87,7 @@ void *MemSet(void *dst, i32 val, size n) {
 }
 
 // ---------------------------------------------------------------------------
-// MemSort: in-tree generic sort. Replaces libc qsort. Quicksort with
+// MemSort: in-tree generic-flat-array sort. Quicksort with
 // median-of-three pivot, insertion-sort fallback for small partitions
 // (<= 16 items), tail-iteration on the larger half to bound stack at
 // O(log n). Worst-case O(n^2) on adversarial inputs is accepted -- no

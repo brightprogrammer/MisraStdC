@@ -46,6 +46,10 @@ void *MemCopy(void *dst, const void *src, size n);
 /// Move memory from source to destination, handling overlapping regions.
 /// A zero byte count returns `dst` without reading either pointer.
 ///
+/// dst[out] : Destination memory region.
+/// src[in]  : Source memory region.
+/// n[in]    : Number of bytes to move.
+///
 /// SUCCESS: Returns destination pointer.
 /// FAILURE: Aborts via LOG_FATAL when `n > 0` and either `dst` or `src`
 ///          is NULL.
@@ -57,6 +61,10 @@ void *MemMove(void *dst, const void *src, size n);
 /// Set memory region to a value.
 /// A zero byte count returns `dst` without writing to it.
 ///
+/// dst[out] : Destination memory region.
+/// val[in]  : Byte value to write (low 8 bits used).
+/// n[in]    : Number of bytes to set.
+///
 /// SUCCESS: Returns destination pointer.
 /// FAILURE: Aborts via LOG_FATAL when `n > 0` and `dst` is NULL.
 ///
@@ -67,8 +75,8 @@ void *MemSet(void *dst, i32 val, size n);
 /// Generic in-place sort over a flat array of fixed-size items.
 /// Quicksort with median-of-three pivot, insertion-sort fallback for
 /// small partitions, tail-iteration on the larger side to bound stack
-/// depth at O(log n). Stable across compilers / platforms because we
-/// don't depend on libc's `qsort`.
+/// depth at O(log n). The implementation is fully in-tree, so sort
+/// behaviour is bit-for-bit identical across compilers and platforms.
 ///
 /// base[in,out] : Pointer to the first element of the array.
 /// n_items[in]  : Number of items in the array.

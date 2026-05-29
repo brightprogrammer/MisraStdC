@@ -30,6 +30,7 @@ bool test_bitvec_set_operations_edge_cases(void);
 bool test_bitvec_comprehensive_comparison(void);
 bool test_bitvec_large_scale_comparison(void);
 bool test_bitvec_compare_null_failures(void);
+bool test_bitvec_compare_callback(void);
 bool test_bitvec_subset_null_failures(void);
 bool test_bitvec_range_null_failures(void);
 bool test_bitvec_range_bounds_failures(void);
@@ -1016,14 +1017,15 @@ bool test_bitvec_hash_distinguishes(void) {
     return result;
 }
 
-// End-to-end: BitVec as a Map key via the typed-then-cast pattern.
+// End-to-end: BitVec as a Map key with the GenericHash/GenericCompare-
+// shaped helpers wired in directly -- no per-callsite cast needed.
 bool test_bitvec_hash_as_map_key(void) {
     WriteFmt("Testing bitvec_hash as Map<BitVec, u64> key\n");
 
     DefaultAllocator alloc = DefaultAllocatorInit();
     Allocator       *base  = ALLOCATOR_OF(&alloc);
 
-    Map(BitVec, u64) counts = MapInit(bitvec_hash, BitVecCompare, &alloc);
+    Map(BitVec, u64) counts = MapInit(bitvec_hash, bitvec_compare, &alloc);
 
     BitVec k1 = BitVecInit(base);
     BitVecPush(&k1, true);
@@ -1062,6 +1064,40 @@ bool test_bitvec_hash_as_map_key(void) {
     return result;
 }
 
+// Drop bitvec_compare into a GenericCompare slot and check ordering /
+// equality / identity. Mirrors how str_compare is exercised.
+bool test_bitvec_compare_callback(void) {
+    WriteFmt("Testing bitvec_compare as GenericCompare callback\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec a = BitVecInit(base);
+    BitVecPush(&a, false);
+    BitVecPush(&a, true);
+
+    BitVec b = BitVecInit(base);
+    BitVecPush(&b, false);
+    BitVecPush(&b, true);
+
+    BitVec c = BitVecInit(base);
+    BitVecPush(&c, true);
+    BitVecPush(&c, false);
+
+    GenericCompare cmp = bitvec_compare;
+
+    bool result = (cmp(&a, &b) == 0);
+    result      = result && (cmp(&a, &c) < 0);
+    result      = result && (cmp(&c, &a) > 0);
+    result      = result && (cmp(&a, &a) == 0);
+
+    BitVecDeinit(&a);
+    BitVecDeinit(&b);
+    BitVecDeinit(&c);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 // Main function that runs all tests
 int main(void) {
     WriteFmt("[INFO] Starting BitVec.Compare tests\n\n");
@@ -1088,7 +1124,8 @@ int main(void) {
         test_bitvec_compare_edge_cases,
         test_bitvec_set_operations_edge_cases,
         test_bitvec_comprehensive_comparison,
-        test_bitvec_large_scale_comparison
+        test_bitvec_large_scale_comparison,
+        test_bitvec_compare_callback
     };
 
     // Array of deadend test functions

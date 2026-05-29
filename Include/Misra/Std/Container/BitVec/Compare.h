@@ -156,21 +156,38 @@ extern "C" {
     /// Hash a `BitVec` for use as a map key. FNV-1a over the live bits
     /// with the bit length mixed in at the tail, so two bitvectors that
     /// share a byte prefix but differ in length still land in different
-    /// buckets. Typed signature; cast to `GenericHash` at the `Map` /
-    /// `Vec` callback site.
+    /// buckets. Matches the `GenericHash` shape so it drops straight
+    /// into map / vec hash slots.
     ///
-    /// bv[in]   : BitVec to hash.
-    /// size[in] : Ignored. Included for `GenericHash`-cast compatibility.
+    /// data[in] : Pointer to the `BitVec` to hash.
+    /// size[in] : Ignored. Included for `GenericHash` callback
+    ///            compatibility; the bitvec's real length lives inside
+    ///            its header.
     ///
     /// SUCCESS : Returns a stable hash of the bit pattern + length.
     /// FAILURE : Cannot fail; aborts on a corrupted magic via the validator.
     ///
     /// USAGE:
-    ///   Map(BitVec, u64) counts = MapInit(bitvec_hash, BitVecCompare, alloc);
+    ///   Map(BitVec, u64) counts = MapInit(bitvec_hash, bitvec_compare, alloc);
     ///
     /// TAGS: BitVec, Hash, GenericHash
     ///
-    u64 bitvec_hash(BitVec *bv, u32 size);
+    u64 bitvec_hash(const void *data, u32 size);
+
+    ///
+    /// Compare two `BitVec` values lexicographically. Shape matches
+    /// `GenericCompare` so it can drop into map / vec compare slots.
+    ///
+    /// lhs[in] : Pointer to the left `BitVec`.
+    /// rhs[in] : Pointer to the right `BitVec`.
+    ///
+    /// SUCCESS : Returns `0` when equal, `<0` when `lhs < rhs`, `>0`
+    ///           when `lhs > rhs`. Neither operand is modified.
+    /// FAILURE : Function cannot fail.
+    ///
+    /// TAGS: BitVec, Compare, GenericCompare
+    ///
+    i32 bitvec_compare(const void *lhs, const void *rhs);
 
     ///
     /// Compare two bitvectors as unsigned integers.

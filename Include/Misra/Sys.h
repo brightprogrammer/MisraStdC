@@ -65,14 +65,14 @@ typedef u64 ProcId;
 /// uniformly across platforms and -- critically -- avoids touching
 /// `__errno_location` on the direct-syscall path.
 ///
+/// ret[in] : Return value from a system call. Negative on the
+///           direct-syscall path means `-errno`; -1 on the libc
+///           fallback means "errno was set".
+///
 /// SUCCESS : Returns the errno code (>= 0) corresponding to `ret`.
 /// FAILURE : Function cannot fail.
 ///
-/// USAGE:
-///   long pid = misra_sys0(MISRA_SYS_fork);
-///   if (pid < 0) {
-///       LOG_SYS_ERROR(ErrnoOf(pid), "fork failed");
-///   }
+/// TAGS: System, Errno
 ///
 static inline i32 ErrnoOf(long ret) {
 #if FEATURE_DIRECT_SYSCALL
@@ -149,11 +149,13 @@ void OnAbort(AbortCallback callback);
 
 ///
 /// Custom abort function that can be redirected for testing purposes.
-/// By default, this traps directly via the architecture's native trap
-/// instruction. If a callback is registered via `OnAbort`, it is
-/// invoked instead.
+/// Traps directly via the architecture's native trap instruction. If
+/// a callback is registered via `OnAbort`, it runs first; control then
+/// falls through to the trap (a callback that wants to short-circuit
+/// `Abort` must `longjmp` or `exit` itself).
 ///
-/// SUCCESS : Function does not return (either aborts or calls callback).
+/// SUCCESS : Function does not return. Any registered callback runs
+///           first, then the hardware trap fires.
 /// FAILURE : Function cannot fail.
 ///
 /// TAGS: System, Testing, Control

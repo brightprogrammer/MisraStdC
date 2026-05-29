@@ -97,7 +97,7 @@ static bool entry_open_dsym(MachoCacheEntry *e, Allocator *alloc) {
         return true;
     if (!e->main_open)
         return false;
-    if (!e->main.has_uuid) {
+    if (!MachoHasUuid(&e->main)) {
         // Without a UUID we can't validate a dSYM pairing -- bail.
         return false;
     }
@@ -113,7 +113,7 @@ static bool entry_open_dsym(MachoCacheEntry *e, Allocator *alloc) {
     }
     StrDeinit(&path);
 
-    if (!e->dsym.has_uuid || MemCompare(e->dsym.uuid, e->main.uuid, 16) != 0) {
+    if (!MachoHasUuid(&e->dsym) || MemCompare(MachoUuid(&e->dsym), MachoUuid(&e->main), 16) != 0) {
         LOG_ERROR("MachoCache: dSYM UUID mismatch for {}", e->module_path);
         MachoDeinit(&e->dsym);
         return false;
@@ -134,11 +134,11 @@ static bool entry_build_dwarf(MachoCacheEntry *e, Allocator *alloc) {
     const MachoSection *abbrev_sec = MachoFindSection(&e->dsym, "__DWARF", "__debug_abbrev");
     const MachoSection *str_sec    = MachoFindSection(&e->dsym, "__DWARF", "__debug_str");
 
-    const u8 *info_b   = info_sec ? BufData(&e->dsym.data) + info_sec->offset : NULL;
+    const u8 *info_b   = info_sec ? BufData(MachoBuf(&e->dsym)) + info_sec->offset : NULL;
     u64       info_n   = info_sec ? info_sec->size : 0;
-    const u8 *abbrev_b = abbrev_sec ? BufData(&e->dsym.data) + abbrev_sec->offset : NULL;
+    const u8 *abbrev_b = abbrev_sec ? BufData(MachoBuf(&e->dsym)) + abbrev_sec->offset : NULL;
     u64       abbrev_n = abbrev_sec ? abbrev_sec->size : 0;
-    const u8 *str_b    = str_sec ? BufData(&e->dsym.data) + str_sec->offset : NULL;
+    const u8 *str_b    = str_sec ? BufData(MachoBuf(&e->dsym)) + str_sec->offset : NULL;
     u64       str_n    = str_sec ? str_sec->size : 0;
 
     e->fns_ok = DwarfFunctionsBuildFromSlices(&e->fns, info_b, info_n, abbrev_b, abbrev_n, str_b, str_n, alloc);
@@ -167,12 +167,12 @@ void MachoCacheDeinit(MachoCache *self) {
 }
 
 bool macho_cache_resolve_zstr(
-    MachoCache  *self,
-    Zstr         module_path,
-    u64          slide,
-    u64          runtime_ip,
-    Zstr *out_name,
-    u32         *out_offset
+    MachoCache *self,
+    Zstr        module_path,
+    u64         slide,
+    u64         runtime_ip,
+    Zstr       *out_name,
+    u32        *out_offset
 ) {
     if (!self || !module_path || !out_name)
         return false;
@@ -224,12 +224,12 @@ bool macho_cache_resolve_zstr(
 }
 
 bool macho_cache_resolve_str(
-    MachoCache  *self,
-    const Str   *module_path,
-    u64          slide,
-    u64          runtime_ip,
-    Zstr *out_name,
-    u32         *out_offset
+    MachoCache *self,
+    const Str  *module_path,
+    u64         slide,
+    u64         runtime_ip,
+    Zstr       *out_name,
+    u32        *out_offset
 ) {
     if (!module_path) {
         return false;

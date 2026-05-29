@@ -95,7 +95,6 @@ void clear_vec(GenericVec *vec, size item_size) {
     vec->length = 0;
 }
 
-// Reserve new space if n > capacity
 bool reserve_vec(GenericVec *vec, size item_size, size n) {
     size aligned_size;
 
@@ -110,7 +109,8 @@ bool reserve_vec(GenericVec *vec, size item_size, size n) {
         u8  *ptr          = (u8 *)AllocatorRealloc(vec->allocator, vec->data, aligned_size * (n + 1));
 
         if (!ptr) {
-            // Not LOG_SYS_ERROR: allocator failures don't set errno.
+            // Not LOG_SYS_ERROR: allocator failures don't flow through the
+            // syscall error path; the LOG_ERROR variant is the right report.
             LOG_ERROR("allocator reallocate failed");
             return false;
         }
@@ -164,7 +164,8 @@ bool reduce_space_vec(GenericVec *vec, size item_size) {
     } else {
         u8 *ptr = (u8 *)AllocatorRealloc(vec->allocator, vec->data, aligned_size * (vec->length + 1));
         if (!ptr) {
-            // Not LOG_SYS_ERROR: allocator failures don't set errno.
+            // Not LOG_SYS_ERROR: allocator failures don't flow through the
+            // syscall error path; the LOG_ERROR variant is the right report.
             LOG_ERROR("allocator reallocate failed");
             return false;
         }
@@ -340,11 +341,12 @@ void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size 
         LOG_FATAL("vector range out of bounds.");
     }
 
+    // Drain payloads first: handing them to the caller buffer xor
+    // running copy_deinit. Doing it before the slide keeps the source
+    // bytes live for both paths and lets the slide be a single MemMove.
     if (removed_data) {
-        // make copy of data if user want's a copy
         MemCopy(removed_data, vec_ptr_at(vec, start, item_size), count * vec_aligned_size(vec, item_size));
     } else {
-        // if no space provided to copy data over to, just destroy or `MemSet` it
         if (vec->copy_deinit) {
             u8 *vec_data = vec_ptr_at(vec, start, item_size);
             for (size s = 0; s < count; s++) {
@@ -356,13 +358,12 @@ void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size 
         }
     }
 
-    // all elements to new created space
+    // Compact the tail leftward over the drained window. MemMove (not
+    // MemCopy) because the source and destination ranges overlap when
+    // start + count < length.
     MemMove(
-        // move to freed up space
         vec_ptr_at(vec, start, item_size),
-        // start moving all elements just after the freed up space
         vec_ptr_at(vec, start + count, item_size),
-        // these elements appear after "start + count" index
         (vec->length - start - count) * vec_aligned_size(vec, item_size)
     );
     MemSet(vec_ptr_at(vec, (vec->length - count), item_size), 0, count * vec_aligned_size(vec, item_size));
@@ -385,11 +386,9 @@ void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, 
         LOG_FATAL("vector range out of bounds.");
     }
 
-    // Save the data to be removed if requested
     if (removed_data) {
         MemCopy(removed_data, vec_ptr_at(vec, start, item_size), count * vec_aligned_size(vec, item_size));
     } else {
-        // Otherwise, properly clean up the memory
         if (vec->copy_deinit) {
             u8 *vec_data = vec_ptr_at(vec, start, item_size);
             for (size s = 0; s < count; s++) {
@@ -401,38 +400,35 @@ void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, 
         }
     }
 
-    // Calculate how many elements we can move from the end
+    // Swap-from-end remove: fill the just-vacated gap with the last
+    // `count` elements. When the gap touches the tail there are fewer
+    // than `count` survivors past it, so cap the move to whatever exists.
     size available_elements = vec->length - (start + count);
     size elements_to_move   = count;
 
-    // If we don't have enough elements at the end, adjust the count
     if (elements_to_move > available_elements) {
         elements_to_move = available_elements;
     }
 
     if (elements_to_move > 0) {
-        // Move the last 'elements_to_move' elements to the gap
         MemMove(
-            // Move to freed up space
             vec_ptr_at(vec, start, item_size),
-            // Start from the position that leaves exactly 'elements_to_move' elements
             vec_ptr_at(vec, vec->length - elements_to_move, item_size),
-            // Move 'elements_to_move' elements
             elements_to_move * vec_aligned_size(vec, item_size)
         );
     }
 
-    // Clear the remaining elements at the end
     MemSet(vec_ptr_at(vec, vec->length - count, item_size), 0, count * vec_aligned_size(vec, item_size));
 
     vec->length -= count;
 
-    // Make sure space just after vector length is `MemSet` to 0
+    // Keep the post-length sentinel slot zeroed so VecBegin-returned arrays
+    // are safe to treat as NUL-terminated where the element type allows.
     MemSet(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
 }
 
 
-void qsort_vec(GenericVec *vec, size item_size, GenericCompare comp) {
+void vec_sort(GenericVec *vec, size item_size, GenericCompare comp) {
     ValidateVec(vec);
 
     if (vec_aligned_size(vec, item_size) != item_size) {
@@ -518,13 +514,13 @@ bool resize_vec(GenericVec *vec, size item_size, size new_size) {
 }
 
 void validate_vec(const GenericVec *v) {
-    if (!(v)) {
+    if (!v) {
         LOG_FATAL("NULL vec object pointer.");
     }
-    if ((v)->__magic != VEC_MAGIC) {
+    if (v->__magic != VEC_MAGIC) {
         LOG_FATAL("Invalid vec object. Either uninitialized or corrupted!");
     }
-    if ((v)->length > (v)->capacity) {
+    if (v->length > v->capacity) {
         LOG_FATAL("Invalid vec object.");
     }
     // A NULL allocator marks a non-growable vec (`StrInitStack` /
@@ -532,15 +528,14 @@ void validate_vec(const GenericVec *v) {
     // an allocator (`reserve_vec`, `deinit_vec`, ...) traps with a
     // dedicated message instead. When an allocator is present, its
     // method table must be sound.
-    if ((v)->allocator &&
-        (!(v)->allocator->allocate || !(v)->allocator->resize || !(v)->allocator->remap ||
-         !(v)->allocator->deallocate)) {
+    if (v->allocator &&
+        (!v->allocator->allocate || !v->allocator->resize || !v->allocator->remap || !v->allocator->deallocate)) {
         LOG_FATAL("Invalid vec allocator.");
     }
     // Force-read a byte from data so a freed/garbage pointer faults
     // here, at the validate site, rather than downstream.
-    if ((v)->data) {
-        (void)(*(char *)(void *)((v)->data));
+    if (v->data) {
+        (void)(*(char *)(void *)(v->data));
     }
 }
 

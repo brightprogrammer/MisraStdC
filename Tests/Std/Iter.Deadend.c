@@ -5,48 +5,49 @@
 
 #include "../Util/TestRunner.h"
 
+// Each test exhausts the iter (or constructs an out-of-range op) and
+// then calls a `*Must*` variant -- which must abort. The `return true`
+// tail is unreachable in a passing run; the harness's abort callback
+// is what records success.
+
 bool deadend_must_read_eof(void) {
     const u8 buf[1] = {1};
     BufIter  it     = BufIterFromMemory(buf, 1);
     u8       v;
-    IterRead(&it, &v); // consume sole element
-    // Now exhausted - this must abort.
+    IterRead(&it, &v);
     IterMustRead(&it, &v);
-    return true; // unreachable
+    return true;
 }
 
 bool deadend_must_peek_out_of_range(void) {
     const u8 buf[1] = {1};
     BufIter  it     = BufIterFromMemory(buf, 1);
     u8       v;
-    // pos=0, length=1: peek at +1 is out of range.
     IterMustPeekAt(&it, 1, &v);
-    return true; // unreachable
+    return true;
 }
 
 bool deadend_must_move_overflow(void) {
     const u8 buf[3] = {0};
     BufIter  it     = BufIterFromMemory(buf, 3);
-    // length=3, dir=+1: move by 4 lands past end.
     IterMustMove(&it, 4);
-    return true; // unreachable
+    return true;
 }
 
 bool deadend_must_next_eof(void) {
     const u8 buf[1] = {0};
     BufIter  it     = BufIterFromMemory(buf, 1);
     u8       v;
-    IterRead(&it, &v); // pos=1, exhausted
+    IterRead(&it, &v);
     IterMustNext(&it);
-    return true;       // unreachable
+    return true;
 }
 
 bool deadend_must_prev_underflow(void) {
     const u8 buf[3] = {0};
     BufIter  it     = BufIterFromMemory(buf, 3);
-    // pos=0, dir=+1: prev would land at -1.
     IterMustPrev(&it);
-    return true; // unreachable
+    return true;
 }
 
 int main(void) {

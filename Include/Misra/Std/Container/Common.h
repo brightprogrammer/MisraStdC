@@ -22,7 +22,7 @@
 #endif
 
 // All deinit methods are expected to properly deinitialize all pointers
-// to NULL. It's better if data is memset to 0.
+// to NULL. It's better if data is zeroed via `MemSet`.
 //
 // All init methods must expect to get a pre-initialized dst object.
 // If that is the case then they must properly de-initialize the dst object

@@ -42,9 +42,9 @@ static bool test_list_init_variants(void) {
     ValidateList(&list_d);
 
     bool result = (ListCopyInit(&list_a) == NULL) && (ListCopyDeinit(&list_a) == NULL) && (ListLen(&list_a) == 0);
-    result      = result && (ListCopyInit(&list_b) == NULL) && (ListCopyDeinit(&list_b) == NULL) && (ListLen(&list_b) == 0);
-    result      = result && (ListCopyInit(&list_c) == tracked_copy_init) && (ListCopyDeinit(&list_c) == tracked_copy_deinit);
-    result      = result && (ListCopyInit(&list_d) == tracked_copy_init) && (ListCopyDeinit(&list_d) == tracked_copy_deinit);
+    result = result && (ListCopyInit(&list_b) == NULL) && (ListCopyDeinit(&list_b) == NULL) && (ListLen(&list_b) == 0);
+    result = result && (ListCopyInit(&list_c) == tracked_copy_init) && (ListCopyDeinit(&list_c) == tracked_copy_deinit);
+    result = result && (ListCopyInit(&list_d) == tracked_copy_init) && (ListCopyDeinit(&list_d) == tracked_copy_deinit);
 
     ListDeinit(&list_a);
     ListDeinit(&list_b);
@@ -59,8 +59,9 @@ static bool test_list_init_optional_allocator(void) {
 
     typedef List(int) IntList;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    // White-box: no public retry_limit setter on Allocator; we poke the
-    // base field directly to verify the value propagates through ListInit.
+    // intentional bypass: no public setter on `Allocator` for effort /
+    // retry_limit -- pre-seeded directly so the inheritance path below
+    // can be observed end-to-end.
     alloc.base.retry_limit = 23;
 
     IntList list_a = ListInit(&alloc);
@@ -75,7 +76,7 @@ static bool test_list_init_optional_allocator(void) {
 
     bool result = (ListAllocator(&list_a)->retry_limit == 23) && (ListAllocator(&list_b)->retry_limit == 23);
     result      = result && (ListAllocator(&list_c)->retry_limit == 23) && (ListAllocator(&list_d)->retry_limit == 23);
-    result      = result && (ListCopyInit(&list_c) == tracked_copy_init) && (ListCopyDeinit(&list_d) == tracked_copy_deinit);
+    result = result && (ListCopyInit(&list_c) == tracked_copy_init) && (ListCopyDeinit(&list_d) == tracked_copy_deinit);
 
     ListDeinit(&list_a);
     ListDeinit(&list_b);

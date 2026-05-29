@@ -2,23 +2,25 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// In-tree `dladdr` replacement. Given a runtime instruction pointer,
-/// resolves it to a `{module, symbol, offset}` triple using two
-/// building blocks:
+/// Runtime IP -> `{module, symbol, offset}` resolver. Composes two
+/// in-tree pieces:
 ///
 ///   - `Sys/ProcMaps` to find which loaded ELF object contains the
 ///     address (and at what base it was loaded).
 ///   - `Parsers/Elf` to resolve the file-relative address to a symbol
 ///     entry from `.symtab` (static + global) and `.dynsym` (exported).
 ///
-/// The resolver owns a cache of opened `Elf`s so repeated calls
-/// don't re-parse the same shared object. The cache is keyed by file
-/// path borrowed from the underlying `ProcMaps`.
+/// The resolver owns a cache of opened `Elf`s so repeated calls don't
+/// re-parse the same shared object. The cache is keyed by file path
+/// borrowed from the underlying `ProcMaps`.
 ///
-/// Why not libc `dladdr`? libc only walks `.dynsym`, so static
-/// functions resolve as "module+offset" without a name. Our version
-/// reads `.symtab` too, which is where the names actually live in
-/// non-stripped binaries.
+/// Reading `.symtab` -- not just the dynamic-exports table `.dynsym`
+/// -- is the key design point: static and `file-local` functions live
+/// only in `.symtab`, so a resolver that stops at `.dynsym` would
+/// render them as `module+offset` with no name. Stack traces emitted
+/// inside the library proper hit those static helpers often, so
+/// covering `.symtab` is part of what makes the captured traces
+/// readable in development builds.
 
 #ifndef MISRA_SYS_SYMBOL_RESOLVER_H
 #define MISRA_SYS_SYMBOL_RESOLVER_H

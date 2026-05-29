@@ -11,8 +11,6 @@
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Memory.h>
 
-#define BITVEC_BYTES_FOR_BITS(bits) (((bits) + 7) / 8)
-
 ///
 /// Aborting variant of `BitVecReserve`. See that function for parameter
 /// semantics and success-state effects.

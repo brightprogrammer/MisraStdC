@@ -12,8 +12,8 @@
 // UNPL-wrapped — the inner `JR_*_KV` macros expanded by `reader` read
 // it directly, so the name has to be reachable across macro boundaries.
 
-#ifndef MISRA_TEST_JSON_READER_ALLOC_AWARE_H
-#define MISRA_TEST_JSON_READER_ALLOC_AWARE_H
+#ifndef TEST_JSON_READER_ALLOC_AWARE_H
+#define TEST_JSON_READER_ALLOC_AWARE_H
 
 #include <Misra/Parsers/JSON.h>
 
@@ -49,7 +49,7 @@
             }                                                                                                          \
             Str key       = StrInit(&alloc);                                                                           \
             UNPL(read_si) = JReadString(si, &key);                                                                     \
-            if (UNPL(read_si).pos == si.pos) {                                                                         \
+            if (StrIterIndex(&UNPL(read_si)) == StrIterIndex(&si)) {                                                   \
                 LOG_ERROR("Failed to read string key in object. Invalid JSON");                                        \
                 StrDeinit(&key);                                                                                       \
                 UNPL(failed) = true;                                                                                   \
@@ -69,9 +69,9 @@
             si                           = JSkipWhitespace(si);                                                        \
             StrIter UNPL(si_before_read) = si;                                                                         \
             { reader }                                                                                                 \
-            if (UNPL(si_before_read).pos == si.pos) {                                                                  \
+            if (StrIterIndex(&UNPL(si_before_read)) == StrIterIndex(&si)) {                                            \
                 StrIter UNPL(skip_si) = JSkipValue(si);                                                                \
-                if (UNPL(skip_si).pos == si.pos) {                                                                     \
+                if (StrIterIndex(&UNPL(skip_si)) == StrIterIndex(&si)) {                                               \
                     LOG_ERROR("Failed to parse value. Invalid JSON.");                                                 \
                     StrDeinit(&key);                                                                                   \
                     UNPL(failed) = true;                                                                               \
@@ -106,11 +106,11 @@
 #undef JR_STR_KV
 #define JR_STR_KV(si, k, str)                                                                                          \
     do {                                                                                                               \
-        if (!StrCmp(&key, (k))) {                                                                                  \
+        if (!StrCmp(&key, (k))) {                                                                                      \
             Str UNPL(my_str) = StrInit(&alloc);                                                                        \
             si               = JReadString((si), &UNPL(my_str));                                                       \
             (str)            = UNPL(my_str);                                                                           \
         }                                                                                                              \
     } while (0)
 
-#endif // MISRA_TEST_JSON_READER_ALLOC_AWARE_H
+#endif // TEST_JSON_READER_ALLOC_AWARE_H

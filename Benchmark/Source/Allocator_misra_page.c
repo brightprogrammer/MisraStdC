@@ -80,5 +80,5 @@ uint64_t bench_live_bytes(void) {
 
 uint64_t bench_footprint_bytes(void) {
     if (!g_page_live) return 0;
-    return (uint64_t)PageAllocatorFootprintBytes(&g_page);
+    return (uint64_t)AllocatorFootprintBytes(&g_page);
 }

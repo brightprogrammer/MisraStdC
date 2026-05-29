@@ -607,8 +607,17 @@ if opt_parser_dwarf and tests_need_posix_exe
         )
 
         # Same SymbolResolver-driven slowness as the Dwarf parser test;
-        # see comment above.
-        test('Dwarf.Stripped', stripped_driver, args: [stripped_target.full_path()], timeout: 120)
+        # see comment above. `depends:` makes the custom_target a hard
+        # prerequisite of the test() so `meson test` rebuilds the
+        # stripped copy when it's missing -- without it, a fresh
+        # `meson setup` + targeted `meson test` (or test under any
+        # sanitiser variant that picks a different builddir) starts the
+        # driver before `objcopy` has produced the stripped file,
+        # tripping ENOENT in resolve_through_stripped.
+        test('Dwarf.Stripped', stripped_driver,
+            args: [stripped_target.full_path()],
+            depends: [stripped_target],
+            timeout: 120)
     endif
 endif
 

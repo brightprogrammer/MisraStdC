@@ -4,21 +4,25 @@
 ///
 /// Stack-trace capture + formatting. Three platform backends:
 ///
-///   - **Linux / GCC + Clang**: pure-Misra implementation. Capture
-///     walks saved-FP chain via `__builtin_frame_address`. Format
-///     pumps each IP through `Sys/SymbolResolver`, which reads our
-///     own `/proc/self/maps` parser and our own ELF + DWARF parsers.
-///     No libc `backtrace()`, no libgcc unwinder, no `dladdr`.
+///   - **Linux / GCC + Clang**: capture walks the saved frame-pointer
+///     chain via `__builtin_frame_address`, so there is no third-party
+///     unwinder dependency and the walk works inside crash handlers.
+///     Format pumps each IP through `Sys/SymbolResolver`, which reads
+///     `/proc/self/maps` via `Sys/ProcMaps` and the in-tree ELF + DWARF
+///     parsers to recover names from `.symtab` (including statics).
 ///
-///   - **macOS / Darwin**: pure-Misra. Same FP walk for capture;
-///     formatting routes per-IP through `Sys/MachoCache`, which uses
-///     dyld to locate the loaded image, then the in-tree Mach-O +
-///     dSYM + DWARF chain for symbol resolution.
+///   - **macOS / Darwin**: same FP walk for capture; formatting routes
+///     per-IP through `Sys/MachoCache`, which uses dyld to locate the
+///     loaded image, then the in-tree Mach-O + dSYM + DWARF chain for
+///     symbol resolution.
 ///
-///   - **Windows / MSVC**: wraps `CaptureStackBackTrace` (kernel32)
-///     for capture. Format tries the in-tree PE + PDB chain first
-///     (`Sys/PdbCache`), falling back to dbghelp's `SymFromAddr` /
-///     `SymGetLineFromAddr64` when the PDB can't be located.
+///   - **Windows / MSVC**: capture uses `CaptureStackBackTrace`
+///     (kernel32) as the kernel boundary for stack collection. Format
+///     tries the in-tree PE + PDB chain first (`Sys/PdbCache`), which
+///     resolves names directly from the PDB stream tables; when no
+///     PDB is locatable next to the module, format falls back to the
+///     OS-supplied symbol API (dbghelp) so frames at least name the
+///     module.
 ///
 /// Each capture / format function has two callable shapes via
 /// `OVERLOAD`:

@@ -128,7 +128,9 @@ bool test_validate_invalid_str(void) {
     Str s = StrInit(&alloc);
 
     // Corrupt the string to make it invalid
-    // (intentional direct-field writes; StrCapacity is read-only — no Capacity setter)
+    // intentional bypass: StrCapacity/StrLen are read-only accessors, no
+    // public setter exists -- the whole point of this test is to plant an
+    // inconsistent (length, capacity) pair that ValidateStr must reject.
     s.length   = 100; // Set length much larger than actual capacity
     s.capacity = 5;   // Small capacity
     // s.data remains valid but length/capacity are inconsistent
@@ -150,7 +152,9 @@ bool test_validate_invalid_strs(void) {
     Strs sv = VecInit(&alloc);
 
     // Corrupt the vector to make it invalid
-    // (intentional direct-field writes; VecCapacity is read-only — no Capacity setter)
+    // intentional bypass: VecCapacity/VecLen are read-only accessors, no
+    // public setter exists -- the whole point of this test is to plant an
+    // inconsistent (length, capacity) pair that ValidateStrs must reject.
     sv.length   = 50; // Set length much larger than actual capacity
     sv.capacity = 2;  // Small capacity
     // sv.data remains valid but length/capacity are inconsistent

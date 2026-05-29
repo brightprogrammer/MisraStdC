@@ -28,11 +28,11 @@ static bool encode_qname(DnsWireBuf *out, Zstr name) {
     char    c;
     while (StrIterPeek(&si, &c)) {
         // Find next dot or end-of-string.
-        size seg_start = si.pos;
+        size seg_start = StrIterIndex(&si);
         while (StrIterPeek(&si, &c) && c != '.') {
             StrIterMustNext(&si);
         }
-        u64 seg_len = (u64)(si.pos - seg_start);
+        u64 seg_len = (u64)(StrIterIndex(&si) - seg_start);
         if (seg_len == 0) {
             // Trailing dot at the end is valid (means root); leading or
             // middle empty labels are not.
@@ -51,7 +51,7 @@ static bool encode_qname(DnsWireBuf *out, Zstr name) {
         if (!BufWriteU8(out, (u8)seg_len)) {
             return false;
         }
-        if (!BufPushBytes(out, (const u8 *)(si.data + seg_start), seg_len)) {
+        if (!BufPushBytes(out, (const u8 *)StrIterDataAt(&si, seg_start), seg_len)) {
             return false;
         }
         if (StrIterPeek(&si, &c) && c == '.') {
@@ -103,26 +103,30 @@ static bool decode_name(BufIter *it, Str *out_name) {
     const u32 MAX_HOPS  = 64;
     u32       hops      = 0;
     bool      jumped    = false;
-    u64       linear_p  = it->pos;
-    u64       cur       = it->pos;
+    u64       linear_p  = IterIndex(it);
+    u64       cur       = IterIndex(it);
     u64       name_len  = 0;
     u64       label_idx = 0;
-    while (cur < it->length) {
-        u8 b = it->data[cur];
+    while (cur < IterLength(it)) {
+        u8 b = *IterDataAt(it, cur);
         if (b == 0) {
             ++cur;
             if (!jumped) {
                 linear_p = cur;
             }
-            it->pos = linear_p;
+            // `linear_p` only ever assigned to `cur`, which is monotonically
+            // non-decreasing from its initial value of `IterIndex(it)` (the
+            // compression-pointer branch sets `linear_p = cur + 2` BEFORE
+            // jumping). Net delta is always >= 0 and within `IterLength(it)`.
+            IterMustMove(it, (i64)(linear_p - IterIndex(it)));
             return true;
         }
         if ((b & 0xC0u) == 0xC0u) {
             // Compression pointer: 14-bit offset.
-            if (cur + 2 > it->length) {
+            if (cur + 2 > IterLength(it)) {
                 return false;
             }
-            u16 ptr = (u16)(((b & 0x3Fu) << 8) | it->data[cur + 1]);
+            u16 ptr = (u16)(((b & 0x3Fu) << 8) | *IterDataAt(it, cur + 1));
             if (!jumped) {
                 // First jump: linear cursor advances past the 2-byte
                 // pointer; everything after will be read from the
@@ -145,7 +149,7 @@ static bool decode_name(BufIter *it, Str *out_name) {
             return false;
         }
         u64 label_len = (u64)b;
-        if (cur + 1 + label_len > it->length) {
+        if (cur + 1 + label_len > IterLength(it)) {
             return false;
         }
         if (name_len + 1 + label_len > 253) {
@@ -156,7 +160,7 @@ static bool decode_name(BufIter *it, Str *out_name) {
             ++name_len;
         }
         for (u64 i = 0; i < label_len; ++i) {
-            StrPushBackR(out_name, (char)it->data[cur + 1 + i]);
+            StrPushBackR(out_name, (char)*IterDataAt(it, cur + 1 + i));
         }
         name_len += label_len;
         cur      += 1 + label_len;
@@ -188,13 +192,13 @@ static bool decode_record(BufIter *it, DnsRecord *rec, Allocator *alloc) {
     rec->rclass = class_bits;
     rec->ttl    = ttl;
 
-    if (it->pos + (u64)rdlength > it->length) {
+    if (IterIndex(it) + (u64)rdlength > IterLength(it)) {
         return false;
     }
-    u64 rdata_start = it->pos;
+    u64 rdata_start = IterIndex(it);
 
     // Stash raw rdata.
-    if (!BufPushBytes(&rec->rdata, it->data + rdata_start, rdlength)) {
+    if (!BufPushBytes(&rec->rdata, IterDataAt(it, rdata_start), rdlength)) {
         return false;
     }
 
@@ -205,7 +209,7 @@ static bool decode_record(BufIter *it, DnsRecord *rec, Allocator *alloc) {
                 return false;
             }
             for (u64 i = 0; i < 4; ++i) {
-                rec->ipv4[i] = it->data[rdata_start + i];
+                rec->ipv4[i] = *IterDataAt(it, rdata_start + i);
             }
             break;
         case DNS_TYPE_AAAA :
@@ -213,7 +217,7 @@ static bool decode_record(BufIter *it, DnsRecord *rec, Allocator *alloc) {
                 return false;
             }
             for (u64 i = 0; i < 16; ++i) {
-                rec->ipv6[i] = it->data[rdata_start + i];
+                rec->ipv6[i] = *IterDataAt(it, rdata_start + i);
             }
             break;
         case DNS_TYPE_CNAME :
@@ -235,7 +239,10 @@ static bool decode_record(BufIter *it, DnsRecord *rec, Allocator *alloc) {
             break;
     }
 
-    it->pos = rdata_start + (u64)rdlength;
+    // No reads have advanced the outer `it` since `rdata_start` was
+    // captured (sub-iter copy is used for CNAME/NS/PTR target decode),
+    // and the rdlength bounds were already verified above.
+    IterMustMove(it, (i64)rdlength);
     return true;
 }
 
@@ -250,7 +257,12 @@ static bool decode_record_list(BufIter *it, u16 count, DnsRecords *out, Allocato
             DnsRecordDeinit(&rec);
             return false;
         }
-        VecPushBackR(out, rec);
+        // The record carries owned Str/Vec fields; leaking it on a
+        // push-failure path would orphan their backing allocations.
+        if (!VecPushBackR(out, rec)) {
+            DnsRecordDeinit(&rec);
+            return false;
+        }
     }
     return true;
 }

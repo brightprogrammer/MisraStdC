@@ -22,7 +22,7 @@ static i32 i32_compare(const void *lhs, const void *rhs) {
 }
 
 static bool test_map_deep_copy_zstrs(void) {
-    typedef Map(Zstr , Zstr) ZstrMap;
+    typedef Map(Zstr, Zstr) ZstrMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
     ZstrMap          map   = MapInitWithDeepCopy(
         zstr_hash,
@@ -33,14 +33,14 @@ static bool test_map_deep_copy_zstrs(void) {
         zstr_deinit,
         &alloc
     );
-    char         key_buf[]          = "alpha";
-    char         value_buf[]        = "first";
-    char         second_value_buf[] = "second";
-    const char  *key                = key_buf;
-    const char  *value              = value_buf;
-    const char  *second_value       = second_value_buf;
-    Zstr *stored_value;
-    int          value_count = 0;
+    char        key_buf[]          = "alpha";
+    char        value_buf[]        = "first";
+    char        second_value_buf[] = "second";
+    const char *key                = key_buf;
+    const char *value              = value_buf;
+    const char *second_value       = second_value_buf;
+    Zstr       *stored_value;
+    int         value_count = 0;
 
     MapInsertL(&map, key, value);
     MapInsertL(&map, key, second_value);
@@ -68,7 +68,7 @@ static bool test_map_deep_copy_zstrs(void) {
 }
 
 static bool test_map_policy_switch_preserves_entries(void) {
-    typedef Map(Zstr , Zstr) ZstrMap;
+    typedef Map(Zstr, Zstr) ZstrMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
     ZstrMap          map   = MapInitWithDeepCopy(
         zstr_hash,
@@ -88,10 +88,10 @@ static bool test_map_policy_switch_preserves_entries(void) {
     MapSetOnlyR(&map, "green", "pear");
     MapRehashWithPolicy(&map, MapPairCount(&map), MapPolicyQuadratic);
 
-    bool result = (map.policy.first_index == MapPolicyQuadratic.first_index) &&
-                  (map.policy.next_index == MapPolicyQuadratic.next_index) &&
-                  (map.policy.next_capacity == MapPolicyQuadratic.next_capacity) &&
-                  (map.policy.should_rehash == MapPolicyQuadratic.should_rehash);
+    bool result = (MapPolicy(&map).first_index == MapPolicyQuadratic.first_index) &&
+                  (MapPolicy(&map).next_index == MapPolicyQuadratic.next_index) &&
+                  (MapPolicy(&map).next_capacity == MapPolicyQuadratic.next_capacity) &&
+                  (MapPolicy(&map).should_rehash == MapPolicyQuadratic.should_rehash);
     result = result && (MapValueCountForKey(&map, "red") == 2);
     result = result && MapGetFirstPtr(&map, "red") && (ZstrCompare(*MapGetFirstPtr(&map, "red"), "apple") == 0);
     result = result && MapGetFirstPtr(&map, "yellow") && (ZstrCompare(*MapGetFirstPtr(&map, "yellow"), "banana") == 0);

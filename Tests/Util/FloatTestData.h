@@ -6,8 +6,8 @@
 /// Each macro expands to a string of repeated digits used to stress
 /// the Float parser's high-precision paths. No code; header-only data.
 
-#ifndef MISRA_TEST_FLOAT_DATA_H
-#define MISRA_TEST_FLOAT_DATA_H
+#ifndef TEST_FLOAT_DATA_H
+#define TEST_FLOAT_DATA_H
 
 #define FLOAT_TEST_DIGITS_1x50                                                                                         \
     "1111111111"                                                                                                       \
@@ -36,4 +36,4 @@
 #define FLOAT_TEST_VERY_LARGE_TWOS   FLOAT_TEST_DIGITS_2x100 "." FLOAT_TEST_DIGITS_2x100
 #define FLOAT_TEST_VERY_LARGE_THREES FLOAT_TEST_DIGITS_3x100 "." FLOAT_TEST_DIGITS_3x100
 
-#endif // MISRA_TEST_FLOAT_DATA_H
+#endif // TEST_FLOAT_DATA_H

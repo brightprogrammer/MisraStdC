@@ -100,7 +100,7 @@ extern "C" {
 /// characters before a uniqueness pass; length and capacity are unchanged.
 ///
 /// str[in,out]  : Str handle.
-/// compare[in]  : Comparator with `strcmp`-style return on two `char`s.
+/// compare[in]  : Comparator with `GenericCompare`-style return on two `char`s.
 ///
 /// SUCCESS : Characters are now in non-decreasing order according to `compare`;
 ///           the string's length is unchanged.

@@ -29,24 +29,24 @@ void fuzz_int_list(
     ListIntFunction   func,
     const uint8_t    *data,
     size_t           *offset,
-    size_t            size,
+    size_t            data_size,
     DefaultAllocator *alloc
 ) {
     switch (func) {
         case LIST_INT_PUSH_BACK : {
-            i32 value = (i32)extract_u32(data, offset, size);
+            i32 value = (i32)extract_u32(data, offset, data_size);
             ListPushBackR(list, value);
             break;
         }
 
         case LIST_INT_PUSH_FRONT : {
-            i32 value = (i32)extract_u32(data, offset, size);
+            i32 value = (i32)extract_u32(data, offset, data_size);
             ListPushFrontR(list, value);
             break;
         }
 
         case LIST_INT_POP_BACK : {
-            if (list->length > 0) {
+            if (ListLen(list) > 0) {
                 i32 popped;
                 ListPopBack(list, &popped);
             }
@@ -54,7 +54,7 @@ void fuzz_int_list(
         }
 
         case LIST_INT_POP_FRONT : {
-            if (list->length > 0) {
+            if (ListLen(list) > 0) {
                 i32 popped;
                 ListPopFront(list, &popped);
             }
@@ -62,18 +62,18 @@ void fuzz_int_list(
         }
 
         case LIST_INT_INSERT : {
-            uint16_t idx   = extract_u16(data, offset, size);
-            i32      value = (i32)extract_u32(data, offset, size);
+            uint16_t idx   = extract_u16(data, offset, data_size);
+            i32      value = (i32)extract_u32(data, offset, data_size);
 
-            if (idx <= list->length) {
+            if (idx <= ListLen(list)) {
                 ListInsertR(list, value, idx);
             }
             break;
         }
 
         case LIST_INT_REMOVE : {
-            uint16_t idx = extract_u16(data, offset, size);
-            if (idx < list->length) {
+            uint16_t idx = extract_u16(data, offset, data_size);
+            if (idx < ListLen(list)) {
                 i32 removed;
                 ListRemove(list, &removed, idx);
             }
@@ -81,16 +81,16 @@ void fuzz_int_list(
         }
 
         case LIST_INT_DELETE : {
-            uint16_t idx = extract_u16(data, offset, size);
-            if (idx < list->length) {
+            uint16_t idx = extract_u16(data, offset, data_size);
+            if (idx < ListLen(list)) {
                 ListDelete(list, idx);
             }
             break;
         }
 
         case LIST_INT_AT : {
-            uint16_t idx = extract_u16(data, offset, size);
-            if (idx < list->length) {
+            uint16_t idx = extract_u16(data, offset, data_size);
+            if (idx < ListLen(list)) {
                 volatile i32 value = ListAt(list, idx);
                 (void)value; // Prevent optimization
             }
@@ -98,13 +98,13 @@ void fuzz_int_list(
         }
 
         case LIST_INT_LEN : {
-            volatile uint64_t len = list->length;
+            volatile uint64_t len = ListLen(list);
             (void)len;
             break;
         }
 
         case LIST_INT_FIRST : {
-            if (list->length > 0) {
+            if (ListLen(list) > 0) {
                 volatile i32 first = ListFirst(list);
                 (void)first;
             }
@@ -112,7 +112,7 @@ void fuzz_int_list(
         }
 
         case LIST_INT_LAST : {
-            if (list->length > 0) {
+            if (ListLen(list) > 0) {
                 volatile i32 last = ListLast(list);
                 (void)last;
             }
@@ -132,10 +132,10 @@ void fuzz_int_list(
         }
 
         case LIST_INT_SWAP_ITEMS : {
-            uint16_t idx1 = extract_u16(data, offset, size);
-            uint16_t idx2 = extract_u16(data, offset, size);
+            uint16_t idx1 = extract_u16(data, offset, data_size);
+            uint16_t idx2 = extract_u16(data, offset, data_size);
 
-            if (list->length > 1 && idx1 < list->length && idx2 < list->length) {
+            if (ListLen(list) > 1 && idx1 < ListLen(list) && idx2 < ListLen(list)) {
                 ListSwapItems(list, idx1, idx2);
             }
             break;
@@ -143,11 +143,11 @@ void fuzz_int_list(
 
         // Range operations
         case LIST_INT_REMOVE_RANGE : {
-            uint16_t start = extract_u16(data, offset, size);
-            uint8_t  count = extract_u8(data, offset, size);
+            uint16_t start = extract_u16(data, offset, data_size);
+            uint8_t  count = extract_u8(data, offset, data_size);
             count          = count % 16;
 
-            if (list->length > 0 && start < list->length && count > 0 && start + count <= list->length) {
+            if (ListLen(list) > 0 && start < ListLen(list) && count > 0 && start + count <= ListLen(list)) {
                 i32 removed_items[16];
                 ListRemoveRange(list, removed_items, start, count);
             }
@@ -155,11 +155,11 @@ void fuzz_int_list(
         }
 
         case LIST_INT_DELETE_RANGE : {
-            uint16_t start = extract_u16(data, offset, size);
-            uint8_t  count = extract_u8(data, offset, size);
+            uint16_t start = extract_u16(data, offset, data_size);
+            uint8_t  count = extract_u8(data, offset, data_size);
             count          = count % 16;
 
-            if (list->length > 0 && start < list->length && count > 0 && start + count <= list->length) {
+            if (ListLen(list) > 0 && start < ListLen(list) && count > 0 && start + count <= ListLen(list)) {
                 ListDeleteRange(list, start, count);
             }
             break;
@@ -167,13 +167,13 @@ void fuzz_int_list(
 
         // Array operations
         case LIST_INT_PUSH_ARR : {
-            uint8_t count = extract_u8(data, offset, size);
+            uint8_t count = extract_u8(data, offset, data_size);
             count         = count % 8;
 
             if (count > 0) {
                 i32 values[8];
-                for (uint8_t i = 0; i < count && *offset + 4 <= size; i++) {
-                    values[i] = (i32)extract_u32(data, offset, size);
+                for (uint8_t i = 0; i < count && *offset + 4 <= data_size; i++) {
+                    values[i] = (i32)extract_u32(data, offset, data_size);
                 }
                 ListPushArrL(list, values, count);
             }
@@ -187,8 +187,8 @@ void fuzz_int_list(
         }
 
         case LIST_INT_PTR_AT : {
-            uint16_t idx = extract_u16(data, offset, size);
-            if (idx < list->length) {
+            uint16_t idx = extract_u16(data, offset, data_size);
+            if (idx < ListLen(list)) {
                 volatile i32 *ptr = ListPtrAt(list, idx);
                 if (ptr) {
                     volatile i32 val = *ptr;
@@ -200,11 +200,11 @@ void fuzz_int_list(
 
         case LIST_INT_MERGE : {
             IntList temp  = ListInitT(temp, alloc);
-            uint8_t count = extract_u8(data, offset, size);
+            uint8_t count = extract_u8(data, offset, data_size);
             count         = count % 4;
 
-            for (uint8_t i = 0; i < count && *offset + 4 <= size; i++) {
-                i32 value = (i32)extract_u32(data, offset, size);
+            for (uint8_t i = 0; i < count && *offset + 4 <= data_size; i++) {
+                i32 value = (i32)extract_u32(data, offset, data_size);
                 ListPushBackR(&temp, value);
             }
 
@@ -215,7 +215,7 @@ void fuzz_int_list(
 
         // Foreach operations
         case LIST_INT_FOREACH : {
-            if (list->length > 0) {
+            if (ListLen(list) > 0) {
                 int sum = 0;
                 ListForeach(list, item) {
                     sum += item;
@@ -226,7 +226,7 @@ void fuzz_int_list(
         }
 
         case LIST_INT_FOREACH_IDX : {
-            if (list->length > 0) {
+            if (ListLen(list) > 0) {
                 int sum = 0;
                 ListForeachIdx(list, item, idx) {
                     sum += item + (int)idx;
@@ -237,7 +237,7 @@ void fuzz_int_list(
         }
 
         case LIST_INT_FOREACH_PTR : {
-            if (list->length > 0) {
+            if (ListLen(list) > 0) {
                 int sum = 0;
                 ListForeachPtr(list, item_ptr) {
                     sum += *item_ptr;
@@ -248,7 +248,7 @@ void fuzz_int_list(
         }
 
         case LIST_INT_FOREACH_PTR_IDX : {
-            if (list->length > 0) {
+            if (ListLen(list) > 0) {
                 int sum = 0;
                 ListForeachPtrIdx(list, item_ptr, idx) {
                     sum += *item_ptr + (int)idx;
@@ -259,7 +259,7 @@ void fuzz_int_list(
         }
 
         case LIST_INT_FOREACH_REVERSE : {
-            if (list->length > 0) {
+            if (ListLen(list) > 0) {
                 int sum = 0;
                 ListForeachReverse(list, item) {
                     sum += item;
@@ -270,7 +270,7 @@ void fuzz_int_list(
         }
 
         case LIST_INT_FOREACH_REVERSE_IDX : {
-            if (list->length > 0) {
+            if (ListLen(list) > 0) {
                 int sum = 0;
                 ListForeachReverseIdx(list, item, idx) {
                     sum += item + (int)idx;
@@ -281,7 +281,7 @@ void fuzz_int_list(
         }
 
         case LIST_INT_FOREACH_PTR_REVERSE : {
-            if (list->length > 0) {
+            if (ListLen(list) > 0) {
                 int sum = 0;
                 ListForeachPtrReverse(list, item_ptr) {
                     sum += *item_ptr;
@@ -292,7 +292,7 @@ void fuzz_int_list(
         }
 
         case LIST_INT_FOREACH_PTR_REVERSE_IDX : {
-            if (list->length > 0) {
+            if (ListLen(list) > 0) {
                 int sum = 0;
                 ListForeachPtrReverseIdx(list, item_ptr, idx) {
                     sum += *item_ptr + (int)idx;
@@ -303,9 +303,9 @@ void fuzz_int_list(
         }
 
         case LIST_INT_FOREACH_IN_RANGE : {
-            if (list->length > 0 && *offset + 8 <= size) {
-                size_t start = extract_u32(data, offset, size) % list->length;
-                size_t end   = extract_u32(data, offset, size) % (list->length + 1);
+            if (ListLen(list) > 0 && *offset + 8 <= data_size) {
+                size_t start = extract_u32(data, offset, data_size) % ListLen(list);
+                size_t end   = extract_u32(data, offset, data_size) % (ListLen(list) + 1);
                 if (start < end) {
                     int sum = 0;
                     ListForeachInRange(list, item, start, end) {
@@ -318,9 +318,9 @@ void fuzz_int_list(
         }
 
         case LIST_INT_FOREACH_PTR_IN_RANGE : {
-            if (list->length > 0 && *offset + 8 <= size) {
-                size_t start = extract_u32(data, offset, size) % list->length;
-                size_t end   = extract_u32(data, offset, size) % (list->length + 1);
+            if (ListLen(list) > 0 && *offset + 8 <= data_size) {
+                size_t start = extract_u32(data, offset, data_size) % ListLen(list);
+                size_t end   = extract_u32(data, offset, data_size) % (ListLen(list) + 1);
                 if (start < end) {
                     int sum = 0;
                     ListForeachPtrInRange(list, item_ptr, start, end) {
@@ -333,9 +333,9 @@ void fuzz_int_list(
         }
 
         case LIST_INT_FOREACH_REVERSE_IN_RANGE : {
-            if (list->length > 0 && *offset + 8 <= size) {
-                size_t start = extract_u32(data, offset, size) % list->length;
-                size_t end   = extract_u32(data, offset, size) % (list->length + 1);
+            if (ListLen(list) > 0 && *offset + 8 <= data_size) {
+                size_t start = extract_u32(data, offset, data_size) % ListLen(list);
+                size_t end   = extract_u32(data, offset, data_size) % (ListLen(list) + 1);
                 if (start < end) {
                     int sum = 0;
                     ListForeachReverseInRange(list, item, start, end) {
@@ -348,9 +348,9 @@ void fuzz_int_list(
         }
 
         case LIST_INT_FOREACH_PTR_REVERSE_IN_RANGE : {
-            if (list->length > 0 && *offset + 8 <= size) {
-                size_t start = extract_u32(data, offset, size) % list->length;
-                size_t end   = extract_u32(data, offset, size) % (list->length + 1);
+            if (ListLen(list) > 0 && *offset + 8 <= data_size) {
+                size_t start = extract_u32(data, offset, data_size) % ListLen(list);
+                size_t end   = extract_u32(data, offset, data_size) % (ListLen(list) + 1);
                 if (start < end) {
                     int sum = 0;
                     ListForeachPtrReverseInRange(list, item_ptr, start, end) {

@@ -9,85 +9,93 @@
 
 #include "Access.h"
 
-///
-/// Increment the scratch visit count of a node.
-///
-/// node[in] : `GraphNode` handle to mark as visited.
-///
-/// SUCCESS : Returns the new visit count for the node (post-increment).
-///           Only the scratch counter on the referenced slot is modified;
-///           graph structure (live_count, edges, generations) is untouched.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` for an invalid or
-///           stale node handle (caller bug).
-///
-/// NOTE: This is intentionally simple shared scratch state. Use external `Vec`, `Map`,
-///       or domain-specific side tables when an algorithm needs more than one counter or bit.
-///
-/// TAGS: Graph, Node, Visit, Mutation
-///
-#define GraphNodeVisit(node) graph_node_visit((node))
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-///
-/// Reset the scratch visit count of a node to zero.
-///
-/// node[in] : `GraphNode` handle to clear.
-///
-/// SUCCESS : Returns to the caller. The referenced slot's scratch visit
-///           counter is now 0. Graph structure is untouched.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` for an invalid or
-///           stale node handle (caller bug).
-///
-/// TAGS: Graph, Node, Visit, Reset
-///
-#define GraphNodeUnvisit(node) graph_node_unvisit((node))
+    ///
+    /// Increment the scratch visit count of a node.
+    ///
+    /// node[in] : `GraphNode` handle to mark as visited.
+    ///
+    /// SUCCESS : Returns the new visit count for the node (post-increment).
+    ///           Only the scratch counter on the referenced slot is modified;
+    ///           graph structure (live_count, edges, generations) is untouched.
+    /// FAILURE : Does not return - aborts via `LOG_FATAL` for an invalid or
+    ///           stale node handle (caller bug).
+    ///
+    /// NOTE: This is intentionally simple shared scratch state. Use external `Vec`, `Map`,
+    ///       or domain-specific side tables when an algorithm needs more than one counter or bit.
+    ///
+    /// TAGS: Graph, Node, Visit, Mutation
+    ///
+    u64 GraphNodeVisit(GraphNode node);
 
-///
-/// Mark a node for deletion on the next `GraphCommitChanges`.
-///
-/// Marked nodes remain visible until commit. This operation is safe during graph
-/// traversal and is intended for destructive passes that need stable iteration.
-///
-/// node[in] : `GraphNode` handle to mark.
-///
-/// SUCCESS : Returns `true`. The slot referenced by `node` is now flagged
-///           as marked; the graph's pending-delete count grows by one.
-///           `live_count` is unchanged - the node is still observable
-///           through traversal and lookup until `GraphCommitChanges` runs.
-/// FAILURE : Returns `false` when the node was already marked. The graph
-///           is not modified.
-///
-/// TAGS: Graph, Node, Delete, Mark
-///
-#define GraphMarkNodeForDeletion(node) graph_mark_node_for_deletion((node))
+    ///
+    /// Reset the scratch visit count of a node to zero.
+    ///
+    /// node[in] : `GraphNode` handle to clear.
+    ///
+    /// SUCCESS : Returns to the caller. The referenced slot's scratch visit
+    ///           counter is now 0. Graph structure is untouched.
+    /// FAILURE : Does not return - aborts via `LOG_FATAL` for an invalid or
+    ///           stale node handle (caller bug).
+    ///
+    /// TAGS: Graph, Node, Visit, Reset
+    ///
+    void GraphNodeUnvisit(GraphNode node);
 
-///
-/// Check whether a node is currently marked for deletion.
-///
-/// node[in] : `GraphNode` handle to query.
-///
-/// SUCCESS : Returns `true` when the slot's deletion mark is set. The graph
-///           is not modified.
-/// FAILURE : Returns `false` when the node is not marked. The graph is not
-///           modified.
-///
-/// TAGS: Graph, Node, Delete, Query
-///
-#define GraphNodeMarkedForDeletion(node) graph_node_marked_for_deletion((node))
+    ///
+    /// Mark a node for deletion on the next `GraphCommitChanges`.
+    ///
+    /// Marked nodes remain visible until commit. This operation is safe during graph
+    /// traversal and is intended for destructive passes that need stable iteration.
+    ///
+    /// node[in] : `GraphNode` handle to mark.
+    ///
+    /// SUCCESS : Returns `true`. The slot referenced by `node` is now flagged
+    ///           as marked; the graph's pending-delete count grows by one.
+    ///           `live_count` is unchanged - the node is still observable
+    ///           through traversal and lookup until `GraphCommitChanges` runs.
+    /// FAILURE : Returns `false` when the node was already marked. The graph
+    ///           is not modified.
+    ///
+    /// TAGS: Graph, Node, Delete, Mark
+    ///
+    bool GraphMarkNodeForDeletion(GraphNode node);
 
-///
-/// Remove a pending node-deletion mark before commit.
-///
-/// node[in] : `GraphNode` handle to unmark.
-///
-/// SUCCESS : Returns `true`. The deletion mark on the referenced slot has
-///           been cleared; the graph's pending-delete count shrinks by one.
-///           `live_count` is unchanged.
-/// FAILURE : Returns `false` when the node was not marked. The graph is
-///           not modified.
-///
-/// TAGS: Graph, Node, Delete, Unmark
-///
-#define GraphUnmarkNodeForDeletion(node) graph_unmark_node_for_deletion((node))
+    ///
+    /// Check whether a node is currently marked for deletion.
+    ///
+    /// node[in] : `GraphNode` handle to query.
+    ///
+    /// SUCCESS : Returns `true` when the slot's deletion mark is set. The graph
+    ///           is not modified.
+    /// FAILURE : Returns `false` when the node is not marked. The graph is not
+    ///           modified.
+    ///
+    /// TAGS: Graph, Node, Delete, Query
+    ///
+    bool GraphNodeMarkedForDeletion(GraphNode node);
+
+    ///
+    /// Remove a pending node-deletion mark before commit.
+    ///
+    /// node[in] : `GraphNode` handle to unmark.
+    ///
+    /// SUCCESS : Returns `true`. The deletion mark on the referenced slot has
+    ///           been cleared; the graph's pending-delete count shrinks by one.
+    ///           `live_count` is unchanged.
+    /// FAILURE : Returns `false` when the node was not marked. The graph is
+    ///           not modified.
+    ///
+    /// TAGS: Graph, Node, Delete, Unmark
+    ///
+    bool GraphUnmarkNodeForDeletion(GraphNode node);
+
+#ifdef __cplusplus
+}
+#endif
 
 ///
 /// Mark a directed edge for removal on the next `GraphCommitChanges`.

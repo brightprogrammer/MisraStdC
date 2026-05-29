@@ -105,27 +105,34 @@ static bool test_page_aligned_allocator(void) {
 
 static bool test_footprint_and_entry_count(void) {
     // PageAllocatorEntryCount tracks the live `entries[]` only; retained
-    // pages on free_entries[] don't count. PageAllocatorFootprintBytes
-    // covers both, plus the descriptor tables. NULL gives 0 for both.
-    bool ok = (PageAllocatorFootprintBytes(NULL) == 0);
-    if (!ok) { WriteFmt("NULL footprint != 0\n"); return false; }
-
+    // pages on free_entries[] don't count. AllocatorFootprintBytes covers
+    // both, plus the descriptor tables.
+    bool          ok         = true;
     PageAllocator alloc      = PageAllocatorInit();
     Allocator    *alloc_base = ALLOCATOR_OF(&alloc);
     size          page       = PageAllocatorPageSize(&alloc);
 
-    if (PageAllocatorEntryCount(&alloc) != 0) { WriteFmt("init EntryCount != 0\n"); ok = false; }
-    if (PageAllocatorFootprintBytes(&alloc) != 0) { WriteFmt("init Footprint != 0\n"); ok = false; }
+    if (PageAllocatorEntryCount(&alloc) != 0) {
+        WriteFmt("init EntryCount != 0\n");
+        ok = false;
+    }
+    if (AllocatorFootprintBytes(&alloc) != 0) {
+        WriteFmt("init Footprint != 0\n");
+        ok = false;
+    }
 
     void *p1 = AllocatorAlloc(alloc_base, page, true);
     void *p2 = AllocatorAlloc(alloc_base, page * 2, true);
-    if (!p1 || !p2) { WriteFmt("alloc failed\n"); ok = false; }
+    if (!p1 || !p2) {
+        WriteFmt("alloc failed\n");
+        ok = false;
+    }
     if (PageAllocatorEntryCount(&alloc) != 2) {
         WriteFmt("after 2 allocs EntryCount={} want 2\n", (u64)PageAllocatorEntryCount(&alloc));
         ok = false;
     }
     // Live footprint is at least p1 + p2; descriptor table adds more.
-    size foot_with_two = PageAllocatorFootprintBytes(&alloc);
+    size foot_with_two = AllocatorFootprintBytes(&alloc);
     if (foot_with_two < page + page * 2) {
         WriteFmt("foot_with_two={} want >= {}\n", (u64)foot_with_two, (u64)(page + page * 2));
         ok = false;
@@ -141,7 +148,7 @@ static bool test_footprint_and_entry_count(void) {
     }
     // Footprint includes descriptor table grow on free side, so it
     // can be >= the live-only baseline. Must NOT shrink.
-    size foot_after_free_p1 = PageAllocatorFootprintBytes(&alloc);
+    size foot_after_free_p1 = AllocatorFootprintBytes(&alloc);
     if (foot_after_free_p1 < foot_with_two) {
         WriteFmt("foot shrank after retention: {} < {}\n", (u64)foot_after_free_p1, (u64)foot_with_two);
         ok = false;
@@ -154,15 +161,21 @@ static bool test_footprint_and_entry_count(void) {
         WriteFmt("after free p2 EntryCount={} want 0\n", (u64)PageAllocatorEntryCount(&alloc));
         ok = false;
     }
-    if (PageAllocatorFootprintBytes(&alloc) < foot_with_two) {
+    if (AllocatorFootprintBytes(&alloc) < foot_with_two) {
         WriteFmt("foot shrank after all-free\n");
         ok = false;
     }
 
     PageAllocatorDeinit(&alloc);
     // Post-deinit the struct is zeroed: both accessors return 0.
-    if (PageAllocatorEntryCount(&alloc) != 0) { WriteFmt("post-deinit EntryCount != 0\n"); ok = false; }
-    if (PageAllocatorFootprintBytes(&alloc) != 0) { WriteFmt("post-deinit Footprint != 0\n"); ok = false; }
+    if (PageAllocatorEntryCount(&alloc) != 0) {
+        WriteFmt("post-deinit EntryCount != 0\n");
+        ok = false;
+    }
+    if (AllocatorFootprintBytes(&alloc) != 0) {
+        WriteFmt("post-deinit Footprint != 0\n");
+        ok = false;
+    }
     return ok;
 }
 

@@ -72,7 +72,7 @@ void fuzz_int_list(
     ListIntFunction   func,
     const uint8_t    *data,
     size_t           *offset,
-    size_t            size,
+    size_t            data_size,
     DefaultAllocator *alloc
 );
 

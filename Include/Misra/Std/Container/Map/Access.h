@@ -112,6 +112,46 @@
 #define MapStates(m) ((void)0, (m)->states)
 
 ///
+/// Probing / rehash policy currently installed on `m`. The returned
+/// `MapPolicy` value is borrowed from inside the map -- read-only.
+///
+/// m[in] : Map.
+///
+/// TAGS: Map, Access, Policy
+///
+#define MapPolicy(m) ((void)0, (m)->policy)
+
+///
+/// Key-hash callback installed at `MapInit`. Same shape as the
+/// `GenericHash` callbacks Map / Vec accept elsewhere.
+///
+/// m[in] : Map.
+///
+/// TAGS: Map, Access, Hash, Key
+///
+#define MapKeyHash(m) ((void)0, (m)->key_hash)
+
+///
+/// Key-comparison callback installed at `MapInit`. Same shape as the
+/// `GenericCompare` callbacks Map / Vec accept elsewhere.
+///
+/// m[in] : Map.
+///
+/// TAGS: Map, Access, Compare, Key
+///
+#define MapKeyCompare(m) ((void)0, (m)->key_compare)
+
+///
+/// Value-comparison callback installed at `MapInit`, or `NULL` when
+/// the map was initialised without value comparison.
+///
+/// m[in] : Map.
+///
+/// TAGS: Map, Access, Compare, Value
+///
+#define MapValueCompare(m) ((void)0, (m)->value_compare)
+
+///
 /// Number of distinct keys stored in the multimap. Walks the slot
 /// table once to count canonical probe-anchor slots, so this is `O(capacity)`
 /// -- prefer `MapPairCount` when total pair count is enough.

@@ -25,7 +25,7 @@ extern "C" {
     bool insert_range_fast_into_vec(GenericVec *vec, const u8 *item_data, size item_size, size idx, size count);
     void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size start, size count);
     void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size start, size count);
-    void qsort_vec(GenericVec *vec, size item_size, GenericCompare comp);
+    void vec_sort(GenericVec *vec, size item_size, GenericCompare comp);
     void swap_vec(GenericVec *vec, size item_size, size idx1, size idx2);
     void reverse_vec(GenericVec *vec, size item_size);
     size find_idx_vec(GenericVec *vec, const void *item_data, size item_size, GenericCompare comp);

@@ -35,37 +35,40 @@ typedef struct {
 } FuzzState;
 
 // Helper function to extract uint16 from input data
-uint16_t extract_u16(const uint8_t *data, size_t *offset, size_t size) {
-    if (*offset + 2 > size) {
+uint16_t extract_u16(const uint8_t *data, size_t *offset, size_t data_size) {
+    if (*offset + 2 > data_size) {
         return 0;
     }
-    uint16_t result  = (data[*offset] << 8) | data[*offset + 1];
+    uint16_t result  = (uint16_t)(((uint32_t)data[*offset] << 8) | (uint32_t)data[*offset + 1]);
     *offset         += 2;
     return result;
 }
 
 // Helper function to extract uint8 from input data
-uint8_t extract_u8(const uint8_t *data, size_t *offset, size_t size) {
-    if (*offset >= size) {
+uint8_t extract_u8(const uint8_t *data, size_t *offset, size_t data_size) {
+    if (*offset >= data_size) {
         return 0;
     }
     return data[(*offset)++];
 }
 
-// Helper function to extract uint32 from input data
-uint32_t extract_u32(const uint8_t *data, size_t *offset, size_t size) {
-    if (*offset + 4 > size) {
+// Helper function to extract uint32 from input data. The intermediate
+// shifts are done as `uint32_t` so a top-bit-set byte like 0xFF doesn't
+// trigger signed-shift UB after the default `int` promotion of uint8_t.
+uint32_t extract_u32(const uint8_t *data, size_t *offset, size_t data_size) {
+    if (*offset + 4 > data_size) {
         return 0;
     }
-    uint32_t result  = (data[*offset] << 24) | (data[*offset + 1] << 16) | (data[*offset + 2] << 8) | data[*offset + 3];
-    *offset         += 4;
+    uint32_t result = ((uint32_t)data[*offset] << 24) | ((uint32_t)data[*offset + 1] << 16) |
+                      ((uint32_t)data[*offset + 2] << 8) | (uint32_t)data[*offset + 3];
+    *offset += 4;
     return result;
 }
 
 // Generate a C-string from fuzz input data
-char *generate_cstring(const uint8_t *data, size_t *offset, size_t size, size_t max_len) {
+char *generate_cstring(const uint8_t *data, size_t *offset, size_t data_size, size_t max_len) {
     // Extract length (limit to max_len for sanity)
-    uint8_t len = extract_u8(data, offset, size);
+    uint8_t len = extract_u8(data, offset, data_size);
     len         = len % (max_len + 1); // 0 to max_len
 
     // Allocate string
@@ -76,7 +79,7 @@ char *generate_cstring(const uint8_t *data, size_t *offset, size_t size, size_t 
 
     // Fill with data or generate simple pattern if not enough input
     for (size_t i = 0; i < len; i++) {
-        if (*offset < size) {
+        if (*offset < data_size) {
             str[i] = (char)(data[(*offset)++] % 95 + 32); // Printable ASCII range
         } else {
             str[i] = (char)('A' + (i % 26));              // Fallback pattern
@@ -129,9 +132,9 @@ static void deinit_fuzz_state(FuzzState *state) {
 //   0 = Successful execution (input was processed)
 //   1 = Input format error (not a bug in the library)
 //   Crash/Abort = Actual bug found in library
-static int process_fuzz_input(const uint8_t *data, size_t size) {
+static int process_fuzz_input(const uint8_t *data, size_t data_size) {
     // Need at least 4 bytes (2 for object selection, 2 for function selection)
-    if (size < 4) {
+    if (data_size < 4) {
         return 1; // Input format error, not a library bug
     }
 
@@ -142,35 +145,35 @@ static int process_fuzz_input(const uint8_t *data, size_t size) {
     size_t offset = 0;
 
     // Extract object type (first 2 bytes)
-    uint16_t   obj_selector = extract_u16(data, &offset, size);
+    uint16_t   obj_selector = extract_u16(data, &offset, data_size);
     ObjectType obj_type     = (ObjectType)(obj_selector % OBJ_COUNT);
 
     // Extract function selector (next 2 bytes)
-    uint16_t func_selector = extract_u16(data, &offset, size);
+    uint16_t func_selector = extract_u16(data, &offset, data_size);
 
     // Route to appropriate sub-harness based on object type
     switch (obj_type) {
         case OBJ_INT_VEC : {
             VecIntFunction func = (VecIntFunction)(func_selector % VEC_INT_COUNT);
-            fuzz_int_vec(&state.int_vec, func, data, &offset, size, &state.alloc);
+            fuzz_int_vec(&state.int_vec, func, data, &offset, data_size, &state.alloc);
             break;
         }
 
         case OBJ_CHAR_PTR_VEC : {
             VecCharPtrFunction func = (VecCharPtrFunction)(func_selector % VEC_CHAR_PTR_COUNT);
-            fuzz_char_ptr_vec(&state.char_ptr_vec, func, data, &offset, size, &state.alloc);
+            fuzz_char_ptr_vec(&state.char_ptr_vec, func, data, &offset, data_size, &state.alloc);
             break;
         }
 
         case OBJ_STR_VEC : {
             VecStrFunction func = (VecStrFunction)(func_selector % VEC_STR_COUNT);
-            fuzz_str_vec(&state.str_vec, func, data, &offset, size, &state.alloc);
+            fuzz_str_vec(&state.str_vec, func, data, &offset, data_size, &state.alloc);
             break;
         }
 
         case OBJ_INT_LIST : {
             ListIntFunction func = (ListIntFunction)(func_selector % LIST_INT_COUNT);
-            fuzz_int_list(&state.int_list, func, data, &offset, size, &state.alloc);
+            fuzz_int_list(&state.int_list, func, data, &offset, data_size, &state.alloc);
             break;
         }
 

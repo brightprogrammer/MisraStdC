@@ -443,7 +443,6 @@ void ProcTerminate(Proc *proc) {
 #endif
 }
 
-
 void ProcDeinit(Proc *proc) {
     if (!proc) {
         return;
@@ -642,7 +641,7 @@ i32 ProcGetExitCode(Proc *proc) {
 
 Str *GetCurrentExecutablePath(Str *exe_path) {
     ValidateStr(exe_path);
-    Allocator *alloc = exe_path->allocator;
+    Allocator *alloc = StrAllocator(exe_path);
 
 #if PLATFORM_WINDOWS
     // Stack-backed staging buffer for `GetModuleFileNameA`. `len` is
@@ -691,7 +690,7 @@ Str *GetCurrentExecutablePath(Str *exe_path) {
 // Sys/Backtrace already makes per-frame.
 #    if PLATFORM_DARWIN
     extern Zstr _dyld_get_image_name(u32 image_index);
-    Zstr exe = _dyld_get_image_name(0);
+    Zstr        exe = _dyld_get_image_name(0);
     if (exe) {
         *exe_path = StrInitFromCstr(exe, ZstrLen(exe), alloc);
         return exe_path;

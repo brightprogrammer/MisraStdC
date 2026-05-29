@@ -21,6 +21,13 @@
 extern "C" {
 #endif
 
+    // Forward declaration. `Allocator` is the base struct every typed
+    // allocator embeds at offset 0. _Os.h only needs to know it exists
+    // and that `footprint_bytes` is reachable from a pointer to it;
+    // <Misra/Std/Allocator.h> carries the full definition and is
+    // included by the typed allocator's source TU.
+    typedef struct Allocator Allocator;
+
     /// OS page size, in bytes. First call queries the platform (kernel32
     /// on Windows, compile-time constant on POSIX since we control the
     /// supported architecture/OS matrix); subsequent calls return the
@@ -30,34 +37,39 @@ extern "C" {
     size os_page_size(void);
 
     /// mmap an anonymous, page-zeroed region of `bytes` bytes (which MUST
-    /// be a multiple of `os_page_size()`). Returns the region
-    /// pointer or NULL on OS failure. The kernel zeros the region, so
-    /// callers that need zeroed memory do not need to MemSet on top.
-    void *os_page_map(size bytes);
+    /// be a multiple of `os_page_size()`). `owner->footprint_bytes` is
+    /// bumped by `bytes` on success so footprint accounting moves in
+    /// lock-step with the kernel call -- no per-site discipline
+    /// required. Returns the region pointer or NULL on OS failure.
+    /// The kernel zeros the region, so callers that need zeroed memory
+    /// do not need to MemSet on top.
+    void *os_page_map(Allocator *owner, size bytes);
 
-    /// Release a region previously returned by `os_page_map`. The
-    /// caller MUST pass the same `bytes` it requested -- the OS shim
-    /// holds no per-region bookkeeping. Passing a wrong size or a stale
+    /// Release a region previously returned by `os_page_map`.
+    /// `owner->footprint_bytes` is drawn down by `bytes`. The caller
+    /// MUST pass the same `bytes` it requested -- the OS shim holds
+    /// no per-region bookkeeping. Passing a wrong size or a stale
     /// pointer is undefined behaviour.
-    void os_page_unmap(void *ptr, size bytes);
+    void os_page_unmap(Allocator *owner, void *ptr, size bytes);
 
     /// Try to resize an existing `os_page_map` region in-place to
-    /// `new_bytes` (must be page-multiple). The kernel may move the
-    /// region; the returned pointer is the new address (possibly
-    /// unchanged). Returns NULL if the resize cannot be honoured AT
-    /// ALL on this platform / for this request -- callers MUST treat
-    /// NULL as "fall back to alloc-new + memcpy + unmap-old", not as
-    /// a freed region. The old region remains valid on NULL return.
+    /// `new_bytes` (must be page-multiple). `owner->footprint_bytes`
+    /// is adjusted by `new_bytes - old_bytes` on success. The kernel
+    /// may move the region; the returned pointer is the new address
+    /// (possibly unchanged). Returns NULL if the resize cannot be
+    /// honoured AT ALL on this platform / for this request -- callers
+    /// MUST treat NULL as "fall back to alloc-new + MemCopy +
+    /// unmap-old", not as a freed region. The old region remains
+    /// valid on NULL return and footprint accounting is untouched.
     ///
     /// Implementation:
     ///   Linux direct-syscall : `mremap(..., MREMAP_MAYMOVE)`.
-    ///   Linux libc fallback  : libc `mremap(..., MREMAP_MAYMOVE)`.
     ///   Darwin / Windows     : not supported, returns NULL. (XNU has
     ///                          no public mremap; Win32 has no analogue
     ///                          for resize-in-place of an mmapped
     ///                          region -- VirtualAlloc reservations
     ///                          can't be safely grown.)
-    void *os_page_remap(void *ptr, size old_bytes, size new_bytes);
+    void *os_page_remap(Allocator *owner, void *ptr, size old_bytes, size new_bytes);
 
     /// Round `bytes` up to the next multiple of `os_page_size()`.
     /// Convenience for callers that compute mmap request sizes from

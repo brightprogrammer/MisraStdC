@@ -55,7 +55,7 @@ static StrIter JSkipObject(StrIter si) {
 
         // key start
         read_si = JReadString(si, &key);
-        if (read_si.pos == si.pos) {
+        if (StrIterIndex(&read_si) == StrIterIndex(&si)) {
             LOG_ERROR("Failed to read string key in object. Invalid JSON");
             StrDeinit(&key);
             DefaultAllocatorDeinit(&scratch);
@@ -77,7 +77,7 @@ static StrIter JSkipObject(StrIter si) {
         read_si = JSkipValue(si);
 
         // if still no advancement in read position
-        if (read_si.pos == si.pos) {
+        if (StrIterIndex(&read_si) == StrIterIndex(&si)) {
             LOG_ERROR("Failed to parse value. Invalid JSON.");
             StrDeinit(&key);
             DefaultAllocatorDeinit(&scratch);
@@ -139,7 +139,7 @@ static StrIter JSkipArray(StrIter si) {
         read_si = JSkipValue(si);
 
         // if no advancement in read position
-        if (read_si.pos == si.pos) {
+        if (StrIterIndex(&read_si) == StrIterIndex(&si)) {
             LOG_ERROR("Failed to parse value. Invalid JSON.");
             return saved_si;
         }
@@ -272,7 +272,7 @@ StrIter JReadString(StrIter si, Str *str) {
                             }
                             LOG_ERROR(
                                 "No unicode support '{.6}'. Unicode sequence will be skipped.",
-                                LVAL(si.data + si.pos - 1)
+                                LVAL(StrIterDataAt(&si, StrIterIndex(&si) - 1))
                             );
                             StrIterMustMove(&si, 5);
                             break;
@@ -400,7 +400,7 @@ StrIter JReadNumber(StrIter si, Number *num) {
     }
 
     if (!StrLen(&ns)) {
-        LOG_ERROR("Failed to parse number. '{.8}'", LVAL(saved_si.data + saved_si.pos));
+        LOG_ERROR("Failed to parse number. '{.8}'", LVAL(StrIterDataAt(&saved_si, StrIterIndex(&saved_si))));
         StrDeinit(&ns);
         DefaultAllocatorDeinit(&scratch);
         return saved_si;
@@ -423,9 +423,15 @@ StrIter JReadNumber(StrIter si, Number *num) {
     // negate
     if (is_neg) {
         if (is_flt) {
-            num->f *= -1;
+            num->f = -num->f;
         } else {
-            num->i *= -1;
+            // ZstrToI64 saturates positives to INT64_MAX; today that
+            // means `num->i` after this point is always in
+            // [-INT64_MAX, 0], avoiding the INT64_MIN-negate UB. Do
+            // the negate through u64 anyway so a future ZstrToI64
+            // change (e.g. emitting INT64_MIN on overflow) cannot
+            // silently introduce signed-overflow UB at this call site.
+            num->i = (i64)(0u - (u64)num->i);
         }
     }
     num->is_float = is_flt;
@@ -448,7 +454,7 @@ StrIter JReadInteger(StrIter si, i64 *val) {
     Number  num;
     si = JReadNumber(si, &num);
 
-    if (si.pos == saved_si.pos) {
+    if (StrIterIndex(&si) == StrIterIndex(&saved_si)) {
         LOG_ERROR("Failed to parse integer number.");
         return saved_si;
     }
@@ -476,7 +482,7 @@ StrIter JReadFloat(StrIter si, f64 *val) {
     Number  num;
     si = JReadNumber(si, &num);
 
-    if (si.pos == saved_si.pos) {
+    if (StrIterIndex(&si) == StrIterIndex(&saved_si)) {
         LOG_ERROR("Failed to parse floating point number");
         return saved_si;
     }
@@ -595,7 +601,7 @@ StrIter JSkipValue(StrIter si) {
         bool    b;
         si = JReadBool(si, &b);
 
-        if (si.pos == before_si.pos) {
+        if (StrIterIndex(&si) == StrIterIndex(&before_si)) {
             LOG_ERROR(
                 "Failed to read boolean value. Expected true/false. Invalid "
                 "JSON."
@@ -612,7 +618,7 @@ StrIter JSkipValue(StrIter si) {
         bool    n;
         si = JReadNull(si, &n);
 
-        if (si.pos == before_si.pos) {
+        if (StrIterIndex(&si) == StrIterIndex(&before_si)) {
             LOG_ERROR(
                 "Failed to read boolean value. Expected true/false. Invalid "
                 "JSON."
@@ -636,7 +642,7 @@ StrIter JSkipValue(StrIter si) {
         StrDeinit(&s);
         DefaultAllocatorDeinit(&scratch);
 
-        if (si.pos == before_si.pos) {
+        if (StrIterIndex(&si) == StrIterIndex(&before_si)) {
             LOG_ERROR("Failed to read string value. Expected string. Invalid JSON.");
             return saved_si;
         }
@@ -650,7 +656,7 @@ StrIter JSkipValue(StrIter si) {
         Number  num;
         si = JReadNumber(si, &num);
 
-        if (si.pos == before_si.pos) {
+        if (StrIterIndex(&si) == StrIterIndex(&before_si)) {
             LOG_ERROR("Failed to read number value. Expected a number. Invalid JSON.");
             return saved_si;
         }
@@ -663,7 +669,7 @@ StrIter JSkipValue(StrIter si) {
         StrIter before_si = si;
         si                = JSkipObject(si);
 
-        if (si.pos == before_si.pos) {
+        if (StrIterIndex(&si) == StrIterIndex(&before_si)) {
             LOG_ERROR("Failed to read object. Expected an object. Invalid JSON.");
             return saved_si;
         }
@@ -676,7 +682,7 @@ StrIter JSkipValue(StrIter si) {
         StrIter before_si = si;
         si                = JSkipArray(si);
 
-        if (si.pos == before_si.pos) {
+        if (StrIterIndex(&si) == StrIterIndex(&before_si)) {
             LOG_ERROR("Failed to read array. Expected an array. Invalid JSON.");
             return saved_si;
         }

@@ -5,13 +5,15 @@
 /// PE/COFF (Portable Executable / Common Object File Format) parser.
 /// The Windows counterpart of `Parsers/Elf`. Reads the DOS stub, the
 /// NT headers, the section table, and the data directories of a 64-bit
-/// PE32+ image directly out of bytes -- no Windows API, no dbghelp.
+/// PE32+ image directly out of bytes, so a parsed `Pe` is just a view
+/// over caller-owned memory and can be built without a loader hosting
+/// the image first.
 ///
-/// The narrow goal of v1 is to support our backtrace-resolution
-/// pipeline: locate the CodeView debug record so the in-tree
-/// `Parsers/Pdb` reader can find the matching `.pdb` for symbol-name
-/// resolution. RVA -> file-offset translation is exposed for callers
-/// that want to walk other sections (debug directory aside).
+/// The narrow goal of v1 is to support the backtrace-resolution
+/// pipeline: locate the CodeView debug record so `Parsers/Pdb` can find
+/// the matching `.pdb` for symbol-name resolution. RVA -> file-offset
+/// translation is exposed for callers that want to walk other sections
+/// (debug directory aside).
 
 #ifndef MISRA_PARSERS_PE_H
 #define MISRA_PARSERS_PE_H
@@ -107,6 +109,16 @@ typedef struct Pe {
 } Pe;
 
 ///
+/// Borrowed handle to the PE's decoded CodeView debug record. Cross-
+/// namespace readers (`PdbCache`, ...) inspect `(guid, age, pdb_path)`
+/// to locate the matching PDB; this is the public seam they go through
+/// instead of reaching at `self->codeview` directly.
+///
+/// TAGS: Parser, PE, Accessor
+///
+#define PeCodeView(self) ((void)0, &(self)->codeview)
+
+///
 /// Open and parse a PE file from disk.
 ///
 /// out[out]   : Populated on success.
@@ -178,9 +190,9 @@ bool pe_open_from_memory_copy(Pe *out, const u8 *data, size data_size, Allocator
     pe_open_from_memory_copy((out), (data), (data_size), ALLOCATOR_OF(alloc))
 
 ///
-/// Release storage owned by a `Pe`. Frees `data` through
-/// `allocator` (unconditional -- parser always owns its bytes) and
-/// tears down the sections vector. Safe on a zeroed struct.
+/// Release storage owned by a `Pe`. Frees the `data` Buf through
+/// its carried allocator (unconditional -- parser always owns its
+/// bytes) and tears down the sections vector. Safe on a zeroed struct.
 ///
 /// SUCCESS : Returns to the caller. `*self` is zeroed.
 /// FAILURE : Function cannot fail. NULL `self` is a no-op.
@@ -202,12 +214,10 @@ void PeDeinit(Pe *self);
 const PeSection *pe_find_section_zstr(const Pe *self, Zstr name);
 const PeSection *pe_find_section_str(const Pe *self, const Str *name);
 #define PeFindSection(self, name)                                                                                      \
-    _Generic(                                                                                                          \
-        (name),                                                                                                        \
-        Str *: pe_find_section_str,                                                                                    \
-        Zstr: pe_find_section_zstr,                                                                                    \
-        char *: pe_find_section_zstr                                                                                   \
-    )((self), (name))
+    _Generic((name), Str *: pe_find_section_str, Zstr: pe_find_section_zstr, char *: pe_find_section_zstr)(            \
+        (self),                                                                                                        \
+        (name)                                                                                                         \
+    )
 
 ///
 /// Convert an RVA (offset from `ImageBase`) to a file offset by
@@ -217,7 +227,7 @@ const PeSection *pe_find_section_str(const Pe *self, const Str *name);
 ///
 /// SUCCESS : Returns true; `*out_offset` is set.
 /// FAILURE : Returns false when no section covers `rva` or the result
-///           would point past `data_size`.
+///           would point past `BufLength(&self->data)`.
 ///
 /// TAGS: Parser, PE, Address
 ///

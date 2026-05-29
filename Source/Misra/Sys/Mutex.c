@@ -2,7 +2,7 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Cross-platform Mutex implementation that bypasses libc:
+/// Cross-platform Mutex implementation backed by direct kernel primitives:
 ///
 ///   - **Linux** (x86_64 / aarch64): Drepper-style 3-state futex
 ///     mutex (`0` unlocked, `1` locked uncontended, `2` locked with
@@ -36,8 +36,8 @@
 // here because we ignore the return value, but flipping it on
 // keeps any future code that checks the return free of libSystem
 // errno reads.
-#        define MISRA_UL_COMPARE_AND_WAIT 1
-#        define MISRA_ULF_NO_ERRNO        0x1000000
+#        define UL_COMPARE_AND_WAIT 1
+#        define ULF_NO_ERRNO        0x1000000
 #    else
 #        define FUTEX_WAIT_PRIVATE 128 // FUTEX_WAIT | FUTEX_PRIVATE_FLAG
 #        define FUTEX_WAKE_PRIVATE 129 // FUTEX_WAKE | FUTEX_PRIVATE_FLAG
@@ -57,13 +57,9 @@
 static inline void mutex_wait(_Atomic int *addr, int expected) {
 #    if PLATFORM_DARWIN
     // __ulock_wait(op_and_flags, addr, value, timeout_us=0=infinite)
-    (void)misra_sys4(
-        MISRA_SYS___ulock_wait,
-        (long)(MISRA_UL_COMPARE_AND_WAIT | MISRA_ULF_NO_ERRNO),
-        (long)(u64)addr,
-        (long)expected,
-        0
-    );
+    (
+        void
+    )misra_sys4(MISRA_SYS___ulock_wait, (long)(UL_COMPARE_AND_WAIT | ULF_NO_ERRNO), (long)(u64)addr, (long)expected, 0);
 #    else
     // futex(addr, FUTEX_WAIT_PRIVATE, val=expected, timeout=NULL)
     (void)misra_sys4(MISRA_SYS_futex, (long)(u64)addr, FUTEX_WAIT_PRIVATE, expected, 0);
@@ -75,9 +71,7 @@ static inline void mutex_wake_one(_Atomic int *addr) {
     // __ulock_wake(op_and_flags, addr, wake_value=0) -- with
     // UL_COMPARE_AND_WAIT alone (no ULF_WAKE_ALL) the kernel wakes
     // exactly one waiter, same as FUTEX_WAKE with val=1.
-    (
-        void
-    )misra_sys3(MISRA_SYS___ulock_wake, (long)(MISRA_UL_COMPARE_AND_WAIT | MISRA_ULF_NO_ERRNO), (long)(u64)addr, 0);
+    (void)misra_sys3(MISRA_SYS___ulock_wake, (long)(UL_COMPARE_AND_WAIT | ULF_NO_ERRNO), (long)(u64)addr, 0);
 #    else
     // futex(addr, FUTEX_WAKE_PRIVATE, val=1) -- wake at most one.
     (void)misra_sys3(MISRA_SYS_futex, (long)(u64)addr, FUTEX_WAKE_PRIVATE, 1);

@@ -24,8 +24,9 @@ static bool test_validate_corrupt_empty_list_fails(void) {
     WriteFmt("Testing ValidateList on corrupt empty list\n");
 
     List(int) list = ListInit(get_test_alloc());
-    // intentional corruption: bypass ListHead (read-only accessor) to plant
-    // a bogus head pointer so ValidateList trips its empty-but-head-set check.
+    // intentional bypass: ListHead is read-only, no public setter exists --
+    // plant a bogus head pointer on an empty list so ValidateList trips its
+    // empty-but-head-set check.
     list.head = (void *)1;
     ValidateList(&list);
 
@@ -43,8 +44,9 @@ static bool test_validate_invalid_magic_fails(void) {
     WriteFmt("Testing ValidateList on invalid magic\n");
 
     List(int) list = ListInit(get_test_alloc());
-    // intentional corruption: scramble the magic sentinel so ValidateList
-    // catches the type-confusion / uninitialised-handle path.
+    // intentional bypass: __magic is the private sentinel ValidateList
+    // checks; scramble it directly to exercise the type-confusion /
+    // uninitialised-handle path.
     list.__magic = 0;
     ValidateList(&list);
 
@@ -58,8 +60,9 @@ static bool test_validate_corrupt_nonempty_list_fails(void) {
     List(int) list       = ListInit(get_test_alloc());
     GenericList *g       = GENERIC_LIST(&list);
 
-    // intentional corruption: head set but tail null with length 1 -- proves
-    // ValidateList catches the head/tail consistency invariant.
+    // intentional bypass: ListHead/ListTail/ListLen are read-only; plant
+    // head set but tail null with length 1 -- proves ValidateList catches
+    // the head/tail consistency invariant.
     g->head   = &node;
     g->length = 1;
     g->tail   = NULL;
@@ -76,8 +79,9 @@ static bool test_validate_nonempty_head_null_fails(void) {
     List(int) list        = ListInit(get_test_alloc());
     GenericList *g        = GENERIC_LIST(&list);
 
-    // intentional corruption: length>0 with NULL head -- proves the
-    // empty-length-must-match-empty-list-pointer invariant fires.
+    // intentional bypass: ListHead/ListTail/ListLen are read-only; plant
+    // length>0 with NULL head -- proves the empty-length-must-match-empty-
+    // list-pointer invariant fires.
     g->head   = NULL;
     g->tail   = &node;
     g->length = 1;
@@ -94,6 +98,9 @@ static bool test_validate_head_prev_fails(void) {
     List(int) list        = ListInit(get_test_alloc());
     GenericList *g        = GENERIC_LIST(&list);
 
+    // intentional bypass: ListHead/ListTail/ListLen are read-only; plant a
+    // head node whose prev pointer is non-NULL -- ValidateList must reject
+    // the head having a predecessor.
     g->head   = &node;
     g->tail   = &node;
     g->length = 1;
@@ -110,6 +117,9 @@ static bool test_validate_tail_next_fails(void) {
     List(int) list        = ListInit(get_test_alloc());
     GenericList *g        = GENERIC_LIST(&list);
 
+    // intentional bypass: ListHead/ListTail/ListLen are read-only; plant a
+    // tail node whose next pointer is non-NULL -- ValidateList must reject
+    // the tail having a successor.
     g->head   = &node;
     g->tail   = &node;
     g->length = 1;

@@ -7,6 +7,7 @@
 #ifndef MISRA_STD_CONTAINER_BITVEC_CONVERT_H
 #define MISRA_STD_CONTAINER_BITVEC_CONVERT_H
 
+#include "Access.h"
 #include "Type.h"
 #include <Misra/Types.h>
 #include <Misra/Std/Container/Str.h>
@@ -14,18 +15,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-    ///
-    /// Return the allocator pointer bound to the bitvector.
-    ///
-    /// bv[in] : Bitvector whose allocator should be returned.
-    ///
-    /// SUCCESS : Returns the `Allocator *` stored on `bv`.
-    /// FAILURE : Does not return if `bv` is invalid.
-    ///
-    /// TAGS: BitVec, Allocator, Access
-    ///
-    Allocator *BitVecGetAllocator(const BitVec *bv);
 
     ///
     /// Convert a bitvector to a string using an explicit allocator.
@@ -69,17 +58,17 @@ extern "C" {
     bool bitvec_try_from_str_zstr(BitVec *out, Zstr str, Allocator *alloc);
     bool bitvec_try_from_str_str(BitVec *out, const Str *str, Allocator *alloc);
 #define BitVecTryFromStr(...) OVERLOAD(BitVecTryFromStr, __VA_ARGS__)
-#define BitVecTryFromStr_2(out, str)                                                                                                                                 \
-    _Generic((str), Str *: bitvec_try_from_str_str, char *: bitvec_try_from_str_zstr, Zstr : bitvec_try_from_str_zstr)( \
-        (out),                                                                                                                                                       \
-        (str),                                                                                                                                                       \
-        MisraScope                                                                                                                                                   \
+#define BitVecTryFromStr_2(out, str)                                                                                   \
+    _Generic((str), Str *: bitvec_try_from_str_str, Zstr: bitvec_try_from_str_zstr, char *: bitvec_try_from_str_zstr)( \
+        (out),                                                                                                         \
+        (str),                                                                                                         \
+        MisraScope                                                                                                     \
     )
-#define BitVecTryFromStr_3(out, str, alloc)                                                                                                                          \
-    _Generic((str), Str *: bitvec_try_from_str_str, char *: bitvec_try_from_str_zstr, Zstr : bitvec_try_from_str_zstr)( \
-        (out),                                                                                                                                                       \
-        (str),                                                                                                                                                       \
-        ALLOCATOR_OF(alloc)                                                                                                                                          \
+#define BitVecTryFromStr_3(out, str, alloc)                                                                            \
+    _Generic((str), Str *: bitvec_try_from_str_str, Zstr: bitvec_try_from_str_zstr, char *: bitvec_try_from_str_zstr)( \
+        (out),                                                                                                         \
+        (str),                                                                                                         \
+        ALLOCATOR_OF(alloc)                                                                                            \
     )
 
     ///
@@ -96,15 +85,15 @@ extern "C" {
     BitVec bitvec_from_str_zstr(Zstr str, Allocator *alloc);
     BitVec bitvec_from_str_str(const Str *str, Allocator *alloc);
 #define BitVecFromStr(...) OVERLOAD(BitVecFromStr, __VA_ARGS__)
-#define BitVecFromStr_1(str)                                                                                                                         \
-    _Generic((str), Str *: bitvec_from_str_str, char *: bitvec_from_str_zstr, Zstr : bitvec_from_str_zstr)( \
-        (str),                                                                                                                                       \
-        MisraScope                                                                                                                                   \
+#define BitVecFromStr_1(str)                                                                                           \
+    _Generic((str), Str *: bitvec_from_str_str, Zstr: bitvec_from_str_zstr, char *: bitvec_from_str_zstr)(             \
+        (str),                                                                                                         \
+        MisraScope                                                                                                     \
     )
-#define BitVecFromStr_2(str, alloc)                                                                                                                  \
-    _Generic((str), Str *: bitvec_from_str_str, char *: bitvec_from_str_zstr, Zstr : bitvec_from_str_zstr)( \
-        (str),                                                                                                                                       \
-        ALLOCATOR_OF(alloc)                                                                                                                          \
+#define BitVecFromStr_2(str, alloc)                                                                                    \
+    _Generic((str), Str *: bitvec_from_str_str, Zstr: bitvec_from_str_zstr, char *: bitvec_from_str_zstr)(             \
+        (str),                                                                                                         \
+        ALLOCATOR_OF(alloc)                                                                                            \
     )
 
     ///
@@ -236,7 +225,7 @@ extern "C" {
 /// TAGS: BitVec, Convert, String
 ///
 #define BitVecTryToStr(...)              OVERLOAD(BitVecTryToStr, __VA_ARGS__)
-#define BitVecTryToStr_2(out, bv)        bitvec_try_to_str((out), (bv), BitVecGetAllocator((bv)))
+#define BitVecTryToStr_2(out, bv)        bitvec_try_to_str((out), (bv), BitVecAllocator((bv)))
 #define BitVecTryToStr_3(out, bv, alloc) bitvec_try_to_str((out), (bv), (alloc))
 
 ///
@@ -251,7 +240,7 @@ extern "C" {
 /// TAGS: BitVec, Convert, String
 ///
 #define BitVecToStr(...)         OVERLOAD(BitVecToStr, __VA_ARGS__)
-#define BitVecToStr_1(bv)        bitvec_to_str((bv), BitVecGetAllocator((bv)))
+#define BitVecToStr_1(bv)        bitvec_to_str((bv), BitVecAllocator((bv)))
 #define BitVecToStr_2(bv, alloc) bitvec_to_str((bv), (alloc))
 
 #endif // MISRA_STD_CONTAINER_BITVEC_CONVERT_H

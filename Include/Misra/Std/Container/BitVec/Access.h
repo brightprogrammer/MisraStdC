@@ -121,6 +121,15 @@ extern "C" {
 ///
 #define BitVecByteSize(bv) ((void)0, (bv)->byte_size)
 
+///
+/// Allocator backing the bitvector's storage.
+///
+/// bv[in] : Bitvector to query.
+///
+/// TAGS: BitVec, Access, Allocator
+///
+#define BitVecAllocator(bv) ((void)0, (bv)->allocator)
+
     ///
     /// Count number of bits set to 1 in bitvector.
     ///

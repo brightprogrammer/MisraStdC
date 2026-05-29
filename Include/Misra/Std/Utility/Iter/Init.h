@@ -82,7 +82,7 @@
     {.data      = VecBegin(&(v)),                                                                                      \
      .length    = VecLen(&(v)),                                                                                        \
      .pos       = 0,                                                                                                   \
-     .alignment = VecAllocator(&(v)) ? VecAllocator(&(v))->alignment : 1,                                              \
+     .alignment = VecAllocator(&(v)) ? AllocatorAlignment(VecAllocator(&(v))) : 1,                                     \
      .dir       = 1}
 
 ///
@@ -101,7 +101,7 @@
     {.data      = VecBegin(&(v)),                                                                                      \
      .length    = VecLen(&(v)),                                                                                        \
      .pos       = 0,                                                                                                   \
-     .alignment = VecAllocator(&(v)) ? VecAllocator(&(v))->alignment : 1,                                              \
+     .alignment = VecAllocator(&(v)) ? AllocatorAlignment(VecAllocator(&(v))) : 1,                                     \
      .dir       = -1}
 
 ///
@@ -180,7 +180,7 @@
     ((TYPE_OF(i)) {.data      = VecBegin(&(v)),                                                                        \
                    .length    = VecLen(&(v)),                                                                          \
                    .pos       = 0,                                                                                     \
-                   .alignment = VecAllocator(&(v)) ? VecAllocator(&(v))->alignment : 1,                                \
+                   .alignment = VecAllocator(&(v)) ? AllocatorAlignment(VecAllocator(&(v))) : 1,                       \
                    .dir       = 1})
 
 ///
@@ -200,7 +200,7 @@
     ((TYPE_OF(i)) {.data      = VecBegin(&(v)),                                                                        \
                    .length    = VecLen(&(v)),                                                                          \
                    .pos       = 0,                                                                                     \
-                   .alignment = VecAllocator(&(v)) ? VecAllocator(&(v))->alignment : 1,                                \
+                   .alignment = VecAllocator(&(v)) ? AllocatorAlignment(VecAllocator(&(v))) : 1,                       \
                    .dir       = -1})
 
 ///

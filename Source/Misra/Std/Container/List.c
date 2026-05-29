@@ -9,22 +9,6 @@
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 
-static inline GenericListNode *alloc_list_node(GenericList *list) {
-    return AllocatorAlloc(list->allocator, sizeof(GenericListNode), true);
-}
-
-static inline void free_list_node(GenericList *list, GenericListNode *node) {
-    AllocatorFree(list->allocator, node);
-}
-
-static inline void *alloc_list_item(GenericList *list, u64 item_size) {
-    return AllocatorAlloc(list->allocator, item_size, true);
-}
-
-static inline void free_list_item(GenericList *list, void *item, u64 item_size) {
-    AllocatorFree(list->allocator, item);
-}
-
 void deinit_list(GenericList *list, u64 item_size) {
     if (!list || !item_size) {
         LOG_FATAL("invalid arguments.");
@@ -53,21 +37,21 @@ bool insert_into_list(GenericList *list, const void *item_data, u64 item_size, u
         LOG_FATAL("list index out of range.");
     }
 
-    new_node = alloc_list_node(list);
+    new_node = AllocatorAlloc(list->allocator, sizeof(GenericListNode), true);
     if (!new_node) {
         return false;
     }
 
-    new_node->data = alloc_list_item(list, item_size);
+    new_node->data = AllocatorAlloc(list->allocator, item_size, true);
     if (!new_node->data) {
-        free_list_node(list, new_node);
+        AllocatorFree(list->allocator, new_node);
         return false;
     }
 
     if (list->copy_init) {
         if (!list->copy_init(new_node->data, item_data, list->allocator)) {
-            free_list_item(list, new_node->data, item_size);
-            free_list_node(list, new_node);
+            AllocatorFree(list->allocator, new_node->data);
+            AllocatorFree(list->allocator, new_node);
             return false;
         }
     } else {
@@ -115,24 +99,31 @@ void remove_range_list(GenericList *list, void *removed_data, u64 item_size, u64
         return;
     }
 
+    // `start + count` can wrap if both are huge -- a wrapped sum below
+    // length would pass the bound check. Catch it first.
+    if (count > UINT64_MAX - start) {
+        LOG_FATAL("list remove range: start + count overflows u64");
+    }
     if (start + count > list->length) {
         LOG_FATAL("List range out of bounds.");
     }
 
-    // if a buffer is provided, move data there
+    // Two-pass removal: first drain the payloads (caller buffer xor
+    // copy_deinit), then unlink and free the node shells in a second pass
+    // so the link rewiring sees a stable list shape regardless of which
+    // payload path ran.
     if (removed_data) {
         GenericListNode *node = node_at_list(list, item_size, start);
         for (u64 c = 0; (c < count) && node; c++) {
             MemCopy((u8 *)removed_data + c * item_size, node->data, item_size);
 
             MemSet(node->data, 0, item_size);
-            free_list_item(list, node->data, item_size);
+            AllocatorFree(list->allocator, node->data);
             node->data = NULL;
 
             node = node->next;
         }
     } else {
-        // else destroy all data one by one
         GenericListNode *node = node_at_list(list, item_size, start);
         for (u64 c = 0; (c < count) && node; c++) {
             if (list->copy_deinit) {
@@ -141,16 +132,14 @@ void remove_range_list(GenericList *list, void *removed_data, u64 item_size, u64
                 MemSet(node->data, 0, item_size);
             }
 
-            free_list_item(list, node->data, item_size);
+            AllocatorFree(list->allocator, node->data);
             node->data = NULL;
             node       = node->next;
         }
     }
 
-    // remove nodes
     GenericListNode *node = node_at_list(list, item_size, start);
     while (node && count-- && list->length--) {
-        // update link
         GenericListNode *next = node->next;
         GenericListNode *prev = node->prev;
         if (prev) {
@@ -164,18 +153,18 @@ void remove_range_list(GenericList *list, void *removed_data, u64 item_size, u64
             list->tail = prev;
         }
 
-        // remove link
+        // Null the doomed node's links before freeing so a dangling
+        // alias trips the validator instead of walking a freed chain.
         node->next = NULL;
         node->prev = NULL;
 
-        // destroy and move ahead
-        free_list_node(list, node);
+        AllocatorFree(list->allocator, node);
         node = next;
     }
 }
 
 
-bool qsort_list(GenericList *list, u64 item_size, GenericCompare comp) {
+bool list_sort(GenericList *list, u64 item_size, GenericCompare comp) {
     GenericListNode *node;
     void            *data;
     u64              item_count;
@@ -192,7 +181,13 @@ bool qsort_list(GenericList *list, u64 item_size, GenericCompare comp) {
     }
 
     item_count = list->length;
-    data       = AllocatorAlloc(list->allocator, item_size * item_count, false);
+    // `item_size * item_count` can wrap to a small value on huge lists; the
+    // subsequent allocation would then be too small and the memcopy loop below
+    // would write past the buffer.
+    if (item_size && item_count > UINT64_MAX / item_size) {
+        LOG_FATAL("list_sort: item_size * item_count overflows u64");
+    }
+    data = AllocatorAlloc(list->allocator, item_size * item_count, false);
     if (!data) {
         return false;
     }
@@ -395,36 +390,36 @@ size find_idx_list(GenericList *list, const void *item_data, u64 item_size, Gene
 }
 
 void validate_list(const GenericList *l) {
-    if (!(l)) {
+    if (!l) {
         LOG_FATAL("List pointer is NULL.");
     }
-    if ((l)->__magic != LIST_MAGIC) {
+    if (l->__magic != LIST_MAGIC) {
         LOG_FATAL("Invalid list. Either not initialized or corrupted!");
     }
     // List has no stack-init form, so a NULL allocator on a magic-OK
     // handle means corruption between init and use. Surface it before
     // dereferencing the method table.
-    if (!(l)->allocator) {
+    if (!l->allocator) {
         LOG_FATAL("List allocator pointer is NULL.");
     }
-    if (!(l)->allocator->allocate || !(l)->allocator->resize || !(l)->allocator->remap || !(l)->allocator->deallocate) {
+    if (!l->allocator->allocate || !l->allocator->resize || !l->allocator->remap || !l->allocator->deallocate) {
         LOG_FATAL("Invalid list allocator.");
     }
-    if ((l)->length == 0) {
-        if ((l)->head || (l)->tail) {
+    if (l->length == 0) {
+        if (l->head || l->tail) {
             LOG_FATAL("Empty list must have NULL head and tail.");
         }
     } else {
-        if (!(l)->head) {
+        if (!l->head) {
             LOG_FATAL("Non-empty list has NULL head.");
         }
-        if (!(l)->tail) {
+        if (!l->tail) {
             LOG_FATAL("Non-empty list has NULL tail.");
         }
-        if ((l)->head->prev) {
+        if (l->head->prev) {
             LOG_FATAL("List head must not have a previous node.");
         }
-        if ((l)->tail->next) {
+        if (l->tail->next) {
             LOG_FATAL("List tail must not have a next node.");
         }
     }
@@ -476,9 +471,10 @@ GenericListNode *get_node_random_access(GenericList *list, GenericListNode *node
     u64 dist_from_head = abs_target_idx;
     u64 dist_from_tail = list->length - 1 - abs_target_idx;
 
+    // Pick the closest of {node, head, tail} as the walk origin so the
+    // step count is minimal.
     GenericListNode *cur = NULL;
     if (dist_from_node <= dist_from_head && dist_from_node <= dist_from_tail) {
-        // Traverse from current node
         cur       = node;
         i64 steps = ridx;
         while (steps > 0 && cur) {
@@ -491,14 +487,12 @@ GenericListNode *get_node_random_access(GenericList *list, GenericListNode *node
         }
         return cur;
     } else if (dist_from_head <= dist_from_tail) {
-        // Traverse from head
         cur = list->head;
         for (u64 i = 0; i < abs_target_idx && cur; i++) {
             cur = cur->next;
         }
         return cur;
     } else {
-        // Traverse from tail
         cur = list->tail;
         for (u64 i = list->length - 1; i > abs_target_idx && cur; i--) {
             cur = cur->prev;

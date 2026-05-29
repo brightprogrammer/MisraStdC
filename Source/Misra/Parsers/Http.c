@@ -113,10 +113,10 @@ Zstr http_request_parse_zstr(HttpRequest *req, Zstr in) {
         LOG_FATAL("invalid arguments");
     }
 
-    Allocator  *alloc   = req->allocator;
-    Zstr cursor  = in;
-    Str         method  = StrInit(alloc);
-    Str         version = StrInit(alloc);
+    Allocator *alloc   = req->allocator;
+    Zstr       cursor  = in;
+    Str        method  = StrInit(alloc);
+    Str        version = StrInit(alloc);
 
     StrReadFmt(cursor, "{} {} {}\r\n", method, req->url, version);
     if (cursor == in) {
@@ -410,8 +410,12 @@ HttpResponse *HttpRespondWithHtml(HttpResponse *response, HttpResponseCode statu
 }
 
 #if FEATURE_FILE
-HttpResponse *
-    HttpRespondWithFile(HttpResponse *response, HttpResponseCode status, HttpContentType content_type, Zstr filepath) {
+HttpResponse *http_respond_with_file_zstr(
+    HttpResponse    *response,
+    HttpResponseCode status,
+    HttpContentType  content_type,
+    Zstr             filepath
+) {
     if (!response || !response->allocator || !filepath) {
         LOG_FATAL("invalid arguments");
     }
@@ -424,6 +428,18 @@ HttpResponse *
         return NULL;
     }
     return response;
+}
+
+HttpResponse *http_respond_with_file_str(
+    HttpResponse    *response,
+    HttpResponseCode status,
+    HttpContentType  content_type,
+    const Str       *filepath
+) {
+    if (!filepath) {
+        LOG_FATAL("invalid arguments");
+    }
+    return http_respond_with_file_zstr(response, status, content_type, (Zstr)StrBegin(filepath));
 }
 #endif
 

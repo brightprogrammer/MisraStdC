@@ -16,6 +16,32 @@
 #define IterLength(mi) ((void)0, (mi)->length)
 
 ///
+/// Absolute cursor index within the iterator's backing region. Read-only
+/// accessor for `(mi)->pos`; use it from outside the Iter namespace
+/// instead of reaching for the field. Forward iterators report a value
+/// in `[0, length]` (where `length` is the past-end position); reverse
+/// iterators report `[0, length-1]` plus the `(size)-1` past-start
+/// sentinel.
+///
+/// TAGS: Memory, Position, Iter
+///
+#define IterIndex(mi) ((void)0, (mi)->pos)
+
+///
+/// Pointer to the element at absolute index `idx` in the iterator's
+/// backing region. Unlike `IterPos`, this is index-addressed (no
+/// dependency on `pos` / direction) and is well-defined at
+/// `idx == length` (returns the one-past-end pointer, the standard
+/// C idiom for a half-open upper bound). Use when you need to address
+/// a remembered position -- e.g. the cursor saved before a parse
+/// attempt -- without going through the cursor.
+///
+/// TAGS: Iter, Memory, Position
+///
+#define IterDataAt(mi, idx)                                                                                            \
+    ((ITER_DATA_TYPE(mi) *)(((u8 *)(mi)->data) + (idx) * ALIGN_UP(sizeof(ITER_DATA_TYPE(mi)), (mi)->alignment)))
+
+///
 /// Bound the iterator so only `n` further elements are reachable from
 /// the current position. Caps `length` at `pos + n`; subsequent
 /// `IterRead`/`IterPeekAt`/`IterMove` calls treat the new tail as

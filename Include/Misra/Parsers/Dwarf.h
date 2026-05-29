@@ -405,9 +405,10 @@ bool DwarfFunctionsBuildFromSlices(
 const DwarfFunction *DwarfFunctionsResolve(const DwarfFunctions *self, u64 vaddr);
 
 ///
-/// Release the function table built by `DwarfFunctionsFromInfo`. Frees
-/// the owned function-name pool and the sorted entries vector, then
-/// zeroes the struct so any later use trips the NULL-self diagnostic.
+/// Release the function table built by `DwarfFunctionsBuildFromElf` or
+/// `DwarfFunctionsBuildFromSlices`. Frees the owned function-name pool
+/// and the sorted entries vector, then zeroes the struct so any later
+/// use trips the NULL-self diagnostic.
 ///
 /// self[in,out] : DwarfFunctions instance, or NULL.
 ///

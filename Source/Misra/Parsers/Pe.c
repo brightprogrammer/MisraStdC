@@ -206,7 +206,7 @@ static bool pe_decode_nt(PeContext *ctx, u64 *out_opt_offset) {
     ctx->out->machine = (PeMachine)machine;
     ctx->num_sections = num_sec;
     ctx->opt_hdr_size = size_opt;
-    *out_opt_offset   = (u64)(c.data + c.pos - BufData(&ctx->out->data));
+    *out_opt_offset   = (u64)(IterDataAt(&c, IterIndex(&c)) - BufData(&ctx->out->data));
     return true;
 }
 
@@ -357,10 +357,16 @@ static bool pe_decode_optional(PeContext *ctx, u64 opt_offset) {
     }
     if (!IterMove(&c, (i64)(DIR_INDEX_DEBUG * 8u)))
         return false;
-    if (!BufReadU32LE(&c, (u32 *)&ctx->debug_dir_rva))
+    // Read into a local u32, then widen -- aliasing a u64* through a
+    // u32* and writing only the low 4 bytes is a strict-aliasing
+    // violation and would also corrupt the high half on big-endian
+    // hosts.
+    u32 debug_rva = 0;
+    if (!BufReadU32LE(&c, &debug_rva))
         return false;
     if (!BufReadU32LE(&c, &ctx->debug_dir_size))
         return false;
+    ctx->debug_dir_rva = (u64)debug_rva;
     return true;
 }
 
@@ -376,9 +382,10 @@ static bool pe_decode_sections(PeContext *ctx, u64 opt_offset) {
         }
         PeSection s;
         // 8-byte name: bytes, not a numeric, so copy + advance manually.
-        MemCopy(s.name, c.data + c.pos, 8);
-        s.name[8]  = '\0';
-        c.pos     += 8;
+        // IterRemainingLength >= 40 bound above proves 8 bytes are live.
+        MemCopy(s.name, IterDataAt(&c, IterIndex(&c)), 8);
+        s.name[8] = '\0';
+        IterMustMove(&c, 8);
 
         u32 ptr_relocs, ptr_linenums;
         u16 num_relocs, num_linenums;
@@ -466,13 +473,14 @@ static void pe_decode_codeview(PeContext *ctx) {
         }
         if (IterRemainingLength(&cv_cur) < 16 + 4)
             continue;
-        MemCopy(cv->guid, cv_cur.data + cv_cur.pos, 16);
-        cv_cur.pos += 16;
+        // Same proof: 16 bytes are live.
+        MemCopy(cv->guid, IterDataAt(&cv_cur, IterIndex(&cv_cur)), 16);
+        IterMustMove(&cv_cur, 16);
         if (!BufReadU32LE(&cv_cur, &cv->age))
             continue;
         // Verify the trailing path is NUL-terminated inside the record.
-        const u8 *path_start = cv_cur.data + cv_cur.pos;
-        const u8 *region_end = cv_cur.data + cv_cur.length;
+        const u8 *path_start = IterDataAt(&cv_cur, IterIndex(&cv_cur));
+        const u8 *region_end = IterDataAt(&cv_cur, IterLength(&cv_cur));
         bool      terminated = false;
         for (const u8 *p = path_start; p < region_end; ++p) {
             if (*p == '\0') {
@@ -496,7 +504,7 @@ static void pe_decode_codeview(PeContext *ctx) {
 // MemSets the caller's view. Anything that fails past the snapshot
 // cleans up via PeDeinit -- the buffer never leaks.
 bool PeOpenFromMemory(Pe *out, Buf *in) {
-    if (!out || !in || !in->data || !in->allocator) {
+    if (!out || !in || !BufData(in) || !BufAllocator(in)) {
         LOG_FATAL("PeOpenFromMemory: NULL argument (contract violation)");
     }
     Buf taken = *in;
@@ -506,7 +514,7 @@ bool PeOpenFromMemory(Pe *out, Buf *in) {
     out->data = taken;
     // Initialize the sections vec up-front so PeDeinit on a
     // failed-parse path doesn't trip ValidateVec.
-    out->sections = VecInitT(out->sections, taken.allocator);
+    out->sections = VecInitT(out->sections, BufAllocator(&taken));
 
     PeContext ctx = {
         .out  = out,

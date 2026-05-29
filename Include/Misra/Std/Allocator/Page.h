@@ -3,12 +3,11 @@
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Page-granular allocator. Allocations come straight from the operating
-/// system via `mmap` on POSIX and `VirtualAlloc` on Windows, so this
-/// allocator does not touch libc heap functions. Per-allocator state is
-/// inline; the only "state" is a cached page size and a small descriptor
-/// table tracking (ptr, mmap-byte-length) for every live region so that
-/// free can recover the kernel-needed byte count without the caller
-/// supplying it.
+/// system via `mmap` on POSIX and `VirtualAlloc` on Windows. Per-allocator
+/// state is inline; the only "state" is a cached page size and a small
+/// descriptor table tracking (ptr, mmap-byte-length) for every live region
+/// so that free can recover the kernel-needed byte count without the
+/// caller supplying it.
 
 #ifndef MISRA_STD_ALLOCATOR_PAGE_H
 #define MISRA_STD_ALLOCATOR_PAGE_H
@@ -98,7 +97,7 @@ extern "C" {
     ///          `bytes` bytes. Zeroed when `zeroed` is non-zero; for
     ///          fresh kernel mappings the kernel already returned
     ///          zero pages, so the allocator skips the redundant
-    ///          memset.
+    ///          zero-fill.
     /// FAILURE: Returns NULL when `mmap` / `VirtualAlloc` fails or
     ///          the descriptor table can't grow.
     ///
@@ -120,14 +119,18 @@ extern "C" {
     ///
     /// TAGS: Allocator, Page, Memory, InPlace
     ///
-    i8    page_allocator_resize(PageAllocator *self, void *ptr, size new_size);
+    i8 page_allocator_resize(PageAllocator *self, void *ptr, size new_size);
 
     ///
     /// Resize a page-backed region with relocation allowed. May allocate
     /// a fresh mapping, copy the old contents, and release the old one.
     ///
     /// SUCCESS: Returns the (possibly moved) pointer. When `ptr` is NULL
-    ///          this behaves like `page_allocator_allocate(self, new_size, 0)`.
+    ///          this behaves like
+    ///          `page_allocator_allocate(self, new_size, true)` --
+    ///          fresh allocations from a remap-NULL are zeroed. When
+    ///          `new_size == 0` the allocation is freed and NULL is
+    ///          returned.
     /// FAILURE: Returns NULL when the underlying mapping cannot be
     ///          obtained. The old allocation is left untouched.
     ///
@@ -210,26 +213,6 @@ extern "C" {
     size PageAllocatorPageSize(PageAllocator *self);
 
     ///
-    /// Total bytes currently mapped by this `PageAllocator`. Sums every
-    /// live region in `entries[]`, every retained region parked in
-    /// `free_entries[]` (still mmap'd until `PageAllocatorDeinit`),
-    /// plus the descriptor tables themselves (`entries_bytes` and
-    /// `free_entries_bytes`). This is the kernel's view: what would
-    /// disappear from the process address space if the allocator were
-    /// torn down right now. Useful for bench / observability code that
-    /// needs total mapped footprint without poking at the internal
-    /// fields directly.
-    ///
-    /// self[in] : PageAllocator instance, or NULL.
-    ///
-    /// SUCCESS: Returns the total mapped byte count. No state is touched.
-    /// FAILURE: Returns 0 when `self` is NULL.
-    ///
-    /// TAGS: Allocator, Page, Query
-    ///
-    size PageAllocatorFootprintBytes(const PageAllocator *self);
-
-    ///
     /// Tear down a `PageAllocator`. Any region still tracked in `entries`
     /// (a caller leak, e.g. forgot to `AllocatorFree`) is munmapped so
     /// the kernel doesn't keep the mapping around. The descriptor table
@@ -282,14 +265,15 @@ extern "C" {
 #define PageAllocatorInit()                                                                                            \
     ((PageAllocator) {                                                                                                 \
         .base =                                                                                                        \
-            {.allocate    = (AllocatorAllocateFn)page_allocator_allocate,                                              \
-                   .resize      = (AllocatorResizeFn)page_allocator_resize,                                                 \
-                   .remap       = (AllocatorRemapFn)page_allocator_remap,                                                   \
-                   .deallocate  = (AllocatorDeallocateFn)page_allocator_deallocate,                                         \
-                   .alignment   = 1,                                                                                         \
-                   .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
-                   .retry_limit = 0,                                                                                         \
-                   .__magic     = PAGE_ALLOCATOR_MAGIC},                                                                         \
+            {.allocate        = (AllocatorAllocateFn)page_allocator_allocate,                                          \
+                   .resize          = (AllocatorResizeFn)page_allocator_resize,                                              \
+                   .remap           = (AllocatorRemapFn)page_allocator_remap,                                                \
+                   .deallocate      = (AllocatorDeallocateFn)page_allocator_deallocate,                                      \
+                   .alignment       = 1,                                                                                     \
+                   .effort          = ALLOCATOR_EFFORT_ONCE,                                                                 \
+                   .retry_limit     = 0,                                                                                     \
+                   .__magic         = PAGE_ALLOCATOR_MAGIC,                                                                  \
+                   .footprint_bytes = 0},                                                                                    \
         .cached_page_size   = 0,                                                                                       \
         .entries            = NULL,                                                                                    \
         .len                = 0,                                                                                       \
@@ -315,14 +299,15 @@ extern "C" {
 #define PageAllocatorInitAligned(N)                                                                                    \
     ((PageAllocator) {                                                                                                 \
         .base =                                                                                                        \
-            {.allocate    = (AllocatorAllocateFn)page_allocator_allocate,                                              \
-                   .resize      = (AllocatorResizeFn)page_allocator_resize,                                                 \
-                   .remap       = (AllocatorRemapFn)page_allocator_remap,                                                   \
-                   .deallocate  = (AllocatorDeallocateFn)page_allocator_deallocate,                                         \
-                   .alignment   = (N) ? (N) : 1,                                                                             \
-                   .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
-                   .retry_limit = 0,                                                                                         \
-                   .__magic     = PAGE_ALLOCATOR_MAGIC},                                                                         \
+            {.allocate        = (AllocatorAllocateFn)page_allocator_allocate,                                          \
+                   .resize          = (AllocatorResizeFn)page_allocator_resize,                                              \
+                   .remap           = (AllocatorRemapFn)page_allocator_remap,                                                \
+                   .deallocate      = (AllocatorDeallocateFn)page_allocator_deallocate,                                      \
+                   .alignment       = (N) ? (N) : 1,                                                                         \
+                   .effort          = ALLOCATOR_EFFORT_ONCE,                                                                 \
+                   .retry_limit     = 0,                                                                                     \
+                   .__magic         = PAGE_ALLOCATOR_MAGIC,                                                                  \
+                   .footprint_bytes = 0},                                                                                    \
         .cached_page_size   = 0,                                                                                       \
         .entries            = NULL,                                                                                    \
         .len                = 0,                                                                                       \

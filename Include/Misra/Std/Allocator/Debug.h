@@ -37,11 +37,17 @@
 /// **Thread affinity (enforced at runtime)**: a DebugAllocator
 /// instance is single-threaded. The thread that called
 /// `DebugAllocatorInit` is the only thread allowed to call its
-/// allocate / reallocate / deallocate / report / deinit entry points.
-/// Cross-thread use trips `LOG_FATAL`. If a workload needs allocator
-/// access from multiple threads, give each thread its own
+/// allocate / resize / remap / deallocate / Deinit entry points.
+/// Cross-thread use trips `LOG_FATAL`. The read-only query API
+/// (`DebugAllocatorLiveCount` / `LiveBytes` / `Overflows` /
+/// `FreedCount` / `ReportLeaks`) skips the affinity check so it
+/// won't trip LOG_FATAL on cross-thread reads, but it provides no
+/// synchronization against a concurrent allocate / free on the
+/// owner thread -- callers that observe from a non-owner thread
+/// must coordinate externally. If a workload needs mutating
+/// allocator access from multiple threads, give each thread its own
 /// DebugAllocator (pointers can flow across threads; only the
-/// allocator calls are scoped).
+/// mutating calls are scoped).
 
 #ifndef MISRA_STD_ALLOCATOR_DEBUG_H
 #define MISRA_STD_ALLOCATOR_DEBUG_H
@@ -124,6 +130,23 @@ extern "C" {
         bool track_freed_history;
     } DebugAllocatorConfig;
 
+///
+/// All-checks-on `DebugAllocatorConfig` baseline. Use as the argument
+/// to `DebugAllocatorInitWith` (or the default carried by
+/// `DebugAllocatorInit`) when you want every diagnostic the allocator
+/// offers: trace capture, canary overflow detection, freed-history
+/// tracking. Page-backed UAF detection is left OFF because it makes
+/// freed regions unreclaimable; opt in explicitly via
+/// `DebugAllocatorInitWith` when you want it.
+///
+/// SUCCESS: Yields a `DebugAllocatorConfig` value with `capture_traces`,
+///          `detect_overflow`, `track_freed_history` all `true`,
+///          `force_page_backing` `false`, `trace_depth` = 8,
+///          `canary_bytes` = 16.
+/// FAILURE: Macro cannot fail.
+///
+/// TAGS: Allocator, Debug, Config
+///
 #define DEBUG_ALLOCATOR_DEFAULTS                                                                                       \
     ((DebugAllocatorConfig) {.capture_traces      = true,                                                              \
                              .detect_overflow     = true,                                                              \
@@ -151,8 +174,11 @@ extern "C" {
     } DebugAllocator;
 
     // Vtable functions, exposed because the Init macro stamps them
-    // into `base`. Direct calls aren't recommended; use the
-    // `Allocator *` returned by `ALLOCATOR_OF` instead.
+    // into `base`. Callers should reach them through the
+    // `AllocatorAlloc` / `AllocatorResize` / `AllocatorRemap` /
+    // `AllocatorFree` dispatch macros with a `DebugAllocator *` --
+    // `_Generic` routes the typed pointer straight to these typed
+    // entries, skipping the dyn-dispatch indirection.
 
     ///
     /// Allocate via the embedded heap (or page allocator when
@@ -173,34 +199,44 @@ extern "C" {
     void *debug_allocator_allocate(DebugAllocator *self, size bytes, i8 zeroed);
 
     ///
-    /// In-place resize through the embedded heap. Verifies the canary
-    /// for the existing allocation, attempts an in-place resize on the
-    /// inner heap, and on success updates the live record's recorded
-    /// size and re-stamps the canary at the new tail.
+    /// In-place resize: always refused. The debug allocator stamps a
+    /// canary past every user region and keeps a live-map entry keyed
+    /// by pointer; honouring an in-place resize would mean re-stamping
+    /// the canary, rewriting the live record's recorded size, and (in
+    /// page-backed mode) potentially remapping pages -- none of which
+    /// is "in place" in any useful sense. Callers fall back to `remap`,
+    /// which does the clean alloc-fresh + copy + free dance with full
+    /// canary and live-map maintenance.
     ///
-    /// SUCCESS: Returns 1 when the inner heap could resize in place.
-    ///          The pointer stays valid for `new_size` bytes; live
-    ///          bookkeeping reflects the new size.
-    /// FAILURE: Returns 0 when the inner heap cannot resize without
-    ///          relocating. Aborts via `LOG_FATAL` on cross-thread
-    ///          misuse, canary corruption, or unknown `ptr`.
+    /// SUCCESS: Never -- this entry point unconditionally returns 0.
+    /// FAILURE: Returns 0 for every input. Aborts via `LOG_FATAL` on
+    ///          cross-thread misuse (the self-validator's check fires
+    ///          before the return).
     ///
     /// TAGS: Allocator, Debug, Memory, InPlace
     ///
-    i8    debug_allocator_resize(DebugAllocator *self, void *ptr, size new_size);
+    i8 debug_allocator_resize(DebugAllocator *self, void *ptr, size new_size);
 
     ///
-    /// Resize with relocation allowed. On a move, frees the old
-    /// record (after canary verification + freed-history append),
-    /// records a fresh live entry for the new pointer, and copies
-    /// `min(old_size, new_size)` bytes across.
+    /// Resize with relocation allowed. Always relocates: allocates a
+    /// fresh slot via the embedded heap (or page allocator under
+    /// `force_page_backing`), copies `min(old_size, new_size)` bytes,
+    /// then frees the old slot (which verifies the canary and appends
+    /// to freed history). The live map loses the old pointer's entry
+    /// and gains one for the new pointer.
     ///
-    /// SUCCESS: Returns the (possibly moved) pointer. The live map
-    ///          gains a new entry (and loses the old one on a move);
-    ///          `bytes_in_use` reflects the new size.
+    /// SUCCESS: Returns the new (moved) pointer. When `ptr` is NULL this
+    ///          behaves like `debug_allocator_allocate(self, new_size,
+    ///          true)` -- fresh allocations from a remap-NULL are zeroed
+    ///          (same shape as the other typed allocators). When
+    ///          `new_size == 0` the allocation is freed and NULL is
+    ///          returned. The live map gains a new entry and loses the
+    ///          old one; `bytes_in_use` reflects the new size.
     /// FAILURE: Returns NULL when the inner heap cannot serve the
-    ///          new size. Aborts via `LOG_FATAL` on cross-thread
-    ///          misuse, canary corruption, or unknown `ptr`.
+    ///          new size (the old allocation is left untouched in
+    ///          that case). Aborts via `LOG_FATAL` on cross-thread
+    ///          misuse, canary corruption at the old pointer, or
+    ///          when `ptr` is unknown to the live map.
     ///
     /// TAGS: Allocator, Debug, Memory, Reallocation
     ///
@@ -222,16 +258,58 @@ extern "C" {
     ///
     /// TAGS: Allocator, Debug, Memory, Deallocation
     ///
-    size  debug_allocator_deallocate(DebugAllocator *self, void *ptr);
+    size debug_allocator_deallocate(DebugAllocator *self, void *ptr);
 
-    // Hash / compare callbacks for the embedded void*->DebugRecord
-    // maps. Exposed so the Init macro can wire them into the Map
-    // struct literals.
+    ///
+    /// `GenericHash` for `void *` keys. Exposed so the
+    /// `DebugAllocatorInit` macro can stamp it into the embedded
+    /// `live` map's compound literal -- a runtime helper cannot stand
+    /// in for a struct-literal initializer.
+    ///
+    /// data[in] : Address of the `void *` key whose hash to compute.
+    /// size[in] : Ignored; satisfies the `GenericHash` shape.
+    ///
+    /// SUCCESS: Returns a 64-bit avalanching hash of the pointer value.
+    /// FAILURE: Cannot fail.
+    ///
+    /// TAGS: Allocator, Debug, Hash, Callback
+    ///
     u64 debug_ptr_hash(const void *data, u32 size);
+
+    ///
+    /// `GenericCompare` for `void *` keys. Exposed for the same reason
+    /// as `debug_ptr_hash` -- the Init macro needs a symbol it can name
+    /// inside the embedded `live` map's compound literal.
+    ///
+    /// lhs[in] : Address of the left-hand `void *` key.
+    /// rhs[in] : Address of the right-hand `void *` key.
+    ///
+    /// SUCCESS: Returns -1 / 0 / +1 reflecting the unsigned ordering of
+    ///          the two pointer values.
+    /// FAILURE: Cannot fail.
+    ///
+    /// TAGS: Allocator, Debug, Compare, Callback
+    ///
     i32 debug_ptr_compare(const void *lhs, const void *rhs);
 
-    // Stable per-thread ID via TLS-variable address. Captured by
-    // `DebugAllocatorInit` for the cross-thread-use check.
+    ///
+    /// Stable per-thread identifier. Read directly from the thread
+    /// pointer register where the ABI exposes it (`%fs:0` on x86_64
+    /// Linux, `tpidr_el0` on aarch64, ...) and falls back to the
+    /// address of a TLS marker byte elsewhere. Captured by
+    /// `DebugAllocatorInit` and re-checked at every entry point so a
+    /// `DebugAllocator` aborts on cross-thread use instead of
+    /// silently corrupting its embedded `live` / `freed` containers.
+    ///
+    /// SUCCESS: Returns the calling thread's identifier. Two calls
+    ///          from the same thread always return the same value;
+    ///          two calls from different threads always return
+    ///          different values for as long as both threads are
+    ///          live.
+    /// FAILURE: Cannot fail.
+    ///
+    /// TAGS: Allocator, Debug, Thread, Identifier
+    ///
     u64 debug_current_tid(void);
 
     ///
@@ -405,17 +483,36 @@ extern "C" {
      .allocator   = NULL,                                                                                              \
      .__magic     = VEC_MAGIC}
 
+///
+/// Construct a `DebugAllocator` with caller-supplied `DebugAllocatorConfig`.
+/// Use when you want to opt into `force_page_backing` or otherwise
+/// tune trace depth / canary width / freed-history retention away
+/// from the `DEBUG_ALLOCATOR_DEFAULTS` baseline. Captures the calling
+/// thread's identifier at expansion so subsequent entry points can
+/// enforce the single-threaded contract.
+///
+/// `_cfg` is evaluated once.
+///
+/// SUCCESS: Returns a fully-initialised `DebugAllocator` value with
+///          the supplied config; the embedded `heap` / `meta` / `page`
+///          backing allocators are initialised but lazy (no OS calls
+///          yet); `creator_tid` is set to the calling thread.
+/// FAILURE: Cannot fail at macro-expansion time.
+///
+/// TAGS: Allocator, Debug, Init
+///
 #define DebugAllocatorInitWith(_cfg)                                                                                   \
     ((DebugAllocator) {                                                                                                \
         .base =                                                                                                        \
-            {.allocate    = (AllocatorAllocateFn)debug_allocator_allocate,                                          \
-                   .resize      = (AllocatorResizeFn)debug_allocator_resize,                                                 \
-                   .remap       = (AllocatorRemapFn)debug_allocator_remap,                                                   \
-                   .deallocate  = (AllocatorDeallocateFn)debug_allocator_deallocate,                                         \
-                   .alignment   = 1,                                                                                         \
-                   .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
-                   .retry_limit = 0,                                                                                         \
-                   .__magic     = DEBUG_ALLOCATOR_MAGIC},                                                                        \
+            {.allocate        = (AllocatorAllocateFn)debug_allocator_allocate,                                         \
+                   .resize          = (AllocatorResizeFn)debug_allocator_resize,                                             \
+                   .remap           = (AllocatorRemapFn)debug_allocator_remap,                                               \
+                   .deallocate      = (AllocatorDeallocateFn)debug_allocator_deallocate,                                     \
+                   .alignment       = 1,                                                                                     \
+                   .effort          = ALLOCATOR_EFFORT_ONCE,                                                                 \
+                   .retry_limit     = 0,                                                                                     \
+                   .__magic         = DEBUG_ALLOCATOR_MAGIC,                                                                 \
+                   .footprint_bytes = 0},                                                                                    \
         .heap         = HeapAllocatorInit(),                                                                           \
         .meta         = HeapAllocatorInit(),                                                                           \
         .page         = PageAllocatorInit(),                                                                           \
@@ -427,6 +524,19 @@ extern "C" {
         .creator_tid  = debug_current_tid()                                                                            \
     })
 
+///
+/// Construct a `DebugAllocator` with `DEBUG_ALLOCATOR_DEFAULTS` (all
+/// diagnostics on except page-backed UAF detection). The most common
+/// entry point for callers that just want leak + canary + trace
+/// tracking layered on top of `HeapAllocator`.
+///
+/// SUCCESS: Returns a fully-initialised `DebugAllocator` value with
+///          the defaults baseline; same post-init state as
+///          `DebugAllocatorInitWith(DEBUG_ALLOCATOR_DEFAULTS)`.
+/// FAILURE: Cannot fail at macro-expansion time.
+///
+/// TAGS: Allocator, Debug, Init
+///
 #define DebugAllocatorInit() DebugAllocatorInitWith(DEBUG_ALLOCATOR_DEFAULTS)
 
 #endif // MISRA_STD_ALLOCATOR_DEBUG_H

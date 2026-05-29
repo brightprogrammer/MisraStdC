@@ -86,12 +86,12 @@ typedef enum {
 void init_char_ptr_vec(CharPtrVec *vec, DefaultAllocator *alloc);
 void deinit_char_ptr_vec(CharPtrVec *vec);
 void fuzz_char_ptr_vec(
-    CharPtrVec         *vec,
-    VecCharPtrFunction  func,
-    const uint8_t      *data,
-    size_t             *offset,
-    size_t              size,
-    DefaultAllocator   *alloc
+    CharPtrVec        *vec,
+    VecCharPtrFunction func,
+    const uint8_t     *data,
+    size_t            *offset,
+    size_t             data_size,
+    DefaultAllocator  *alloc
 );
 
 #endif // FUZZ_VEC_CHAR_PTR_H

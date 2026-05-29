@@ -144,7 +144,7 @@ static bool elf_decode_header(Elf *self) {
     }
 
     self->header.elf_class = ELF_CLASS_64;
-    self->header.data  = ELF_DATA_LSB;
+    self->header.data      = ELF_DATA_LSB;
 
     BufIter iter = BufIterFromBuf(&self->data);
     IterMustMove(&iter, EI_NIDENT);
@@ -431,7 +431,7 @@ static void elf_decode_debug_metadata(Elf *self) {
 // Anything that fails past the snapshot cleans up via ElfDeinit,
 // so the buffer never leaks.
 bool ElfOpenFromMemory(Elf *out, Buf *in) {
-    if (!out || !in || !in->data || !in->allocator) {
+    if (!out || !in || !BufData(in) || !BufAllocator(in)) {
         LOG_FATAL("ElfOpenFromMemory: NULL argument (contract violation)");
     }
     Buf taken = *in;
@@ -439,9 +439,9 @@ bool ElfOpenFromMemory(Elf *out, Buf *in) {
 
     MemSet(out, 0, sizeof(*out));
     out->data            = taken;
-    out->sections        = VecInitT(out->sections, taken.allocator);
-    out->symbols         = VecInitT(out->symbols, taken.allocator);
-    out->dynamic_symbols = VecInitT(out->dynamic_symbols, taken.allocator);
+    out->sections        = VecInitT(out->sections, BufAllocator(&taken));
+    out->symbols         = VecInitT(out->symbols, BufAllocator(&taken));
+    out->dynamic_symbols = VecInitT(out->dynamic_symbols, BufAllocator(&taken));
 
     if (!elf_decode_header(out))
         goto fail;
@@ -467,7 +467,7 @@ bool elf_open_from_memory_copy(Elf *out, const u8 *data, size data_size, Allocat
         LOG_ERROR("ElfOpenFromMemoryCopy: allocation failed ({} bytes)", (u64)data_size);
         return false;
     }
-    MemCopy(copy.data, data, data_size);
+    MemCopy(BufData(&copy), data, data_size);
     BufResize(&copy, (size)data_size);
     // Hand `&copy` to the L-form -- it consumes the local and zeros
     // it. The local goes out of scope right after.

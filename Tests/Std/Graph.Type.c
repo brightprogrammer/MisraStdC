@@ -15,10 +15,11 @@ static bool test_graph_type_defaults(void) {
 
     ValidateGraph(&graph);
 
-    // intentional bypass: no public GraphAllocator / GraphCopyInit / GraphCopyDeinit
-    // accessor exists yet; `slots`, `free_indices`, `pending_edge_removals`,
-    // `slots`/`free_indices`/`pending_edge_removals`/`pending_delete_count` are
-    // fixture-internal reads -- not part of the public Graph surface.
+    // intentional bypass: the inner `slots` / `free_indices` /
+    // `pending_edge_removals` Vec fields and the `pending_delete_count`
+    // counter are private graph fields with no public accessor -- they
+    // are read directly here to verify the default-constructed graph has
+    // every internal cursor / table empty.
     bool result = GraphNodeCount(&graph) == 0 && GraphEdgeCount(&graph) == 0 && GraphEmpty(&graph) &&
                   VecBegin(&graph.slots) == NULL && VecBegin(&graph.free_indices) == NULL &&
                   VecBegin(&graph.pending_edge_removals) == NULL && GraphCopyInit(&graph) == NULL &&

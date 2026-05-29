@@ -37,8 +37,8 @@
 #if defined(_MSC_VER) && !defined(__clang__)
 #    include <setjmp.h>
 typedef jmp_buf JmpBuf;
-#    define SetJmp(env)        setjmp(env)
-#    define LongJmp(env, val)  longjmp((env), (val))
+#    define SetJmp(env)       setjmp(env)
+#    define LongJmp(env, val) longjmp((env), (val))
 #elif (PLATFORM_LINUX || PLATFORM_DARWIN || PLATFORM_WINDOWS) && ARCHITECTURE_X86_64
 typedef u64 JmpBuf[10]; // rbx, rbp, r12-r15, rdi, rsi, rsp, rip
 #elif (PLATFORM_LINUX || PLATFORM_DARWIN) && ARCHITECTURE_AARCH64
@@ -62,11 +62,11 @@ __attribute__((naked, used)) static int SetJmp(JmpBuf env) {
         "movq %r15, 40(%rcx)\n"
         "movq %rdi, 48(%rcx)\n"
         "movq %rsi, 56(%rcx)\n"
-        "leaq 8(%rsp), %rax\n"     // caller's rsp (skip our return addr)
+        "leaq 8(%rsp), %rax\n" // caller's rsp (skip our return addr)
         "movq %rax, 64(%rcx)\n"
-        "movq (%rsp), %rax\n"      // caller's rip
+        "movq (%rsp), %rax\n"  // caller's rip
         "movq %rax, 72(%rcx)\n"
-        "xorl %eax, %eax\n"        // return 0 on the SetJmp path
+        "xorl %eax, %eax\n"    // return 0 on the SetJmp path
         "ret\n"
     );
 }
@@ -82,7 +82,7 @@ __attribute__((naked, used, noreturn)) static void LongJmp(JmpBuf env, int val) 
         "movq 48(%rcx), %rdi\n"
         "movq 56(%rcx), %rsi\n"
         "movq 64(%rcx), %rsp\n"
-        "movl %edx, %eax\n"        // return val, normalised so 0 -> 1
+        "movl %edx, %eax\n" // return val, normalised so 0 -> 1
         "testl %eax, %eax\n"
         "jnz 1f\n"
         "incl %eax\n"
@@ -198,15 +198,17 @@ __attribute__((naked, used, noreturn)) static void LongJmp(JmpBuf env, int val) 
 
 // Global jump buffer for capturing aborts
 static JmpBuf g_test_abort_jmp;
-static bool   g_abort_captured = false;
 
-// Callback function that gets called instead of abort()
+// Callback installed via `OnAbort` (Misra/Sys.h). When LOG_FATAL fires
+// inside a deadend test, `Abort()` invokes this hook instead of running
+// the trap intrinsic, and we unwind back into `test_deadend` via the
+// hand-rolled register pair below.
 static void test_abort_handler(void) {
-    g_abort_captured = true;
     LongJmp(g_test_abort_jmp, 1);
 }
 
-// Run a specific test using setjmp/longjmp to capture LOG_FATAL aborts.
+// Run a specific test using the SetJmp/LongJmp pair below to capture
+// LOG_FATAL aborts.
 // `expect_failure=true`  -> pass iff the test aborts.
 // `expect_failure=false` -> pass iff the test returns true without aborting.
 // Both paths go through setjmp: a `false`-expectation that nevertheless
@@ -227,7 +229,7 @@ bool test_deadend(TestFunction test_func, bool expect_failure) {
         bool returned = test_func();
         if (expect_failure) {
             WriteFmt("    [Unexpected success: Test completed without abort]\n");
-            test_result = false; // Expected abort, got clean return.
+            test_result = false;    // Expected abort, got clean return.
         } else {
             WriteFmt("    [Success: Test completed normally]\n");
             test_result = returned; // Caller's bool is the verdict.
@@ -236,7 +238,7 @@ bool test_deadend(TestFunction test_func, bool expect_failure) {
         // Re-entry via longjmp: the test triggered LOG_FATAL.
         if (expect_failure) {
             WriteFmt("    [Expected failure: Test aborted as expected]\n");
-            test_result = true;  // Abort was the contract.
+            test_result = true; // Abort was the contract.
         } else {
             WriteFmt("    [Unexpected failure: Test aborted unexpectedly]\n");
             test_result = false;
@@ -315,7 +317,7 @@ int run_test_suite(
     int           normal_count,
     TestFunction *deadend_tests,
     int           deadend_count,
-    Zstr test_name
+    Zstr          test_name
 ) {
     WriteFmt("[INFO] Starting {} tests\n\n", test_name ? test_name : "Test Suite");
 

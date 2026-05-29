@@ -88,6 +88,7 @@ typedef struct GenericIter {
 /// mi[in] : Type reference
 ///
 /// TAGS: Utility, NullValue, Iter
+///
 #define NULL_ITER_DATA(mi) (ITER_DATA_TYPE(mi) *)0
 
 #endif // MISRA_STD_UTILITY_ITER_TYPE_H

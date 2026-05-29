@@ -90,18 +90,12 @@ static void slab_validate_self_full(const SlabAllocator *self) {
 
 #define SLAB_INITIAL_CAP 8u
 
-// Returns the OS page size. os_page_size() caches its own result.
-static FORCE_INLINE size slab_page_size(const SlabAllocator *slab) {
-    (void)slab;
-    return os_page_size();
-}
-
 // One-time setup performed lazily on the first slab grow (we don't
 // know the OS page size at init time; os_page_size() queries it on
 // first call). Computes bitmap_words_per_slab and aborts if slot_size
 // violates the power-of-two-in-[16,PAGE_SIZE] contract.
 static void slab_finalize_runtime_consts(SlabAllocator *slab) {
-    size page_size = slab_page_size(slab);
+    size page_size = os_page_size();
     if (slab->slot_size < 16u) {
         LOG_FATAL("SlabAllocator: slot_size {} below 16-byte minimum", (u64)slab->slot_size);
     }
@@ -148,23 +142,27 @@ static bool slab_grow_caps(SlabAllocator *slab) {
     size new_slabs_bytes   = os_page_round_up((size)new_cap * sizeof(void *));
     size new_bitmaps_bytes = os_page_round_up((size)new_cap * (size)slab->bitmap_words_per_slab * sizeof(u64));
 
-    void **new_slabs = (void **)os_page_map(new_slabs_bytes);
+    void **new_slabs = (void **)os_page_map(&slab->base, new_slabs_bytes);
     if (!new_slabs) {
         return false;
     }
     // os_page_map returns kernel-zeroed pages; bitmaps need zero
     // initialisation which is already satisfied.
-    u64 *new_bitmaps = (u64 *)os_page_map(new_bitmaps_bytes);
+    u64 *new_bitmaps = (u64 *)os_page_map(&slab->base, new_bitmaps_bytes);
     if (!new_bitmaps) {
-        os_page_unmap(new_slabs, new_slabs_bytes);
+        os_page_unmap(&slab->base, new_slabs, new_slabs_bytes);
         return false;
     }
 
     if (slab->slabs && old_cap) {
         MemCopy(new_slabs, slab->slabs, (size)old_cap * sizeof(void *));
         MemCopy(new_bitmaps, slab->bitmaps, (size)old_cap * (size)slab->bitmap_words_per_slab * sizeof(u64));
-        os_page_unmap(slab->slabs, os_page_round_up((size)old_cap * sizeof(void *)));
-        os_page_unmap(slab->bitmaps, os_page_round_up((size)old_cap * (size)slab->bitmap_words_per_slab * sizeof(u64)));
+        os_page_unmap(&slab->base, slab->slabs, os_page_round_up((size)old_cap * sizeof(void *)));
+        os_page_unmap(
+            &slab->base,
+            slab->bitmaps,
+            os_page_round_up((size)old_cap * (size)slab->bitmap_words_per_slab * sizeof(u64))
+        );
     }
     slab->slabs     = new_slabs;
     slab->bitmaps   = new_bitmaps;
@@ -172,15 +170,14 @@ static bool slab_grow_caps(SlabAllocator *slab) {
     return true;
 }
 
-// Insertion-sort a freshly-grown slab page into slabs[] (sorted by
-// address ascending). Shifts both slabs[] and the parallel bitmaps[]
-// entries to keep indices aligned. Returns the slab's new index, or
-// (u32)-1 if grow-caps failed.
+// slabs[] is sorted ascending so the free path can bsearch by
+// `ptr & ~(PAGE_SIZE-1)`; bitmaps[] tracks slabs[] index-for-index, so
+// inserting at position `ins` has to shift BOTH arrays' tails right
+// together. Returns the new index, or (u32)-1 if grow-caps failed.
 static u32 slab_insert_sorted(SlabAllocator *slab, void *page_base) {
     if (slab->slabs_len == slab->slabs_cap && !slab_grow_caps(slab)) {
         return (u32)-1;
     }
-    // Binary search for insertion point.
     u32 lo = 0, hi = slab->slabs_len;
     while (lo < hi) {
         u32 mid = lo + (hi - lo) / 2u;
@@ -194,9 +191,10 @@ static u32 slab_insert_sorted(SlabAllocator *slab, void *page_base) {
     u32 bw      = slab->bitmap_words_per_slab;
     u32 to_move = slab->slabs_len - ins;
     if (to_move > 0u) {
-        // Shift slabs[ins..len] right by one.
+        // bitmaps[] tracks slabs[] index-for-index, so the same
+        // [ins..len) slice has to shift in lockstep -- per-slab the
+        // shift is `bw` u64 words wide.
         MemMove(&slab->slabs[ins + 1u], &slab->slabs[ins], (size)to_move * sizeof(void *));
-        // Shift bitmaps[ins..len] (each bw u64 words) right by one entry.
         MemMove(
             &slab->bitmaps[(size)(ins + 1u) * (size)bw],
             &slab->bitmaps[(size)ins * (size)bw],
@@ -213,7 +211,7 @@ static u32 slab_insert_sorted(SlabAllocator *slab, void *page_base) {
     for (u32 w = 0; w < bw; w++) {
         bm[w] = 0u;
     }
-    size slots_per_slab = slab_page_size(slab) >> slab->slot_size_shift;
+    size slots_per_slab = os_page_size() >> slab->slot_size_shift;
     if (slots_per_slab < 64u) {
         bm[0] = ~(((u64)1 << slots_per_slab) - 1u);
     }
@@ -221,7 +219,6 @@ static u32 slab_insert_sorted(SlabAllocator *slab, void *page_base) {
     return ins;
 }
 
-// Bsearch slabs[] for the slab whose page-base equals `page_base`.
 // Returns (u32)-1 when not found.
 static FORCE_INLINE u32 slab_find_by_page(const SlabAllocator *slab, void *page_base) {
     u32 lo = 0, hi = slab->slabs_len;
@@ -240,28 +237,28 @@ static FORCE_INLINE u32 slab_find_by_page(const SlabAllocator *slab, void *page_
     return (u32)-1;
 }
 
-// Map one OS page directly and install it as a new slab. On first ever
-// grow, also runs the lazy runtime-constant init. Returns the slab's
-// index, or (u32)-1 on failure.
+// On first ever grow, also runs the lazy runtime-constant init (page
+// size and bitmap_words_per_slab are only known then). Returns the
+// new slab's index, or (u32)-1 on failure.
 static u32 slab_grow_one(SlabAllocator *slab) {
     if (slab->bitmap_words_per_slab == 0u) {
         slab_finalize_runtime_consts(slab);
     }
-    size  page_size = slab_page_size(slab);
-    void *page      = os_page_map(page_size);
+    size  page_size = os_page_size();
+    void *page      = os_page_map(&slab->base, page_size);
     if (!page) {
         return (u32)-1;
     }
     u32 idx = slab_insert_sorted(slab, page);
     if (idx == (u32)-1) {
-        os_page_unmap(page, page_size);
+        os_page_unmap(&slab->base, page, page_size);
         return (u32)-1;
     }
     return idx;
 }
 
 // =============================================================================
-// Public alloc / free / resize / remap.
+// Public alloc / resize / remap / free.
 
 void *slab_allocator_allocate(SlabAllocator *self, size bytes, i8 zeroed) {
     slab_validate_self(self);
@@ -280,17 +277,9 @@ void *slab_allocator_allocate(SlabAllocator *self, size bytes, i8 zeroed) {
     // Walk slabs in index order; for each, scan its bitmap words for a
     // free bit. First fit wins. Tail bits in the last word (if any)
     // are pre-set to 1 at slab-insert time, so ctz on the inverted
-    // word can never spuriously hit them.
-    //
-    // The pre-redesign code re-read bm[w] here and LOG_FATAL'd if the
-    // freshly-found bit was already set, defending against an
-    // inconsistent-with-itself bitmap word. That check was a
-    // self-consistency probe against rare corruption -- not a useful
-    // safety net under the contiguous-bitmaps layout, where the only
-    // way the bit can be set is if `CTZ64(~bm[w])` is broken (which
-    // is platform code we trust). Free's double-free check (below)
-    // still defends against the more useful real-world failure mode:
-    // releasing a slot twice from user code.
+    // word can never spuriously hit them. Free's double-free check
+    // (below) is what catches the real-world failure mode: releasing
+    // a slot twice from user code.
     for (u32 i = 0; i < self->slabs_len; i++) {
         u64 *bm = &self->bitmaps[(size)i * (size)bw];
         for (u32 w = 0; w < bw; w++) {
@@ -306,9 +295,13 @@ void *slab_allocator_allocate(SlabAllocator *self, size bytes, i8 zeroed) {
                 MemSet(slot, 0, self->slot_size);
             }
 #if FEATURE_ALLOC_STATS
+            // bytes_in_use tracks slot_size (what slab_allocator_deallocate
+            // subtracts); bytes_requested keeps tracking the user's
+            // `bytes`. Different units, by design -- see AllocatorStats
+            // doc in Allocator.h.
             self->base.stats.allocations     += 1u;
             self->base.stats.bytes_requested += (u64)bytes;
-            self->base.stats.bytes_in_use    += (u64)bytes;
+            self->base.stats.bytes_in_use    += (u64)self->slot_size;
             if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
                 self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
             }
@@ -337,7 +330,7 @@ void *slab_allocator_allocate(SlabAllocator *self, size bytes, i8 zeroed) {
 #if FEATURE_ALLOC_STATS
     self->base.stats.allocations     += 1u;
     self->base.stats.bytes_requested += (u64)bytes;
-    self->base.stats.bytes_in_use    += (u64)bytes;
+    self->base.stats.bytes_in_use    += (u64)self->slot_size;
     if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
         self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
     }
@@ -351,11 +344,10 @@ i8 slab_allocator_resize(SlabAllocator *self, void *ptr, size new_size) {
     i8 ok = (new_size <= self->slot_size) ? 1 : 0;
 #if FEATURE_ALLOC_STATS
     if (ok) {
+        // In-place resize does NOT move bytes_in_use (see AllocatorStats
+        // doc in Allocator.h), so no peak refresh is possible here.
         self->base.stats.reallocations   += 1u;
         self->base.stats.bytes_requested += (u64)new_size;
-        if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
-            self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
-        }
     }
 #endif
     return ok;
@@ -373,11 +365,10 @@ void *slab_allocator_remap(SlabAllocator *self, void *ptr, size new_size) {
     void *result = (new_size <= self->slot_size) ? ptr : NULL;
 #if FEATURE_ALLOC_STATS
     if (result) {
+        // In-place remap does NOT move bytes_in_use, so no peak refresh
+        // is possible here.
         self->base.stats.reallocations   += 1u;
         self->base.stats.bytes_requested += (u64)new_size;
-        if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
-            self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
-        }
     } else {
         self->base.stats.failed_allocations += 1u;
     }
@@ -394,7 +385,7 @@ size slab_allocator_deallocate(SlabAllocator *self, void *ptr) {
     // ptr -> owning slab via single mask + bsearch. `os_page_map`
     // returns page-aligned regions, so `ptr & ~(page_size - 1)` is
     // exactly the slab base address.
-    size  page_size = slab_page_size(self);
+    size  page_size = os_page_size();
     void *page_base = (void *)((u64)ptr & ~((u64)page_size - 1u));
     u32   idx       = slab_find_by_page(self, page_base);
     if (idx == (u32)-1) {
@@ -439,16 +430,17 @@ void SlabAllocatorDeinit(SlabAllocator *self) {
     // Unmap each slab page. Each was mapped as exactly one OS page.
     size page_size = os_page_size();
     for (u32 i = 0; i < self->slabs_len; i++) {
-        os_page_unmap(self->slabs[i], page_size);
+        os_page_unmap(&self->base, self->slabs[i], page_size);
     }
     // Unmap the bookkeeping arrays. The exact mapped byte count is
     // recoverable as os_page_round_up(slabs_cap * entry_size), which
     // is identical to what slab_grow_caps passed to os_page_map.
     if (self->slabs) {
-        os_page_unmap(self->slabs, os_page_round_up((size)self->slabs_cap * sizeof(void *)));
+        os_page_unmap(&self->base, self->slabs, os_page_round_up((size)self->slabs_cap * sizeof(void *)));
     }
     if (self->bitmaps) {
         os_page_unmap(
+            &self->base,
             self->bitmaps,
             os_page_round_up((size)self->slabs_cap * (size)self->bitmap_words_per_slab * sizeof(u64))
         );

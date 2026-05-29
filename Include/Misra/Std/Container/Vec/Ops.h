@@ -12,10 +12,11 @@
 
 ///
 /// Sort the vector in place using a quicksort over the comparator. The
-/// comparator must return a `strcmp`-style integer (negative, zero, positive).
+/// comparator must return a `GenericCompare` integer (negative when
+/// `lhs < rhs`, zero when equal, positive when `lhs > rhs`).
 ///
 /// v[in,out]   : Vector handle.
-/// compare[in] : Comparator with `strcmp`-style return.
+/// compare[in] : Comparator with `GenericCompare`-style return.
 ///
 /// SUCCESS : Returns to the caller. Elements are now in non-decreasing
 ///           order according to `compare`. The vector length is unchanged.
@@ -24,7 +25,7 @@
 ///
 /// TAGS: Vec, Ops, Sort
 ///
-#define VecSort(v, compare) (qsort_vec(GENERIC_VEC(v), sizeof(VEC_DATATYPE(v)), (GenericCompare)(compare)))
+#define VecSort(v, compare) (vec_sort(GENERIC_VEC(v), sizeof(VEC_DATATYPE(v)), (GenericCompare)(compare)))
 
 ///
 /// Reverse the elements of the vector in place.

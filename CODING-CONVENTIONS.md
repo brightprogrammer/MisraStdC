@@ -223,8 +223,8 @@ of the codebase to see them in action.
   this project would rather you crash on the spot.
 - **Shared per-instance state lives on the base, never duplicated per
   typed subtype.** A typed allocator embeds `Allocator base` and reads
-  / writes any uniform metric (e.g. `AllocatorStats`) through that one
-  field. Subtypes don't carry parallel copies.
+  / writes any uniform metric (`AllocatorStats`, `footprint_bytes`)
+  through that one field. Subtypes don't carry parallel copies.
 - **Each piece of state is written from exactly one layer.** Where a
   typed body and a dispatch wrapper both exist for the same operation,
   the typed body owns the writes; the wrapper just routes. Two writers
@@ -232,9 +232,9 @@ of the codebase to see them in action.
   which entry point they used.
 - **Read-only fields are exposed through `((void)0, ptr->field)`
   accessor macros, not function calls.** Same shape as `BufLength`,
-  `VecCapacity`, etc. No `*GetStats`-style getter functions, no
-  `_Generic`-dispatched readers — readers stay zero-overhead lvalue-
-  rejecting macros.
+  `VecCapacity`, `AllocatorBytesInUse`, `AllocatorFootprintBytes`,
+  etc. No `*Get*`-style getter functions, no `_Generic`-dispatched
+  readers — readers stay zero-overhead lvalue-rejecting macros.
 - **Stack-promote transient containers** with `*InitStack` (`StrInitStack`,
   `VecInitStack`, ...) -- see the dedicated section below.
 

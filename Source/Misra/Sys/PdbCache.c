@@ -66,17 +66,18 @@ static Zstr basename_of(Zstr path) {
 //
 // On success populates `out_path` (an owned Str the caller frees).
 static bool find_pdb(const Pe *pe, Zstr pe_path, Str *out_path) {
-    if (!pe->codeview.present || !pe->codeview.pdb_path)
+    const PeCodeViewInfo *cv = PeCodeView(pe);
+    if (!cv->present || !cv->pdb_path)
         return false;
 
     // (1) exact CodeView path
-    *out_path = StrInit(out_path->allocator);
-    StrPushBackMany(out_path, pe->codeview.pdb_path);
+    *out_path = StrInit(StrAllocator(out_path));
+    StrPushBackMany(out_path, cv->pdb_path);
     if (path_exists(StrBegin(out_path)))
         return true;
 
     // (2) basename alongside PE
-    Zstr pdb_base = basename_of(pe->codeview.pdb_path);
+    Zstr pdb_base = basename_of(cv->pdb_path);
     if (pdb_base[0] == '\0')
         return false;
 
@@ -115,8 +116,9 @@ static bool entry_open(PdbCacheEntry *entry, Allocator *alloc) {
 
     // Validate the (GUID, age) pair matches. If the PE and PDB
     // disagree the names are probably stale -- worse than no symbols.
-    if (entry->pe.codeview.age != entry->pdb.info.age ||
-        MemCompare(entry->pe.codeview.guid, entry->pdb.info.guid, 16) != 0) {
+    const PeCodeViewInfo *pe_cv   = PeCodeView(&entry->pe);
+    const PdbInfo        *pdb_inf = PdbInfoStream(&entry->pdb);
+    if (pe_cv->age != pdb_inf->age || MemCompare(pe_cv->guid, pdb_inf->guid, 16) != 0) {
         LOG_ERROR("PdbCache: GUID/age mismatch between PE and PDB for {}", entry->module_path);
         PdbDeinit(&entry->pdb);
         return false;
@@ -167,12 +169,12 @@ void PdbCacheDeinit(PdbCache *self) {
 }
 
 bool pdb_cache_resolve_zstr(
-    PdbCache    *self,
-    Zstr         module_path,
-    u64          module_base,
-    u64          runtime_ip,
-    Zstr *out_name,
-    u32         *out_offset
+    PdbCache *self,
+    Zstr      module_path,
+    u64       module_base,
+    u64       runtime_ip,
+    Zstr     *out_name,
+    u32      *out_offset
 ) {
     if (!self || !module_path || !out_name)
         return false;
@@ -202,12 +204,12 @@ bool pdb_cache_resolve_zstr(
 }
 
 bool pdb_cache_resolve_str(
-    PdbCache    *self,
-    const Str   *module_path,
-    u64          module_base,
-    u64          runtime_ip,
-    Zstr *out_name,
-    u32         *out_offset
+    PdbCache  *self,
+    const Str *module_path,
+    u64        module_base,
+    u64        runtime_ip,
+    Zstr      *out_name,
+    u32       *out_offset
 ) {
     if (!module_path) {
         return false;

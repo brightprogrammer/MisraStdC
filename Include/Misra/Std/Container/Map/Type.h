@@ -52,7 +52,7 @@ typedef bool (*MapPredicateFn)(const void *key, const void *value, void *ctx);
 ///   };
 ///
 ///   typedef Map(Str, Str) StrMap;
-///   StrMap map = MapInitWithPolicy(KvConfigHash, KvConfigCompare, policy);
+///   StrMap map = MapInitWithPolicy(str_hash, str_compare, policy);
 ///
 /// FIELDS:
 /// - name            : Human-readable identifier used in diagnostics and validation errors.
@@ -71,7 +71,7 @@ typedef bool (*MapPredicateFn)(const void *key, const void *value, void *ctx);
 /// TAGS: Map, Policy, Hashing, Probing, Configuration
 ///
 typedef struct {
-    Zstr name;
+    Zstr                    name;
     MapPolicyShouldRehashFn should_rehash;
     MapPolicyNextCapacityFn next_capacity;
     MapPolicyFirstIndexFn   first_index;

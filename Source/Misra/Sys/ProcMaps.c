@@ -106,7 +106,7 @@ static bool parse_one_line(StrIter *si, ProcMapEntry *out) {
     // perms: 4 chars
     if (StrIterRemainingLength(si) < 4)
         return false;
-    u32  perms                  = 0;
+    u32  perms = 0;
     char p0 = 0, p1 = 0, p2 = 0, p3 = 0;
     StrIterMustPeekAt(si, 0, &p0);
     StrIterMustPeekAt(si, 1, &p1);
@@ -138,21 +138,25 @@ static bool parse_one_line(StrIter *si, ProcMapEntry *out) {
     // path — optional, runs to end-of-line. We replace the newline
     // with \0 in place so the path is a usable C string aliasing the
     // iter's backing buffer.
-    size path_start_pos = si->pos;
+    size path_start_pos = StrIterIndex(si);
     char c;
     while (StrIterPeek(si, &c) && c != '\n') {
         StrIterMustNext(si);
     }
-    size line_terminator_pos = si->pos;
+    size line_terminator_pos = StrIterIndex(si);
 
     out->start       = start;
     out->end         = ende;
     out->perms       = perms;
     out->file_offset = offset;
-    out->path        = (Zstr)(si->data + path_start_pos); // may be empty if anonymous
+    out->path        = (Zstr)StrIterDataAt(si, path_start_pos); // may be empty if anonymous
 
-    if (line_terminator_pos < si->length && si->data[line_terminator_pos] == '\n') {
-        si->data[line_terminator_pos] = '\0';
+    if (line_terminator_pos < StrIterLength(si) && *StrIterDataAt(si, line_terminator_pos) == '\n') {
+        // intentional bypass: in-place mutation of the iter's backing
+        // buffer to NUL-terminate the path slice we just exposed via
+        // `out->path`. Iter accessors are read-only; no public mutator
+        // covers single-byte writes to the underlying storage.
+        *StrIterDataAt(si, line_terminator_pos) = '\0';
         StrIterMustNext(si);
     }
     return true;

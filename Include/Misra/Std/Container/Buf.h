@@ -584,8 +584,9 @@ static inline bool BufWriteSLeb128(Buf *b, i64 v) {
 
 /// Write a NUL-terminated string + the terminator.
 ///
-/// SUCCESS : Returns `true`; `b->length` grows by `strlen(s) + 1`
-///           (the bytes of `s` followed by the NUL terminator).
+/// SUCCESS : Returns `true`; `b->length` grows by the byte count of `s`
+///           up to but not including its NUL, plus one for the NUL
+///           terminator itself.
 /// FAILURE : Returns `false` on the first allocator failure; bytes
 ///           emitted before the failure remain in `b`.
 ///

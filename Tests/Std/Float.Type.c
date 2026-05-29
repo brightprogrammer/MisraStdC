@@ -1,7 +1,6 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Std/Container/Float.h>
-#include <Misra/Std/Container/BitVec.h>
 #include <Misra/Std/Log.h>
 
 #include "../Util/TestRunner.h"
@@ -73,34 +72,25 @@ bool test_float_clone_inherits_allocator_config(void) {
     WriteFmt("Testing FloatClone allocator inheritance\n");
 
     DefaultAllocator alloc = DefaultAllocatorInit();
-    // White-box: no public effort/retry_limit setter on Allocator; we
-    // poke the base fields directly to exercise the retry policy.
+    // intentional bypass: no public setter on `Allocator` for effort /
+    // retry_limit -- pre-seeded directly so the inheritance path below
+    // can be observed end-to-end.
     alloc.base.effort      = ALLOCATOR_EFFORT_RETRY_FALLBACK;
     alloc.base.retry_limit = 6;
 
-    Float original    = FloatInit(&alloc.base);
-    original.negative = true;
-    original.exponent = -3;
-
-    BitVecPush(&original.significand.bits, true);
-    BitVecPush(&original.significand.bits, false);
-    BitVecPush(&original.significand.bits, true);
+    // "-0.005" normalises to (negative=true, significand=5, exponent=-3),
+    // a non-trivial three-bit magnitude that exercises the clone-vs-original
+    // equality check below.
+    Float original = FloatFromStr("-0.005", &alloc.base);
 
     Float clone = FloatClone(&original);
 
-    bool result = clone.negative == original.negative && clone.exponent == original.exponent &&
-                  BitVecLen(&clone.significand.bits) == BitVecLen(&original.significand.bits) &&
-                  VecAllocator(&clone.significand.bits) == VecAllocator(&original.significand.bits) &&
-                  VecAllocator(&clone.significand.bits)->allocate ==
-                      VecAllocator(&original.significand.bits)->allocate &&
-                  VecAllocator(&clone.significand.bits)->remap == VecAllocator(&original.significand.bits)->remap &&
-                  VecAllocator(&clone.significand.bits)->deallocate ==
-                      VecAllocator(&original.significand.bits)->deallocate &&
-                  VecAllocator(&clone.significand.bits)->effort == VecAllocator(&original.significand.bits)->effort &&
-                  VecAllocator(&clone.significand.bits)->retry_limit ==
-                      VecAllocator(&original.significand.bits)->retry_limit &&
-                  BitVecGet(&clone.significand.bits, 0) == true && BitVecGet(&clone.significand.bits, 1) == false &&
-                  BitVecGet(&clone.significand.bits, 2) == true;
+    bool result = FloatEQ(&clone, &original) && FloatAllocator(&clone) == FloatAllocator(&original) &&
+                  FloatAllocator(&clone)->allocate == FloatAllocator(&original)->allocate &&
+                  FloatAllocator(&clone)->remap == FloatAllocator(&original)->remap &&
+                  FloatAllocator(&clone)->deallocate == FloatAllocator(&original)->deallocate &&
+                  FloatAllocator(&clone)->effort == FloatAllocator(&original)->effort &&
+                  FloatAllocator(&clone)->retry_limit == FloatAllocator(&original)->retry_limit;
 
     FloatDeinit(&original);
     FloatDeinit(&clone);

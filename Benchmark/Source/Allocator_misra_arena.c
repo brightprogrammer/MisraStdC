@@ -96,9 +96,11 @@ uint64_t bench_live_bytes(void) {
 }
 
 uint64_t bench_footprint_bytes(void) {
-    // ArenaAllocator no longer embeds a PageAllocator; it talks directly
-    // to the kernel via the internal `_Os.h` shim and tracks chunks
-    // privately. Fall back to live-bytes from stats (undercounts the
-    // per-chunk header overhead, but the only public-API readout).
-    return bench_live_bytes();
+    // ArenaAllocator talks directly to the kernel via the internal
+    // `_Os.h` shim, and every `os_page_map` / `os_page_unmap` bumps
+    // / draws down `base.footprint_bytes` on the owner allocator
+    // it was handed. So the direct-field accessor on the live arena
+    // is the exact OS-page footprint, no estimation.
+    if (!g_arena_live) return 0;
+    return (uint64_t)AllocatorFootprintBytes(&g_arena);
 }

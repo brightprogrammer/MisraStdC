@@ -2,7 +2,11 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// formatted reading/writing and other magical stuff
+/// Formatted text I/O. Backs the `WriteFmt` / `ReadFmt` /
+/// `StrAppendFmt` / `BufReadFmt` family by walking a `{...}` brace
+/// language over a typed-arg vector. The reader/writer entry-points
+/// per type (`_read_u32` / `_write_Float` / ...) are declared in
+/// `Io.h` so the public macros can name them through `_Generic`.
 
 #include <Misra/Config.h>
 #include <Misra/Std/Allocator/Default.h>
@@ -26,9 +30,11 @@
 #    include <Misra/Std/Container/Float.h>
 #endif
 
-// stdc
 #include <Misra/Std/Math.h>
-// Tiny in-tree hex helpers so Io doesn't need libc isxdigit/strtol.
+
+// In-tree hex helpers used by the escape-decoder and the BitVec hex
+// readers; the library deliberately does not pull a hex-classification
+// helper from the platform.
 // Returns -1 on a non-hex digit, otherwise 0..15.
 static inline i32 hex_nibble(char c) {
     if (c >= '0' && c <= '9')
@@ -59,12 +65,13 @@ static Zstr _read_r16(Zstr i, FmtInfo *fmt_info, u16 *v);
 static Zstr _read_r32(Zstr i, FmtInfo *fmt_info, u32 *v);
 static Zstr _read_r64(Zstr i, FmtInfo *fmt_info, u64 *v);
 
-// Portable helper for counting leading zeros in a 64-bit integer
+// Avoids `__builtin_clzll`: we'd need a separate MSVC branch via
+// `_BitScanReverse64`, and the float-formatter only calls this once
+// per render, so the portable binary-search shape pays for itself.
 static inline u64 count_leading_zeros_u64(u64 value) {
     if (value == 0)
         return 64;
 
-    // Pure portable implementation - works on all compilers
     u64 count = 0;
 
     if ((value >> 32) == 0) {
@@ -94,21 +101,23 @@ static inline u64 count_leading_zeros_u64(u64 value) {
     return count;
 }
 
-// Helper function to parse format specifiers
-// {[(alignment/endianness)[alignment-width/raw-read-width]](specifier)}
+// Brace-body grammar: {[(<|>|^)][0][width][.precision][type]} where
+// `<`/`>`/`^` double as align (text) and endianness (raw); a leading
+// `0` before width switches numeric pad from space to '0' and drops
+// any base prefix; type is one of `c`/`a`/`A`/`x`/`X`/`b`/`o`/`r`/`e`/
+// `E`/`s`.
 static bool parse_format_spec(Zstr spec, u32 len, FmtInfo *fi) {
     if (!spec || !fi) {
-        LOG_FATAL("Invalid arguments to parse_format_spec");
+        LOG_FATAL("Invalid arguments");
         return false;
     }
-    // Empty format specifier is allowed, but spec pointer must not be NULL
+    // `len == 0` (the empty `{}` body) is the well-formed default-spec
+    // case and must fall through to the defaulted FmtInfo below.
 
-    // Initialize format info with defaults
     *fi = (FmtInfo) {.align = ALIGN_RIGHT, .width = 0, .precision = 6, .flags = FMT_FLAG_NONE};
 
     u32 pos = 0;
 
-    // Parse alignment
     if (len) {
         switch (spec[pos]) {
             case '<' :
@@ -129,15 +138,14 @@ static bool parse_format_spec(Zstr spec, u32 len, FmtInfo *fi) {
         }
     }
 
-    // Zero-pad flag. A leading '0' followed by at least one more digit
-    // means "pad numeric output with '0' and drop any base prefix" (matches
+    // A leading '0' followed by at least one more digit means "pad
+    // numeric output with '0' and drop any base prefix" (matches
     // C/Python {:0Nx} convention). `{0}` alone stays a zero-width spec.
     if (pos + 1 < len && spec[pos] == '0' && spec[pos + 1] >= '0' && spec[pos + 1] <= '9') {
         fi->flags |= FMT_FLAG_ZERO_PAD;
         pos++;
     }
 
-    // Parse width
     u32 width = 0;
     if (pos < len && spec[pos] >= '0' && spec[pos] <= '9') {
         while (pos < len && spec[pos] >= '0' && spec[pos] <= '9') {
@@ -147,11 +155,11 @@ static bool parse_format_spec(Zstr spec, u32 len, FmtInfo *fi) {
     }
     fi->width = width;
 
-    // Parse precision only if this is not a raw field
     if (pos < len && spec[pos] == '.') {
         pos++;
         if (pos >= len || spec[pos] < '0' || spec[pos] > '9') {
-            return false; // Precision must be followed by digits
+            // A '.' without trailing digits is malformed.
+            return false;
         }
         size precision = 0;
         while (pos < len && spec[pos] >= '0' && spec[pos] <= '9') {
@@ -162,7 +170,6 @@ static bool parse_format_spec(Zstr spec, u32 len, FmtInfo *fi) {
         fi->precision  = precision;
     }
 
-    // Parse format type after precision
     while (pos < len) {
         switch (spec[pos]) {
             case 'c' :
@@ -253,14 +260,12 @@ bool StrPad(Str *o, size width, Alignment align, size content_len) {
     size pad_len = width - content_len;
 
     if (align == ALIGN_RIGHT) {
-        // Pad on left
         for (size i = 0; i < pad_len; i++) {
             if (!StrPushFrontR(o, ' ')) {
                 return false;
             }
         }
     } else if (align == ALIGN_LEFT) {
-        // Pad on right
         for (size i = 0; i < pad_len; i++) {
             if (!StrPushBackR(o, ' ')) {
                 return false;
@@ -270,14 +275,11 @@ bool StrPad(Str *o, size width, Alignment align, size content_len) {
         size left_pad  = pad_len / 2;
         size right_pad = pad_len - left_pad;
 
-        // Pad on left
         for (size i = 0; i < left_pad; i++) {
             if (!StrPushFrontR(o, ' ')) {
                 return false;
             }
         }
-
-        // Pad on right
         for (size i = 0; i < right_pad; i++) {
             if (!StrPushBackR(o, ' ')) {
                 return false;
@@ -301,51 +303,48 @@ bool str_append_fmt(Str *o, Zstr fmt, TypeSpecificIO *args, u64 argc) {
 
     for (size i = 0; i < fmt_len; i++) {
         if (fmt[i] == '{') {
-            // Check for escaped brace
+            // `{{` is the escape for a literal '{'.
             if (i + 1 < fmt_len && fmt[i + 1] == '{') {
                 if (!StrPushBackR(o, '{')) {
                     return false;
                 }
-                i++; // Skip next brace
+                i++;
                 continue;
             }
 
-            // Find closing brace
             size brace_start = i;
             size brace_end   = i + 1;
             while (brace_end < fmt_len && fmt[brace_end] != '}') {
                 brace_end++;
             }
-
-            // Error if no closing brace found
             if (brace_end >= fmt_len) {
                 LOG_ERROR("Unclosed format specifier");
                 return false;
             }
 
-            // Extract format specifier
-            size spec_len = brace_end - brace_start - 1;
-
-            // Parse format specifier
+            size    spec_len = brace_end - brace_start - 1;
             FmtInfo fmt_info;
             if (spec_len == 0) {
-                // Empty format specifier {} is allowed, initialize with defaults
+                // Empty `{}` body falls through to the same defaults
+                // parse_format_spec would have emitted for an empty
+                // input, without the bounds check overhead.
                 fmt_info = (FmtInfo) {.align = ALIGN_RIGHT, .width = 0, .precision = 6, .flags = FMT_FLAG_NONE};
             } else if (!parse_format_spec(fmt + brace_start + 1, spec_len, &fmt_info)) {
                 return false;
             }
 
-            // Check if we have enough arguments
             if (arg_idx >= argc) {
                 LOG_ERROR("Not enough arguments for format string");
                 return false;
             }
 
-            // Get current argument
             TypeSpecificIO *arg = &args[arg_idx++];
             if (!arg->writer || !arg->data) {
 #if defined(_MSC_VER) || defined(__MSC_VER)
-                LOG_INFO("Using default writer for char, because MSVC is STUPID AF");
+                // MSVC C `_Generic` types string literals as `char *`
+                // regardless of `/Zc:strictStrings` (C++-only flag); the
+                // IOFMT char-arm therefore can't pick a per-type writer
+                // for literals. Fall back to a default writer.
                 if (fmt_info.flags & FMT_FLAG_CHAR) {
                     arg->writer = (TypeSpecificWriter)_write_i8;
                 } else {
@@ -356,12 +355,12 @@ bool str_append_fmt(Str *o, Zstr fmt, TypeSpecificIO *args, u64 argc) {
 #endif
             }
 
-            // write raw if flag provided, otherwise switch to default writing
+            // `{Nr}` bypasses the type-specific writer in favour of the
+            // raw byte-pair pipeline below; identity-compare the writer
+            // pointer to recover the source variable's natural width.
             if (fmt_info.flags & FMT_FLAG_RAW) {
-                TypeSpecificWriter write_fn = arg->writer;
-
-                // deduce the actual field size
-                u32 var_width = 0;
+                TypeSpecificWriter write_fn  = arg->writer;
+                u32                var_width = 0;
                 if (write_fn == (void *)_write_u8 || write_fn == (void *)_write_i8) {
                     var_width = 1;
                 } else if (write_fn == (void *)_write_u16 || write_fn == (void *)_write_i16) {
@@ -386,7 +385,8 @@ bool str_append_fmt(Str *o, Zstr fmt, TypeSpecificIO *args, u64 argc) {
                     );
                 }
 
-                // get data in a variable of max width
+                // Widen-then-narrow keeps the byte pickup endian-clean
+                // regardless of the source's natural width.
                 u64 x = 0;
                 switch (var_width) {
                     case 1 : {
@@ -411,7 +411,6 @@ bool str_append_fmt(Str *o, Zstr fmt, TypeSpecificIO *args, u64 argc) {
                     }
                 }
 
-                // write requested bytes
                 switch (fmt_info.width) {
                     case 1 : {
                         u8 y = (u8)x;
@@ -446,22 +445,19 @@ bool str_append_fmt(Str *o, Zstr fmt, TypeSpecificIO *args, u64 argc) {
                     }
                 }
             } else {
-                // Write the formatted value
                 if (!arg->writer(o, &fmt_info, arg->data)) {
                     return false;
                 }
             }
 
-
-            // Skip to end of format specifier
             i = brace_end;
         } else if (fmt[i] == '}') {
-            // Check for escaped brace
+            // `}}` escapes to a single literal '}'.
             if (i + 1 < fmt_len && fmt[i + 1] == '}') {
                 if (!StrPushBackR(o, '}')) {
                     return false;
                 }
-                i++; // Skip next brace
+                i++;
                 continue;
             }
             LOG_ERROR("Unmatched closing brace");
@@ -473,7 +469,6 @@ bool str_append_fmt(Str *o, Zstr fmt, TypeSpecificIO *args, u64 argc) {
         }
     }
 
-    // Check if we used all arguments
     if (arg_idx < argc) {
         LOG_ERROR("Too many arguments for format string");
         return false;
@@ -592,7 +587,6 @@ Zstr str_read_fmt(Zstr input, Zstr fmtstr, TypeSpecificIO *argv, u64 argc) {
             p++;
             rem_p--;
 
-            // Find closing brace
             Zstr start    = p;
             size spec_len = 0;
             while (rem_p > 0 && *p != '}') {
@@ -606,7 +600,8 @@ Zstr str_read_fmt(Zstr input, Zstr fmtstr, TypeSpecificIO *argv, u64 argc) {
                 return NULL;
             }
 
-            // Parse optional specifier
+            // 32 chars is the StrInitStack scratch below; any spec
+            // longer than that is malformed by construction.
             if (spec_len >= 32) {
                 LOG_ERROR("Format specifier too long");
                 return NULL;
@@ -630,22 +625,24 @@ Zstr str_read_fmt(Zstr input, Zstr fmtstr, TypeSpecificIO *argv, u64 argc) {
             }
             if (!spec_ok) {
                 LOG_ERROR("Failed to parse format specifier");
-                return NULL; // Error already logged by parse_format_spec
+                return NULL;
             }
             fmt_info.max_read_len = rem_in;
 
-            // Skip closing '}'
+            // Step past the closing '}' so the body below sees the
+            // first byte after the specifier.
             p++;
             rem_p--;
 
-            // Use the type-specific reader
             TypeSpecificIO *io = &argv[arg_index++];
             if (!io->reader) {
                 LOG_ERROR("Missing reader function");
                 return NULL;
             }
 
-            // If raw data reading is specified, use raw readers
+            // Raw-data directives dispatch to the byte-level reader
+            // table instead of the type-specific reader the caller
+            // registered.
             Zstr               next       = NULL;
             TypeSpecificReader raw_reader = NULL;
             if (fmt_info.flags & FMT_FLAG_RAW) {
@@ -689,7 +686,9 @@ Zstr str_read_fmt(Zstr input, Zstr fmtstr, TypeSpecificIO *argv, u64 argc) {
                     rem_in -= (next - in);
                 }
 
-                // deduce the actual field size
+                // Identity-compare the reader pointer to recover the
+                // destination variable's natural width, same trick the
+                // raw-write path uses.
                 u32   var_width = 0;
                 void *read_fn   = (void *)io->reader;
                 if (read_fn == (void *)_read_u8 || read_fn == (void *)_read_i8) {
@@ -714,7 +713,9 @@ Zstr str_read_fmt(Zstr input, Zstr fmtstr, TypeSpecificIO *argv, u64 argc) {
                     LOG_INFO("Number of bytes read as raw data exceeds variable width. Excess data will discarded.");
                 }
 
-                // make sure we write only as much space is provided
+                // Narrow-on-store keeps the upper bytes off the
+                // destination when the spec read more than the variable
+                // can hold.
                 switch (var_width) {
                     case 1 : {
                         *(u8 *)io->data = (u8)x;
@@ -738,11 +739,14 @@ Zstr str_read_fmt(Zstr input, Zstr fmtstr, TypeSpecificIO *argv, u64 argc) {
                     }
                 }
             } else {
-                // find length between two format specifiers
+                // Cap the field by the literal run between this
+                // placeholder and the next `{`. The literal anchors
+                // where the field ends; without it, greedy readers
+                // would consume past the boundary the format author
+                // intended.
                 u64  space_len = 0;
                 char c         = p[space_len];
                 while (c) {
-                    // if this is possible start of a new format specifier and not '{{' (escaped brace)
                     if (c == '{' && p[space_len + 1] != '{') {
                         break;
                     } else {
@@ -751,10 +755,7 @@ Zstr str_read_fmt(Zstr input, Zstr fmtstr, TypeSpecificIO *argv, u64 argc) {
                     c = p[space_len];
                 }
 
-                // if there's something between two format specifiers then we can read only upto that
-                // otherwise end of input is the limit
                 if (space_len) {
-                    // Find first occurence of content between current and next format specifier or null character
                     Zstr e = NULL;
                     if ((e = ZstrFindSubstringN(in, p, space_len))) {
                         fmt_info.max_read_len = e - in;
@@ -763,7 +764,6 @@ Zstr str_read_fmt(Zstr input, Zstr fmtstr, TypeSpecificIO *argv, u64 argc) {
                     fmt_info.max_read_len = rem_in;
                 }
 
-                // do formatted read
                 next = io->reader(in, &fmt_info, io->data);
 
                 if (next) {
@@ -771,16 +771,13 @@ Zstr str_read_fmt(Zstr input, Zstr fmtstr, TypeSpecificIO *argv, u64 argc) {
                 }
             }
 
-            // Check if reading failed
             if (!next || next == in) {
                 LOG_ERROR("Failed to read value for placeholder {}", LVAL(arg_index - 1));
                 return NULL;
             }
 
-            // Update input pointer
             in = next;
         } else {
-            // Match exact character from format string
             if (!in || *in != *p) {
                 LOG_ERROR(
                     "Input '{.8}' does not match format string '{.8}'",
@@ -817,7 +814,7 @@ bool buf_read_fmt(BufIter *iter, Zstr fmtstr, TypeSpecificIO *argv, u64 argc) {
         LOG_FATAL("buf_read_fmt: NULL iter or fmtstr");
     }
 
-    size    start_pos = iter->pos;
+    BufIter start     = *iter;
     u64     arg_index = 0;
     StrIter fsi       = StrIterFromZstr(fmtstr);
     char    fc        = 0;
@@ -827,20 +824,20 @@ bool buf_read_fmt(BufIter *iter, Zstr fmtstr, TypeSpecificIO *argv, u64 argc) {
             LOG_FATAL("buf_read_fmt: stray '{c}' in binary fmt; only {{<Nr}} / {{>Nr}} allowed", (u32)(u8)fc);
         }
         StrIterMustNext(&fsi); // step over '{'
-        Zstr spec_start     = (Zstr)(fsi.data) + fsi.pos;
-        size spec_start_pos = fsi.pos;
-        char sc             = 0;
+        StrIter spec_start_fsi = fsi;
+        Zstr    spec_start     = (Zstr)StrIterPos(&fsi);
+        char    sc             = 0;
         while (StrIterPeek(&fsi, &sc) && sc != '}') {
             StrIterMustNext(&fsi);
         }
         if (sc != '}') {
             LOG_FATAL("buf_read_fmt: unterminated {{ in fmt");
         }
-        u32 spec_len = (u32)(fsi.pos - spec_start_pos);
+        u32 spec_len = (u32)(StrIterRemainingLength(&spec_start_fsi) - StrIterRemainingLength(&fsi));
 
         FmtInfo fmt_info = {0};
         if (!parse_format_spec(spec_start, spec_len, &fmt_info)) {
-            iter->pos = start_pos;
+            *iter = start;
             return false; // parse_format_spec already logged
         }
         if (!(fmt_info.flags & FMT_FLAG_RAW)) {
@@ -850,8 +847,8 @@ bool buf_read_fmt(BufIter *iter, Zstr fmtstr, TypeSpecificIO *argv, u64 argc) {
             LOG_FATAL("buf_read_fmt: raw width must be 1/2/4/8 (got {})", (u64)fmt_info.width);
         }
         // Bounds check in iter space; pointer arithmetic stays inside the buffer.
-        if (fmt_info.width > (iter->length - iter->pos)) {
-            iter->pos = start_pos;
+        if (fmt_info.width > IterRemainingLength(iter)) {
+            *iter = start;
             return false;
         }
         if (arg_index >= argc) {
@@ -863,7 +860,7 @@ bool buf_read_fmt(BufIter *iter, Zstr fmtstr, TypeSpecificIO *argv, u64 argc) {
         }
 
         // Read the raw bytes into a u64 with the spec's endianness.
-        Zstr in   = (Zstr)iter->data + iter->pos;
+        Zstr in   = (Zstr)IterPos(iter);
         u64  x    = 0;
         Zstr next = NULL;
         switch (fmt_info.width) {
@@ -890,10 +887,13 @@ bool buf_read_fmt(BufIter *iter, Zstr fmtstr, TypeSpecificIO *argv, u64 argc) {
                 break;
         }
         if (!next) {
-            iter->pos = start_pos;
+            *iter = start;
             return false;
         }
-        iter->pos += fmt_info.width;
+        // Audit: precondition is the `fmt_info.width > IterRemainingLength(iter)`
+        // guard above; reaching here means at least `fmt_info.width` bytes remain
+        // in the cursor, which is what IterMustMove consumes.
+        IterMustMove(iter, fmt_info.width);
 
         // Resolve destination variable width via the reader fn pointer
         // (same discriminator str_read_fmt uses). Require an exact match
@@ -1007,16 +1007,16 @@ static bool render_binary_fmt(Str *out, Zstr fmtstr, TypeSpecificIO *argv, u64 a
             LOG_FATAL("buf_*_fmt: stray '{c}' in binary fmt; only {{<Nr}} / {{>Nr}} allowed", (u32)(u8)fc);
         }
         StrIterMustNext(&fsi); // step over '{'
-        Zstr spec_start     = (Zstr)(fsi.data) + fsi.pos;
-        size spec_start_pos = fsi.pos;
-        char sc             = 0;
+        StrIter spec_start_fsi = fsi;
+        Zstr    spec_start     = (Zstr)StrIterPos(&fsi);
+        char    sc             = 0;
         while (StrIterPeek(&fsi, &sc) && sc != '}') {
             StrIterMustNext(&fsi);
         }
         if (sc != '}') {
             LOG_FATAL("buf_*_fmt: unterminated {{ in fmt");
         }
-        u32 spec_len = (u32)(fsi.pos - spec_start_pos);
+        u32 spec_len = (u32)(StrIterRemainingLength(&spec_start_fsi) - StrIterRemainingLength(&fsi));
 
         FmtInfo fmt_info = {0};
         if (!parse_format_spec(spec_start, spec_len, &fmt_info)) {
@@ -1157,24 +1157,23 @@ void f_read_fmt(File *file, Zstr fmtstr, TypeSpecificIO *argv, u64 argc) {
     DefaultAllocatorDeinit(&scratch);
 }
 
-// Helper function to write integer values as character sequences in a consistent order
-// regardless of system endianness (big-endian order: most significant byte first)
+// Forces a fixed big-endian byte iteration order so the rendered
+// characters look identical on LE and BE hosts -- the format spec
+// implies a wire-style representation independent of host endianness.
 static inline bool write_int_as_chars(Str *o, FormatFlags flags, u64 value, size num_bytes) {
     if (!o || !num_bytes || num_bytes > 8) {
-        LOG_FATAL("Invalid arguments to write_int_as_chars");
+        LOG_FATAL("Invalid arguments");
     }
 
     bool is_caps    = (flags & FMT_FLAG_CAPS) != 0;
     bool force_case = (flags & FMT_FLAG_FORCE_CASE) != 0;
 
-    // Process bytes in big-endian order (most significant byte first)
     for (size i = 0; i < num_bytes; i++) {
-        // Extract byte at position (num_bytes - 1 - i) from the right
         u8 byte = (value >> ((num_bytes - 1 - i) * 8)) & 0xFF;
 
         if (IS_PRINTABLE(byte)) {
-            // For 'a'/'A' format specifier (force_case), apply case conversion
-            // For 'c' format specifier, preserve the original case
+            // 'a'/'A' set force_case (caller wants the case folded);
+            // 'c' leaves it clear so source bytes pass through untouched.
             if (force_case) {
                 if (!StrPushBackR(o, is_caps ? TO_UPPER(byte) : TO_LOWER(byte))) {
                     return false;
@@ -1185,7 +1184,8 @@ static inline bool write_int_as_chars(Str *o, FormatFlags flags, u64 value, size
                 }
             }
         } else {
-            // Handle non-printable characters
+            // Render non-printables as `\xNN` so the output is
+            // ASCII-safe regardless of byte content.
             u8   low = byte & 0xf;
             u8   hiw = (byte >> 4) & 0xf;
             char c1  = hiw < 10 ? '0' + hiw : is_caps ? 'A' + (hiw - 10) : 'a' + (hiw - 10);
@@ -1210,8 +1210,7 @@ static inline bool write_char_internal(Str *o, FormatFlags flags, Zstr vs, size 
 
     while (len--) {
         if (IS_PRINTABLE(*vs)) {
-            // For 'a'/'A' format specifier (force_case), apply case conversion
-            // For 'c' format specifier, preserve the original case
+            // See `write_int_as_chars` for the force_case / 'c' split.
             if (force_case) {
                 if (!StrPushBackR(o, is_caps ? TO_UPPER(*vs) : TO_LOWER(*vs))) {
                     return false;
@@ -1222,11 +1221,8 @@ static inline bool write_char_internal(Str *o, FormatFlags flags, Zstr vs, size 
                 }
             }
         } else {
-            // Non-printable byte -> "\xHH" escape. Same pattern as the
-            // hex-escape branch in the byte-loop above; the previous
-            // version here used an intermediate `char cs[3] = {'\\',
-            // c1, c2}` after already pushing "\\x", duplicating the
-            // backslash, and decayed `char *` couldn't satisfy Zstr.
+            // Non-printable byte -> `\xHH`. Same shape as the hex-escape
+            // branch above.
             u8   c   = *vs;
             u8   low = c & 0xf;
             u8   hiw = (c >> 4) & 0xf;
@@ -1519,7 +1515,7 @@ static size float_fmt_token_length(Zstr input) {
     bool allow_sign     = true;
 
     if (!input) {
-        LOG_FATAL("input is NULL");
+        LOG_FATAL("Invalid arguments");
     }
 
     while (input[pos]) {
@@ -1565,20 +1561,13 @@ static size float_fmt_token_length(Zstr input) {
 }
 #endif // FEATURE_FLOAT
 
-///
-/// Helper function to read characters into a buffer, handling hex escape sequences
-///
-/// i[in]           : Pointer to current read position in input string
-/// buffer[out]     : Buffer to store read characters
-/// buffer_size[in] : Maximum number of characters to read into buffer
-///
-/// Returns: Updated pointer to position after reading characters
-///
-/// TAGS: Helper, Character, Reading, EscapeSequences
-///
+// Reads up to `buffer_size` bytes from `i`, expanding `\xNN` escapes
+// into the implied raw byte. Stops early on end-of-input. Returns the
+// post-read cursor so the outer reader can splice it back into the
+// surrounding format-walk.
 static inline Zstr read_chars_internal(Zstr i, u8 *buffer, size buffer_size, FmtInfo *fmt_info) {
     if (!i || !buffer || !buffer_size) {
-        LOG_FATAL("Invalid arguments to read_chars_internal");
+        LOG_FATAL("Invalid arguments");
     }
 
     size bytes_read = 0;
@@ -1590,23 +1579,30 @@ static inline Zstr read_chars_internal(Zstr i, u8 *buffer, size buffer_size, Fmt
         u8 char_to_store;
 
         if (current[0] == '\\' && current[1] == 'x') {
-            // Handle hex escape sequence \xNN
-            i32 hex_val = hex_byte(current[2], current[3]);
+            // Probe the two hex bytes WITHOUT walking past the NUL.
+            // Input is Zstr (NUL-terminated); a payload of "\\x" or
+            // "\\xN" would otherwise let `hex_byte(current[2], current[3])`
+            // read one or two bytes past the terminator.
+            i32 hex_val = -1;
+            if (current[2] != '\0' && current[3] != '\0') {
+                hex_val = hex_byte(current[2], current[3]);
+            }
             if (hex_val >= 0) {
                 char_to_store  = (u8)hex_val;
-                current       += 4; // Skip \xNN
+                current       += 4;
             } else {
-                // Invalid hex sequence, treat as regular character
+                // Bad nibbles (or truncated `\x`): salvage the `\` as a
+                // literal byte so the rest of the field still consumes;
+                // the broken tail surfaces in the caller's buffer instead
+                // of being silently swallowed.
                 char_to_store = (u8)*current;
                 current++;
             }
         } else {
-            // Regular character
             char_to_store = (u8)*current;
             current++;
         }
 
-        // Apply case conversion if needed
         if (force_case) {
             char_to_store = is_caps ? TO_UPPER(char_to_store) : TO_LOWER(char_to_store);
         }
@@ -1626,13 +1622,16 @@ bool _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
     ValidateStr(o);
     ValidateStr(s);
 
-    // Store original length to calculate content size later
-    size start_len = o->length;
+    // Remember the pre-render length so the post-write padding step
+    // can compute "how much content did we just emit" without
+    // accounting for prior contents.
+    size start_len = StrLen(o);
 
-    // Handle empty string - don't need special handling, just apply padding if needed
-    if (s->length) {
+    if (StrLen(s)) {
         if (fmt_info->flags & FMT_FLAG_HEX) {
-            // Format each character as hex
+            // `{x}` over a Str renders each byte as `0xNN` with a
+            // single-space separator (no separator before the first
+            // byte). Two hex digits per byte, zero-padded.
             StrIntFormat config = {.base = 16, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0};
             StrForeachIdx(s, c, i) {
                 if (i > 0) {
@@ -1640,13 +1639,11 @@ bool _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
                         return false;
                     }
                 }
-                // Create hex string for each character
-                Str hex = StrInit(o->allocator);
+                Str hex = StrInit(StrAllocator(o));
                 if (!StrFromU64(&hex, c, &config)) {
                     StrDeinit(&hex);
                     return false;
                 }
-                // Ensure 2 digits with leading zero
                 if (StrLen(&hex) == 1) {
                     if (!StrPushFrontR(&hex, '0')) {
                         StrDeinit(&hex);
@@ -1660,10 +1657,11 @@ bool _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
                 StrDeinit(&hex);
             }
         } else {
-            // If precision is specified, use it as max length
-            size len = s->length;
+            // `precision` truncates to at most N chars (mirrors Python's
+            // `{:.Ns}`); precision 0 is the explicit "render nothing"
+            // case, not an error.
+            size len = StrLen(s);
             if (fmt_info->flags & FMT_FLAG_HAS_PRECISION) {
-                // Precision 0 means empty string (not an error)
                 if (fmt_info->precision == 0) {
                     len = 0;
                 } else {
@@ -1671,9 +1669,8 @@ bool _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
                 }
             }
 
-            // Copy string content
             if (fmt_info->flags & FMT_FLAG_CHAR) {
-                if (!write_char_internal(o, fmt_info->flags, (Zstr)s->data, len)) {
+                if (!write_char_internal(o, fmt_info->flags, (Zstr)StrBegin(s), len)) {
                     return false;
                 }
             } else {
@@ -1694,9 +1691,8 @@ bool _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
         }
     }
 
-    // Apply padding if width is specified
     if (fmt_info->width > 0) {
-        size content_len = o->length - start_len;
+        size content_len = StrLen(o) - start_len;
         if (!StrPad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
@@ -1713,14 +1709,16 @@ bool _write_Zstr(Str *o, FmtInfo *fmt_info, Zstr *s) {
 
     ValidateStr(o);
 
-    // Store original length to calculate content size later
-    size start_len = o->length;
+    // Snapshot the pre-render length so post-render padding sees the
+    // size of just-this-field, not the accumulated buffer.
+    size start_len = StrLen(o);
     Zstr xs        = *s;
 
-    // Handle null or empty string
+    // Empty Zstr: skip the body and fall straight through to padding.
     if (xs[0] != '\0') {
         if (fmt_info->flags & FMT_FLAG_HEX) {
-            // Format each character as hex
+            // Same `0xNN`-per-byte rendering as the Str path above;
+            // walked through the Zstr terminator instead of `.length`.
             size i = 0;
             while (xs[i]) {
                 if (i > 0) {
@@ -1728,14 +1726,12 @@ bool _write_Zstr(Str *o, FmtInfo *fmt_info, Zstr *s) {
                         return false;
                     }
                 }
-                // Create hex string for each character
-                Str          hex    = StrInit(o->allocator);
+                Str          hex    = StrInit(StrAllocator(o));
                 StrIntFormat config = {.base = 16, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0};
                 if (!StrFromU64(&hex, (u8)xs[i], &config)) {
                     StrDeinit(&hex);
                     return false;
                 }
-                // Ensure 2 digits with leading zero
                 if (StrLen(&hex) == 1) {
                     if (!StrPushFrontR(&hex, '0')) {
                         StrDeinit(&hex);
@@ -1750,12 +1746,10 @@ bool _write_Zstr(Str *o, FmtInfo *fmt_info, Zstr *s) {
                 i++;
             }
         } else {
-            // Get string length
+            // Precision truncates -- see the Str path above for the
+            // precision-0 carve-out.
             size len = ZstrLen(xs);
-
-            // If precision is specified, use it as max length
             if (fmt_info->flags & FMT_FLAG_HAS_PRECISION) {
-                // Precision 0 means empty string (not an error)
                 if (fmt_info->precision == 0) {
                     len = 0;
                 } else {
@@ -1763,7 +1757,6 @@ bool _write_Zstr(Str *o, FmtInfo *fmt_info, Zstr *s) {
                 }
             }
 
-            // Copy string content
             if (fmt_info->flags & FMT_FLAG_CHAR) {
                 if (!write_char_internal(o, fmt_info->flags, xs, len)) {
                     return false;
@@ -1786,9 +1779,8 @@ bool _write_Zstr(Str *o, FmtInfo *fmt_info, Zstr *s) {
         }
     }
 
-    // Apply padding if width is specified
     if (fmt_info->width > 0) {
-        size content_len = o->length - start_len;
+        size content_len = StrLen(o) - start_len;
         if (!StrPad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
@@ -1814,19 +1806,20 @@ bool _write_u64(Str *o, FmtInfo *fmt_info, u64 *v) {
         return false;
     }
 
-    // If this is to be printed as a character sequence
     if (fmt_info->flags & FMT_FLAG_CHAR) {
         return write_int_as_chars(o, fmt_info->flags, *v, 8);
     }
 
-    // Store original length to calculate content size later
-    size start_len = o->length;
+    // Snapshot the pre-render length so post-render padding sees the
+    // size of just-this-field, not the accumulated buffer.
+    size start_len = StrLen(o);
 
-    // Create temporary buffer for number formatting
-    Str temp = StrInit(o->allocator);
+    // Format into a scratch Str first, then merge into `o`: keeps the
+    // base-prefix / sign / padding logic from having to reach into
+    // `o`'s prefix bytes after the fact.
+    Str temp = StrInit(StrAllocator(o));
 
-    // Determine base based on format flags
-    u8 base = 10; // default is decimal
+    u8 base = 10;
     if (fmt_info->flags & FMT_FLAG_HEX) {
         base = 16;
     } else if (fmt_info->flags & FMT_FLAG_BINARY) {
@@ -1835,7 +1828,6 @@ bool _write_u64(Str *o, FmtInfo *fmt_info, u64 *v) {
         base = 8;
     }
 
-    // Use StrFromU64 directly with the appropriate base.
     // Zero-pad mode suppresses any base prefix so the rendered glyph
     // count matches the requested width exactly (e.g. {016x} -> 16 hex
     // chars, not "0x" + 14 chars).
@@ -1847,16 +1839,14 @@ bool _write_u64(Str *o, FmtInfo *fmt_info, u64 *v) {
         return false;
     }
 
-    // Merge the formatted number into output
     if (!StrMerge(o, &temp)) {
         StrDeinit(&temp);
         return false;
     }
     StrDeinit(&temp);
 
-    // Apply padding if width is specified
     if (fmt_info->width > 0) {
-        size content_len = o->length - start_len;
+        size content_len = StrLen(o) - start_len;
         if (zero_pad) {
             if (!pad_numeric_zeros(o, start_len, fmt_info->width, content_len)) {
                 return false;
@@ -1875,7 +1865,6 @@ bool _write_u32(Str *o, FmtInfo *fmt_info, u32 *v) {
         return false;
     }
 
-    // If this is to be printed as a character sequence
     if (fmt_info->flags & FMT_FLAG_CHAR) {
         return write_int_as_chars(o, fmt_info->flags, *v, 4);
     }
@@ -1890,7 +1879,6 @@ bool _write_u16(Str *o, FmtInfo *fmt_info, u16 *v) {
         return false;
     }
 
-    // If this is to be printed as a character sequence
     if (fmt_info->flags & FMT_FLAG_CHAR) {
         return write_int_as_chars(o, fmt_info->flags, *v, 2);
     }
@@ -1905,7 +1893,6 @@ bool _write_u8(Str *o, FmtInfo *fmt_info, u8 *v) {
         return false;
     }
 
-    // If this is to be printed as a character sequence
     if (fmt_info->flags & FMT_FLAG_CHAR) {
         return write_int_as_chars(o, fmt_info->flags, *v, 1);
     }
@@ -1920,19 +1907,20 @@ bool _write_i64(Str *o, FmtInfo *fmt_info, i64 *v) {
         return false;
     }
 
-    // If this is to be printed as a character sequence
     if (fmt_info->flags & FMT_FLAG_CHAR) {
         return write_int_as_chars(o, fmt_info->flags, *v, 8);
     }
 
-    // Store original length to calculate content size later
-    size start_len = o->length;
+    // Snapshot the pre-render length so post-render padding sees the
+    // size of just-this-field, not the accumulated buffer.
+    size start_len = StrLen(o);
 
-    // Create temporary buffer for number formatting
-    Str temp = StrInit(o->allocator);
+    // Format into a scratch Str first, then merge into `o`: keeps the
+    // base-prefix / sign / padding logic from having to reach into
+    // `o`'s prefix bytes after the fact.
+    Str temp = StrInit(StrAllocator(o));
 
-    // Determine base based on format flags
-    u8 base = 10; // default is decimal
+    u8 base = 10;
     if (fmt_info->flags & FMT_FLAG_HEX) {
         base = 16;
     } else if (fmt_info->flags & FMT_FLAG_BINARY) {
@@ -1941,9 +1929,8 @@ bool _write_i64(Str *o, FmtInfo *fmt_info, i64 *v) {
         base = 8;
     }
 
-    // Use StrFromI64 directly with the appropriate base. Zero-pad
-    // suppresses the base prefix; the leading sign (if any) is kept
-    // ahead of the '0' fill -- see pad_numeric_zeros.
+    // Zero-pad suppresses the base prefix; the leading sign (if any)
+    // is kept ahead of the '0' fill -- see pad_numeric_zeros.
     bool         zero_pad   = (fmt_info->flags & FMT_FLAG_ZERO_PAD) != 0;
     bool         use_prefix = (base != 10) && !zero_pad;
     StrIntFormat config = {.base = base, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0, .use_prefix = use_prefix};
@@ -1952,16 +1939,14 @@ bool _write_i64(Str *o, FmtInfo *fmt_info, i64 *v) {
         return false;
     }
 
-    // Merge the formatted number into output
     if (!StrMerge(o, &temp)) {
         StrDeinit(&temp);
         return false;
     }
     StrDeinit(&temp);
 
-    // Apply padding if width is specified
     if (fmt_info->width > 0) {
-        size content_len = o->length - start_len;
+        size content_len = StrLen(o) - start_len;
         if (zero_pad) {
             if (!pad_numeric_zeros(o, start_len, fmt_info->width, content_len)) {
                 return false;
@@ -1980,7 +1965,6 @@ bool _write_i32(Str *o, FmtInfo *fmt_info, i32 *v) {
         return false;
     }
 
-    // If this is to be printed as a character sequence
     if (fmt_info->flags & FMT_FLAG_CHAR) {
         return write_int_as_chars(o, fmt_info->flags, *v, 4);
     }
@@ -1995,7 +1979,6 @@ bool _write_i16(Str *o, FmtInfo *fmt_info, i16 *v) {
         return false;
     }
 
-    // If this is to be printed as a character sequence
     if (fmt_info->flags & FMT_FLAG_CHAR) {
         return write_int_as_chars(o, fmt_info->flags, *v, 2);
     }
@@ -2010,7 +1993,6 @@ bool _write_i8(Str *o, FmtInfo *fmt_info, i8 *v) {
         return false;
     }
 
-    // If this is to be printed as a character sequence
     if (fmt_info->flags & FMT_FLAG_CHAR) {
         return write_int_as_chars(o, fmt_info->flags, *v, 1);
     }
@@ -2025,20 +2007,23 @@ bool _write_f64(Str *o, FmtInfo *fmt_info, f64 *v) {
         return false;
     }
 
-    // If this is to be printed as a character sequence
+    // {c} on a float reinterprets the IEEE 754 byte pattern as 8
+    // chars (high byte first). Goes through MemCopy rather than a
+    // union cast so the aliasing rules stay clean across compilers.
     if (fmt_info->flags & FMT_FLAG_CHAR) {
-        // Convert the 64-bit float value to a 64-bit integer for byte access
         u64 bits;
-        MemCopy(&bits, v, sizeof(bits)); // Avoid type punning issues
+        MemCopy(&bits, v, sizeof(bits));
         return write_int_as_chars(o, fmt_info->flags, bits, 8);
     }
 
-    // Store original length to calculate content size later
-    size start_len = o->length;
+    // Snapshot the pre-render length so post-render padding sees the
+    // size of just-this-field, not the accumulated buffer.
+    size start_len = StrLen(o);
 
-    // Handle special cases directly here to avoid StrFromF64 issues
+    // NaN / +/-inf bypass `StrFromF64` so the rendered token stays
+    // stable ("nan" / "inf" / "NAN" / "INF") regardless of how the
+    // generic float renderer would print them.
     if (F64IsNan(*v)) {
-        // Direct string append for NaN
         if (fmt_info->flags & FMT_FLAG_CAPS) {
             if (!StrPushBackMany(o, "F64_NAN")) {
                 return false;
@@ -2049,7 +2034,6 @@ bool _write_f64(Str *o, FmtInfo *fmt_info, f64 *v) {
             }
         }
     } else if (F64IsInf(*v)) {
-        // Direct string append for infinity
         if (*v < 0) {
             if (!StrPushBackR(o, '-')) {
                 return false;
@@ -2066,11 +2050,11 @@ bool _write_f64(Str *o, FmtInfo *fmt_info, f64 *v) {
             }
         }
     } else {
-        // Normal case - use StrFromF64
-        // Create temporary buffer for number formatting
-        Str temp = StrInit(o->allocator);
+        // Format into a scratch Str first then merge -- same rationale
+        // as the integer renderers: padding/sign accounting wants a
+        // self-contained slice it can measure.
+        Str temp = StrInit(StrAllocator(o));
 
-        // Use StrFromF64 directly with the appropriate parameters
         u8             precision = fmt_info->flags & FMT_FLAG_HAS_PRECISION ? fmt_info->precision : 6;
         StrFloatFormat config    = {
                .precision = precision,
@@ -2082,7 +2066,6 @@ bool _write_f64(Str *o, FmtInfo *fmt_info, f64 *v) {
             return false;
         }
 
-        // Merge the formatted number into output
         if (!StrMerge(o, &temp)) {
             StrDeinit(&temp);
             return false;
@@ -2090,9 +2073,8 @@ bool _write_f64(Str *o, FmtInfo *fmt_info, f64 *v) {
         StrDeinit(&temp);
     }
 
-    // Apply padding if width is specified
     if (fmt_info->width > 0) {
-        size content_len = o->length - start_len;
+        size content_len = StrLen(o) - start_len;
         if (!StrPad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
@@ -2107,11 +2089,11 @@ bool _write_f32(Str *o, FmtInfo *fmt_info, f32 *v) {
         return false;
     }
 
-    // If this is to be printed as a character sequence
+    // {c} on f32: same byte-pattern reinterpret as the f64 path, sized
+    // down to 4 chars.
     if (fmt_info->flags & FMT_FLAG_CHAR) {
-        // Convert the 32-bit float value to a 32-bit integer for byte access
         u32 bits;
-        MemCopy(&bits, v, sizeof(bits)); // Avoid type punning issues
+        MemCopy(&bits, v, sizeof(bits));
         return write_int_as_chars(o, fmt_info->flags, bits, 4);
     }
 
@@ -2136,7 +2118,7 @@ bool _write_Float(Str *o, FmtInfo *fmt_info, Float *value) {
         LOG_FATAL("Float only supports decimal and scientific formatting");
     }
 
-    start_len = o->length;
+    start_len = StrLen(o);
     if (fmt_info->flags & FMT_FLAG_SCIENTIFIC) {
         if (!float_try_to_scientific_str(
                 &temp,
@@ -2144,7 +2126,7 @@ bool _write_Float(Str *o, FmtInfo *fmt_info, Float *value) {
                 fmt_info->precision,
                 (fmt_info->flags & FMT_FLAG_HAS_PRECISION) != 0,
                 (fmt_info->flags & FMT_FLAG_CAPS) != 0,
-                o->allocator
+                StrAllocator(o)
             )) {
             return false;
         }
@@ -2154,7 +2136,7 @@ bool _write_Float(Str *o, FmtInfo *fmt_info, Float *value) {
                 value,
                 fmt_info->precision,
                 (fmt_info->flags & FMT_FLAG_HAS_PRECISION) != 0,
-                o->allocator
+                StrAllocator(o)
             )) {
             return false;
         }
@@ -2167,7 +2149,7 @@ bool _write_Float(Str *o, FmtInfo *fmt_info, Float *value) {
     StrDeinit(&temp);
 
     if (fmt_info->width > 0) {
-        size content_len = o->length - start_len;
+        size content_len = StrLen(o) - start_len;
         if (!StrPad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
@@ -2226,6 +2208,12 @@ char ZstrProcessEscape(Zstr *str) {
             break;
         case 'x' : { // Hex escape
             s++;
+            // Refuse a truncated `\x` / `\xN` at the end of input rather
+            // than letting `hex_byte` peek past the NUL terminator.
+            if (s[0] == '\0' || s[1] == '\0') {
+                LOG_ERROR("Invalid hex escape sequence");
+                return 0;
+            }
             i32 hex_val = hex_byte(s[0], s[1]);
             if (hex_val < 0) {
                 LOG_ERROR("Invalid hex escape sequence");
@@ -2250,19 +2238,16 @@ Zstr _read_Str(Zstr i, FmtInfo *fmt_info, Str *s) {
 
     ValidateStr(s);
 
-    // Check for case conversion flags
     bool force_case = fmt_info && (fmt_info->flags & FMT_FLAG_FORCE_CASE) != 0;
     bool is_caps    = fmt_info && (fmt_info->flags & FMT_FLAG_CAPS) != 0;
     bool is_string  = fmt_info && (fmt_info->flags & FMT_FLAG_STRING) != 0;
     u32  r          = fmt_info->max_read_len;
 
-    // Check for empty input
     if (!*i || !r) {
         LOG_ERROR("Empty input string");
         return i;
     }
 
-    // Check for quoted string
     char quote = 0;
     if (is_string && (*i == '"' || *i == '\'')) {
         quote = *i++;
@@ -2271,36 +2256,33 @@ Zstr _read_Str(Zstr i, FmtInfo *fmt_info, Str *s) {
 
     while (r && *i) {
         if (quote) {
-            // Quoted string mode
             if (*i == '\\') {
                 Zstr curr = i;
                 char c    = ZstrProcessEscape(&curr);
-                if (c == 0) { // Error in escape sequence
+                if (c == 0) {
                     StrDeinit(s);
                     return NULL;
                 }
-                i = curr + 1; // Move past the escape sequence
+                i = curr + 1;
                 // `r` is u32. Subtracting 2 when r == 1 wraps to
                 // 0xFFFFFFFE, turning the bounded read into ~4 GB.
                 // The escape consumed at least 2 input chars but the
                 // caller may have set max_read_len = 1.
                 r = (r >= 2u) ? (r - 2u) : 0u;
 
-                // Apply case conversion if needed
                 if (force_case) {
                     c = is_caps ? TO_UPPER(c) : TO_LOWER(c);
                 }
 
                 StrPushBackR(s, c);
             } else if (*i == quote) {
-                i++;      // Skip closing quote
+                i++;
                 r--;
-                return i; // Successfully read quoted string
+                return i;
             } else {
                 char c = *i++;
                 r--;
 
-                // Apply case conversion if needed
                 if (force_case) {
                     c = is_caps ? TO_UPPER(c) : TO_LOWER(c);
                 }
@@ -2308,26 +2290,22 @@ Zstr _read_Str(Zstr i, FmtInfo *fmt_info, Str *s) {
                 StrPushBackR(s, c);
             }
         } else {
-            // Unquoted string mode - read until whitespace
+            // Unquoted form: whitespace ends the field.
             if (is_string && IS_SPACE(*i)) {
-                return i; // Successfully read unquoted string
+                return i;
             }
 
             if (*i == '\\') {
                 Zstr curr = i;
                 char c    = ZstrProcessEscape(&curr);
-                if (c == 0) { // Error in escape sequence
+                if (c == 0) {
                     StrDeinit(s);
                     return NULL;
                 }
-                i = curr + 1; // Move past the escape sequence
-                // `r` is u32. Subtracting 2 when r == 1 wraps to
-                // 0xFFFFFFFE, turning the bounded read into ~4 GB.
-                // The escape consumed at least 2 input chars but the
-                // caller may have set max_read_len = 1.
+                i = curr + 1;
+                // See the quoted branch above for the r-saturation reason.
                 r = (r >= 2u) ? (r - 2u) : 0u;
 
-                // Apply case conversion if needed
                 if (force_case) {
                     c = is_caps ? TO_UPPER(c) : TO_LOWER(c);
                 }
@@ -2337,7 +2315,6 @@ Zstr _read_Str(Zstr i, FmtInfo *fmt_info, Str *s) {
                 char c = *i++;
                 r--;
 
-                // Apply case conversion if needed
                 if (force_case) {
                     c = is_caps ? TO_UPPER(c) : TO_LOWER(c);
                 }
@@ -2347,166 +2324,159 @@ Zstr _read_Str(Zstr i, FmtInfo *fmt_info, Str *s) {
         }
     }
 
-    // If we get here with a quote, the string was unterminated
     if (quote) {
         LOG_ERROR("Unterminated quoted string");
         StrDeinit(s);
         return NULL;
     }
 
-    // Successfully read unquoted string that ended at EOF
     return i;
 }
 
-// Helper function to check if a character is valid for number parsing
+// Permissive accept-set for the digit-collection pre-pass. Hex
+// letters, base-prefix letters, and the float exponent introducer all
+// pass; the strict per-base validation runs downstream after we know
+// the token's shape.
 static bool is_valid_number_char(char c, bool is_first_char, bool allow_decimal) {
-    // Allow digits
     if (IS_DIGIT(c))
         return true;
 
-    // Allow signs only at the beginning
     if ((c == '+' || c == '-') && is_first_char)
         return true;
 
-    // Allow decimal point if allowed
     if (c == '.' && allow_decimal)
         return true;
 
-    // Allow 'x', 'b', 'o' for hex/binary/octal after '0'
-    // Note: We only get here for the second character in "0x", "0b", "0o"
+    // Second character of a "0x"/"0b"/"0o" prefix. The preceding '0' /
+    // base detection happens in the parser proper, so accepting the
+    // letter here just delegates the real validation downstream.
     if (!is_first_char && (c == 'x' || c == 'X' || c == 'b' || c == 'B' || c == 'o' || c == 'O')) {
-        // Check if the previous character was '0'
-        // This will be validated by the base 0 parsing logic later
         return true;
     }
 
-    // Allow hex letters only for hexadecimal base (after 0x)
-    // This is handled by the base detection in the parsing functions
-    // We will just collect characters here and let the parser reject invalid ones
+    // Hex letters are accepted unconditionally here; the parser proper
+    // gates them by the active base.
     if ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
         return true;
     }
 
-    // Allow 'e' or 'E' for scientific notation if decimal is allowed
     if (allow_decimal && (c == 'e' || c == 'E'))
         return true;
 
     return false;
 }
 
-// Create a helper function to check if the parsed string contains only valid numeric characters
+// Strict re-validation after `is_valid_number_char` collected the
+// candidate slice. Rejects bare base prefixes, doubled signs, and
+// (when `allow_float` is false) any decimal/exponent residue, before
+// the slice is handed to the typed `StrToU64` / `StrToI64` parser.
 static bool is_valid_numeric_string(const Str *str, bool allow_float) {
-    if (!str || !str->data)
+    if (!str || !StrBegin(str))
         return false;
 
-    // Empty string is invalid
-    if (str->length == 0)
+    size        len  = StrLen(str);
+    const char *data = StrBegin(str);
+
+    if (len == 0)
         return false;
 
-    // Special floating point values: inf, nan
+    // `inf`, `nan`, `-inf` short-circuit the digit-walk: those are the
+    // only legal float tokens with no digit content.
     if (allow_float) {
-        if (str->length == 3) {
-            if ((str->data[0] == 'i' || str->data[0] == 'I') && (str->data[1] == 'n' || str->data[1] == 'N') &&
-                (str->data[2] == 'f' || str->data[2] == 'F')) {
-                return true; // "inf"
+        if (len == 3) {
+            if ((data[0] == 'i' || data[0] == 'I') && (data[1] == 'n' || data[1] == 'N') &&
+                (data[2] == 'f' || data[2] == 'F')) {
+                return true;
             }
-            if ((str->data[0] == 'n' || str->data[0] == 'N') && (str->data[1] == 'a' || str->data[1] == 'A') &&
-                (str->data[2] == 'n' || str->data[2] == 'N')) {
-                return true; // "nan"
+            if ((data[0] == 'n' || data[0] == 'N') && (data[1] == 'a' || data[1] == 'A') &&
+                (data[2] == 'n' || data[2] == 'N')) {
+                return true;
             }
         }
 
-        if (str->length == 4 && str->data[0] == '-') {
-            if ((str->data[1] == 'i' || str->data[1] == 'I') && (str->data[2] == 'n' || str->data[2] == 'N') &&
-                (str->data[3] == 'f' || str->data[3] == 'F')) {
-                return true; // "-inf"
+        if (len == 4 && data[0] == '-') {
+            if ((data[1] == 'i' || data[1] == 'I') && (data[2] == 'n' || data[2] == 'N') &&
+                (data[3] == 'f' || data[3] == 'F')) {
+                return true;
             }
         }
     }
 
-    // Check for decimal, octal, hex, or binary prefix
     bool is_hex = false;
     bool is_bin = false;
     bool is_oct = false;
 
-    if (str->length > 2 && str->data[0] == '0') {
-        if (str->data[1] == 'x' || str->data[1] == 'X') {
+    if (len > 2 && data[0] == '0') {
+        if (data[1] == 'x' || data[1] == 'X') {
             is_hex = true;
-        } else if (str->data[1] == 'b' || str->data[1] == 'B') {
+        } else if (data[1] == 'b' || data[1] == 'B') {
             is_bin = true;
-        } else if (str->data[1] == 'o' || str->data[1] == 'O') {
+        } else if (data[1] == 'o' || data[1] == 'O') {
             is_oct = true;
         }
     }
 
-    // For floating point, we need to track decimal point and scientific notation
     bool has_decimal = false;
     bool has_exp     = false;
 
-    // Check each character
-    for (size i = 0; i < str->length; i++) {
-        char c = str->data[i];
+    for (size i = 0; i < len; i++) {
+        char c = data[i];
 
-        // Skip prefix
+        // The two-char base prefix is consumed up front; the digit
+        // pass below validates everything after it.
         if ((is_hex || is_bin || is_oct) && (i == 0 || i == 1)) {
             continue;
         }
 
-        // Check sign (only valid at start or after 'e'/'E')
+        // Signs are legal at position 0 and immediately after the float
+        // exponent introducer; nowhere else.
         if ((c == '+' || c == '-') &&
-            (i == 0 || (allow_float && has_exp && (i > 0 && (str->data[i - 1] == 'e' || str->data[i - 1] == 'E'))))) {
+            (i == 0 || (allow_float && has_exp && (i > 0 && (data[i - 1] == 'e' || data[i - 1] == 'E'))))) {
             continue;
         }
 
-        // Check decimal point (only for float and only once)
+        // At most one decimal point and at most one exponent are legal.
         if (allow_float && c == '.') {
             if (has_decimal) {
-                return false; // Second decimal point
+                return false;
             }
             has_decimal = true;
             continue;
         }
 
-        // Check scientific notation (only for float and only once)
         if (allow_float && (c == 'e' || c == 'E')) {
             if (has_exp) {
-                return false; // Second exponent
+                return false;
             }
             has_exp = true;
             continue;
         }
 
-        // Check digits
         if (c >= '0' && c <= '9') {
             continue;
         }
 
-        // Check hex digits
         if (is_hex && ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))) {
             continue;
         }
 
-        // Check binary digits
         if (is_bin && (c == '0' || c == '1')) {
             continue;
         }
 
-        // Check octal digits
         if (is_oct && (c >= '0' && c <= '7')) {
             continue;
         }
 
-        // Any other character is invalid
         return false;
     }
 
-    // Validate special requirements for float
+    // Trailing `e`/`E`/`+`/`-` is an incomplete exponent.
     if (allow_float) {
-        // If we have an exponent, make sure it's not at the end
         if (has_exp) {
-            char last_char = str->data[str->length - 1];
+            char last_char = data[len - 1];
             if (last_char == 'e' || last_char == 'E' || last_char == '+' || last_char == '-') {
-                return false; // Incomplete exponent
+                return false;
             }
         }
     }
@@ -2540,7 +2510,6 @@ Zstr _read_f64(Zstr i, FmtInfo *fmt_info, f64 *v) {
         LOG_FATAL("Invalid arguments");
     }
 
-    // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
         u64  temp = 0;
         Zstr next = read_chars_internal(i, (u8 *)&temp, sizeof(temp), fmt_info);
@@ -2552,96 +2521,89 @@ Zstr _read_f64(Zstr i, FmtInfo *fmt_info, f64 *v) {
     StrIter si = StrIterFromZstr(i);
     char    c  = 0;
 
-    // Skip whitespace
     while (StrIterPeek(&si, &c) && IS_SPACE(c)) {
         StrIterMustNext(&si);
     }
 
-    // Check for empty string
     if (!StrIterRemainingLength(&si)) {
         LOG_ERROR("Failed to parse f64: empty input");
         DefaultAllocatorDeinit(&scratch);
-        return (Zstr)(si.data) + si.pos;
+        return StrIterDataAt(&si, StrIterIndex(&si));
     }
 
-    // Check for special values (inf, nan)
+    // `inf` / `nan` / `-inf` / `-nan` need a wider token-scan than
+    // the digit-by-digit number path; peek one ahead so a leading `-`
+    // followed by `i`/`I` enters this branch too.
     char c1 = 0;
     (void)StrIterPeekAt(&si, 1, &c1);
     if ((c == 'i' || c == 'I' || c == 'n' || c == 'N') || (c == '-' && (c1 == 'i' || c1 == 'I'))) {
-        // For special values, scan up to the next whitespace and try to parse.
         StrIter saved = si;
-        Zstr    start = (Zstr)(si.data) + si.pos;
+        Zstr    start = StrIterDataAt(&si, StrIterIndex(&si));
         while (StrIterPeek(&si, &c) && !IS_SPACE(c)) {
             StrIterMustNext(&si);
         }
 
-        // Create a temporary Str for parsing
-        Str temp = StrInitFromCstr(start, (size)(si.pos - saved.pos), &scratch);
+        Str temp = StrInitFromCstr(start, (size)(StrIterIndex(&si) - StrIterIndex(&saved)), &scratch);
 
-        // Try to parse as special value
+        // Special-value tokens (`inf`, `nan`, ...) carry through the
+        // generic Str-to-float path; non-matching tokens fall back to
+        // the digit-by-digit scan below.
         if (StrToF64(&temp, v, NULL)) {
             StrDeinit(&temp);
             DefaultAllocatorDeinit(&scratch);
-            return (Zstr)(si.data) + si.pos;
+            return StrIterDataAt(&si, StrIterIndex(&si));
         }
         StrDeinit(&temp);
 
-        // If parsing failed, fall back to the new approach
         si = saved;
     }
 
-    // Find the end of the number using more precise rules
-    size start_pos   = si.pos;
-    bool has_decimal = false; // Track if we've seen a decimal point
+    StrIter saved       = si;
+    bool    has_decimal = false;
 
-    // Parse character by character
     while (StrIterPeek(&si, &c)) {
-        // Only allow one decimal point
+        // A second '.' ends the number; the parser proper rejects
+        // multi-dot mantissas, so stopping here keeps the rejected tail
+        // unconsumed for the caller.
         if (c == '.') {
             if (has_decimal)
-                break; // Second decimal point - stop
+                break;
             has_decimal = true;
         }
 
-        // If we see an 'e' or 'E', check if it's followed by a valid exponent
-        if ((c == 'e' || c == 'E') && si.pos > start_pos) {
-            // Move to the next character after 'e'
+        // Exponent introducer: consume the optional sign and require at
+        // least one digit, otherwise rewind so the 'e' is left to the
+        // caller's tail (e.g. a unit suffix).
+        if ((c == 'e' || c == 'E') && StrIterIndex(&si) > StrIterIndex(&saved)) {
             StrIterMustNext(&si);
 
-            // Allow sign in exponent
             if (StrIterPeek(&si, &c) && (c == '+' || c == '-')) {
                 StrIterMustNext(&si);
             }
 
-            // Must have at least one digit in exponent
             if (!StrIterPeek(&si, &c) || !IS_DIGIT(c)) {
-                // Invalid exponent - back up to before the 'e'
                 StrIterMustPrev(&si);
                 break;
             }
 
-            // Continue with exponent digits
             while (StrIterPeek(&si, &c) && IS_DIGIT(c)) {
                 StrIterMustNext(&si);
             }
-            break; // Stop after exponent
+            break;
         }
 
-        // Check if character is valid for a number
-        if (!is_valid_number_char(c, si.pos == start_pos, true)) {
+        if (!is_valid_number_char(c, StrIterIndex(&si) == StrIterIndex(&saved), true)) {
             break;
         }
 
         StrIterMustNext(&si);
     }
 
-    Zstr start = (Zstr)(si.data) + start_pos;
-    size pos   = si.pos - start_pos;
+    Zstr start = StrIterDataAt(&si, StrIterIndex(&saved));
+    size pos   = StrIterIndex(&si) - StrIterIndex(&saved);
 
-    // Create a temporary Str for parsing
     Str temp = StrInitFromCstr(start, pos, &scratch);
 
-    // Validate the string is a proper floating point number
     if (!is_valid_numeric_string(&temp, true)) {
         LOG_ERROR("Invalid floating point format");
         StrDeinit(&temp);
@@ -2649,7 +2611,6 @@ Zstr _read_f64(Zstr i, FmtInfo *fmt_info, f64 *v) {
         return start;
     }
 
-    // Use StrToF64 directly
     if (!StrToF64(&temp, v, NULL)) {
         LOG_ERROR("Failed to parse f64");
         StrDeinit(&temp);
@@ -2673,45 +2634,40 @@ Zstr _read_u8(Zstr i, FmtInfo *fmt_info, u8 *v) {
     StrIter si = StrIterFromZstr(i);
     char    c  = 0;
 
-    // Skip whitespace
     while (StrIterPeek(&si, &c) && IS_SPACE(c)) {
         StrIterMustNext(&si);
     }
 
-    // Check for empty string
     if (!StrIterRemainingLength(&si)) {
         LOG_ERROR("Failed to parse u8: empty input");
         DefaultAllocatorDeinit(&scratch);
-        return (Zstr)(si.data) + si.pos;
+        return StrIterDataAt(&si, StrIterIndex(&si));
     }
 
-    // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
-        Zstr next = read_chars_internal((Zstr)(si.data) + si.pos, (u8 *)v, sizeof(*v), fmt_info);
+        Zstr next = read_chars_internal(StrIterDataAt(&si, StrIterIndex(&si)), (u8 *)v, sizeof(*v), fmt_info);
         DefaultAllocatorDeinit(&scratch);
         return next;
     }
 
-    // Find the end of the number using more precise rules
-    size start_pos = si.pos;
+    StrIter saved = si;
 
-    // Parse character by character
     while (StrIterPeek(&si, &c)) {
-        // Check if character is valid for a number
-        if (!is_valid_number_char(c, si.pos == start_pos, false)) {
+        if (!is_valid_number_char(c, StrIterIndex(&si) == StrIterIndex(&saved), false)) {
             break;
         }
 
         StrIterMustNext(&si);
     }
 
-    Zstr start = (Zstr)(si.data) + start_pos;
-    size pos   = si.pos - start_pos;
+    Zstr start = StrIterDataAt(&si, StrIterIndex(&saved));
+    size pos   = StrIterIndex(&si) - StrIterIndex(&saved);
 
-    // Create a temporary Str for parsing
     Str temp = StrInitFromCstr(start, pos, &scratch);
 
-    // Check for special prefixes with no digits
+    // A bare base prefix ("0x", "0b", "0o") with no following digits is
+    // a malformed integer; the parser proper would accept the leading
+    // '0' and silently lose the prefix, so reject early.
     if (StrLen(&temp) == 2 && StrBegin(&temp)[0] == '0' &&
         (StrBegin(&temp)[1] == 'x' || StrBegin(&temp)[1] == 'X' || StrBegin(&temp)[1] == 'b' ||
          StrBegin(&temp)[1] == 'B' || StrBegin(&temp)[1] == 'o' || StrBegin(&temp)[1] == 'O')) {
@@ -2721,7 +2677,6 @@ Zstr _read_u8(Zstr i, FmtInfo *fmt_info, u8 *v) {
         return start;
     }
 
-    // Validate the string is a proper number
     if (!is_valid_numeric_string(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
@@ -2729,7 +2684,9 @@ Zstr _read_u8(Zstr i, FmtInfo *fmt_info, u8 *v) {
         return start;
     }
 
-    // Use base 0 to let strtoul detect the base from prefix
+    // `StrToU64` auto-detects the base from a `0x` / `0b` / `0o`
+    // prefix; the `is_valid_numeric_string` check above already
+    // rejected a bare prefix with no digits.
     u64 val;
     if (!StrToU64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse u8");
@@ -2738,7 +2695,6 @@ Zstr _read_u8(Zstr i, FmtInfo *fmt_info, u8 *v) {
         return start;
     }
 
-    // Check for overflow
     if (val > UINT8_MAX) {
         LOG_ERROR("Value {} exceeds u8 maximum ({})", val, UINT8_MAX);
         StrDeinit(&temp);
@@ -2804,19 +2760,19 @@ Zstr _read_u8(Zstr i, FmtInfo *fmt_info, u8 *v) {
         if (!StrIterRemainingLength(&si)) {                                                                            \
             LOG_ERROR("Failed to parse " #NAME ": empty input");                                                       \
             DefaultAllocatorDeinit(&scratch);                                                                          \
-            return (Zstr)(si.data) + si.pos;                                                                           \
+            return StrIterDataAt(&si, StrIterIndex(&si));                                                              \
         }                                                                                                              \
                                                                                                                        \
-        size start_pos = si.pos;                                                                                       \
+        StrIter saved = si;                                                                                            \
         while (StrIterPeek(&si, &c)) {                                                                                 \
-            if (!is_valid_number_char(c, si.pos == start_pos, false)) {                                                \
+            if (!is_valid_number_char(c, StrIterIndex(&si) == StrIterIndex(&saved), false)) {                          \
                 break;                                                                                                 \
             }                                                                                                          \
             StrIterMustNext(&si);                                                                                      \
         }                                                                                                              \
                                                                                                                        \
-        Zstr start = (Zstr)(si.data) + start_pos;                                                                      \
-        size pos   = si.pos - start_pos;                                                                               \
+        Zstr start = StrIterDataAt(&si, StrIterIndex(&saved));                                                         \
+        size pos   = StrIterIndex(&si) - StrIterIndex(&saved);                                                         \
         Str  temp  = StrInitFromCstr(start, pos, &scratch);                                                            \
                                                                                                                        \
         if (StrLen(&temp) == 2 && StrBegin(&temp)[0] == '0' &&                                                         \
@@ -2884,7 +2840,7 @@ _MAKE_READ_TXT_INT(i64, i64, i64, StrToI64, /* val is already i64; no bound */)
 Zstr _read_Zstr(Zstr i, FmtInfo *fmt_info, Zstr *out) {
     (void)fmt_info;
     (void)out;
-    LOG_FATAL("_read_Zstr requires explicit allocator provenance; use _read_ZstrAlloc / ZstrIO(zstr, alloc) instead.");
+    LOG_FATAL("Zstr reads require explicit allocator provenance; use ZstrIO(zstr, alloc) instead");
     return i;
 }
 
@@ -2954,17 +2910,21 @@ bool _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv) {
     ValidateStr(o);
     ValidateBitVec(bv);
 
-    // Store original length to calculate content size later
-    size start_len = o->length;
+    // Snapshot the pre-render length so post-render padding sees the
+    // size of just-this-field, not the accumulated buffer.
+    size start_len = StrLen(o);
 
     if (fmt_info->flags & FMT_FLAG_HEX) {
-        // Format as hexadecimal
-        if (bv->length == 0) {
+        if (BitVecLen(bv) == 0) {
+            // Render "0x0" / "0o0" placeholders for the zero-length
+            // edge case so the prefix is visible even with no bits.
             if (!StrPushBackMany(o, "0x0")) {
                 return false;
             }
         } else {
-            // Convert to integer (up to 64 bits) and format as hex
+            // BitVecToInteger truncates at 64 bits -- this path renders
+            // the bottom 64 bits as a regular integer; longer BitVecs
+            // lose their upper bits in hex/octal display modes.
             u64          value  = BitVecToInteger(bv);
             StrIntFormat config = {.base = 16, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0, .use_prefix = true};
             if (!StrFromU64(o, value, &config)) {
@@ -2972,8 +2932,7 @@ bool _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv) {
             }
         }
     } else if (fmt_info->flags & FMT_FLAG_OCTAL) {
-        // Format as octal
-        if (bv->length == 0) {
+        if (BitVecLen(bv) == 0) {
             if (!StrPushBackMany(o, "0o0")) {
                 return false;
             }
@@ -2985,13 +2944,15 @@ bool _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv) {
             }
         }
     } else {
-        // Default: Format as binary string (e.g., "10110")
-        if (bv->length == 0) {
-            // Empty BitVec - don't output anything
+        // No flag -> render the raw 0/1 bit string (the BitVec's
+        // native textual form).
+        if (BitVecLen(bv) == 0) {
+            // A zero-length BitVec renders empty; padding handles any
+            // requested width below.
         } else {
             Str bit_str;
 
-            if (!bitvec_try_to_str(&bit_str, bv, o->allocator)) {
+            if (!bitvec_try_to_str(&bit_str, bv, StrAllocator(o))) {
                 return false;
             }
             if (!StrMerge(o, &bit_str)) {
@@ -3002,9 +2963,8 @@ bool _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv) {
         }
     }
 
-    // Apply padding if width is specified
     if (fmt_info->width > 0) {
-        size content_len = o->length - start_len;
+        size content_len = StrLen(o) - start_len;
         if (!StrPad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
@@ -3031,7 +2991,7 @@ bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
             return true;
         }
 
-        u8 *buffer = (u8 *)AllocatorAlloc(o->allocator, byte_len * sizeof(u8), true);
+        u8 *buffer = (u8 *)AllocatorAlloc(StrAllocator(o), byte_len * sizeof(u8), true);
 
         if (!buffer) {
             LOG_ERROR("Failed to allocate buffer for Int character formatting");
@@ -3040,23 +3000,23 @@ bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
 
         (void)IntToBytesBE(value, buffer, byte_len);
         if (!write_char_internal(o, fmt_info->flags, (Zstr)buffer, byte_len)) {
-            AllocatorFree(o->allocator, buffer);
+            AllocatorFree(StrAllocator(o), buffer);
             return false;
         }
-        AllocatorFree(o->allocator, buffer);
+        AllocatorFree(StrAllocator(o), buffer);
         return true;
     }
 
-    size start_len = o->length;
+    size start_len = StrLen(o);
     Str  temp;
     u8   radix = int_fmt_radix_from_flags(fmt_info);
 
     if (radix == 10) {
-        if (!int_try_to_str(&temp, value, o->allocator)) {
+        if (!int_try_to_str(&temp, value, StrAllocator(o))) {
             return false;
         }
     } else {
-        if (!int_try_to_str_radix(&temp, value, radix, (fmt_info->flags & FMT_FLAG_CAPS) != 0, o->allocator)) {
+        if (!int_try_to_str_radix(&temp, value, radix, (fmt_info->flags & FMT_FLAG_CAPS) != 0, StrAllocator(o))) {
             return false;
         }
     }
@@ -3068,7 +3028,7 @@ bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
     StrDeinit(&temp);
 
     if (fmt_info->width > 0) {
-        size content_len = o->length - start_len;
+        size content_len = StrLen(o) - start_len;
         if (!StrPad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
@@ -3091,43 +3051,44 @@ Zstr _read_BitVec(Zstr i, FmtInfo *fmt_info, BitVec *bv) {
     StrIter si = StrIterFromZstr(i);
     char    c  = 0;
 
-    // Skip leading whitespace
     while (StrIterPeek(&si, &c) && IS_SPACE(c)) {
         StrIterMustNext(&si);
     }
 
-    // Check for empty input
     if (!StrIterRemainingLength(&si)) {
         LOG_ERROR("Empty input string");
-        return (Zstr)(si.data) + si.pos;
+        return StrIterDataAt(&si, StrIterIndex(&si));
     }
 
-    Zstr start = (Zstr)(si.data) + si.pos;
+    Zstr start = StrIterDataAt(&si, StrIterIndex(&si));
 
     char c0 = 0;
     char c1 = 0;
     (void)StrIterPeekAt(&si, 0, &c0);
     (void)StrIterPeekAt(&si, 1, &c1);
 
-    // Check for hex format (0x...)
     if (c0 == '0' && (c1 == 'x' || c1 == 'X')) {
-        // Read hex value
-        StrIterMustMove(&si, 2); // Skip "0x"
-        size hex_start_pos = si.pos;
+        // Audit: precondition is the c0/c1 prefix check above. c1 starts
+        // zero-initialised; the only way it carries 'x'/'X' here is that
+        // the offset-1 peek succeeded, which proves 2 bytes are available.
+        StrIterMustMove(&si, 2);
+        StrIter hex_saved = si;
 
-        // Read hex digits
         while (StrIterPeek(&si, &c) && IS_XDIGIT(c)) {
             StrIterMustNext(&si);
         }
 
-        if (si.pos == hex_start_pos) {
+        if (StrIterIndex(&si) == StrIterIndex(&hex_saved)) {
             LOG_ERROR("Invalid hex format - no digits after 0x");
             return start;
         }
 
-        // Parse hex string
-        Str hex_str = StrInitFromCstr((Zstr)(si.data) + hex_start_pos, si.pos - hex_start_pos, bv->allocator);
-        u64 value;
+        Str hex_str = StrInitFromCstr(
+            StrIterDataAt(&si, StrIterIndex(&hex_saved)),
+            StrIterIndex(&si) - StrIterIndex(&hex_saved),
+            BitVecAllocator(bv)
+        );
+        u64            value;
         StrParseConfig config = {.base = 16};
         if (!StrToU64(&hex_str, &value, &config)) {
             LOG_ERROR("Failed to parse hex value");
@@ -3135,35 +3096,40 @@ Zstr _read_BitVec(Zstr i, FmtInfo *fmt_info, BitVec *bv) {
             return start;
         }
 
-        // Determine bit length (minimum to represent the value)
+        // The result BitVec needs at least one bit per encoded digit, so
+        // hex pins it at 4, octal at 3 below -- otherwise round-tripping
+        // a leading-zero literal would lose width information.
         u64 bit_len = value == 0 ? 1 : 64 - count_leading_zeros_u64(value);
         if (bit_len < 4)
-            bit_len = 4; // Minimum 4 bits for hex display
+            bit_len = 4;
 
-        *bv = BitVecFromInteger(value, bit_len, bv->allocator);
+        *bv = BitVecFromInteger(value, bit_len, BitVecAllocator(bv));
         StrDeinit(&hex_str);
-        return (Zstr)(si.data) + si.pos;
+        return StrIterDataAt(&si, StrIterIndex(&si));
     }
 
-    // Check for octal format (0o...)
     if (c0 == '0' && (c1 == 'o' || c1 == 'O')) {
-        // Read octal value
-        StrIterMustMove(&si, 2); // Skip "0o"
-        size oct_start_pos = si.pos;
+        // Audit: same proof as the hex branch above -- c1 carrying 'o'/'O'
+        // can only happen when the offset-1 peek succeeded, proving 2 bytes
+        // remain ahead of the cursor.
+        StrIterMustMove(&si, 2);
+        StrIter oct_saved = si;
 
-        // Read octal digits
         while (StrIterPeek(&si, &c) && c >= '0' && c <= '7') {
             StrIterMustNext(&si);
         }
 
-        if (si.pos == oct_start_pos) {
+        if (StrIterIndex(&si) == StrIterIndex(&oct_saved)) {
             LOG_ERROR("Invalid octal format - no digits after 0o");
             return start;
         }
 
-        // Parse octal string
-        Str oct_str = StrInitFromCstr((Zstr)(si.data) + oct_start_pos, si.pos - oct_start_pos, bv->allocator);
-        u64 value;
+        Str oct_str = StrInitFromCstr(
+            StrIterDataAt(&si, StrIterIndex(&oct_saved)),
+            StrIterIndex(&si) - StrIterIndex(&oct_saved),
+            BitVecAllocator(bv)
+        );
+        u64            value;
         StrParseConfig config = {.base = 8};
         if (!StrToU64(&oct_str, &value, &config)) {
             LOG_ERROR("Failed to parse octal value");
@@ -3171,37 +3137,37 @@ Zstr _read_BitVec(Zstr i, FmtInfo *fmt_info, BitVec *bv) {
             return start;
         }
 
-        // Determine bit length
         u64 bit_len = value == 0 ? 1 : 64 - count_leading_zeros_u64(value);
         if (bit_len < 3)
-            bit_len = 3; // Minimum 3 bits for octal display
+            bit_len = 3;
 
-        *bv = BitVecFromInteger(value, bit_len, bv->allocator);
+        *bv = BitVecFromInteger(value, bit_len, BitVecAllocator(bv));
         StrDeinit(&oct_str);
-        return (Zstr)(si.data) + si.pos;
+        return StrIterDataAt(&si, StrIterIndex(&si));
     }
 
-    // Default: Read as binary string (e.g., "10110")
-    size bin_start_pos = si.pos;
+    // No `0x`/`0o` prefix: read the raw 0/1 bit string.
+    StrIter bin_saved = si;
 
-    // Read binary digits
     while (StrIterPeek(&si, &c) && (c == '0' || c == '1')) {
         StrIterMustNext(&si);
     }
 
-    if (si.pos == bin_start_pos) {
+    if (StrIterIndex(&si) == StrIterIndex(&bin_saved)) {
         LOG_ERROR("Invalid binary format - expected 0s and 1s");
         return start;
     }
 
-    // Create string from binary digits (already null-terminated by StrInitFromCstr)
-    Str bin_str = StrInitFromCstr((Zstr)(si.data) + bin_start_pos, si.pos - bin_start_pos, bv->allocator);
+    Str bin_str = StrInitFromCstr(
+        StrIterDataAt(&si, StrIterIndex(&bin_saved)),
+        StrIterIndex(&si) - StrIterIndex(&bin_saved),
+        BitVecAllocator(bv)
+    );
 
-    // Convert to BitVec using the null-terminated string
-    *bv = BitVecFromStr(StrBegin(&bin_str), bv->allocator);
+    *bv = BitVecFromStr(StrBegin(&bin_str), BitVecAllocator(bv));
 
     StrDeinit(&bin_str);
-    return (Zstr)(si.data) + si.pos;
+    return StrIterDataAt(&si, StrIterIndex(&si));
 }
 #endif // FEATURE_BITVEC
 
@@ -3227,19 +3193,19 @@ Zstr _read_Int(Zstr i, FmtInfo *fmt_info, Int *value) {
 
     if (!StrIterRemainingLength(&si)) {
         LOG_ERROR("Failed to parse Int: empty input");
-        return (Zstr)(si.data) + si.pos;
+        return StrIterDataAt(&si, StrIterIndex(&si));
     }
 
-    size start_pos        = si.pos;
-    size digits_start_pos = si.pos;
-    Zstr start            = (Zstr)(si.data) + start_pos;
-    u8   radix            = int_fmt_radix_from_flags(fmt_info);
+    StrIter saved        = si;
+    StrIter digits_saved = si;
+    Zstr    start        = StrIterDataAt(&si, StrIterIndex(&saved));
+    u8      radix        = int_fmt_radix_from_flags(fmt_info);
 
     char d0 = 0;
     (void)StrIterPeek(&si, &d0);
     if (d0 == '+') {
         StrIterMustNext(&si);
-        digits_start_pos = si.pos;
+        digits_saved = si;
     }
 
     char p0 = 0;
@@ -3264,7 +3230,7 @@ Zstr _read_Int(Zstr i, FmtInfo *fmt_info, Int *value) {
         StrIterMustNext(&si);
     }
 
-    if (si.pos == digits_start_pos) {
+    if (StrIterIndex(&si) == StrIterIndex(&digits_saved)) {
         LOG_ERROR("Failed to parse Int");
         return start;
     }
@@ -3275,8 +3241,8 @@ Zstr _read_Int(Zstr i, FmtInfo *fmt_info, Int *value) {
         return start;
     }
 
-    Str  temp   = StrInitFromCstr(start, si.pos - start_pos, value->bits.allocator);
-    Int  parsed = IntInit(value->bits.allocator);
+    Str  temp   = StrInitFromCstr(start, StrIterIndex(&si) - StrIterIndex(&saved), IntAllocator(value));
+    Int  parsed = IntInit(IntAllocator(value));
     bool ok     = IntTryFromStrRadix(&parsed, StrBegin(&temp), radix);
 
     if (!ok) {
@@ -3288,7 +3254,7 @@ Zstr _read_Int(Zstr i, FmtInfo *fmt_info, Int *value) {
     *value = parsed;
 
     StrDeinit(&temp);
-    return (Zstr)(si.data) + si.pos;
+    return StrIterDataAt(&si, StrIterIndex(&si));
 }
 #endif // FEATURE_INT
 
@@ -3303,8 +3269,8 @@ Zstr _read_Float(Zstr i, FmtInfo *fmt_info, Float *value) {
         LOG_FATAL("Invalid arguments");
     }
 
-    temp   = StrInit(value->significand.bits.allocator);
-    parsed = FloatInit(value->significand.bits.allocator);
+    temp   = StrInit(FloatAllocator(value));
+    parsed = FloatInit(FloatAllocator(value));
 
     if (float_fmt_uses_unsupported_flags(fmt_info)) {
         LOG_ERROR("Float only supports decimal and scientific reading");
@@ -3326,10 +3292,10 @@ Zstr _read_Float(Zstr i, FmtInfo *fmt_info, Float *value) {
         LOG_ERROR("Failed to parse Float: empty input");
         StrDeinit(&temp);
         FloatDeinit(&parsed);
-        return (Zstr)(si.data) + si.pos;
+        return StrIterDataAt(&si, StrIterIndex(&si));
     }
 
-    start     = (Zstr)(si.data) + si.pos;
+    start     = StrIterDataAt(&si, StrIterIndex(&si));
     token_len = float_fmt_token_length(start);
 
     if (token_len == 0) {
@@ -3340,7 +3306,7 @@ Zstr _read_Float(Zstr i, FmtInfo *fmt_info, Float *value) {
     }
 
     StrDeinit(&temp);
-    temp = StrInitFromCstr(start, token_len, value->significand.bits.allocator);
+    temp = StrInitFromCstr(start, token_len, FloatAllocator(value));
     if (!FloatTryFromStr(&parsed, StrBegin(&temp))) {
         StrDeinit(&temp);
         FloatDeinit(&parsed);
@@ -3363,7 +3329,6 @@ Zstr _read_f32(Zstr i, FmtInfo *fmt_info, f32 *v) {
         LOG_FATAL("Invalid arguments");
     }
 
-    // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
         u32  temp = 0;
         Zstr next = read_chars_internal(i, (u8 *)&temp, sizeof(temp), fmt_info);
@@ -3375,98 +3340,88 @@ Zstr _read_f32(Zstr i, FmtInfo *fmt_info, f32 *v) {
     StrIter si = StrIterFromZstr(i);
     char    c  = 0;
 
-    // Skip whitespace
     while (StrIterPeek(&si, &c) && IS_SPACE(c)) {
         StrIterMustNext(&si);
     }
 
-    // Check for empty string
     if (!StrIterRemainingLength(&si)) {
         LOG_ERROR("Failed to parse f32: empty input");
         DefaultAllocatorDeinit(&scratch);
-        return (Zstr)(si.data) + si.pos;
+        return StrIterDataAt(&si, StrIterIndex(&si));
     }
 
-    // Check for special values (inf, nan)
+    // `inf` / `nan` / `-inf` / `-nan` need a wider token-scan than
+    // the digit-by-digit number path; peek one ahead so a leading `-`
+    // followed by `i`/`I` enters this branch too.
     char c1 = 0;
     (void)StrIterPeekAt(&si, 1, &c1);
     if ((c == 'i' || c == 'I' || c == 'n' || c == 'N') || (c == '-' && (c1 == 'i' || c1 == 'I'))) {
-        // For special values, scan up to the next whitespace and try to parse.
         StrIter saved = si;
-        Zstr    start = (Zstr)(si.data) + si.pos;
+        Zstr    start = StrIterDataAt(&si, StrIterIndex(&si));
         while (StrIterPeek(&si, &c) && !IS_SPACE(c)) {
             StrIterMustNext(&si);
         }
 
-        // Create a temporary Str for parsing
-        Str temp = StrInitFromCstr(start, (size)(si.pos - saved.pos), &scratch);
+        Str temp = StrInitFromCstr(start, (size)(StrIterIndex(&si) - StrIterIndex(&saved)), &scratch);
 
-        // Try to parse as special value
+        // Special-value tokens (`inf`, `nan`, ...) carry through the
+        // generic Str-to-float path; non-matching tokens fall back to
+        // the digit-by-digit scan below.
         f64 val;
         if (StrToF64(&temp, &val, NULL)) {
             *v = (f32)val;
             StrDeinit(&temp);
             DefaultAllocatorDeinit(&scratch);
-            return (Zstr)(si.data) + si.pos;
+            return StrIterDataAt(&si, StrIterIndex(&si));
         }
         StrDeinit(&temp);
 
-        // If parsing failed, fall back to the new approach
         si = saved;
     }
 
-    // Find the end of the number using more precise rules
-    size start_pos   = si.pos;
-    bool has_decimal = false; // Track if we've seen a decimal point
+    StrIter saved       = si;
+    bool    has_decimal = false;
 
-    // Parse character by character
     while (StrIterPeek(&si, &c)) {
-        // Only allow one decimal point
         if (c == '.') {
             if (has_decimal)
-                break; // Second decimal point - stop
+                break;
             has_decimal = true;
         }
 
-        // If we see an 'e' or 'E', check if it's followed by a valid exponent
-        if ((c == 'e' || c == 'E') && si.pos > start_pos) {
-            // Move to the next character after 'e'
+        // Exponent introducer: consume the optional sign and require at
+        // least one digit, otherwise rewind so the 'e' is left to the
+        // caller's tail.
+        if ((c == 'e' || c == 'E') && StrIterIndex(&si) > StrIterIndex(&saved)) {
             StrIterMustNext(&si);
 
-            // Allow sign in exponent
             if (StrIterPeek(&si, &c) && (c == '+' || c == '-')) {
                 StrIterMustNext(&si);
             }
 
-            // Must have at least one digit in exponent
             if (!StrIterPeek(&si, &c) || !IS_DIGIT(c)) {
-                // Invalid exponent - back up to before the 'e'
                 StrIterMustPrev(&si);
                 break;
             }
 
-            // Continue with exponent digits
             while (StrIterPeek(&si, &c) && IS_DIGIT(c)) {
                 StrIterMustNext(&si);
             }
-            break; // Stop after exponent
+            break;
         }
 
-        // Check if character is valid for a number
-        if (!is_valid_number_char(c, si.pos == start_pos, true)) {
+        if (!is_valid_number_char(c, StrIterIndex(&si) == StrIterIndex(&saved), true)) {
             break;
         }
 
         StrIterMustNext(&si);
     }
 
-    Zstr start = (Zstr)(si.data) + start_pos;
-    size pos   = si.pos - start_pos;
+    Zstr start = StrIterDataAt(&si, StrIterIndex(&saved));
+    size pos   = StrIterIndex(&si) - StrIterIndex(&saved);
 
-    // Create a temporary Str for parsing
     Str temp = StrInitFromCstr(start, pos, &scratch);
 
-    // Validate the string is a proper floating point number
     if (!is_valid_numeric_string(&temp, true)) {
         LOG_ERROR("Invalid floating point format");
         StrDeinit(&temp);
@@ -3474,7 +3429,8 @@ Zstr _read_f32(Zstr i, FmtInfo *fmt_info, f32 *v) {
         return start;
     }
 
-    // Use StrToF64 directly
+    // Parse through the f64 path and narrow at the end; an explicit
+    // f32 parser would duplicate the entire StrToF64 logic for no gain.
     f64 val;
     if (!StrToF64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse f32");
@@ -3504,7 +3460,6 @@ static bool _write_r16(Str *o, FmtInfo *fmt_info, u16 *v) {
         return false;
     }
 
-    // if native endianness provided, then deduce endianness and set correspondingly
     if (fmt_info->endian == ENDIAN_NATIVE) {
         fmt_info->endian = IS_LITTLE_ENDIAN() ? ENDIAN_LITTLE : ENDIAN_BIG;
     }
@@ -3519,7 +3474,7 @@ static bool _write_r16(Str *o, FmtInfo *fmt_info, u16 *v) {
         }
         case ENDIAN_NATIVE :
         default : {
-            LOG_FATAL("Invalid endianness provided. Unexpected code reached.");
+            LOG_FATAL("Invalid endianness");
             return false;
         }
     }
@@ -3531,11 +3486,9 @@ static bool _write_r32(Str *o, FmtInfo *fmt_info, u32 *v) {
         return false;
     }
 
-    // if native endianness provided, then deduce endianness and set correspondingly
     if (fmt_info->endian == ENDIAN_NATIVE) {
         fmt_info->endian = IS_LITTLE_ENDIAN() ? ENDIAN_LITTLE : ENDIAN_BIG;
     }
-
 
     u32 x = *v;
     switch (fmt_info->endian) {
@@ -3549,12 +3502,11 @@ static bool _write_r32(Str *o, FmtInfo *fmt_info, u32 *v) {
         }
         case ENDIAN_NATIVE :
         default : {
-            LOG_FATAL("Invalid endianness provided. Unexpected code reached.");
+            LOG_FATAL("Invalid endianness");
             return false;
         }
     }
 }
-
 
 static bool _write_r64(Str *o, FmtInfo *fmt_info, u64 *v) {
     if (!o || !fmt_info || !v) {
@@ -3562,7 +3514,6 @@ static bool _write_r64(Str *o, FmtInfo *fmt_info, u64 *v) {
         return false;
     }
 
-    // if native endianness provided, then deduce endianness and set correspondingly
     if (fmt_info->endian == ENDIAN_NATIVE) {
         fmt_info->endian = IS_LITTLE_ENDIAN() ? ENDIAN_LITTLE : ENDIAN_BIG;
     }
@@ -3583,7 +3534,7 @@ static bool _write_r64(Str *o, FmtInfo *fmt_info, u64 *v) {
         }
         case ENDIAN_NATIVE :
         default : {
-            LOG_FATAL("Invalid endianness provided. Unexpected code reached.");
+            LOG_FATAL("Invalid endianness");
             return false;
         }
     }
@@ -3594,19 +3545,15 @@ static Zstr _read_r8(Zstr i, FmtInfo *fmt_info, u8 *v) {
         LOG_FATAL("Invalid arguments");
     }
 
-    // Read the byte and assign it to the u8 pointer
     *v = (u8)*i;
-
-    // Return the updated pointer to the input stream (advanced by 1 byte)
     return i + 1;
 }
 
 static Zstr _read_r16(Zstr i, FmtInfo *fmt_info, u16 *v) {
     if (!i || !fmt_info || !v) {
-        LOG_FATAL("Invalid arguments to _read_r16");
+        LOG_FATAL("Invalid arguments");
     }
 
-    // Resolve native endianness if specified.
     if (fmt_info->endian == ENDIAN_NATIVE) {
         fmt_info->endian = IS_LITTLE_ENDIAN() ? ENDIAN_LITTLE : ENDIAN_BIG;
     }
@@ -3624,7 +3571,7 @@ static Zstr _read_r16(Zstr i, FmtInfo *fmt_info, u16 *v) {
             break;
         case ENDIAN_NATIVE :
         default :
-            LOG_FATAL("Invalid endianness provided. Unexpected code reached in _read_r16.");
+            LOG_FATAL("Invalid endianness");
     }
 
     return i + 2; // Advance the stream pointer by 2 bytes.
@@ -3632,10 +3579,9 @@ static Zstr _read_r16(Zstr i, FmtInfo *fmt_info, u16 *v) {
 
 static Zstr _read_r32(Zstr i, FmtInfo *fmt_info, u32 *v) {
     if (!i || !fmt_info || !v) {
-        LOG_FATAL("Invalid arguments to _read_r32");
+        LOG_FATAL("Invalid arguments");
     }
 
-    // Resolve native endianness if specified.
     if (fmt_info->endian == ENDIAN_NATIVE) {
         fmt_info->endian = IS_LITTLE_ENDIAN() ? ENDIAN_LITTLE : ENDIAN_BIG;
     }
@@ -3651,7 +3597,7 @@ static Zstr _read_r32(Zstr i, FmtInfo *fmt_info, u32 *v) {
             break;
         case ENDIAN_NATIVE :
         default :
-            LOG_FATAL("Invalid endianness provided. Unexpected code reached in _read_r32.");
+            LOG_FATAL("Invalid endianness");
     }
 
     return i + 4; // Advance the stream pointer by 4 bytes.
@@ -3659,10 +3605,9 @@ static Zstr _read_r32(Zstr i, FmtInfo *fmt_info, u32 *v) {
 
 static Zstr _read_r64(Zstr i, FmtInfo *fmt_info, u64 *v) {
     if (!i || !fmt_info || !v) {
-        LOG_FATAL("Invalid arguments to _read_r64");
+        LOG_FATAL("Invalid arguments");
     }
 
-    // Resolve native endianness if specified.
     if (fmt_info->endian == ENDIAN_NATIVE) {
         fmt_info->endian = IS_LITTLE_ENDIAN() ? ENDIAN_LITTLE : ENDIAN_BIG;
     }
@@ -3680,7 +3625,7 @@ static Zstr _read_r64(Zstr i, FmtInfo *fmt_info, u64 *v) {
             break;
         case ENDIAN_NATIVE :
         default :
-            LOG_FATAL("Invalid endianness provided. Unexpected code reached in _read_r64.");
+            LOG_FATAL("Invalid endianness");
     }
 
     return i + 8; // Advance the stream pointer by 8 bytes.

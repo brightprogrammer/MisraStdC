@@ -90,7 +90,9 @@ bool test_bitvec_foreach_invalid_usage(void) {
     WriteFmt("Testing BitVec foreach with invalid bitvec\n");
 
     // Test foreach with invalid bitvec (length > 0 but data is NULL)
-    // (intentional direct-field writes to corrupt; BitVecCapacity is read-only — no setter)
+    // intentional bypass: BitVecLen/BitVecCapacity are read-only accessors,
+    // no public setter exists -- the whole point of this test is to plant
+    // length>0 with data==NULL so ValidateBitVec aborts in the foreach prologue.
     BitVec bv   = BitVecInit(ALLOCATOR_OF(&alloc));
     bv.length   = 5;
     bv.capacity = 10;

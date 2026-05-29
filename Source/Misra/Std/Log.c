@@ -32,7 +32,9 @@
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 #include <Misra/Sys.h>
-#include <Misra/Sys/Backtrace.h>
+#if FEATURE_SYS_BACKTRACE
+#    include <Misra/Sys/Backtrace.h>
+#endif
 
 void LogWrite(LogMessageType type, Zstr tag, u64 line, Zstr msg) {
     if (!msg) {
@@ -55,7 +57,7 @@ void LogWrite(LogMessageType type, Zstr tag, u64 line, Zstr msg) {
     File out = (type == LOG_MESSAGE_TYPE_INFO) ? FileFromFd(1) : FileFromFd(2);
     (void)FileWrite(&out, StrBegin(&full), StrLen(&full));
 
-#if !defined(LOG_NO_BACKTRACE) || !LOG_NO_BACKTRACE
+#if FEATURE_SYS_BACKTRACE && (!defined(LOG_NO_BACKTRACE) || !LOG_NO_BACKTRACE)
     if (type == LOG_MESSAGE_TYPE_FATAL) {
         // Append captured stack trace so the diagnostic carries the
         // call site context up to Abort(). Skip our own + LogWrite's
@@ -70,13 +72,15 @@ void LogWrite(LogMessageType type, Zstr tag, u64 line, Zstr msg) {
         StrDeinit(&trace);
     }
 #else
-    // LOG_NO_BACKTRACE: deadend test binaries opt out of the
-    // FATAL backtrace because (a) they install an abort callback that
-    // longjmps over the trace anyway, and (b) on macOS each backtrace
-    // re-parses the binary's Mach-O + dSYM + DWARF (MachoCache lives
-    // for the duration of one trace only), which dominates sanitised
-    // test wall-clock at ~99% per measurement. The FATAL message
-    // itself (with func:line) already identifies the abort point.
+    // FEATURE_SYS_BACKTRACE off (sys_backtrace disabled at build time, or
+    // a platform with no in-tree backtrace backend) OR LOG_NO_BACKTRACE
+    // set (deadend test binaries opt out of the FATAL backtrace because
+    // (a) they install an abort callback that longjmps over the trace
+    // anyway, and (b) on macOS each backtrace re-parses the binary's
+    // Mach-O + dSYM + DWARF (MachoCache lives for the duration of one
+    // trace only), which dominates sanitised test wall-clock at ~99%
+    // per measurement). The FATAL message itself (with func:line)
+    // already identifies the abort point.
     (void)type;
 #endif
 

@@ -1076,7 +1076,20 @@ bool map_set_only(
     }
 
     (void)map_remove_all(map, key, entry_size, key_offset, key_size, value_offset, value_size, hash_offset);
-    map_insert_raw_entry(map, temp_entry, entry_size, key_offset, key_size, hash_offset);
+    // map_insert_raw_entry can fail if the probe budget is exhausted in the
+    // freshly-cleared region (rare, but possible on pathological key sets).
+    // The temp_entry holds deep-copied payloads; on failure deinit them so
+    // the allocator doesn't leak Strs / sub-vecs the copy_init produced.
+    if (!map_insert_raw_entry(map, temp_entry, entry_size, key_offset, key_size, hash_offset)) {
+        if (map->key_copy_deinit) {
+            map->key_copy_deinit(temp_entry + key_offset, map->allocator);
+        }
+        if (map->value_copy_deinit) {
+            map->value_copy_deinit(temp_entry + value_offset, map->allocator);
+        }
+        AllocatorFree(map->allocator, temp_entry);
+        return false;
+    }
     AllocatorFree(map->allocator, temp_entry);
     return true;
 }

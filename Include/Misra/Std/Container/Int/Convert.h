@@ -7,6 +7,7 @@
 #ifndef MISRA_STD_CONTAINER_INT_CONVERT_H
 #define MISRA_STD_CONTAINER_INT_CONVERT_H
 
+#include "Access.h"
 #include "Private.h"
 #include <Misra/Std/Container/Str.h>
 
@@ -34,20 +35,11 @@ extern "C" {
 ///
 /// TAGS: Int, Convert, Import, Generic
 ///
-#    define IntFrom(value, alloc)                                                                                      \
-        _Generic(                                                                                                      \
-            (value),                                                                                                   \
-            unsigned char: int_from_u64,                                                                               \
-            unsigned short: int_from_u64,                                                                              \
-            unsigned int: int_from_u64,                                                                                \
-            unsigned long: int_from_u64,                                                                               \
-            unsigned long long: int_from_u64,                                                                          \
-            signed char: int_from_i64,                                                                                 \
-            signed short: int_from_i64,                                                                                \
-            signed int: int_from_i64,                                                                                  \
-            signed long: int_from_i64,                                                                                 \
-            signed long long: int_from_i64                                                                             \
-        )((value), ALLOCATOR_OF(alloc))
+#    define IntFrom(value, alloc)                                                                                                                                                                                                                                                                                            \
+        _Generic((value), unsigned char: int_from_u64, unsigned short: int_from_u64, unsigned int: int_from_u64, unsigned long: int_from_u64, unsigned long long: int_from_u64, signed char: int_from_i64, signed short: int_from_i64, signed int: int_from_i64, signed long: int_from_i64, signed long long: int_from_i64)( \
+            (value),                                                                                                                                                                                                                                                                                                         \
+            ALLOCATOR_OF(alloc)                                                                                                                                                                                                                                                                                              \
+        )
 #endif
 
     ///
@@ -189,11 +181,11 @@ extern "C" {
     ///
     bool int_try_from_str_radix_zstr(Int *out, Zstr digits, u8 radix);
     bool int_try_from_str_radix_str(Int *out, const Str *digits, u8 radix);
-#define IntTryFromStrRadix(out, digits, radix)                                                                                                                                      \
-    _Generic((digits), Str *: int_try_from_str_radix_str, char *: int_try_from_str_radix_zstr, Zstr : int_try_from_str_radix_zstr)( \
-        (out),                                                                                                                                                                      \
-        (digits),                                                                                                                                                                   \
-        (radix)                                                                                                                                                                     \
+#define IntTryFromStrRadix(out, digits, radix)                                                                                     \
+    _Generic((digits), Str *: int_try_from_str_radix_str, Zstr: int_try_from_str_radix_zstr, char *: int_try_from_str_radix_zstr)( \
+        (out),                                                                                                                     \
+        (digits),                                                                                                                  \
+        (radix)                                                                                                                    \
     )
 
     ///
@@ -210,17 +202,17 @@ extern "C" {
     Int int_from_str_radix_zstr(Zstr digits, u8 radix, Allocator *alloc);
     Int int_from_str_radix_str(const Str *digits, u8 radix, Allocator *alloc);
 #define IntFromStrRadix(...) OVERLOAD(IntFromStrRadix, __VA_ARGS__)
-#define IntFromStrRadix_2(digits, radix)                                                                                                                            \
-    _Generic((digits), Str *: int_from_str_radix_str, char *: int_from_str_radix_zstr, Zstr : int_from_str_radix_zstr)( \
-        (digits),                                                                                                                                                   \
-        (radix),                                                                                                                                                    \
-        MisraScope                                                                                                                                                  \
+#define IntFromStrRadix_2(digits, radix)                                                                               \
+    _Generic((digits), Str *: int_from_str_radix_str, Zstr: int_from_str_radix_zstr, char *: int_from_str_radix_zstr)( \
+        (digits),                                                                                                      \
+        (radix),                                                                                                       \
+        MisraScope                                                                                                     \
     )
-#define IntFromStrRadix_3(digits, radix, alloc)                                                                                                                     \
-    _Generic((digits), Str *: int_from_str_radix_str, char *: int_from_str_radix_zstr, Zstr : int_from_str_radix_zstr)( \
-        (digits),                                                                                                                                                   \
-        (radix),                                                                                                                                                    \
-        ALLOCATOR_OF(alloc)                                                                                                                                         \
+#define IntFromStrRadix_3(digits, radix, alloc)                                                                        \
+    _Generic((digits), Str *: int_from_str_radix_str, Zstr: int_from_str_radix_zstr, char *: int_from_str_radix_zstr)( \
+        (digits),                                                                                                      \
+        (radix),                                                                                                       \
+        ALLOCATOR_OF(alloc)                                                                                            \
     )
 
     ///
@@ -265,10 +257,10 @@ extern "C" {
     ///
     bool int_try_from_str_zstr(Int *out, Zstr decimal);
     bool int_try_from_str_str(Int *out, const Str *decimal);
-#define IntTryFromStr(out, decimal)                                                                                                                          \
-    _Generic((decimal), Str *: int_try_from_str_str, char *: int_try_from_str_zstr, Zstr : int_try_from_str_zstr)( \
-        (out),                                                                                                                                               \
-        (decimal)                                                                                                                                            \
+#define IntTryFromStr(out, decimal)                                                                                    \
+    _Generic((decimal), Str *: int_try_from_str_str, Zstr: int_try_from_str_zstr, char *: int_try_from_str_zstr)(      \
+        (out),                                                                                                         \
+        (decimal)                                                                                                      \
     )
 
     ///
@@ -285,15 +277,15 @@ extern "C" {
     Int int_from_str_zstr(Zstr decimal, Allocator *alloc);
     Int int_from_str_str(const Str *decimal, Allocator *alloc);
 #define IntFromStr(...) OVERLOAD(IntFromStr, __VA_ARGS__)
-#define IntFromStr_1(decimal)                                                                                                                \
-    _Generic((decimal), Str *: int_from_str_str, char *: int_from_str_zstr, Zstr : int_from_str_zstr)( \
-        (decimal),                                                                                                                           \
-        MisraScope                                                                                                                           \
+#define IntFromStr_1(decimal)                                                                                          \
+    _Generic((decimal), Str *: int_from_str_str, Zstr: int_from_str_zstr, char *: int_from_str_zstr)(                  \
+        (decimal),                                                                                                     \
+        MisraScope                                                                                                     \
     )
-#define IntFromStr_2(decimal, alloc)                                                                                                         \
-    _Generic((decimal), Str *: int_from_str_str, char *: int_from_str_zstr, Zstr : int_from_str_zstr)( \
-        (decimal),                                                                                                                           \
-        ALLOCATOR_OF(alloc)                                                                                                                  \
+#define IntFromStr_2(decimal, alloc)                                                                                   \
+    _Generic((decimal), Str *: int_from_str_str, Zstr: int_from_str_zstr, char *: int_from_str_zstr)(                  \
+        (decimal),                                                                                                     \
+        ALLOCATOR_OF(alloc)                                                                                            \
     )
 
     ///
@@ -336,10 +328,10 @@ extern "C" {
     ///
     bool int_try_from_binary_zstr(Int *out, Zstr binary);
     bool int_try_from_binary_str(Int *out, const Str *binary);
-#define IntTryFromBinary(out, binary)                                                                                                                                   \
-    _Generic((binary), Str *: int_try_from_binary_str, char *: int_try_from_binary_zstr, Zstr : int_try_from_binary_zstr)( \
-        (out),                                                                                                                                                          \
-        (binary)                                                                                                                                                        \
+#define IntTryFromBinary(out, binary)                                                                                     \
+    _Generic((binary), Str *: int_try_from_binary_str, Zstr: int_try_from_binary_zstr, char *: int_try_from_binary_zstr)( \
+        (out),                                                                                                            \
+        (binary)                                                                                                          \
     )
 
     ///
@@ -356,15 +348,15 @@ extern "C" {
     Int int_from_binary_zstr(Zstr binary, Allocator *alloc);
     Int int_from_binary_str(const Str *binary, Allocator *alloc);
 #define IntFromBinary(...) OVERLOAD(IntFromBinary, __VA_ARGS__)
-#define IntFromBinary_1(binary)                                                                                                                         \
-    _Generic((binary), Str *: int_from_binary_str, char *: int_from_binary_zstr, Zstr : int_from_binary_zstr)( \
-        (binary),                                                                                                                                       \
-        MisraScope                                                                                                                                      \
+#define IntFromBinary_1(binary)                                                                                        \
+    _Generic((binary), Str *: int_from_binary_str, Zstr: int_from_binary_zstr, char *: int_from_binary_zstr)(          \
+        (binary),                                                                                                      \
+        MisraScope                                                                                                     \
     )
-#define IntFromBinary_2(binary, alloc)                                                                                                                  \
-    _Generic((binary), Str *: int_from_binary_str, char *: int_from_binary_zstr, Zstr : int_from_binary_zstr)( \
-        (binary),                                                                                                                                       \
-        ALLOCATOR_OF(alloc)                                                                                                                             \
+#define IntFromBinary_2(binary, alloc)                                                                                 \
+    _Generic((binary), Str *: int_from_binary_str, Zstr: int_from_binary_zstr, char *: int_from_binary_zstr)(          \
+        (binary),                                                                                                      \
+        ALLOCATOR_OF(alloc)                                                                                            \
     )
 
     ///
@@ -407,10 +399,10 @@ extern "C" {
     ///
     bool int_try_from_oct_str_zstr(Int *out, Zstr octal);
     bool int_try_from_oct_str_str(Int *out, const Str *octal);
-#define IntTryFromOctStr(out, octal)                                                                                                                                       \
-    _Generic((octal), Str *: int_try_from_oct_str_str, char *: int_try_from_oct_str_zstr, Zstr : int_try_from_oct_str_zstr)( \
-        (out),                                                                                                                                                             \
-        (octal)                                                                                                                                                            \
+#define IntTryFromOctStr(out, octal)                                                                                        \
+    _Generic((octal), Str *: int_try_from_oct_str_str, Zstr: int_try_from_oct_str_zstr, char *: int_try_from_oct_str_zstr)( \
+        (out),                                                                                                              \
+        (octal)                                                                                                             \
     )
 
     ///
@@ -427,15 +419,15 @@ extern "C" {
     Int int_from_oct_str_zstr(Zstr octal, Allocator *alloc);
     Int int_from_oct_str_str(const Str *octal, Allocator *alloc);
 #define IntFromOctStr(...) OVERLOAD(IntFromOctStr, __VA_ARGS__)
-#define IntFromOctStr_1(octal)                                                                                                                             \
-    _Generic((octal), Str *: int_from_oct_str_str, char *: int_from_oct_str_zstr, Zstr : int_from_oct_str_zstr)( \
-        (octal),                                                                                                                                           \
-        MisraScope                                                                                                                                         \
+#define IntFromOctStr_1(octal)                                                                                         \
+    _Generic((octal), Str *: int_from_oct_str_str, Zstr: int_from_oct_str_zstr, char *: int_from_oct_str_zstr)(        \
+        (octal),                                                                                                       \
+        MisraScope                                                                                                     \
     )
-#define IntFromOctStr_2(octal, alloc)                                                                                                                      \
-    _Generic((octal), Str *: int_from_oct_str_str, char *: int_from_oct_str_zstr, Zstr : int_from_oct_str_zstr)( \
-        (octal),                                                                                                                                           \
-        ALLOCATOR_OF(alloc)                                                                                                                                \
+#define IntFromOctStr_2(octal, alloc)                                                                                  \
+    _Generic((octal), Str *: int_from_oct_str_str, Zstr: int_from_oct_str_zstr, char *: int_from_oct_str_zstr)(        \
+        (octal),                                                                                                       \
+        ALLOCATOR_OF(alloc)                                                                                            \
     )
 
     ///
@@ -480,10 +472,10 @@ extern "C" {
     ///
     bool int_try_from_hex_str_zstr(Int *out, Zstr hex);
     bool int_try_from_hex_str_str(Int *out, const Str *hex);
-#define IntTryFromHexStr(out, hex)                                                                                                                                       \
-    _Generic((hex), Str *: int_try_from_hex_str_str, char *: int_try_from_hex_str_zstr, Zstr : int_try_from_hex_str_zstr)( \
-        (out),                                                                                                                                                           \
-        (hex)                                                                                                                                                            \
+#define IntTryFromHexStr(out, hex)                                                                                        \
+    _Generic((hex), Str *: int_try_from_hex_str_str, Zstr: int_try_from_hex_str_zstr, char *: int_try_from_hex_str_zstr)( \
+        (out),                                                                                                            \
+        (hex)                                                                                                             \
     )
 
     ///
@@ -500,15 +492,15 @@ extern "C" {
     Int int_from_hex_str_zstr(Zstr hex, Allocator *alloc);
     Int int_from_hex_str_str(const Str *hex, Allocator *alloc);
 #define IntFromHexStr(...) OVERLOAD(IntFromHexStr, __VA_ARGS__)
-#define IntFromHexStr_1(hex)                                                                                                                             \
-    _Generic((hex), Str *: int_from_hex_str_str, char *: int_from_hex_str_zstr, Zstr : int_from_hex_str_zstr)( \
-        (hex),                                                                                                                                           \
-        MisraScope                                                                                                                                       \
+#define IntFromHexStr_1(hex)                                                                                           \
+    _Generic((hex), Str *: int_from_hex_str_str, Zstr: int_from_hex_str_zstr, char *: int_from_hex_str_zstr)(          \
+        (hex),                                                                                                         \
+        MisraScope                                                                                                     \
     )
-#define IntFromHexStr_2(hex, alloc)                                                                                                                      \
-    _Generic((hex), Str *: int_from_hex_str_str, char *: int_from_hex_str_zstr, Zstr : int_from_hex_str_zstr)( \
-        (hex),                                                                                                                                           \
-        ALLOCATOR_OF(alloc)                                                                                                                              \
+#define IntFromHexStr_2(hex, alloc)                                                                                    \
+    _Generic((hex), Str *: int_from_hex_str_str, Zstr: int_from_hex_str_zstr, char *: int_from_hex_str_zstr)(          \
+        (hex),                                                                                                         \
+        ALLOCATOR_OF(alloc)                                                                                            \
     )
 
     ///
@@ -579,7 +571,7 @@ static inline u64 int_to_u64_no_error(const Int *value) {
 /// TAGS: Int, Convert, String
 ///
 #define IntTryToStr(...)                 OVERLOAD(IntTryToStr, __VA_ARGS__)
-#define IntTryToStr_2(out, value)        int_try_to_str((out), (value), (value)->bits.allocator)
+#define IntTryToStr_2(out, value)        int_try_to_str((out), (value), IntAllocator((value)))
 #define IntTryToStr_3(out, value, alloc) int_try_to_str((out), (value), (alloc))
 
 ///
@@ -599,7 +591,7 @@ static inline u64 int_to_u64_no_error(const Int *value) {
 /// TAGS: Int, Convert, String
 ///
 #define IntToStr(...)            OVERLOAD(IntToStr, __VA_ARGS__)
-#define IntToStr_1(value)        int_to_str((value), (value)->bits.allocator)
+#define IntToStr_1(value)        int_to_str((value), IntAllocator((value)))
 #define IntToStr_2(value, alloc) int_to_str((value), (alloc))
 
 ///
@@ -622,7 +614,7 @@ static inline u64 int_to_u64_no_error(const Int *value) {
 ///
 #define IntTryToStrRadix(...) OVERLOAD(IntTryToStrRadix, __VA_ARGS__)
 #define IntTryToStrRadix_4(out, value, radix, uppercase)                                                               \
-    int_try_to_str_radix((out), (value), (radix), (uppercase), (value)->bits.allocator)
+    int_try_to_str_radix((out), (value), (radix), (uppercase), IntAllocator((value)))
 #define IntTryToStrRadix_5(out, value, radix, uppercase, alloc)                                                        \
     int_try_to_str_radix((out), (value), (radix), (uppercase), (alloc))
 
@@ -646,7 +638,7 @@ static inline u64 int_to_u64_no_error(const Int *value) {
 ///
 #define IntToStrRadix(...) OVERLOAD(IntToStrRadix, __VA_ARGS__)
 #define IntToStrRadix_3(value, radix, uppercase)                                                                       \
-    int_to_str_radix((value), (radix), (uppercase), (value)->bits.allocator)
+    int_to_str_radix((value), (radix), (uppercase), IntAllocator((value)))
 #define IntToStrRadix_4(value, radix, uppercase, alloc) int_to_str_radix((value), (radix), (uppercase), (alloc))
 
 #endif // MISRA_STD_CONTAINER_INT_CONVERT_H

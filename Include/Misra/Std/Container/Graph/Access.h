@@ -299,31 +299,39 @@
 ///
 #define GraphHasEdge(g, from, to) graph_has_edge(GENERIC_GRAPH(g), (from), (to))
 
-///
-/// Get the current scratch visit count for a node handle.
-///
-/// node[in] : `GraphNode` handle to query.
-///
-/// SUCCESS: Current scratch visit count for the node.
-/// FAILURE: Does not return on invalid node handle.
-///
-/// NOTE: This count is graph-owned scratch state. It is convenient for simple traversals,
-///       but it is not a substitute for richer application-owned side tables.
-///
-/// TAGS: Graph, Node, Visit, Count, Query
-///
-#define GraphNodeVisitCount(node) graph_node_visit_count((node))
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-///
-/// Check whether a node has been visited at least once.
-///
-/// node[in] : `GraphNode` handle to query.
-///
-/// SUCCESS: `true` when `GraphNodeVisitCount(node) > 0`.
-/// FAILURE: `false`
-///
-/// TAGS: Graph, Node, Visit, Query
-///
-#define GraphNodeVisited(node) graph_node_visited((node))
+    ///
+    /// Get the current scratch visit count for a node handle.
+    ///
+    /// node[in] : `GraphNode` handle to query.
+    ///
+    /// SUCCESS: Current scratch visit count for the node.
+    /// FAILURE: Does not return on invalid node handle.
+    ///
+    /// NOTE: This count is graph-owned scratch state. It is convenient for simple traversals,
+    ///       but it is not a substitute for richer application-owned side tables.
+    ///
+    /// TAGS: Graph, Node, Visit, Count, Query
+    ///
+    u64 GraphNodeVisitCount(GraphNode node);
+
+    ///
+    /// Check whether a node has been visited at least once.
+    ///
+    /// node[in] : `GraphNode` handle to query.
+    ///
+    /// SUCCESS: `true` when `GraphNodeVisitCount(node) > 0`.
+    /// FAILURE: `false`
+    ///
+    /// TAGS: Graph, Node, Visit, Query
+    ///
+    bool GraphNodeVisited(GraphNode node);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // MISRA_STD_CONTAINER_GRAPH_ACCESS_H

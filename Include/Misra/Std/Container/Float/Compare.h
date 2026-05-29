@@ -14,13 +14,13 @@ extern "C" {
 #endif
 
     ///
-    /// Compare two arbitrary-precision floating-point values. `float_compare`
-    /// carries a typed signature; cast to `GenericCompare` at the `Map` /
-    /// `Vec` callback site (the standard pattern -- see `MapInitFull_9`
-    /// and `VecFind`).
+    /// Compare two arbitrary-precision floating-point values. The
+    /// no-error variant matches the `GenericCompare` shape so it drops
+    /// straight into map / vec compare slots; the `*_with_error` variant
+    /// keeps the typed signature plus an out-of-band failure flag.
     ///
-    /// lhs[in]    : Left-hand operand
-    /// rhs[in]    : Right-hand operand
+    /// lhs[in]    : Left-hand operand (pointer to `Float`).
+    /// rhs[in]    : Right-hand operand (pointer to `Float`).
     /// error[out] : (`*_with_error` only) Optional pointer set to
     ///              `true` on operational failure and `false` on
     ///              success.
@@ -38,19 +38,22 @@ extern "C" {
     /// TAGS: Float, Compare, Ordering, GenericCompare
     ///
     int float_compare_with_error(const Float *lhs, const Float *rhs, bool *error);
-    int float_compare(const Float *lhs, const Float *rhs);
+    i32 float_compare(const void *lhs, const void *rhs);
 
     ///
     /// Hash a `Float` for use as a map key. FNV-1a over the significand
     /// magnitude bytes, the exponent, and the sign so `+1.5e3`,
-    /// `-1.5e3`, and `1.5e2` land in different buckets. Typed signature;
-    /// cast to `GenericHash` at the `Map` / `Vec` callback site.
+    /// `-1.5e3`, and `1.5e2` land in different buckets. Matches the
+    /// `GenericHash` shape so it drops straight into map / vec hash
+    /// slots.
     ///
-    /// value[in] : Float to hash.
-    /// size[in]  : Ignored. Included for `GenericHash`-cast compatibility.
+    /// data[in] : Pointer to the `Float` to hash.
+    /// size[in] : Ignored. Included for `GenericHash` callback
+    ///            compatibility; the value's real length lives inside
+    ///            the `Float` header itself.
     ///
     /// SUCCESS : Returns a stable hash of the float's representation.
-    ///           `value` is not modified.
+    ///           `data` is not modified.
     /// FAILURE : Function cannot fail.
     ///
     /// USAGE:
@@ -58,7 +61,7 @@ extern "C" {
     ///
     /// TAGS: Float, Hash, GenericHash
     ///
-    u64 float_hash(const Float *value, u32 size);
+    u64 float_hash(const void *data, u32 size);
 
 #ifndef __cplusplus
 #    define FLOAT_COMPARE_SELECT(_1, _2, _3, NAME, ...) NAME

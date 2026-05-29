@@ -2,7 +2,12 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// formatted reading/writing and other magical stuff
+/// Public surface of the formatted-text I/O subsystem: the `{...}`
+/// brace-language family (`StrAppendFmt`, `WriteFmt`, `FReadFmt`,
+/// `ReadFmt`) and the binary-layout `BufReadFmt` / `BufAppendFmt` /
+/// `BufWriteFmt` / `BufPatchFmt` family. Type-specific reader / writer
+/// declarations sit at the bottom of the header so the public macros
+/// can dispatch to them via `_Generic`.
 
 #ifndef MISRA_STD_IO_H
 #define MISRA_STD_IO_H
@@ -445,14 +450,14 @@ bool float_try_to_scientific_str(
 
 ///
 /// Patch existing bytes in `out` starting at `offset`. The formatted
-/// content must fit within the current `out->length`; the buffer is
+/// content must fit within the current `StrLen(out)`; the buffer is
 /// not grown. Useful for back-patching placeholder fields after later
 /// data has been computed.
 ///
 /// SUCCESS : Bytes `[offset, offset + written)` of `out` are replaced;
 ///           returns `true`.
 /// FAILURE : Returns `false` if the formatted output would extend past
-///           `out->length`. `out` is left unchanged.
+///           `StrLen(out)`. `out` is left unchanged.
 ///
 /// TAGS: Str, Patch, Format, I/O
 ///
@@ -539,7 +544,7 @@ bool float_try_to_scientific_str(
 ///               argument should be a modifiable l-value wrapped with `&variable`.
 ///
 /// SUCCESS : Attempts to match `fmtstr` with the stream of characters in `stream` and
-///           reads values into the provided arguments wrapped with ``.
+///           reads values into the provided arguments.
 /// FAILURE : Failure occurs within the file formatted-read backend
 ///           (logs error message and returns, may roll back read data,
 ///           or abort in unexpected situations).
@@ -569,8 +574,7 @@ bool float_try_to_scientific_str(
 ///
 /// stream[in]  : Pointer to the `File` to write to.
 /// fmtstr[in]  : Format string with `{}` placeholders.
-/// ...[in]     : Variable number of arguments to replace the placeholders. Each argument
-///               should be wrapped with `variable`.
+/// ...[in]     : Variable number of arguments to substitute. Each entry runs through the IOFMT type dispatch.
 ///
 /// SUCCESS : Placeholders in `fmtstr` are replaced by the passed arguments, and the
 ///           resulting formatted string is written to the specified `stream`.
@@ -599,8 +603,7 @@ bool float_try_to_scientific_str(
 ///
 /// stream[in]  : Pointer to the `File` to write to.
 /// fmtstr[in]  : Format string with `{}` placeholders.
-/// ...[in]     : Variable number of arguments to replace the placeholders. Each argument
-///               should be wrapped with `variable`.
+/// ...[in]     : Variable number of arguments to substitute. Each entry runs through the IOFMT type dispatch.
 ///
 /// SUCCESS : Placeholders in `fmtstr` are replaced by the passed arguments, and the
 ///           resulting formatted string followed by a newline is written to the `stream`.
@@ -627,8 +630,7 @@ bool float_try_to_scientific_str(
 /// This is a convenience macro calling FWriteFmt with `FileStdout()`.
 ///
 /// fmtstr[in]  : Format string with `{}` placeholders.
-/// ...[in]     : Variable number of arguments to replace the placeholders. Each argument
-///               should be wrapped with `variable`.
+/// ...[in]     : Variable number of arguments to substitute. Each entry runs through the IOFMT type dispatch.
 ///
 /// SUCCESS : Placeholders in `fmtstr` are replaced by the passed arguments, and the
 ///           resulting formatted string is written to standard output.
@@ -649,8 +651,7 @@ bool float_try_to_scientific_str(
 /// This is a convenience macro calling FWriteFmtLn with `FileStdout()`.
 ///
 /// fmtstr[in]  : Format string with `{}` placeholders.
-/// ...[in]     : Variable number of arguments to replace the placeholders. Each argument
-///               should be wrapped with `variable`.
+/// ...[in]     : Variable number of arguments to substitute. Each entry runs through the IOFMT type dispatch.
 ///
 /// SUCCESS : Placeholders in `fmtstr` are replaced by the passed arguments, and the
 ///           resulting formatted string followed by a newline is written to standard output.
@@ -676,7 +677,7 @@ bool float_try_to_scientific_str(
 ///               argument should be a modifiable l-value wrapped with `&variable`.
 ///
 /// SUCCESS : Attempts to match `fmtstr` with the input from standard input and reads
-///           values into the provided arguments wrapped with ``.
+///           values into the provided arguments.
 /// FAILURE : Backend logs an error and returns; may roll back partially-
 ///           read data, or abort in unexpected situations.
 ///
@@ -777,7 +778,7 @@ bool buf_read_fmt(BufIter *iter, Zstr fmtstr, TypeSpecificIO *argv, u64 argc);
 /// to the end of `*out`, growing `out` through its inline allocator as
 /// needed. Existing contents are preserved.
 ///
-/// SUCCESS : Returns `true`; `out->length` has grown by exactly the
+/// SUCCESS : Returns `true`; `BufLength(out)` has grown by exactly the
 ///           number of bytes the directives encode.
 /// FAILURE : Returns `false` on format-parse error (malformed
 ///           directive, width mismatch with the source argument) or on
@@ -808,14 +809,14 @@ bool buf_write_fmt(Buf *out, Zstr fmtstr, TypeSpecificIO *argv, u64 argc);
 ///
 /// Backend for `BufPatchFmt`. Overwrites bytes of `*out` starting at
 /// `offset` with the encoded output. The buffer is NOT grown; the
-/// directive run must fit inside the existing `[offset, out->length)`
+/// directive run must fit inside the existing `[offset, BufLength(out))`
 /// window. Useful for back-patching length / checksum fields after the
 /// payload they describe has been computed.
 ///
 /// SUCCESS : Returns `true`; bytes `[offset, offset + written)` of
 ///           `*out` are replaced.
 /// FAILURE : Returns `false` on format-parse error or if the encoded
-///           output would extend past `out->length`. On overflow,
+///           output would extend past `BufLength(out)`. On overflow,
 ///           `*out` is left unchanged.
 ///
 /// TAGS: Buf, Patch, Format, I/O
@@ -850,7 +851,7 @@ bool buf_patch_fmt(Buf *out, size offset, Zstr fmtstr, TypeSpecificIO *argv, u64
 
 ///
 /// Append encoded bytes to the end of `buf`. Existing contents are
-/// preserved; new bytes land after `buf->length`. Directives are
+/// preserved; new bytes land after `BufLength(buf)`. Directives are
 /// `{<Nr}` / `{>Nr}` with `N` in {1, 2, 4, 8}.
 ///
 /// SUCCESS : Returns `true`; `buf` extended by exactly the encoded
@@ -899,14 +900,14 @@ bool buf_patch_fmt(Buf *out, size offset, Zstr fmtstr, TypeSpecificIO *argv, u64
 
 ///
 /// Overwrite existing bytes of `buf` starting at `offset`. The encoded
-/// output must fit within the current `buf->length`; the buffer is not
+/// output must fit within the current `BufLength(buf)`; the buffer is not
 /// grown. Useful for back-patching placeholder fields (lengths,
 /// checksums) after the payload they describe has been built.
 ///
 /// SUCCESS : Returns `true`; bytes `[offset, offset + written)` of
 ///           `buf` are replaced.
 /// FAILURE : Returns `false` on format-parse error or if the encoded
-///           output would extend past `buf->length`. On overflow,
+///           output would extend past `BufLength(buf)`. On overflow,
 ///           `buf` is left unchanged.
 ///
 /// TAGS: Buf, Patch, Format, I/O

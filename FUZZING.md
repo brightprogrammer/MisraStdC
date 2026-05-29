@@ -101,12 +101,12 @@ No additional setup required - the CI uses the same Docker setup as local fuzzin
 ## Fuzzing Harness
 
 The fuzzing harness (`Fuzz/Harness.c`) tests:
-- **Vec(i32)** - Integer vector operations
-- **Vec(char*)** - String pointer vector operations  
-- **Vec(Str)** - String vector operations
-- **Str** - String operations
+- **Vec(i32)** - Integer vector operations (`Fuzz/Harness/VecInt.c`)
+- **Vec(char*)** - C-string pointer vector operations (`Fuzz/Harness/VecCharPtr.c`)
+- **Vec(Str)** - String vector operations (`Fuzz/Harness/VecStr.c`)
+- **List(i32)** - Integer doubly-linked-list operations (`Fuzz/Harness/ListInt.c`)
 
-Each harness covers 50+ functions with comprehensive test cases.
+Each sub-harness covers 30+ functions per container with comprehensive test cases.
 
 ## Troubleshooting
 

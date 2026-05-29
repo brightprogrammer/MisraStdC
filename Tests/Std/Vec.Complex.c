@@ -165,12 +165,12 @@ bool test_lvalue_operations(void);
 bool test_fast_operations(void);
 bool test_delete_operations(void);
 bool test_edge_cases(void);
-bool test_lvalue_memset_pushback(void);
-bool test_lvalue_memset_insert(void);
-bool test_lvalue_memset_fast_insert(void);
-bool test_lvalue_memset_pushfront(void);
-bool test_lvalue_memset_merge(void);
-bool test_lvalue_memset_array_ops(void);
+bool test_lvalue_zero_on_take_pushback(void);
+bool test_lvalue_zero_on_take_insert(void);
+bool test_lvalue_zero_on_take_fast_insert(void);
+bool test_lvalue_zero_on_take_pushfront(void);
+bool test_lvalue_zero_on_take_merge(void);
+bool test_lvalue_zero_on_take_array_ops(void);
 
 // Test initialization with complex structure
 static DefaultAllocator alloc;
@@ -660,9 +660,9 @@ bool test_edge_cases(void) {
     return result;
 }
 
-// Test VecPushBackL memset behavior with complex structures
-bool test_lvalue_memset_pushback(void) {
-    WriteFmt("Testing VecPushBackL memset with complex structures\n");
+// Test VecPushBackL zero-on-take behavior with complex structures
+bool test_lvalue_zero_on_take_pushback(void) {
+    WriteFmt("Testing VecPushBackL zero-on-take with complex structures\n");
 
     // Create a test item
     int         values[] = {10, 20, 30};
@@ -675,7 +675,7 @@ bool test_lvalue_memset_pushback(void) {
     // Insert with L-value semantics (vector takes ownership)
     VecPushBackL(&temp_vec, item);
 
-    // Check that the item was memset to 0
+    // Check that the item was zeroed
     bool result = (item.name == NULL);
     result      = result && (item.values == NULL);
     result      = result && (item.num_values == 0);
@@ -686,9 +686,9 @@ bool test_lvalue_memset_pushback(void) {
     return result;
 }
 
-// Test VecInsertL memset behavior with complex structures
-bool test_lvalue_memset_insert(void) {
-    WriteFmt("Testing VecInsertL memset with complex structures\n");
+// Test VecInsertL zero-on-take behavior with complex structures
+bool test_lvalue_zero_on_take_insert(void) {
+    WriteFmt("Testing VecInsertL zero-on-take with complex structures\n");
 
     // Create a test item
     int         values[] = {40, 50, 60};
@@ -710,7 +710,7 @@ bool test_lvalue_memset_insert(void) {
     // Now insert our test item at position 0 using L-value semantics
     VecInsertL(&vec, item, 0);
 
-    // Check that the item was memset to 0
+    // Check that the item was zeroed
     bool result = (item.name == NULL);
     result      = result && (item.values == NULL);
     result      = result && (item.num_values == 0);
@@ -721,9 +721,9 @@ bool test_lvalue_memset_insert(void) {
     return result;
 }
 
-// Test VecInsertFastL memset behavior with complex structures
-bool test_lvalue_memset_fast_insert(void) {
-    WriteFmt("Testing VecInsertFastL memset with complex structures\n");
+// Test VecInsertFastL zero-on-take behavior with complex structures
+bool test_lvalue_zero_on_take_fast_insert(void) {
+    WriteFmt("Testing VecInsertFastL zero-on-take with complex structures\n");
     bool result = true;
 
     // Create a vector with no copy_init but with copy_deinit for proper cleanup
@@ -753,7 +753,7 @@ bool test_lvalue_memset_fast_insert(void) {
     ComplexItem item1     = InitComplexItem("Fast Item 1", values1, 3);
     VecInsertFastL(&vec, item1, 0);
 
-    // Check that the item was memset to 0
+    // Check that the item was zeroed
     result = result && (item1.name == NULL);
     result = result && (item1.values == NULL);
     result = result && (item1.num_values == 0);
@@ -763,7 +763,7 @@ bool test_lvalue_memset_fast_insert(void) {
     ComplexItem item2     = InitComplexItem("Fast Item 2", values2, 3);
     VecInsertFastL(&vec, item2, 2);
 
-    // Check that the item was memset to 0
+    // Check that the item was zeroed
     result = result && (item2.name == NULL);
     result = result && (item2.values == NULL);
     result = result && (item2.num_values == 0);
@@ -773,7 +773,7 @@ bool test_lvalue_memset_fast_insert(void) {
     ComplexItem item3     = InitComplexItem("Fast Item 3", values3, 3);
     VecInsertFastL(&vec, item3, VecLen(&vec));
 
-    // Check that the item was memset to 0
+    // Check that the item was zeroed
     result = result && (item3.name == NULL);
     result = result && (item3.values == NULL);
     result = result && (item3.num_values == 0);
@@ -787,9 +787,9 @@ bool test_lvalue_memset_fast_insert(void) {
     return result;
 }
 
-// Test VecPushFrontL memset behavior with complex structures
-bool test_lvalue_memset_pushfront(void) {
-    WriteFmt("Testing VecPushFrontL memset with complex structures\n");
+// Test VecPushFrontL zero-on-take behavior with complex structures
+bool test_lvalue_zero_on_take_pushfront(void) {
+    WriteFmt("Testing VecPushFrontL zero-on-take with complex structures\n");
 
     // Create a test item
     int         values[] = {100, 110, 120};
@@ -807,7 +807,7 @@ bool test_lvalue_memset_pushfront(void) {
     // Insert with L-value semantics at the front (vector takes ownership)
     VecPushFrontL(&vec, item);
 
-    // Check that the item was memset to 0
+    // Check that the item was zeroed
     bool result = (item.name == NULL);
     result      = result && (item.values == NULL);
     result      = result && (item.num_values == 0);
@@ -818,9 +818,9 @@ bool test_lvalue_memset_pushfront(void) {
     return result;
 }
 
-// Test VecMergeL memset behavior with complex structures
-bool test_lvalue_memset_merge(void) {
-    WriteFmt("Testing VecMergeL memset with complex structures\n");
+// Test VecMergeL zero-on-take behavior with complex structures
+bool test_lvalue_zero_on_take_merge(void) {
+    WriteFmt("Testing VecMergeL zero-on-take with complex structures\n");
 
     // Create a vector with no copy_init but with copy_deinit for proper cleanup
     typedef Vec(ComplexItem) ComplexVec;
@@ -857,7 +857,7 @@ bool test_lvalue_memset_merge(void) {
 }
 
 // Test array operations with L-value semantics
-bool test_lvalue_memset_array_ops(void) {
+bool test_lvalue_zero_on_take_array_ops(void) {
     WriteFmt("Testing array operations with L-value semantics\n");
 
     // Create a vector with no copy_init but with copy_deinit for proper cleanup
@@ -879,7 +879,7 @@ bool test_lvalue_memset_array_ops(void) {
     // Test VecPushBackArrL
     VecPushBackArrL(&vec, items, 3);
 
-    // Check that all items were memset to 0
+    // Check that all items were zeroed
     bool result = true;
     for (int i = 0; i < 3; i++) {
         result = result && (items[i].name == NULL);
@@ -908,12 +908,12 @@ int main(void) {
         test_fast_operations,
         test_delete_operations,
         test_edge_cases,
-        test_lvalue_memset_pushback,
-        test_lvalue_memset_insert,
-        test_lvalue_memset_fast_insert,
-        test_lvalue_memset_pushfront,
-        test_lvalue_memset_merge,
-        test_lvalue_memset_array_ops
+        test_lvalue_zero_on_take_pushback,
+        test_lvalue_zero_on_take_insert,
+        test_lvalue_zero_on_take_fast_insert,
+        test_lvalue_zero_on_take_pushfront,
+        test_lvalue_zero_on_take_merge,
+        test_lvalue_zero_on_take_array_ops
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);

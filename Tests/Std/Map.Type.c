@@ -57,13 +57,14 @@ static bool test_map_type_defaults(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
 
-    bool result =
-        MapPairCount(&map) == 0 && MapCapacity(&map) == 0 && MapTombstones(&map) == 0 && MapEntries(&map) == NULL &&
-        MapStates(&map) == NULL && map.key_compare == i32_compare && map.value_compare == NULL &&
-        map.key_hash == i32_hash && map.policy.should_rehash == MapPolicyLinear.should_rehash &&
-        map.policy.next_capacity == MapPolicyLinear.next_capacity &&
-        map.policy.first_index == MapPolicyLinear.first_index && map.policy.next_index == MapPolicyLinear.next_index &&
-        map.policy.max_probe_count == MapPolicyLinear.max_probe_count;
+    bool result = MapPairCount(&map) == 0 && MapCapacity(&map) == 0 && MapTombstones(&map) == 0 &&
+                  MapEntries(&map) == NULL && MapStates(&map) == NULL && MapKeyCompare(&map) == i32_compare &&
+                  MapValueCompare(&map) == NULL && MapKeyHash(&map) == i32_hash &&
+                  MapPolicy(&map).should_rehash == MapPolicyLinear.should_rehash &&
+                  MapPolicy(&map).next_capacity == MapPolicyLinear.next_capacity &&
+                  MapPolicy(&map).first_index == MapPolicyLinear.first_index &&
+                  MapPolicy(&map).next_index == MapPolicyLinear.next_index &&
+                  MapPolicy(&map).max_probe_count == MapPolicyLinear.max_probe_count;
 
     MapDeinit(&map);
     DefaultAllocatorDeinit(&alloc);
@@ -75,7 +76,8 @@ static bool test_map_type_with_value_compare(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     IntIntMap        map   = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare, &alloc);
 
-    bool result = map.key_compare == i32_compare && map.value_compare == i32_compare && map.key_hash == i32_hash;
+    bool result =
+        MapKeyCompare(&map) == i32_compare && MapValueCompare(&map) == i32_compare && MapKeyHash(&map) == i32_hash;
 
     MapDeinit(&map);
     DefaultAllocatorDeinit(&alloc);
@@ -102,10 +104,11 @@ static bool test_map_policy_copy(void) {
     custom_policy.next_index      = NULL;
     custom_policy.max_probe_count = 0;
 
-    bool result = ZstrCompare(map.policy.name, "custom-linear") == 0 &&
-                  map.policy.should_rehash == custom_should_rehash_snapshot &&
-                  map.policy.next_capacity == custom_next_capacity && map.policy.first_index == custom_first_index &&
-                  map.policy.next_index == custom_next_index && map.policy.max_probe_count == 11;
+    bool result = ZstrCompare(MapPolicy(&map).name, "custom-linear") == 0 &&
+                  MapPolicy(&map).should_rehash == custom_should_rehash_snapshot &&
+                  MapPolicy(&map).next_capacity == custom_next_capacity &&
+                  MapPolicy(&map).first_index == custom_first_index &&
+                  MapPolicy(&map).next_index == custom_next_index && MapPolicy(&map).max_probe_count == 11;
 
     MapDeinit(&map);
     DefaultAllocatorDeinit(&alloc);

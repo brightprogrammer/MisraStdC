@@ -42,9 +42,10 @@ static bool test_graph_reserve_clear(void) {
     result = result && GraphNodeCount(&graph) == 0 && GraphEdgeCount(&graph) == 0 && GraphEmpty(&graph);
     result = result && !GraphContainsNode(&graph, first_id) && !GraphContainsNode(&graph, second_id);
     result = result && !GraphContainsNode(&graph, third_id);
-    // fixture-internal read: no public accessors for `slots`, `free_indices`,
-    // `pending_delete_count`, or `pending_edge_removals`; this test asserts on the
-    // graph's private bookkeeping after GraphClear, which the public surface does not expose.
+    // intentional bypass: no public accessors for `slots`, `free_indices`,
+    // `pending_delete_count`, or `pending_edge_removals`; this test asserts
+    // on the graph's private bookkeeping after GraphClear, which the public
+    // surface does not expose.
     result = result && VecLen(&graph.slots) == slot_count && VecLen(&graph.free_indices) == slot_count;
     result = result && VecCapacity(&graph.slots) == slot_capacity && VecCapacity(&graph.free_indices) >= slot_count;
     result = result && graph.pending_delete_count == 0 && VecLen(&graph.pending_edge_removals) == 0;
@@ -122,6 +123,9 @@ static bool test_graph_init_optional_allocator(void) {
 
     typedef Graph(Str) StrGraph;
 
+    // intentional bypass: no public setter on `Allocator` for effort /
+    // retry_limit -- pre-seeded directly so the inheritance path below
+    // can be observed end-to-end.
     DefaultAllocator alloc = DefaultAllocatorInit();
     alloc.base.retry_limit = 31;
 
@@ -143,21 +147,22 @@ static bool test_graph_init_optional_allocator(void) {
     StrGraph graph_g = GraphInitWithDeepCopy(str_init_copy, str_deinit, &aligned_32);
     StrGraph graph_h = GraphInitWithDeepCopyT(graph_h, str_init_copy, str_deinit, &aligned_64);
 
-    // intentional bypass: no public GraphAllocator / GraphCopyInit / GraphCopyDeinit
-    // accessor exists yet; reading the fields directly to verify init-variant propagation.
-    // `slots`, `free_indices`, `pending_edge_removals` are fixture-internal reads --
-    // their inner allocator pointers are not part of the public Graph surface.
+    // intentional bypass: the inner `slots` / `free_indices` /
+    // `pending_edge_removals` vectors are private graph fields with no
+    // public accessor -- they are read directly here to verify the
+    // top-level allocator is propagated all the way down to the inner
+    // storage of the deep-copy / typed-init variants.
     bool result = (GraphAllocator(&graph_a)->retry_limit == 31) && (GraphAllocator(&graph_b)->retry_limit == 31);
-    result      = result && (GraphAllocator(&graph_c)->retry_limit == 31) && (GraphAllocator(&graph_d)->retry_limit == 31);
-    result      = result && (GraphAllocator(&graph_e)->retry_limit == 31) && (GraphAllocator(&graph_f)->retry_limit == 31);
-    result      = result && (GraphAllocator(&graph_g)->retry_limit == 31) && (GraphAllocator(&graph_h)->retry_limit == 31);
-    result      = result && (GraphAllocator(&graph_e)->alignment == 8) && (GraphAllocator(&graph_f)->alignment == 16);
-    result      = result && (GraphAllocator(&graph_g)->alignment == 32) && (GraphAllocator(&graph_h)->alignment == 64);
-    result      = result && (GraphCopyInit(&graph_c) == (GenericCopyInit)str_init_copy);
-    result      = result && (GraphCopyDeinit(&graph_d) == (GenericCopyDeinit)str_deinit);
-    result      = result && (graph_h.slots.allocator->retry_limit == 31);
-    result      = result && (graph_h.free_indices.allocator->retry_limit == 31);
-    result      = result && (graph_h.pending_edge_removals.allocator->retry_limit == 31);
+    result = result && (GraphAllocator(&graph_c)->retry_limit == 31) && (GraphAllocator(&graph_d)->retry_limit == 31);
+    result = result && (GraphAllocator(&graph_e)->retry_limit == 31) && (GraphAllocator(&graph_f)->retry_limit == 31);
+    result = result && (GraphAllocator(&graph_g)->retry_limit == 31) && (GraphAllocator(&graph_h)->retry_limit == 31);
+    result = result && (GraphAllocator(&graph_e)->alignment == 8) && (GraphAllocator(&graph_f)->alignment == 16);
+    result = result && (GraphAllocator(&graph_g)->alignment == 32) && (GraphAllocator(&graph_h)->alignment == 64);
+    result = result && (GraphCopyInit(&graph_c) == (GenericCopyInit)str_init_copy);
+    result = result && (GraphCopyDeinit(&graph_d) == (GenericCopyDeinit)str_deinit);
+    result = result && (graph_h.slots.allocator->retry_limit == 31);
+    result = result && (graph_h.free_indices.allocator->retry_limit == 31);
+    result = result && (graph_h.pending_edge_removals.allocator->retry_limit == 31);
 
     GraphDeinit(&graph_a);
     GraphDeinit(&graph_b);

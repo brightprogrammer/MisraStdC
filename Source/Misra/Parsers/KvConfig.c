@@ -88,14 +88,6 @@ static StrIter kvconfig_consume_line_end(StrIter si) {
     return si;
 }
 
-u64 KvConfigHash(const void *data, u32 ignored_size) {
-    return str_hash(data, ignored_size);
-}
-
-i32 KvConfigCompare(const void *lhs, const void *rhs) {
-    return str_compare(lhs, rhs);
-}
-
 StrIter KvConfigSkipWhitespace(StrIter si) {
     char c;
     while (StrIterPeek(&si, &c) && kvconfig_is_space(c)) {
@@ -236,7 +228,7 @@ StrIter KvConfigReadPair(StrIter si, Str *key, Str *value) {
     }
 
     si = KvConfigReadKey(si, key);
-    if (si.pos == saved_si.pos) {
+    if (StrIterIndex(&si) == StrIterIndex(&saved_si)) {
         return saved_si;
     }
 
@@ -253,7 +245,7 @@ StrIter KvConfigReadPair(StrIter si, Str *key, Str *value) {
     StrIterMustNext(&si);
     si = KvConfigReadValue(si, value);
 
-    if (si.pos == saved_si.pos) {
+    if (StrIterIndex(&si) == StrIterIndex(&saved_si)) {
         StrClear(key);
         StrClear(value);
         return saved_si;
@@ -325,7 +317,7 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg) {
         }
 
         read_si = KvConfigReadPair(si, &key, &value);
-        if (read_si.pos == si.pos) {
+        if (StrIterIndex(&read_si) == StrIterIndex(&si)) {
             StrDeinit(&key);
             StrDeinit(&value);
             return saved_si;

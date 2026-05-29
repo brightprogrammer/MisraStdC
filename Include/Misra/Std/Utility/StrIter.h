@@ -106,7 +106,8 @@ typedef Vec(StrIter) StrIters;
 ///         non-owning pointer into `s`'s buffer).
 ///
 /// SUCCESS : Returns a struct-literal `StrIter` covering
-///           `[s.data, s.data + s.length)` with `pos = 0`, `dir = 1`.
+///           `[StrBegin(&s), StrBegin(&s) + StrLen(&s))` with `pos = 0`,
+///           `dir = 1`.
 /// FAILURE : Macro cannot fail; an empty `Str` yields a remaining-
 ///           length-0 iterator.
 ///
@@ -201,6 +202,26 @@ typedef Vec(StrIter) StrIters;
 /// TAGS: StrIter, Position, Alias
 ///
 #define StrIterPos(mi) IterPos(mi)
+
+///
+/// Absolute cursor index within the `StrIter`'s backing region. Alias-
+/// reframe of `IterIndex` in string vocabulary. See `IterIndex` for
+/// the full contract.
+///
+/// TAGS: StrIter, Position, Alias
+///
+#define StrIterIndex(mi) IterIndex(mi)
+
+///
+/// Pointer to the character at absolute index `idx` in the `StrIter`'s
+/// backing region. Alias-reframe of `IterDataAt` in string vocabulary;
+/// the one-past-end pointer at `idx == length` is the standard
+/// half-open-range upper bound and is well-defined. See `IterDataAt`
+/// for the full contract.
+///
+/// TAGS: StrIter, Position, Alias
+///
+#define StrIterDataAt(mi, idx) IterDataAt((mi), (idx))
 
 // ---------------------------------------------------------------------------
 // Read / peek

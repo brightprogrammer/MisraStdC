@@ -13,10 +13,10 @@
 #include <Misra/Std/Container/Vec/Type.h>
 #include <Misra/Types.h>
 
-/// Read-only NUL-terminated C string -- the project name for what
-/// libc spells `const char *`. Zstr is the canonical C-string type
-/// in the codebase for declarations, parameters, return types, and
-/// fields. `-Wwrite-strings` (gcc/clang) types string literals as
+/// Read-only NUL-terminated C string -- the project name for a
+/// `const char *`. `Zstr` is the canonical C-string type in the
+/// codebase for declarations, parameters, return types, and fields.
+/// `-Wwrite-strings` (gcc/clang) types string literals as
 /// `const char *` (= `Zstr`) and rejects `char *p = "literal"`.
 ///
 /// `_Generic` dispatch has one carve-out: every arm matching `Zstr`
@@ -229,8 +229,9 @@ char ZstrProcessEscape(Zstr *str);
 ///
 /// Parse a signed decimal integer from a null-terminated string.
 /// Skips ASCII whitespace, accepts an optional leading sign, then
-/// consumes the longest run of `0..9`. Drops the libc `strtoll`
-/// dependency for callers that only need base-10.
+/// consumes the longest run of `0..9`. Base-10 only; callers that
+/// need radix-aware parsing reach for the typed `StrToI64` /
+/// `StrToU64` family with a `StrParseConfig`.
 ///
 /// SUCCESS: Returns the parsed value as i64. Overflow saturates to
 ///          `INT64_MAX` / `INT64_MIN`.
@@ -241,8 +242,9 @@ i64 ZstrToI64(Zstr s, Zstr *endptr);
 
 ///
 /// Parse a decimal floating-point value. Accepts
-/// `[+-]?digits(.digits)?([eE][+-]?digits)?`. Replaces libc `strtod`
-/// for JSON / KvConfig numeric values. Not bit-exact on long mantissas.
+/// `[+-]?digits(.digits)?([eE][+-]?digits)?`. Used by JSON / KvConfig
+/// numeric values where bit-exactness on long mantissas is not
+/// required.
 ///
 /// SUCCESS: Returns the parsed value as f64.
 /// FAILURE: Returns 0.0 when no digits are present.

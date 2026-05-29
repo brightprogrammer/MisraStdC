@@ -7,7 +7,18 @@
 #ifndef MISRA_STD_CONTAINER_INT_ACCESS_H
 #define MISRA_STD_CONTAINER_INT_ACCESS_H
 
+#include <Misra/Std/Container/BitVec/Access.h>
+
 #include "Type.h"
+
+///
+/// Allocator backing the integer's storage.
+///
+/// value[in] : Integer to query.
+///
+/// TAGS: Int, Access, Allocator
+///
+#define IntAllocator(value) BitVecAllocator(&(value)->bits)
 
 #ifdef __cplusplus
 extern "C" {

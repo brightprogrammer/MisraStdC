@@ -38,10 +38,9 @@ Zstr DirEntryTypeToZstr(DirEntryType type) {
     }
 }
 
-
 DirEntry *DirEntryInitCopy(DirEntry *dst, const DirEntry *src) {
     if (!dst || !src) {
-        LOG_FATAL("invalid arguments.");
+        LOG_FATAL("Invalid arguments");
     }
 
     dst->type = src->type;
@@ -50,10 +49,9 @@ DirEntry *DirEntryInitCopy(DirEntry *dst, const DirEntry *src) {
     return dst;
 }
 
-
 DirEntry *DirEntryDeinitCopy(DirEntry *copy) {
     if (!copy) {
-        LOG_FATAL("invalid arguments.");
+        LOG_FATAL("Invalid arguments");
     }
 
     StrDeinit(&copy->name);
@@ -71,10 +69,10 @@ DirContents dir_get_contents(Zstr path, Allocator *alloc) {
 
     DirContents dc = (DirContents)VecInit(alloc);
 
-    // Construct the search path: "<path>\*". Done by hand so we
-    // don't pull `<stdio.h>` for `snprintf` (libc-free goal; clang-cl
-    // with `-Werror=implicit-function-declaration` would also fail
-    // the implicit decl).
+    // Construct the search path: "<path>\*". Built with the in-tree
+    // Str ops so this TU stays within project headers; pulling in
+    // `<stdio.h>` for `snprintf` would also trip clang-cl's
+    // `-Werror=implicit-function-declaration` here.
     HANDLE hFind = INVALID_HANDLE_VALUE;
     StrInitStack(search_path, MAX_PATH) {
         size path_len = ZstrLen(path);
@@ -194,7 +192,7 @@ static DirEntryType dirent_type_to_misra(u8 dt) {
 
 DirContents dir_get_contents(Zstr path, Allocator *alloc) {
     if (!path || !alloc) {
-        LOG_FATAL("invalid arguments.");
+        LOG_FATAL("Invalid arguments");
     }
 
     DirContents dc = (DirContents)VecInit(alloc);
@@ -250,7 +248,7 @@ DirContents dir_get_contents(Zstr path, Allocator *alloc) {
         }
         for (long off = 0; off < n;) {
             struct kernel_dirent *de = (struct kernel_dirent *)(void *)(buf + off);
-            Zstr                        nm = de->d_name;
+            Zstr                  nm = de->d_name;
 #    if PLATFORM_DARWIN
             // Darwin gives d_namlen explicitly (not null-terminated
             // beyond it).
@@ -539,14 +537,14 @@ i8 dir_remove_all(Zstr path) {
     // dir_get_contents takes `Allocator *` (it's a generic helper used
     // by both typed and erased callers) -- legitimate erasure boundary;
     // pass at the call site, no intermediate variable.
-    DirContents   dc = dir_get_contents(path, ALLOCATOR_OF(&ha));
+    DirContents dc = dir_get_contents(path, ALLOCATOR_OF(&ha));
 
     bool ok        = true;
     size path_len  = ZstrLen(path);
     bool trail_sep = (path_len > 0 && path[path_len - 1] == '/');
     for (size i = 0; i < VecLen(&dc); ++i) {
-        DirEntry *e         = VecPtrAt(&dc, i);
-        Zstr      entry_nm  = StrBegin(&e->name);
+        DirEntry *e        = VecPtrAt(&dc, i);
+        Zstr      entry_nm = StrBegin(&e->name);
         if (ZstrCompare(entry_nm, ".") == 0 || ZstrCompare(entry_nm, "..") == 0) {
             continue;
         }

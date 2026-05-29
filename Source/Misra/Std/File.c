@@ -28,9 +28,11 @@
 // Mode parsing
 // ---------------------------------------------------------------------------
 
-// Parse a libc-style mode string ("r", "w", "a", with optional '+' or 'b').
-// Returns POSIX open() flags. `binary` is set true regardless -- we treat
-// every mode as binary. Returns false if the mode is invalid.
+// Parse the mode string ("r" / "w" / "a", with optional '+' or 'b')
+// into POSIX-shaped open flags. The 'b' character is accepted and
+// ignored -- every mode is binary, since text-mode translation belongs
+// in higher-level code, not at the syscall boundary. Returns false if
+// the mode is malformed.
 static bool parse_open_mode(Zstr mode, int *out_flags) {
 #if PLATFORM_WINDOWS
     (void)mode;
@@ -144,7 +146,15 @@ File file_open(Zstr path, Zstr mode) {
     fd = open(path, flags, 0644);
 #    endif
     if (fd < 0) {
-        LOG_ERROR("FileOpen: open(\"{}\") failed (errno {})", path, (i32)-fd);
+        // LOG_SYS_ERROR is the natural choice but its expansion routes
+        // through `StrError` -> `StrAppendFmt` on a 256-byte
+        // `StrInitStack` scratch whose allocator is NULL. The integer
+        // formatter inside `StrAppendFmt` builds its own scratch `Str`
+        // from `StrAllocator(out)` -- a NULL allocator there trips
+        // `reserve_vec` even though the rendered text would fit in the
+        // 256-byte slot. Until that pipeline learns a default-allocator
+        // fall-through, surface the errno number directly here.
+        LOG_ERROR("FileOpen: open(\"{}\") failed (errno {})", path, ErrnoOf(fd));
         return f;
     }
     f.fd   = (i32)fd;
@@ -512,10 +522,12 @@ i64 file_write_and_close_from_str(Zstr path, const Str *in) {
 }
 
 // ---------------------------------------------------------------------------
-// FileOpenTemp -- atomic-unique-create replacement for libc mkstemp.
-// Filename entropy comes from the project-wide `Prng64`. Open is
-// `O_RDWR | O_CREAT | O_EXCL | 0600` so two callers racing on the
-// same prefix can never collide -- one wins, the other retries.
+// FileOpenTemp -- atomic-unique-create open in CWD. Filename entropy
+// comes from the project-wide `Prng64`; the open uses
+// `O_CREAT | O_EXCL | 0600` so two callers racing on the same prefix
+// can never collide -- one wins, the other retries with fresh
+// entropy. Race-free unique-create is the whole point; a plain
+// `Prng64` + `FileOpen("w")` would clobber an existing file.
 // ---------------------------------------------------------------------------
 
 File file_open_temp(Str *out_path, Allocator *alloc) {

@@ -154,11 +154,8 @@ uint64_t bench_live_bytes(void) {
 }
 
 uint64_t bench_footprint_bytes(void) {
-    // Only the page-backed mode can report a meaningful footprint
-    // today; Heap and Slab manage their own pages with no public
-    // committed-bytes accessor yet.
-    if (g_mode == MODE_PAGE) {
-        return (uint64_t)PageAllocatorFootprintBytes(&g_page);
-    }
+    if (g_mode == MODE_HEAP) return (uint64_t)AllocatorFootprintBytes(&g_heap);
+    if (g_mode == MODE_SLAB) return (uint64_t)AllocatorFootprintBytes(&g_slab);
+    if (g_mode == MODE_PAGE) return (uint64_t)AllocatorFootprintBytes(&g_page);
     return 0;
 }

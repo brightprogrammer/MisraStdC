@@ -745,7 +745,7 @@ bool graph_add_edge(GenericGraph *graph, GraphNodeId from, GraphNodeId to) {
     return true;
 }
 
-u64 graph_node_visit(GraphNode node) {
+u64 GraphNodeVisit(GraphNode node) {
     GenericGraph     *graph;
     GenericGraphSlot *slot;
 
@@ -761,7 +761,7 @@ u64 graph_node_visit(GraphNode node) {
     return slot->visit_count;
 }
 
-void graph_node_unvisit(GraphNode node) {
+void GraphNodeUnvisit(GraphNode node) {
     GenericGraph     *graph;
     GenericGraphSlot *slot;
 
@@ -772,7 +772,7 @@ void graph_node_unvisit(GraphNode node) {
     slot->visit_count = 0;
 }
 
-u64 graph_node_visit_count(GraphNode node) {
+u64 GraphNodeVisitCount(GraphNode node) {
     GenericGraph           *graph;
     const GenericGraphSlot *slot;
 
@@ -782,11 +782,11 @@ u64 graph_node_visit_count(GraphNode node) {
     return slot->visit_count;
 }
 
-bool graph_node_visited(GraphNode node) {
-    return graph_node_visit_count(node) > 0;
+bool GraphNodeVisited(GraphNode node) {
+    return GraphNodeVisitCount(node) > 0;
 }
 
-bool graph_mark_node_for_deletion(GraphNode node) {
+bool GraphMarkNodeForDeletion(GraphNode node) {
     GenericGraph     *graph;
     GenericGraphSlot *slot;
 
@@ -803,7 +803,7 @@ bool graph_mark_node_for_deletion(GraphNode node) {
     return true;
 }
 
-bool graph_node_marked_for_deletion(GraphNode node) {
+bool GraphNodeMarkedForDeletion(GraphNode node) {
     GenericGraph           *graph;
     const GenericGraphSlot *slot;
 
@@ -814,7 +814,7 @@ bool graph_node_marked_for_deletion(GraphNode node) {
     return graph_slot_is_marked(slot);
 }
 
-bool graph_unmark_node_for_deletion(GraphNode node) {
+bool GraphUnmarkNodeForDeletion(GraphNode node) {
     GenericGraph     *graph;
     GenericGraphSlot *slot;
 

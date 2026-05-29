@@ -90,8 +90,8 @@ typedef struct Pdb {
     PdbFunctions functions;
     // `dir_stream_blocks` borrows from `data` (it's an array of u32
     // block indices for the stream directory itself), and
-    // `stream_dir` is a malloced contiguous reconstruction of the
-    // directory bytes. Together they support stream reads.
+    // `stream_dir` is an allocator-backed contiguous reconstruction of
+    // the directory bytes. Together they support stream reads.
     const u32 *dir_stream_blocks;
     u32        dir_stream_blocks_count;
     u8        *stream_dir;
@@ -107,6 +107,17 @@ typedef struct Pdb {
     size  name_pool_size;
     size  name_pool_used;
 } Pdb;
+
+///
+/// Borrowed handle to the decoded PDB Info stream (stream #1). Cross-
+/// namespace readers (`PdbCache`, ...) compare `(guid, age)` against
+/// the PE's CodeView record to confirm the PDB matches; this is the
+/// public seam they go through instead of reaching at `self->info`
+/// directly.
+///
+/// TAGS: Parser, PDB, Accessor
+///
+#define PdbInfoStream(self) ((void)0, &(self)->info)
 
 ///
 /// Open and parse a PDB from disk.

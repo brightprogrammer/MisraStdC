@@ -44,6 +44,10 @@ typedef struct HttpHeader {
 /// Initialize an empty `HttpHeader`. Inside a `Scope` the allocator
 /// argument may be omitted (uses `MisraScope`).
 ///
+/// SUCCESS : Returns an `HttpHeader` whose `key` and `value` are empty
+///           `Str`s backed by the resolved allocator.
+/// FAILURE : Macro cannot fail (pure literal expansion).
+///
 /// TAGS: Http, Header, Init
 ///
 #define HttpHeaderInit(...)         OVERLOAD(HttpHeaderInit, __VA_ARGS__)
@@ -104,10 +108,10 @@ bool http_header_init_copy(void *dst, const void *src, const Allocator *alloc);
 ///
 HttpHeader *http_headers_find_zstr(HttpHeaders *headers, Zstr key);
 HttpHeader *http_headers_find_str(HttpHeaders *headers, const Str *key);
-#define HttpHeadersFind(headers, key)                                                                                                                        \
-    _Generic((key), Str *: http_headers_find_str, Zstr: http_headers_find_zstr, char *: http_headers_find_zstr)( \
-        (headers),                                                                                                                                           \
-        (key)                                                                                                                                                \
+#define HttpHeadersFind(headers, key)                                                                                  \
+    _Generic((key), Str *: http_headers_find_str, Zstr: http_headers_find_zstr, char *: http_headers_find_zstr)(       \
+        (headers),                                                                                                     \
+        (key)                                                                                                          \
     )
 
 typedef enum HttpResponseCode {
@@ -242,6 +246,11 @@ typedef struct HttpRequest {
 /// Initialize an empty `HttpRequest`. Inside a `Scope` the allocator
 /// argument may be omitted (uses `MisraScope`).
 ///
+/// SUCCESS : Returns an `HttpRequest` with `method` set to
+///           `HTTP_REQUEST_METHOD_UNKNOWN`, empty `url`, and an empty
+///           `headers` Vec wired for deep-copy element ownership.
+/// FAILURE : Macro cannot fail (pure literal expansion).
+///
 /// TAGS: Http, Request, Init
 ///
 #define HttpRequestInit(...) OVERLOAD(HttpRequestInit, __VA_ARGS__)
@@ -265,10 +274,10 @@ typedef struct HttpRequest {
 ///
 Zstr http_request_parse_zstr(HttpRequest *req, Zstr in);
 Zstr http_request_parse_str(HttpRequest *req, const Str *in);
-#define HttpRequestParse(req, in)                                                                                                                               \
-    _Generic((in), Str *: http_request_parse_str, Zstr: http_request_parse_zstr, char *: http_request_parse_zstr)( \
-        (req),                                                                                                                                                  \
-        (in)                                                                                                                                                    \
+#define HttpRequestParse(req, in)                                                                                      \
+    _Generic((in), Str *: http_request_parse_str, Zstr: http_request_parse_zstr, char *: http_request_parse_zstr)(     \
+        (req),                                                                                                         \
+        (in)                                                                                                           \
     )
 
 ///
@@ -296,6 +305,18 @@ typedef struct HttpResponse {
     Str              body;
 } HttpResponse;
 
+///
+/// Initialize an empty `HttpResponse`. Inside a `Scope` the allocator
+/// argument may be omitted (uses `MisraScope`).
+///
+/// SUCCESS : Returns an `HttpResponse` with `content_type` and
+///           `status_code` set to their invalid sentinels, an empty
+///           `headers` Vec wired for deep-copy element ownership, and
+///           an empty `body`.
+/// FAILURE : Macro cannot fail (pure literal expansion).
+///
+/// TAGS: Http, Response, Init
+///
 #define HttpResponseInit(...) OVERLOAD(HttpResponseInit, __VA_ARGS__)
 #define HttpResponseInit_0()  HttpResponseInit_1(MisraScope)
 #define HttpResponseInit_1(alloc_ptr)                                                                                  \
@@ -342,8 +363,25 @@ HttpResponse *HttpRespondWithHtml(HttpResponse *response, HttpResponseCode statu
 ///
 /// TAGS: Http, Respond, File
 ///
-HttpResponse *
-    HttpRespondWithFile(HttpResponse *response, HttpResponseCode status, HttpContentType content_type, Zstr filepath);
+HttpResponse *http_respond_with_file_zstr(
+    HttpResponse    *response,
+    HttpResponseCode status,
+    HttpContentType  content_type,
+    Zstr             filepath
+);
+HttpResponse *http_respond_with_file_str(
+    HttpResponse    *response,
+    HttpResponseCode status,
+    HttpContentType  content_type,
+    const Str       *filepath
+);
+#    define HttpRespondWithFile(response, status, content_type, filepath)                                                                \
+        _Generic((filepath), Str *: http_respond_with_file_str, Zstr: http_respond_with_file_zstr, char *: http_respond_with_file_zstr)( \
+            (response),                                                                                                                  \
+            (status),                                                                                                                    \
+            (content_type),                                                                                                              \
+            (filepath)                                                                                                                   \
+        )
 #endif
 
 ///

@@ -180,7 +180,7 @@ bool zstr_init_clone(void *dst_ptr, const void *src_ptr, const Allocator *alloc)
     const Zstr *src = (const Zstr *)src_ptr;
 
     if (!dst || !src || !*src || !alloc) {
-        LOG_FATAL("Invalid arguments.");
+        LOG_FATAL("Invalid arguments");
     }
 
     *dst = zstr_dup_n(*src, ZstrLen(*src), (Allocator *)alloc);
@@ -299,9 +299,17 @@ f64 ZstrToF64(Zstr s, Zstr *endptr) {
             eneg = true;
             s++;
         }
+        // Cap the exponent magnitude during accumulation: a long digit
+        // run (e.g. "1e9999999999") would otherwise overflow `i32 exp`
+        // -- signed integer overflow is UB. f64's representable
+        // exponent range is roughly +-308, so anything past 1000 is
+        // already saturating to inf/zero in the mul loop below; the
+        // saturation here just keeps the accumulation well-defined.
         i32 exp = 0;
         while (*s >= '0' && *s <= '9') {
-            exp = exp * 10 + (*s - '0');
+            if (exp < 1000000) {
+                exp = exp * 10 + (*s - '0');
+            }
             s++;
         }
         f64 mul = 1.0;

@@ -35,13 +35,9 @@
 
 // Winsock's `SOCKET` is unsigned UINT_PTR. The public `SockFd` typedef
 // is `u64` on Windows, which holds it losslessly on both Win32 and
-// Win64. Cast helpers move between the two without truncation.
-static inline SOCKET sf_to_socket(SockFd s) {
-    return (SOCKET)s;
-}
-static inline SockFd socket_to_sf(SOCKET s) {
-    return (SockFd)s;
-}
+// Win64. Call sites inline the `(SOCKET)fd` / `(SockFd)s` casts
+// directly -- the conversion is the entirety of the operation, so
+// hiding it behind a helper would be an alias wrapper.
 
 // Lazy one-shot WSAStartup. `Sys/Socket` is the only Misra module that
 // needs Winsock; doing it here keeps the dependency local. The
@@ -113,13 +109,9 @@ static inline long sock_poll(void *pfds, unsigned long nfds, int timeout_ms) {
 }
 #    endif
 
-// POSIX side: SockFd is a thin alias for `int`. No conversion needed.
-static inline int sf_to_int(SockFd s) {
-    return (int)s;
-}
-static inline SockFd int_to_sf(int s) {
-    return (SockFd)s;
-}
+// POSIX side: `SockFd` is a thin alias for `int`. Call sites inline
+// the `(int)fd` / `(SockFd)s` casts directly -- hiding a zero-width
+// conversion behind a helper would be an alias wrapper.
 
 // POSIX: ret is the failing syscall's return value. On Linux direct-
 // syscall it carries -errno directly; on libSystem (macOS) the value
@@ -639,11 +631,11 @@ static SockFd plat_socket(int af, int type, int proto) {
         LOG_SOCK_ERROR(0, "socket() failed");
         return SOCKET_FD_INVALID;
     }
-    return socket_to_sf(s);
+    return (SockFd)s;
 }
 
 static bool plat_bind(SockFd s, const void *addr, u32 len) {
-    if (bind(sf_to_socket(s), (const struct sockaddr *)addr, (int)len) == SOCKET_ERROR) {
+    if (bind((SOCKET)s, (const struct sockaddr *)addr, (int)len) == SOCKET_ERROR) {
         LOG_SOCK_ERROR(0, "bind() failed");
         return false;
     }
@@ -651,7 +643,7 @@ static bool plat_bind(SockFd s, const void *addr, u32 len) {
 }
 
 static bool plat_listen(SockFd s, int backlog) {
-    if (listen(sf_to_socket(s), backlog) == SOCKET_ERROR) {
+    if (listen((SOCKET)s, backlog) == SOCKET_ERROR) {
         LOG_SOCK_ERROR(0, "listen() failed");
         return false;
     }
@@ -660,17 +652,17 @@ static bool plat_listen(SockFd s, int backlog) {
 
 static SockFd plat_accept(SockFd s, void *addr, u32 *len_io) {
     int    sl = (int)*len_io;
-    SOCKET c  = accept(sf_to_socket(s), (struct sockaddr *)addr, &sl);
+    SOCKET c  = accept((SOCKET)s, (struct sockaddr *)addr, &sl);
     if (c == INVALID_SOCKET) {
         LOG_SOCK_ERROR(0, "accept() failed");
         return SOCKET_FD_INVALID;
     }
     *len_io = (u32)sl;
-    return socket_to_sf(c);
+    return (SockFd)c;
 }
 
 static bool plat_connect(SockFd s, const void *addr, u32 len) {
-    if (connect(sf_to_socket(s), (const struct sockaddr *)addr, (int)len) == SOCKET_ERROR) {
+    if (connect((SOCKET)s, (const struct sockaddr *)addr, (int)len) == SOCKET_ERROR) {
         LOG_SOCK_ERROR(0, "connect() failed");
         return false;
     }
@@ -679,7 +671,7 @@ static bool plat_connect(SockFd s, const void *addr, u32 len) {
 
 static i64 plat_recv(SockFd s, void *buf, size n) {
     int len = (int)((n > (size)0x7FFFFFFF) ? (size)0x7FFFFFFF : n);
-    int r   = recv(sf_to_socket(s), (char *)buf, len, 0);
+    int r   = recv((SOCKET)s, (char *)buf, len, 0);
     if (r == SOCKET_ERROR) {
         LOG_SOCK_ERROR(0, "recv() failed");
         return -1;
@@ -690,7 +682,7 @@ static i64 plat_recv(SockFd s, void *buf, size n) {
 static i64 plat_send(SockFd s, const void *buf, size n) {
     int len = (int)((n > (size)0x7FFFFFFF) ? (size)0x7FFFFFFF : n);
     // No MSG_NOSIGNAL needed -- Winsock doesn't raise SIGPIPE.
-    int r = send(sf_to_socket(s), (Zstr)buf, len, 0);
+    int r = send((SOCKET)s, (Zstr)buf, len, 0);
     if (r == SOCKET_ERROR) {
         LOG_SOCK_ERROR(0, "send() failed");
         return -1;
@@ -699,7 +691,7 @@ static i64 plat_send(SockFd s, const void *buf, size n) {
 }
 
 static bool plat_setsockopt(SockFd s, int level, int optname, const void *optval, u32 optlen) {
-    if (setsockopt(sf_to_socket(s), level, optname, (Zstr)optval, (int)optlen) == SOCKET_ERROR) {
+    if (setsockopt((SOCKET)s, level, optname, (Zstr)optval, (int)optlen) == SOCKET_ERROR) {
         LOG_SOCK_ERROR(0, "setsockopt() failed");
         return false;
     }
@@ -708,7 +700,7 @@ static bool plat_setsockopt(SockFd s, int level, int optname, const void *optval
 
 static bool plat_getsockname(SockFd s, void *addr, u32 *len_io) {
     int sl = (int)*len_io;
-    if (getsockname(sf_to_socket(s), (struct sockaddr *)addr, &sl) == SOCKET_ERROR) {
+    if (getsockname((SOCKET)s, (struct sockaddr *)addr, &sl) == SOCKET_ERROR) {
         LOG_SOCK_ERROR(0, "getsockname() failed");
         return false;
     }
@@ -719,14 +711,14 @@ static bool plat_getsockname(SockFd s, void *addr, u32 *len_io) {
 static void plat_close(SockFd s) {
     if (s == SOCKET_FD_INVALID)
         return;
-    if (closesocket(sf_to_socket(s)) == SOCKET_ERROR) {
+    if (closesocket((SOCKET)s) == SOCKET_ERROR) {
         LOG_SOCK_ERROR(0, "closesocket() failed");
     }
 }
 
 static bool plat_set_nonblocking(SockFd s, bool nonblock) {
     u_long mode = nonblock ? 1u : 0u;
-    if (ioctlsocket(sf_to_socket(s), FIONBIO, &mode) == SOCKET_ERROR) {
+    if (ioctlsocket((SOCKET)s, FIONBIO, &mode) == SOCKET_ERROR) {
         LOG_SOCK_ERROR(0, "ioctlsocket(FIONBIO) failed");
         return false;
     }
@@ -747,11 +739,11 @@ static SockFd plat_socket(int af, int type, int proto) {
         LOG_SOCK_ERROR(ret, "socket() failed");
         return SOCKET_FD_INVALID;
     }
-    return int_to_sf((int)ret);
+    return (SockFd)ret;
 }
 
 static bool plat_bind(SockFd s, const void *addr, u32 len) {
-    long ret = misra_sys3(MISRA_SYS_bind, (long)sf_to_int(s), (long)(u64)(const struct sockaddr *)addr, (long)(socklen_t)len);
+    long ret = misra_sys3(MISRA_SYS_bind, (long)(int)s, (long)(u64)(const struct sockaddr *)addr, (long)(socklen_t)len);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "bind() failed");
         return false;
@@ -760,7 +752,7 @@ static bool plat_bind(SockFd s, const void *addr, u32 len) {
 }
 
 static bool plat_listen(SockFd s, int backlog) {
-    long ret = misra_sys2(MISRA_SYS_listen, (long)sf_to_int(s), (long)backlog);
+    long ret = misra_sys2(MISRA_SYS_listen, (long)(int)s, (long)backlog);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "listen() failed");
         return false;
@@ -770,17 +762,18 @@ static bool plat_listen(SockFd s, int backlog) {
 
 static SockFd plat_accept(SockFd s, void *addr, u32 *len_io) {
     socklen_t sl  = (socklen_t)*len_io;
-    long      ret = misra_sys3(MISRA_SYS_accept, (long)sf_to_int(s), (long)(u64)(struct sockaddr *)addr, (long)(u64)&sl);
+    long      ret = misra_sys3(MISRA_SYS_accept, (long)(int)s, (long)(u64)(struct sockaddr *)addr, (long)(u64)&sl);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "accept() failed");
         return SOCKET_FD_INVALID;
     }
     *len_io = (u32)sl;
-    return int_to_sf((int)ret);
+    return (SockFd)ret;
 }
 
 static bool plat_connect(SockFd s, const void *addr, u32 len) {
-    long ret = misra_sys3(MISRA_SYS_connect, (long)sf_to_int(s), (long)(u64)(const struct sockaddr *)addr, (long)(socklen_t)len);
+    long ret =
+        misra_sys3(MISRA_SYS_connect, (long)(int)s, (long)(u64)(const struct sockaddr *)addr, (long)(socklen_t)len);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "connect() failed");
         return false;
@@ -789,7 +782,7 @@ static bool plat_connect(SockFd s, const void *addr, u32 len) {
 }
 
 static i64 plat_recv(SockFd s, void *buf, size n) {
-    long ret = misra_sys6(MISRA_SYS_recvfrom, (long)sf_to_int(s), (long)(u64)buf, (long)(size)n, 0, 0, 0);
+    long ret = misra_sys6(MISRA_SYS_recvfrom, (long)(int)s, (long)(u64)buf, (long)(size)n, 0, 0, 0);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "recv() failed");
         return -1;
@@ -798,7 +791,7 @@ static i64 plat_recv(SockFd s, void *buf, size n) {
 }
 
 static i64 plat_send(SockFd s, const void *buf, size n) {
-    long ret = misra_sys6(MISRA_SYS_sendto, (long)sf_to_int(s), (long)(u64)buf, (long)(size)n, (long)MSG_NOSIGNAL, 0, 0);
+    long ret = misra_sys6(MISRA_SYS_sendto, (long)(int)s, (long)(u64)buf, (long)(size)n, (long)MSG_NOSIGNAL, 0, 0);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "send() failed");
         return -1;
@@ -807,7 +800,14 @@ static i64 plat_send(SockFd s, const void *buf, size n) {
 }
 
 static bool plat_setsockopt(SockFd s, int level, int optname, const void *optval, u32 optlen) {
-    long ret = misra_sys5(MISRA_SYS_setsockopt, (long)sf_to_int(s), (long)level, (long)optname, (long)(u64)optval, (long)(socklen_t)optlen);
+    long ret = misra_sys5(
+        MISRA_SYS_setsockopt,
+        (long)(int)s,
+        (long)level,
+        (long)optname,
+        (long)(u64)optval,
+        (long)(socklen_t)optlen
+    );
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "setsockopt() failed");
         return false;
@@ -817,7 +817,7 @@ static bool plat_setsockopt(SockFd s, int level, int optname, const void *optval
 
 static bool plat_getsockname(SockFd s, void *addr, u32 *len_io) {
     socklen_t sl  = (socklen_t)*len_io;
-    long      ret = misra_sys3(MISRA_SYS_getsockname, (long)sf_to_int(s), (long)(u64)(struct sockaddr *)addr, (long)(u64)&sl);
+    long      ret = misra_sys3(MISRA_SYS_getsockname, (long)(int)s, (long)(u64)(struct sockaddr *)addr, (long)(u64)&sl);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "getsockname() failed");
         return false;
@@ -829,14 +829,14 @@ static bool plat_getsockname(SockFd s, void *addr, u32 *len_io) {
 static void plat_close(SockFd s) {
     if (s == SOCKET_FD_INVALID)
         return;
-    long ret = misra_sys1(MISRA_SYS_close, (long)sf_to_int(s));
+    long ret = misra_sys1(MISRA_SYS_close, (long)(int)s);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "close() failed");
     }
 }
 
 static bool plat_set_nonblocking(SockFd s, bool nonblock) {
-    long flags = misra_sys3(MISRA_SYS_fcntl, (long)sf_to_int(s), (long)F_GETFL, 0);
+    long flags = misra_sys3(MISRA_SYS_fcntl, (long)(int)s, (long)F_GETFL, 0);
     if (flags < 0) {
         LOG_SOCK_ERROR(flags, "fcntl(F_GETFL) failed");
         return false;
@@ -846,7 +846,7 @@ static bool plat_set_nonblocking(SockFd s, bool nonblock) {
     } else {
         flags &= ~O_NONBLOCK;
     }
-    long ret = misra_sys3(MISRA_SYS_fcntl, (long)sf_to_int(s), (long)F_SETFL, flags);
+    long ret = misra_sys3(MISRA_SYS_fcntl, (long)(int)s, (long)F_SETFL, flags);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "fcntl(F_SETFL) failed");
         return false;
@@ -1108,9 +1108,9 @@ i32 SocketPoll(SocketPollItem *items, u32 count, i32 timeout_ms) {
 
     for (u32 i = 0; i < count; ++i) {
 #if PLATFORM_WINDOWS
-        pfds[i].fd = sf_to_socket(items[i].fd);
+        pfds[i].fd = (SOCKET)items[i].fd;
 #else
-        pfds[i].fd = sf_to_int(items[i].fd);
+        pfds[i].fd = (int)items[i].fd;
 #endif
         pfds[i].events = 0;
         if (items[i].events_requested & SOCKET_POLL_READ) {

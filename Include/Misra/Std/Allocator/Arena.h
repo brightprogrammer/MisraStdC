@@ -28,11 +28,11 @@ extern "C" {
     typedef struct ArenaChunk ArenaChunk;
 
     typedef struct ArenaAllocator {
-        Allocator     base;
-        ArenaChunk   *head;
-        ArenaChunk   *tail;
-        u8           *last_ptr;
-        size          last_size;
+        Allocator   base;
+        ArenaChunk *head;
+        ArenaChunk *tail;
+        u8         *last_ptr;
+        size        last_size;
     } ArenaAllocator;
 
     ///
@@ -65,19 +65,26 @@ extern "C" {
     ///
     /// TAGS: Allocator, Arena, Memory, InPlace
     ///
-    i8    arena_allocator_resize(ArenaAllocator *self, void *ptr, size new_size);
+    i8 arena_allocator_resize(ArenaAllocator *self, void *ptr, size new_size);
 
     ///
-    /// Resize an arena allocation with relocation allowed. When the
-    /// most-recent-allocation snapshot matches `ptr` this falls back
-    /// to allocating + copying in the same arena; older allocations
-    /// always copy into a fresh bump.
+    /// Resize an arena allocation with relocation allowed. Only the
+    /// most-recent allocation (the snapshot pointer) is remappable: if
+    /// it fits in its own chunk the bump cursor extends in place; if
+    /// not, a fresh bump in a new (or current) chunk is taken and the
+    /// old bytes are copied into it. Older allocations cannot be
+    /// remapped under the bump policy and abort via `LOG_FATAL`.
     ///
     /// SUCCESS: Returns the (possibly moved) pointer. When `ptr` is
     ///          NULL this behaves like
-    ///          `arena_allocator_allocate(self, new_size, 0)`.
+    ///          `arena_allocator_allocate(self, new_size, true)` --
+    ///          fresh allocations from a remap-NULL are zeroed.
+    ///          When `new_size == 0` returns NULL without freeing
+    ///          (arena bump policy reclaims only at Reset / Deinit).
     /// FAILURE: Returns NULL when a fresh chunk cannot be obtained.
-    ///          The old allocation is left untouched.
+    ///          The old allocation is left untouched. Aborts via
+    ///          `LOG_FATAL` when `ptr` is foreign to this arena or
+    ///          is not the most-recent allocation.
     ///
     /// TAGS: Allocator, Arena, Memory, Reallocation
     ///
@@ -98,7 +105,7 @@ extern "C" {
     ///
     /// TAGS: Allocator, Arena, Memory, Deallocation
     ///
-    size  arena_allocator_deallocate(ArenaAllocator *self, void *ptr);
+    size arena_allocator_deallocate(ArenaAllocator *self, void *ptr);
 
     ///
     /// Release every chunk currently owned by `self`. Walks the
@@ -157,14 +164,15 @@ extern "C" {
 #define ArenaAllocatorInit()                                                                                           \
     ((ArenaAllocator) {                                                                                                \
         .base =                                                                                                        \
-            {.allocate    = (AllocatorAllocateFn)arena_allocator_allocate,                                             \
-                   .resize      = (AllocatorResizeFn)arena_allocator_resize,                                                 \
-                   .remap       = (AllocatorRemapFn)arena_allocator_remap,                                                   \
-                   .deallocate  = (AllocatorDeallocateFn)arena_allocator_deallocate,                                         \
-                   .alignment   = 1,                                                                                         \
-                   .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
-                   .retry_limit = 0,                                                                                         \
-                   .__magic     = ARENA_ALLOCATOR_MAGIC},                                                                        \
+            {.allocate        = (AllocatorAllocateFn)arena_allocator_allocate,                                         \
+                   .resize          = (AllocatorResizeFn)arena_allocator_resize,                                             \
+                   .remap           = (AllocatorRemapFn)arena_allocator_remap,                                               \
+                   .deallocate      = (AllocatorDeallocateFn)arena_allocator_deallocate,                                     \
+                   .alignment       = 1,                                                                                     \
+                   .effort          = ALLOCATOR_EFFORT_ONCE,                                                                 \
+                   .retry_limit     = 0,                                                                                     \
+                   .__magic         = ARENA_ALLOCATOR_MAGIC,                                                                 \
+                   .footprint_bytes = 0},                                                                                    \
         .head      = NULL,                                                                                             \
         .tail      = NULL,                                                                                             \
         .last_ptr  = NULL,                                                                                             \
@@ -186,14 +194,15 @@ extern "C" {
 #define ArenaAllocatorInitAligned(N)                                                                                   \
     ((ArenaAllocator) {                                                                                                \
         .base =                                                                                                        \
-            {.allocate    = (AllocatorAllocateFn)arena_allocator_allocate,                                             \
-                   .resize      = (AllocatorResizeFn)arena_allocator_resize,                                                 \
-                   .remap       = (AllocatorRemapFn)arena_allocator_remap,                                                   \
-                   .deallocate  = (AllocatorDeallocateFn)arena_allocator_deallocate,                                         \
-                   .alignment   = (N) ? (N) : 1,                                                                             \
-                   .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
-                   .retry_limit = 0,                                                                                         \
-                   .__magic     = ARENA_ALLOCATOR_MAGIC},                                                                        \
+            {.allocate        = (AllocatorAllocateFn)arena_allocator_allocate,                                         \
+                   .resize          = (AllocatorResizeFn)arena_allocator_resize,                                             \
+                   .remap           = (AllocatorRemapFn)arena_allocator_remap,                                               \
+                   .deallocate      = (AllocatorDeallocateFn)arena_allocator_deallocate,                                     \
+                   .alignment       = (N) ? (N) : 1,                                                                         \
+                   .effort          = ALLOCATOR_EFFORT_ONCE,                                                                 \
+                   .retry_limit     = 0,                                                                                     \
+                   .__magic         = ARENA_ALLOCATOR_MAGIC,                                                                 \
+                   .footprint_bytes = 0},                                                                                    \
         .head      = NULL,                                                                                             \
         .tail      = NULL,                                                                                             \
         .last_ptr  = NULL,                                                                                             \

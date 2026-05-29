@@ -39,15 +39,15 @@ option('int',    type: 'boolean', value: true, description: 'Build Int arbitrary
 option('float',  type: 'boolean', value: true, description: 'Build Float arbitrary-precision decimal. Requires int.')
 
 # --- Std subsystems ---------------------------------------------------------
-option('file', type: 'boolean', value: true, description: 'Build File helpers (ReadCompleteFile, ...).')
+option('file', type: 'boolean', value: true, description: 'Build File helpers (FileOpen / FileRead / FileReadAndClose / FileWrite / FileWriteAndClose).')
 option('iter', type: 'boolean', value: true, description: 'Build Iter utility helpers.')
 
 # --- Sys subsystems ---------------------------------------------------------
-option('sys_dir',    type: 'boolean', value: true, description: 'Build directory-handling syscalls (DirContents, ...).')
-option('sys_proc',   type: 'boolean', value: true, description: 'Build process-spawning syscalls (ProcCreate, ...).')
+option('sys_dir',    type: 'boolean', value: true, description: 'Build directory-handling syscalls (DirGetContents, ...).')
+option('sys_proc',   type: 'boolean', value: true, description: 'Build process-spawning syscalls (ProcInit, ...).')
 option('sys_socket',    type: 'boolean', value: true, description: 'Build TCP/UDP socket abstraction (Listener, Socket, SocketPoll, ...). POSIX only at present.')
-option('sys_procmaps',  type: 'boolean', value: true, description: 'Build /proc/self/maps parser (Linux only). Used by the in-tree dladdr replacement.')
-option('sys_symresolve',type: 'boolean', value: true, description: 'Build SymbolResolver (in-tree dladdr replacement). Requires parser_elf + sys_procmaps.')
+option('sys_procmaps',  type: 'boolean', value: true, description: 'Build /proc/self/maps parser (Linux only). Used by SymbolResolver to map a runtime IP to its loaded module.')
+option('sys_symresolve',type: 'boolean', value: true, description: 'Build SymbolResolver (runtime IP -> module + symbol name + offset, via the in-tree ELF/DWARF + ProcMaps chain). Requires parser_elf + sys_procmaps.')
 option('sys_backtrace', type: 'boolean', value: true, description: 'Build Sys/Backtrace (frame-pointer unwinder + symbol-resolving formatter). Linux pulls in sys_symresolve (in-tree ELF/DWARF + ProcMaps); Windows uses dbghelp + parser_pdb/parser_pe; Darwin uses parser_macho + Sys/MachoCache.')
 option('sys_dns',       type: 'boolean', value: true, description: 'Build Sys/Dns (in-tree DNS resolver: /etc/hosts + /etc/resolv.conf + UDP query/response). Requires parser_dns + sys_socket.')
 
@@ -55,7 +55,7 @@ option('sys_dns',       type: 'boolean', value: true, description: 'Build Sys/Dn
 option('parser_json',     type: 'boolean', value: true, description: 'Build JSON reader/writer.')
 option('parser_kvconfig', type: 'boolean', value: true, description: 'Build key-value config parser. Requires map.')
 option('parser_http',     type: 'boolean', value: true, description: 'Build HTTP/1.1 request + response parser/serializer.')
-option('parser_elf',      type: 'boolean', value: true, description: 'Build ELF64 parser (header, sections, symbol tables). Used by the in-tree dladdr replacement.')
+option('parser_elf',      type: 'boolean', value: true, description: 'Build ELF64 parser (header, sections, symbol tables). Used by SymbolResolver to walk loaded modules.')
 option('parser_dwarf',    type: 'boolean', value: true, description: 'Build DWARF parsers: .debug_line (IP → file:line) and .eh_frame CFI (frame-pointer-less stack unwinding). Requires parser_elf.')
 option('parser_pe',       type: 'boolean', value: true, description: 'Build PE/COFF parser. Used by the Windows backtrace path to locate the CodeView (PDB) reference in a PE binary.')
 option('parser_pdb',      type: 'boolean', value: true, description: 'Build PDB reader (MSF container + DBI/Publics streams). Used by the Windows backtrace path to resolve symbols without dbghelp. Requires parser_pe.')

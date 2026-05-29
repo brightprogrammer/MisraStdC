@@ -17,13 +17,14 @@
 #include <Misra/Sys/Backtrace.h>
 
 // Per-thread unique ID. Returns the TCB self-pointer via one register
-// read on the platforms where the ABI exposes it directly -- no libc,
-// no TLS bootstrap. Other platforms fall back to a TLS-marker byte
-// whose address is per-thread.
+// read on the platforms where the ABI exposes it directly -- no
+// userspace TLS bootstrap call required. Other platforms fall back to
+// a TLS-marker byte whose address is per-thread.
 //
 // macOS: avoid `__thread`. On Darwin that triggers a `__tlv_bootstrap`
-// reference against libSystem, which the Bin/-tools libc-diet gate
-// (Mac CI) rejects -- the allowed-set is `__dyld_get_image_*` only.
+// reference against libSystem, which the Bin/-tools allowed-symbol
+// gate (Mac CI) rejects -- the allowed-set is `__dyld_get_image_*`
+// only.
 
 #if PLATFORM_LINUX && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)
 
@@ -207,7 +208,7 @@ static const DebugFreedEntry *debug_freed_find(const DebugAllocator *dbg, void *
 }
 
 // ---------------------------------------------------------------------------
-// allocate / reallocate / deallocate
+// allocate / resize / remap / deallocate
 // ---------------------------------------------------------------------------
 
 void *debug_allocator_allocate(DebugAllocator *self, size bytes, i8 zeroed) {
@@ -221,9 +222,8 @@ void *debug_allocator_allocate(DebugAllocator *self, size bytes, i8 zeroed) {
     // normal mode through the embedded HeapAllocator. Branching on the
     // typed call directly keeps both arms on the typed-dispatch path
     // (no upcast to `Allocator *`, no AllocatorAlloc_dyn).
-    void *user_p = self->config.force_page_backing
-                       ? AllocatorAlloc(&self->page, padded, zeroed)
-                       : AllocatorAlloc(&self->heap, padded, zeroed);
+    void *user_p = self->config.force_page_backing ? AllocatorAlloc(&self->page, padded, zeroed) :
+                                                     AllocatorAlloc(&self->heap, padded, zeroed);
     if (!user_p) {
 #if FEATURE_ALLOC_STATS
         self->base.stats.failed_allocations += 1u;
@@ -246,8 +246,10 @@ void *debug_allocator_allocate(DebugAllocator *self, size bytes, i8 zeroed) {
     }
 
     if (!MapInsertR(&self->live, user_p, rec)) {
-        if (self->config.force_page_backing) AllocatorFree(&self->page, user_p);
-        else                                 AllocatorFree(&self->heap, user_p);
+        if (self->config.force_page_backing)
+            AllocatorFree(&self->page, user_p);
+        else
+            AllocatorFree(&self->heap, user_p);
         LOG_ERROR("DebugAllocator: failed to record allocation in live map");
 #if FEATURE_ALLOC_STATS
         self->base.stats.failed_allocations += 1u;
@@ -325,8 +327,10 @@ size debug_allocator_deallocate(DebugAllocator *self, void *ptr) {
         // let its state-machine diagnostic fire -- Heap LOG_FATALs
         // with "foreign ptr"; PageAllocator does the same via its
         // entries-table lookup.
-        if (self->config.force_page_backing) AllocatorFree(&self->page, ptr);
-        else                                 AllocatorFree(&self->heap, ptr);
+        if (self->config.force_page_backing)
+            AllocatorFree(&self->page, ptr);
+        else
+            AllocatorFree(&self->heap, ptr);
         return 0;
     }
 
@@ -376,9 +380,6 @@ size debug_allocator_deallocate(DebugAllocator *self, void *ptr) {
             LOG_ERROR("DebugAllocator: PageProtect(PROT_NONE) failed on {x}", (u64)ptr);
         }
     } else {
-        // The outer `if (force_page_backing)` already handled the
-        // page-backed branch; here force_page_backing is false, so the
-        // backing is unconditionally the embedded heap.
         AllocatorFree(&self->heap, ptr);
     }
 #if FEATURE_ALLOC_STATS
@@ -414,7 +415,11 @@ void *debug_allocator_remap(DebugAllocator *self, void *ptr, size new_size) {
         return NULL;
     }
     if (!ptr) {
-        return debug_allocator_allocate(self, new_size, false);
+        // Fresh allocations from a remap-NULL are zeroed, matching the
+        // other typed allocators (Heap/Page/Arena/Slab/Budget) so callers
+        // get the same initial-state guarantee regardless of which typed
+        // allocator backs the dispatch.
+        return debug_allocator_allocate(self, new_size, true);
     }
     // Look up the original requested size from the live map to bound
     // the copy. If ptr is not in the live map, forward to deallocate

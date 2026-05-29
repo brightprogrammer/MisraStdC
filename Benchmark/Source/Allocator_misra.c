@@ -23,14 +23,13 @@
 #include <Misra/Std/Allocator/Heap.h>
 #include <Misra/Std/Allocator/Page.h>
 
-static HeapAllocator g_heap;
-static Allocator    *g_alloc = NULL;
-// `g_heap_typed` exists so the bench passes a typed `HeapAllocator *`
-// to AllocatorAlloc / AllocatorFree. With the perf-branch _Generic
-// macros that picks the typed-direct path (heap_allocator_allocate /
-// heap_allocator_free), skipping AllocatorAlloc_dyn + ValidateAllocator
-// + the retry loop + stats accounting. Without the macros (stock
-// build) it's just an unused alias.
+// Typed HeapAllocator pointer so AllocatorAlloc / AllocatorFree's
+// _Generic dispatches to the typed-direct path
+// (heap_allocator_allocate / heap_allocator_free), skipping
+// AllocatorAlloc_dyn + ValidateAllocator + the retry loop + stats
+// accounting. Stays NULL between bench_teardown and the next
+// bench_init so callers can branch on liveness.
+static HeapAllocator  g_heap;
 static HeapAllocator *g_heap_typed = NULL;
 
 Zstr bench_backend_name(void) {
@@ -47,7 +46,6 @@ Zstr bench_backend_name(void) {
 
 void bench_init(void) {
     g_heap       = HeapAllocatorInit();
-    g_alloc      = ALLOCATOR_OF(&g_heap);
     g_heap_typed = &g_heap;
 }
 
@@ -57,15 +55,18 @@ void bench_init(void) {
 // honest pick. The hints exist so the bench code is uniform; this
 // backend deliberately ignores them, which is the whole point of
 // the comparison against Allocator_misra_correct.c.
-void bench_use_fixed_size(size_t slot) { (void)slot; }
-void bench_use_general(void)           {}
-int  bench_can_reset(void)             { return 0; }
-void bench_reset(void)                 {}
+void bench_use_fixed_size(size_t slot) {
+    (void)slot;
+}
+void bench_use_general(void) {}
+int  bench_can_reset(void) {
+    return 0;
+}
+void bench_reset(void) {}
 
 void bench_teardown(void) {
-    if (g_alloc) {
+    if (g_heap_typed) {
         HeapAllocatorDeinit(&g_heap);
-        g_alloc      = NULL;
         g_heap_typed = NULL;
     }
 }
@@ -92,21 +93,19 @@ void bench_free(void *p) {
 
 uint64_t bench_live_bytes(void) {
 #if FEATURE_ALLOC_STATS
-    return (uint64_t)AllocatorBytesInUse(g_alloc);
+    if (!g_heap_typed)
+        return 0;
+    return (uint64_t)AllocatorBytesInUse(g_heap_typed);
 #else
     return 0;
 #endif
 }
 
 uint64_t bench_footprint_bytes(void) {
-    // The HeapAllocator no longer embeds a PageAllocator -- it goes
-    // straight to the kernel via the internal `_Os.h` shim and tracks
-    // its OS-page descriptors in its own `pages[]` hash table plus
-    // `xl[]` passthrough array. Those descriptors are not part of the
-    // public surface, so there's no allocator-introspective accessor
-    // we can call here without reaching into private fields. Fall back
-    // to the stats-tracked live-bytes number, which underestimates
-    // kernel footprint (no per-page overhead) but is the cleanest
-    // public-API readout available.
-    return bench_live_bytes();
+    // HeapAllocator's `base.footprint_bytes` is bumped/drawn down by
+    // every `os_page_map` / `os_page_unmap` call the heap issues, so
+    // the direct-field accessor returns the exact OS-page footprint.
+    if (!g_heap_typed)
+        return 0;
+    return (uint64_t)AllocatorFootprintBytes(g_heap_typed);
 }

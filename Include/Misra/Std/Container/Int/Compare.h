@@ -14,12 +14,12 @@ extern "C" {
 #endif
 
     ///
-    /// Compare two arbitrary-precision integers. Typed signature; cast to
-    /// `GenericCompare` at the `Map` / `Vec` callback site (the standard
-    /// pattern -- see `MapInitFull_9` and `VecFind`).
+    /// Compare two arbitrary-precision integers. Matches the
+    /// `GenericCompare` shape so it drops straight into map / vec
+    /// compare slots.
     ///
-    /// lhs[in] : Left-hand operand
-    /// rhs[in] : Right-hand operand
+    /// lhs[in] : Left-hand operand (pointer to `Int`).
+    /// rhs[in] : Right-hand operand (pointer to `Int`).
     ///
     /// SUCCESS : Returns `-1` if `lhs < rhs`, `0` if equal, `1` if
     ///           `lhs > rhs`. Neither operand is modified.
@@ -31,19 +31,20 @@ extern "C" {
     ///
     /// TAGS: Int, Compare, Ordering, GenericCompare
     ///
-    int int_compare(const Int *lhs, const Int *rhs);
+    i32 int_compare(const void *lhs, const void *rhs);
 
     ///
     /// Hash an `Int` for use as a map key. FNV-1a over the magnitude
-    /// bytes. Typed signature; cast to `GenericHash` at the
-    /// `Map` / `Vec` callback site (the standard pattern -- see
-    /// `MapInitFull_9` and `VecFind`).
+    /// bytes. Matches the `GenericHash` shape so it drops straight into
+    /// map / vec hash slots.
     ///
-    /// value[in] : Int to hash.
-    /// size[in]  : Ignored. Included for `GenericHash`-cast compatibility.
+    /// data[in] : Pointer to the `Int` to hash.
+    /// size[in] : Ignored. Included for `GenericHash` callback
+    ///            compatibility; the value's real length lives inside
+    ///            the `Int` header itself.
     ///
     /// SUCCESS : Returns a stable hash of the integer's magnitude.
-    ///           `value` is not modified.
+    ///           `data` is not modified.
     /// FAILURE : Function cannot fail.
     ///
     /// USAGE:
@@ -51,7 +52,7 @@ extern "C" {
     ///
     /// TAGS: Int, Hash, GenericHash
     ///
-    u64 int_hash(const Int *value, u32 size);
+    u64 int_hash(const void *data, u32 size);
 
 #ifndef __cplusplus
 ///

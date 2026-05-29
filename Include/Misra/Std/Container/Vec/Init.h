@@ -100,8 +100,8 @@
 ///
 /// No allocator -- the backing storage is the stack. The body is
 /// responsible for keeping content bounded by `ne`. Any operation
-/// that would grow `name` past `ne` lands in `reserve_vec`, sees
-/// the NULL allocator, and aborts via
+/// that would grow `name` past `ne` ends up calling `VecReserve`,
+/// which sees the NULL allocator and aborts via
 /// `LOG_FATAL("vector not growable, no allocator assigned, probably stack inited")`.
 /// Deep-copy callbacks are out of scope for stack-backed Vecs: if
 /// you need inner-resource deep copies, use a heap-backed Vec where

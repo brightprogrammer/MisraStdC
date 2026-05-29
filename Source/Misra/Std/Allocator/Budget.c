@@ -31,9 +31,8 @@
 // Relational invariants for BudgetAllocator. The caller-provided
 // buffer is partitioned at init into a bitmap region followed by a
 // slots region; the linked fields stay synchronized for the lifetime
-// of the allocator. An init failure (buf too small, slot_size 0,
-// etc.) yields a zero-initialized struct with __magic == 0 -- the
-// magic check above already rejects it.
+// of the allocator. The magic check is the first guard below; the
+// remaining checks assume the struct is otherwise well-formed.
 static void budget_validate_self(const BudgetAllocator *self) {
     if (!self) {
         LOG_FATAL("BudgetAllocator: NULL self");
@@ -108,7 +107,7 @@ static i64 budget_first_free_bit(const u64 *bitmap, u32 words, size cap) {
 }
 
 // ---------------------------------------------------------------------------
-// Public alloc / free / resize / remap.
+// Public alloc / resize / remap / free.
 
 void *budget_allocator_allocate(BudgetAllocator *self, size bytes, i8 zeroed) {
     budget_validate_self(self);
@@ -142,9 +141,13 @@ void *budget_allocator_allocate(BudgetAllocator *self, size bytes, i8 zeroed) {
     if (zeroed)
         MemSet(slot, 0, self->slot_size);
 #if FEATURE_ALLOC_STATS
+    // bytes_in_use tracks slot_size (what budget_allocator_deallocate
+    // subtracts); bytes_requested keeps tracking the user's `bytes`.
+    // Different units, by design -- see AllocatorStats doc in
+    // Allocator.h.
     self->base.stats.allocations     += 1u;
     self->base.stats.bytes_requested += (u64)bytes;
-    self->base.stats.bytes_in_use    += (u64)bytes;
+    self->base.stats.bytes_in_use    += (u64)self->slot_size;
     if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
         self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
     }
@@ -158,11 +161,10 @@ i8 budget_allocator_resize(BudgetAllocator *self, void *ptr, size new_size) {
     i8 ok = (new_size <= self->slot_size) ? 1 : 0;
 #if FEATURE_ALLOC_STATS
     if (ok) {
+        // In-place resize does NOT move bytes_in_use (see AllocatorStats
+        // doc in Allocator.h), so no peak refresh is possible here.
         self->base.stats.reallocations   += 1u;
         self->base.stats.bytes_requested += (u64)new_size;
-        if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
-            self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
-        }
     }
 #endif
     return ok;
@@ -179,11 +181,10 @@ void *budget_allocator_remap(BudgetAllocator *self, void *ptr, size new_size) {
     void *result = (new_size <= self->slot_size) ? ptr : NULL;
 #if FEATURE_ALLOC_STATS
     if (result) {
+        // In-place remap does NOT move bytes_in_use, so no peak refresh
+        // is possible here.
         self->base.stats.reallocations   += 1u;
         self->base.stats.bytes_requested += (u64)new_size;
-        if (self->base.stats.bytes_in_use > self->base.stats.peak_bytes_in_use) {
-            self->base.stats.peak_bytes_in_use = self->base.stats.bytes_in_use;
-        }
     } else {
         self->base.stats.failed_allocations += 1u;
     }
@@ -231,8 +232,8 @@ size budget_allocator_deallocate(BudgetAllocator *self, void *ptr) {
 // Init lives entirely in the BudgetAllocatorInit / BudgetAllocatorInitAligned
 // macros in Budget.h. The macros expand to a designated-initializer literal
 // gated by ASSERT_OR_FATAL preconditions, with a MemSet call in the comma
-// chain pre-zeroing the bitmap region inside the caller's buffer. Layout
-// follows the same scheme the function form used: [bitmap | pad | slots].
+// chain pre-zeroing the bitmap region inside the caller's buffer. Layout is
+// [bitmap | pad | slots] -- matching the validator's invariant checks above.
 
 void BudgetAllocatorDeinit(BudgetAllocator *self) {
     if (!self)

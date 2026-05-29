@@ -2,7 +2,10 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// logging support
+/// Stateless logging macros: `LOG_INFO` / `LOG_ERROR` / `LOG_FATAL`
+/// plus the `LOG_SYS_*` family that takes a caller-supplied errno-shaped
+/// number. Each expansion builds its line through a stack-local
+/// `HeapAllocator` so there are no logger globals to thread.
 
 #ifndef MISRA_STD_LOG_H
 #define MISRA_STD_LOG_H
@@ -23,9 +26,11 @@ void Abort(void);
 ///
 
 ///
-/// Writes a fatal log message and aborts the program.
+/// Writes a fatal log message and aborts the program. Format string +
+/// args follow the `StrAppendFmt` placeholder vocabulary; the line lands
+/// on the diagnostic channel before `Abort()` runs.
 ///
-/// ...[in] : Format string and arguments following printf-style syntax.
+/// ...[in] : Format string and arguments.
 ///
 /// SUCCESS: Message logged and program aborted via `Abort()`
 /// FAILURE: Logging may fail silently, but `Abort()` will still execute
@@ -93,13 +98,14 @@ void Abort(void);
 /// Writes a fatal log message and aborts the program, with the
 /// caller-supplied system error code explained.
 ///
-/// First arg is the error number (usually an `errno` value, or a
-/// `-syscall_return` value when the syscall ABI returns -errno
-/// directly). Caller passes it explicitly so we don't have to read
-/// the libc `errno` TLS slot here -- pulling `__errno_location` into
-/// every binary that uses LOG_SYS_* defeats the libc-diet effort.
-/// Use `ErrnoOf(ret)` from `<Misra/Sys.h>` to convert a syscall
-/// return value to an errno code in a platform-portable way.
+/// First arg is the system error number (an errno-shaped value, or
+/// the `-syscall_return` value when the kernel ABI returns negated
+/// errno directly). The macro takes it as an argument so the
+/// expansion never has to reach into a platform-owned TLS error slot;
+/// dragging that symbol into every binary that uses LOG_SYS_* would
+/// defeat the no-platform-runtime stance. Use `ErrnoOf(ret)` from
+/// `<Misra/Sys.h>` to convert a syscall return value to an errno
+/// code in a platform-portable way.
 ///
 /// eno[in] : System error code.
 /// ...[in] : Format string and arguments.

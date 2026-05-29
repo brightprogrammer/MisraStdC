@@ -14,7 +14,6 @@ bool test_str_init_from_zstr(void);
 bool test_str_z_alias(void);
 bool test_str_init_from_str(void);
 bool test_str_dup(void);
-bool test_str_printf(void);
 bool test_str_init_stack(void);
 bool test_str_init_copy(void);
 bool test_str_clone_inherits_allocator_config(void);

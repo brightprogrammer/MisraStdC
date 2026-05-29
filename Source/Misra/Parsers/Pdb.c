@@ -79,7 +79,13 @@ enum {
 // ---------------------------------------------------------------------------
 
 static u32 div_ceil_u32(u32 a, u32 b) {
-    return (a + b - 1u) / b;
+    // Widen to u64 to avoid u32 wrap when `a + b - 1` exceeds UINT32_MAX
+    // -- both inputs are attacker-controlled (stream sizes from the
+    // crafted superblock). The quotient still fits in u32 because
+    // it never exceeds `a` for `b >= 1`.
+    if (b == 0)
+        return 0;
+    return (u32)(((u64)a + (u64)b - 1u) / (u64)b);
 }
 
 // Return a pointer to the first byte of block `block_id` inside the
@@ -455,8 +461,16 @@ static SectionRva *load_section_table(const Pdb *self, u16 section_hdr_stream, u
         LOG_ERROR("PDB: section-hdr stream size {} not multiple of 40", sz);
         return NULL;
     }
-    u32         n   = sz / 40;
-    SectionRva *out = AllocatorAlloc(BufAllocator(&self->data), n * sizeof(SectionRva), 0);
+    u32 n = sz / 40;
+    // `n * sizeof(SectionRva)` is u32 * size_t. On 32-bit hosts a
+    // crafted `sz` near UINT32_MAX could let the multiplication wrap
+    // size_t before reaching AllocatorAlloc, giving a tiny allocation
+    // that the subsequent loop happily overruns. Promote to u64 and
+    // bound against size_t before the call.
+    u64 out_bytes = (u64)n * sizeof(SectionRva);
+    if (out_bytes > (u64)((size)-1))
+        return NULL;
+    SectionRva *out = AllocatorAlloc(BufAllocator(&self->data), (size)out_bytes, 0);
     if (!out)
         return NULL;
 
@@ -540,16 +554,20 @@ static bool walk_publics(
         return false;
     }
 
-    u32 cur = 0;
-    while (cur + 4 <= sz) {
+    // Cursor is kept in u64 because `sz` is an attacker-controlled u32
+    // read from disk; near UINT32_MAX, the per-iteration `cur + 2 + rec_len`
+    // arithmetic would otherwise wrap silently and either spin or push the
+    // body reader past EOF.
+    u64 cur = 0;
+    while (cur + 4 <= (u64)sz) {
         BufIter rec_iter = BufIterFromMemory(buf + cur, 4);
         u16     rec_len, rec_kind;
         if (!BufReadU16LE(&rec_iter, &rec_len) || !BufReadU16LE(&rec_iter, &rec_kind))
             break;
         if (rec_len < 2)
             break; // malformed
-        u32 next = cur + 2 + rec_len;
-        if (next > sz)
+        u64 next = cur + 2u + (u64)rec_len;
+        if (next > (u64)sz)
             break;
 
         if (rec_kind == CV_SYMTYPE_PUB32 && rec_len >= 2 + 4 + 4 + 2 + 1) {
@@ -562,7 +580,7 @@ static bool walk_publics(
                 cur = next;
                 continue;
             }
-            Zstr name = (Zstr)(body.data + body.pos);
+            Zstr name = (Zstr)IterDataAt(&body, IterIndex(&body));
 
             (void)flags; // permissive: we don't filter by FUNCTION bit;
                          // many real-world PDBs leave it unset.
@@ -578,8 +596,8 @@ static bool walk_publics(
                 u32 rva = (u32)rva64;
                 // Validate name is NUL-terminated within the record.
                 bool ok_name = false;
-                u32  end     = next;
-                for (u32 p = cur + 14; p < end; ++p) {
+                u64  end     = next;
+                for (u64 p = cur + 14u; p < end; ++p) {
                     if (buf[p] == 0) {
                         ok_name = true;
                         break;
@@ -678,9 +696,9 @@ static bool parse_pdb_functions(Pdb *self) {
     // function->name pointers stay valid. We stash it in a dedicated
     // field for cleanup; see PdbDeinit.
     //
-    // Intentional Str-internal bypass: transferring ownership of the Str's
-    // backing buffer into self->name_pool. No public StrTakeBuffer primitive
-    // exists; the assigns below ARE the ownership-extract path.
+    // intentional bypass: no public StrTakeBuffer primitive exists for
+    // the Str's backing buffer into self->name_pool. The assigns below
+    // ARE the ownership-extract path.
     self->name_pool      = name_pool.data;
     self->name_pool_size = name_pool.capacity;
     self->name_pool_used = name_pool.length;
@@ -701,7 +719,7 @@ static bool parse_pdb_functions(Pdb *self) {
 // then MemSets the caller's view. On exit `*in` is zeroed (success
 // or failure); allocator and bytes are carried by `taken`.
 bool PdbOpenFromMemory(Pdb *out, Buf *in) {
-    if (!out || !in || !in->data || !in->allocator) {
+    if (!out || !in || !BufData(in) || !BufAllocator(in)) {
         LOG_FATAL("PdbOpenFromMemory: NULL argument (contract violation)");
     }
     Buf taken = *in;
@@ -709,7 +727,7 @@ bool PdbOpenFromMemory(Pdb *out, Buf *in) {
 
     MemSet(out, 0, sizeof(*out));
     out->data      = taken;
-    out->functions = VecInitT(out->functions, taken.allocator);
+    out->functions = VecInitT(out->functions, BufAllocator(&taken));
 
     u32 num_dir_bytes  = 0;
     u32 block_map_addr = 0;

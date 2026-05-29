@@ -7,7 +7,18 @@
 #ifndef MISRA_STD_CONTAINER_FLOAT_ACCESS_H
 #define MISRA_STD_CONTAINER_FLOAT_ACCESS_H
 
+#include <Misra/Std/Container/Int/Access.h>
+
 #include "Type.h"
+
+///
+/// Allocator backing the float's storage.
+///
+/// value[in] : Float to query.
+///
+/// TAGS: Float, Access, Allocator
+///
+#define FloatAllocator(value) IntAllocator(&(value)->significand)
 
 #ifdef __cplusplus
 extern "C" {

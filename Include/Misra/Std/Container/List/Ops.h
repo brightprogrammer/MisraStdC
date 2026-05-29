@@ -43,7 +43,7 @@
 ///
 /// TAGS: List, Ops, Sort
 ///
-#define ListSort(l, compare) qsort_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), (compare))
+#define ListSort(l, compare) list_sort(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), (compare))
 
 ///
 /// Aborting variant of `ListSort`. Calls `LOG_FATAL` if the scratch buffer

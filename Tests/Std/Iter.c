@@ -57,7 +57,8 @@ bool test_iter_read_forward(void) {
     if (!IterRead(&it, &v) || v != 30) {
         return false;
     }
-    return !IterRead(&it, &v); // EOF
+    // Fourth read must fail: cursor sits at EOF after the three above.
+    return !IterRead(&it, &v);
 }
 
 bool test_iter_read_reverse(void) {
@@ -73,28 +74,29 @@ bool test_iter_read_reverse(void) {
     if (!IterRead(&it, &v) || v != 10) {
         return false;
     }
-    return !IterRead(&it, &v); // past start
+    // Fourth read must fail: cursor has stepped past the start sentinel.
+    return !IterRead(&it, &v);
 }
 
 bool test_iter_read_eof_leaves_state(void) {
     const u8 buf[1] = {7};
     BufIter  it     = BufIterFromMemory(buf, 1);
     u8       v      = 0;
-    IterRead(&it, &v); // consume sole element
-    size pos_before = it.pos;
+    IterRead(&it, &v);
+    size pos_before = IterIndex(&it);
     u8   sentinel   = 0xAA;
     v               = sentinel;
     if (IterRead(&it, &v)) {
-        return false; // should have failed
+        return false;
     }
-    // Propagating: pos unchanged, *out not written
-    return it.pos == pos_before && v == sentinel;
+    // Failed read must leave both `pos` and `*out` untouched.
+    return IterIndex(&it) == pos_before && v == sentinel;
 }
 
 bool test_iter_peek_in_range(void) {
     const u8 buf[4] = {5, 6, 7, 8};
     BufIter  it     = BufIterFromMemory(buf, 4);
-    IterMove(&it, 2); // pos == 2
+    IterMove(&it, 2);
     u8 v;
     if (!IterPeekAt(&it, 0, &v) || v != 7) {
         return false;
@@ -105,7 +107,8 @@ bool test_iter_peek_in_range(void) {
     if (!IterPeekAt(&it, -2, &v) || v != 5) {
         return false;
     }
-    return it.pos == 2; // peek does not advance
+    // Peeks must not advance the cursor.
+    return IterIndex(&it) == 2;
 }
 
 bool test_iter_peek_out_of_range(void) {
@@ -113,24 +116,25 @@ bool test_iter_peek_out_of_range(void) {
     BufIter  it     = BufIterFromMemory(buf, 2);
     u8       v      = 0xAA;
     if (IterPeekAt(&it, 2, &v)) {
-        return false; // out of range
+        return false;
     }
     if (v != 0xAA) {
-        return false; // *out untouched
+        return false;
     }
     if (IterPeekAt(&it, -1, &v)) {
-        return false; // negative out of range
+        return false;
     }
+    // Out-of-range peeks (positive and negative) must leave *out untouched.
     return v == 0xAA;
 }
 
 bool test_iter_move_forward_basic(void) {
     const u8 buf[5] = {0};
     BufIter  it     = BufIterFromMemory(buf, 5);
-    if (!IterMove(&it, 3) || it.pos != 3) {
+    if (!IterMove(&it, 3) || IterIndex(&it) != 3) {
         return false;
     }
-    if (!IterMove(&it, -2) || it.pos != 1) {
+    if (!IterMove(&it, -2) || IterIndex(&it) != 1) {
         return false;
     }
     return true;
@@ -139,7 +143,7 @@ bool test_iter_move_forward_basic(void) {
 bool test_iter_move_forward_to_exhausted(void) {
     const u8 buf[3] = {0};
     BufIter  it     = BufIterFromMemory(buf, 3);
-    if (!IterMove(&it, 3) || it.pos != 3) {
+    if (!IterMove(&it, 3) || IterIndex(&it) != 3) {
         return false;
     }
     return IterRemainingLength(&it) == 0;
@@ -148,11 +152,11 @@ bool test_iter_move_forward_to_exhausted(void) {
 bool test_iter_move_forward_overflow(void) {
     const u8 buf[3] = {0};
     BufIter  it     = BufIterFromMemory(buf, 3);
-    size     before = it.pos;
+    size     before = IterIndex(&it);
     if (IterMove(&it, 4)) {
-        return false; // 4 > length
+        return false;
     }
-    return it.pos == before;
+    return IterIndex(&it) == before;
 }
 
 bool test_iter_move_forward_underflow(void) {
@@ -161,18 +165,18 @@ bool test_iter_move_forward_underflow(void) {
     if (IterMove(&it, -1)) {
         return false;
     }
-    return it.pos == 0;
+    return IterIndex(&it) == 0;
 }
 
 bool test_iter_move_reverse_basic(void) {
     const u8 buf[5] = {0};
     BufIter  it     = from_rev(buf, 5);
     // start at pos=4
-    if (!IterMove(&it, 2) || it.pos != 2) {
+    if (!IterMove(&it, 2) || IterIndex(&it) != 2) {
         return false;
     }
     // step backward in reverse direction (n=-1, effective +1)
-    if (!IterMove(&it, -1) || it.pos != 3) {
+    if (!IterMove(&it, -1) || IterIndex(&it) != 3) {
         return false;
     }
     return true;
@@ -182,7 +186,7 @@ bool test_iter_move_reverse_to_past_start(void) {
     const u8 buf[3] = {0};
     BufIter  it     = from_rev(buf, 3);
     // pos=2, dir=-1, move by 3 lands on sentinel pos=-1
-    if (!IterMove(&it, 3) || it.pos != (size)-1) {
+    if (!IterMove(&it, 3) || IterIndex(&it) != (size)-1) {
         return false;
     }
     return IterRemainingLength(&it) == 0;
@@ -192,29 +196,30 @@ bool test_iter_move_reverse_overflow(void) {
     const u8 buf[3] = {0};
     BufIter  it     = from_rev(buf, 3);
     // pos=2, dir=-1, move by 4 would land at pos=-2 — invalid
-    size before = it.pos;
+    size before = IterIndex(&it);
     if (IterMove(&it, 4)) {
         return false;
     }
-    return it.pos == before;
+    return IterIndex(&it) == before;
 }
 
 bool test_iter_next_prev(void) {
     const u8 buf[3] = {0};
     BufIter  it     = BufIterFromMemory(buf, 3);
-    if (!IterNext(&it) || it.pos != 1) {
+    if (!IterNext(&it) || IterIndex(&it) != 1) {
         return false;
     }
-    if (!IterNext(&it) || it.pos != 2) {
+    if (!IterNext(&it) || IterIndex(&it) != 2) {
         return false;
     }
-    if (!IterPrev(&it) || it.pos != 1) {
+    if (!IterPrev(&it) || IterIndex(&it) != 1) {
         return false;
     }
-    if (!IterPrev(&it) || it.pos != 0) {
+    if (!IterPrev(&it) || IterIndex(&it) != 0) {
         return false;
     }
-    return !IterPrev(&it); // underflow
+    // Cursor sits at the start; one more prev must underflow.
+    return !IterPrev(&it);
 }
 
 int main(void) {

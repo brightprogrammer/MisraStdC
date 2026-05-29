@@ -4,12 +4,11 @@
 ///
 /// ELF (Executable and Linkable Format) parser. Reads the ELF header,
 /// section headers, and symbol tables of a 64-bit ELF object directly
-/// out of bytes — no `libelf`, no `<elf.h>`, no `libdl`. The intended
-/// consumers are:
+/// out of bytes. The intended consumers are:
 ///
-///   - Our own `dladdr` replacement that wants to resolve static
-///     symbols (the libc `dladdr` only walks `.dynsym`).
-///   - A future DWARF parser that needs `.debug_*` section locations.
+///   - `Sys/SymbolResolver`, which needs static-symbol coverage
+///     (i.e. `.symtab` entries, not just the dynamic-exports table).
+///   - The DWARF parser, which needs `.debug_*` section locations.
 ///
 /// v1 supports ELF64 little-endian only. ELF32 / big-endian come later
 /// — flagged in FUTURE-PLANS.md.
@@ -90,15 +89,15 @@ typedef enum ElfSymbolType {
 ///
 typedef struct ElfHeader {
     ElfClass elf_class;
-    ElfData data;
-    ElfType type;
-    u16     machine;
-    u64     entry;
-    u64     phoff;
-    u64     shoff;
-    u16     phnum;
-    u16     shnum;
-    u16     shstrndx;
+    ElfData  data;
+    ElfType  type;
+    u16      machine;
+    u64      entry;
+    u64      phoff;
+    u64      shoff;
+    u16      phnum;
+    u16      shnum;
+    u16      shstrndx;
 } ElfHeader;
 
 ///
@@ -122,7 +121,7 @@ typedef struct ElfSection {
 /// `.strtab` (for `symbols`) or `.dynstr` (for `dynamic_symbols`).
 ///
 typedef struct ElfSymbol {
-    Zstr name;
+    Zstr          name;
     ElfSymbolBind bind;
     ElfSymbolType type;
     u16           section_index;
@@ -154,10 +153,9 @@ typedef Vec(ElfSymbol) ElfSymbols;
 ///                                 untouched and remains theirs.
 ///
 /// FIELDS:
-/// - allocator       : Allocator used for `data` and for the section /
-///                     symbol vectors.
-/// - data            : Pointer to the raw file bytes (owned).
-/// - data_size       : Length of `data` in bytes.
+/// - data            : Raw ELF bytes as a `Buf` (owned). Carries its
+///                     own length and allocator -- read via
+///                     `BufLength` / `BufData` / `BufAllocator`.
 /// - header          : Decoded ELF header.
 /// - sections        : All section headers, in original order.
 /// - symbols         : Entries from `.symtab` (may be empty if stripped).
@@ -183,9 +181,19 @@ typedef struct Elf {
     ElfSymbols  dynamic_symbols;
     const u8   *build_id;
     u32         build_id_size;
-    Zstr debuglink_name;
+    Zstr        debuglink_name;
     u32         debuglink_crc;
 } Elf;
+
+///
+/// Borrowed handle to the parser's owned byte buffer. Cross-namespace
+/// readers (`Dwarf*BuildFromElf`, ...) need section bytes off the loaded
+/// file; this is the public seam they go through instead of reaching at
+/// `self->data` directly.
+///
+/// TAGS: Parser, ELF, Accessor
+///
+#define ElfBuf(self) ((void)0, &(self)->data)
 
 ///
 /// Open and parse an ELF file from disk.
@@ -208,15 +216,15 @@ bool elf_open(Elf *out, Zstr path, Allocator *alloc);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: elf_open((out), (Zstr)StrBegin((Str *)(path)), MisraScope),                                             \
-        Zstr:  elf_open((out), (Zstr)(path), MisraScope),                                                               \
-        char *: elf_open((out), (Zstr)(path), MisraScope)                                                               \
+        Zstr: elf_open((out), (Zstr)(path), MisraScope),                                                               \
+        char *: elf_open((out), (Zstr)(path), MisraScope)                                                              \
     )
 #define ElfOpen_3(out, path, alloc)                                                                                    \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: elf_open((out), (Zstr)StrBegin((Str *)(path)), ALLOCATOR_OF(alloc)),                                    \
-        Zstr:  elf_open((out), (Zstr)(path), ALLOCATOR_OF(alloc)),                                                      \
-        char *: elf_open((out), (Zstr)(path), ALLOCATOR_OF(alloc))                                                      \
+        Zstr: elf_open((out), (Zstr)(path), ALLOCATOR_OF(alloc)),                                                      \
+        char *: elf_open((out), (Zstr)(path), ALLOCATOR_OF(alloc))                                                     \
     )
 
 ///
@@ -238,8 +246,8 @@ bool elf_open(Elf *out, Zstr path, Allocator *alloc);
 ///   // buf is now {NULL, 0, 0, NULL} -- safe to drop on stack.
 ///
 /// out[out]    : Populated on success.
-/// in[in,out]  : Pointer to the caller's `Buf`. `in->data` must be
-///               non-NULL and `in->allocator` must be set. After the
+/// in[in,out]  : Pointer to the caller's `Buf`. `BufData(in)` must be
+///               non-NULL and `BufAllocator(in)` must be set. After the
 ///               call, `*in` is zeroed (success or failure).
 ///
 /// SUCCESS : Returns true; `out` owns the bytes; `*in` is zeroed.
@@ -278,8 +286,9 @@ bool elf_open_from_memory_copy(Elf *out, const u8 *data, size data_size, Allocat
     elf_open_from_memory_copy((out), (data), (data_size), ALLOCATOR_OF(alloc))
 
 ///
-/// Release storage owned by an `Elf`. Frees the byte buffer
-/// through `allocator` and tears down the section / symbol vectors.
+/// Release storage owned by an `Elf`. Frees the byte buffer through
+/// the `data` Buf's carried allocator and tears down the section /
+/// symbol vectors.
 /// All three `ElfOpen*` constructors leave the parser as the
 /// sole owner of `data`, so this is unconditional. Safe to call on
 /// a zeroed struct.
@@ -328,11 +337,9 @@ const ElfSymbol *ElfResolveAddress(const Elf *self, u64 vaddr);
 const ElfSection *elf_find_section_zstr(const Elf *self, Zstr name);
 const ElfSection *elf_find_section_str(const Elf *self, const Str *name);
 #define ElfFindSection(self, name)                                                                                     \
-    _Generic(                                                                                                          \
-        (name),                                                                                                        \
-        Str *: elf_find_section_str,                                                                                   \
-        Zstr: elf_find_section_zstr,                                                                                   \
-        char *: elf_find_section_zstr                                                                                  \
-    )((self), (name))
+    _Generic((name), Str *: elf_find_section_str, Zstr: elf_find_section_zstr, char *: elf_find_section_zstr)(         \
+        (self),                                                                                                        \
+        (name)                                                                                                         \
+    )
 
 #endif // MISRA_PARSERS_ELF_H

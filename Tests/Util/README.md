@@ -21,10 +21,10 @@ bool test_deadend(TestFunction test_func, bool expect_failure);
 
 Internally:
 
-1. Install a custom abort handler via `OnAbort(test_abort_handler)` (declared in `<Misra/Sys.h>`). The handler sets a captured flag and `longjmp`s back to the driver instead of exiting the process.
-2. `setjmp(g_test_abort_jmp)` to save the resume point.
-3. Run the test function. If it returns normally, control falls through. If it triggers `LOG_FATAL`, the abort handler longjmps back to the `setjmp` site with non-zero.
-4. Reset `OnAbort(NULL)` so subsequent code sees the default abort.
+1. Register a custom abort callback through `OnAbort` (declared in `<Misra/Sys.h>`); the callback longjmps back into the driver instead of exiting the process.
+2. Save a resume point with the driver's setjmp pair.
+3. Run the test function. If it returns normally, control falls through. If it triggers `LOG_FATAL`, the registered callback unwinds to the resume point with a non-zero value.
+4. Clear the `OnAbort` slot so subsequent code sees the default abort.
 
 Because everything runs in one process, a SIGSEGV / SIGBUS in a deadend test still terminates the test binary -- only `LOG_FATAL`-style aborts are recoverable. If a deadend test needs to provoke a real signal (not just a project-level fatal), use a separate test binary instead of `test_deadend`.
 

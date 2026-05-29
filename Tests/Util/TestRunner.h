@@ -2,10 +2,11 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Test utilities for running potentially failing tests using setjmp/longjmp
+/// Test utilities for running potentially failing tests using a hand-
+/// rolled SetJmp/LongJmp pair (see TestRunner.c for why).
 
-#ifndef MISRA_TEST_RUNNER_H
-#define MISRA_TEST_RUNNER_H
+#ifndef TEST_RUNNER_H
+#define TEST_RUNNER_H
 
 #include <Misra/Std/Zstr.h>
 #include <Misra/Types.h>
@@ -21,8 +22,10 @@
 typedef bool (*TestFunction)(void);
 
 ///
-/// Run a specific test function using setjmp/longjmp to capture aborts.
-/// This is used for deadend tests that are expected to call LOG_FATAL.
+/// Run a specific test function under a SetJmp/LongJmp guard to capture
+/// `LOG_FATAL` aborts. Used for deadend tests that intentionally trip a
+/// validator and need the abort observed instead of terminating the
+/// process.
 ///
 /// test_func[in]     : Test function to execute.
 /// expect_failure[in]: If true, expects the test to call Abort().
@@ -79,7 +82,7 @@ int run_test_suite(
     int           normal_count,
     TestFunction *deadend_tests,
     int           deadend_count,
-    Zstr test_name
+    Zstr          test_name
 );
 
-#endif // MISRA_TEST_RUNNER_H
+#endif // TEST_RUNNER_H

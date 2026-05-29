@@ -112,6 +112,37 @@ typedef struct Macho {
 } Macho;
 
 ///
+/// Borrowed handle to the parser's owned byte buffer. Cross-namespace
+/// readers (`MachoCache`'s DWARF builder, ...) need section bytes off the
+/// loaded file; this is the public seam they go through instead of
+/// reaching at `self->data` directly.
+///
+/// TAGS: Parser, MachO, Accessor
+///
+#define MachoBuf(self) ((void)0, &(self)->data)
+
+///
+/// True iff the parsed Mach-O carried an `LC_UUID` load command.
+/// Cross-namespace readers (`MachoCache`, ...) gate dSYM pairing on
+/// the UUID's presence; this is the public seam they go through
+/// instead of reaching at `self->has_uuid` directly.
+///
+/// TAGS: Parser, MachO, Accessor
+///
+#define MachoHasUuid(self) ((void)0, (self)->has_uuid)
+
+///
+/// Borrowed pointer to the 16-byte `LC_UUID` payload. Only meaningful
+/// when `MachoHasUuid(self)` is true. Cross-namespace readers
+/// (`MachoCache`, ...) match the main binary's UUID against its dSYM;
+/// this is the public seam they go through instead of reaching at
+/// `self->uuid` directly.
+///
+/// TAGS: Parser, MachO, Accessor
+///
+#define MachoUuid(self) ((void)0, (self)->uuid)
+
+///
 /// Open and parse a Mach-O file from disk.
 ///
 /// SUCCESS : Returns true; parser owns the read-in buffer.
@@ -182,9 +213,9 @@ bool macho_open_from_memory_copy(Macho *out, const u8 *data, size data_size, All
     macho_open_from_memory_copy((out), (data), (data_size), ALLOCATOR_OF(alloc))
 
 ///
-/// Release storage owned by a `Macho`. Frees `data` through
-/// `allocator` (unconditional -- the parser always owns its bytes)
-/// and tears down the vectors. Safe on a zeroed struct.
+/// Release storage owned by a `Macho`. Frees the `data` Buf through
+/// its carried allocator (unconditional -- the parser always owns its
+/// bytes) and tears down the vectors. Safe on a zeroed struct.
 ///
 /// SUCCESS : Returns to the caller. `*self` is zeroed.
 /// FAILURE : Function cannot fail. NULL `self` is a no-op.
@@ -206,18 +237,8 @@ const MachoSection *macho_find_section(const Macho *self, Zstr segment, Zstr sec
 #define MachoFindSection(self, segment, section)                                                                       \
     macho_find_section(                                                                                                \
         (self),                                                                                                        \
-        _Generic(                                                                                                      \
-            (segment),                                                                                                 \
-            Str *: (Zstr)StrBegin((Str *)(segment)),                                                                   \
-            Zstr: (Zstr)(segment),                                                                                     \
-            char *: (Zstr)(segment)                                                                                    \
-        ),                                                                                                             \
-        _Generic(                                                                                                      \
-            (section),                                                                                                 \
-            Str *: (Zstr)StrBegin((Str *)(section)),                                                                   \
-            Zstr: (Zstr)(section),                                                                                     \
-            char *: (Zstr)(section)                                                                                    \
-        )                                                                                                              \
+        _Generic((segment), Str *: (Zstr)StrBegin((Str *)(segment)), Zstr: (Zstr)(segment), char *: (Zstr)(segment)),  \
+        _Generic((section), Str *: (Zstr)StrBegin((Str *)(section)), Zstr: (Zstr)(section), char *: (Zstr)(section))   \
     )
 
 ///

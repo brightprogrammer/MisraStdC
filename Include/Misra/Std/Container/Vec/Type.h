@@ -52,7 +52,7 @@ typedef struct {
 ///                 NULL for stack-init vecs (`VecInitStack` / `StrInitStack`): the
 ///                 macro plants an `_Alignas(T) char[]` backing buffer so per-element
 ///                 stride collapses to `sizeof(T)`, and any operation that would grow
-///                 the vec aborts in `reserve_vec`.
+///                 the vec aborts via `VecReserve`.
 ///
 /// TAGS: Vec, Generic, Length, Size, Pointer
 ///

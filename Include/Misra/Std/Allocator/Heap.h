@@ -12,9 +12,9 @@
 /// Sizes route into one of 17 size classes plus an XL passthrough.
 /// One slot size per user page (no co-located sub-bins): a page that
 /// holds 128-byte slots only holds 128-byte slots, never mixed with
-/// 256-byte slots on the same page. This trades the old "mixed page"
-/// pack density for the right to add many more class sizes without
-/// the per-page alignment-waste cascading.
+/// 256-byte slots on the same page. The pure-page-per-class layout
+/// lets the class table grow without the per-page alignment waste
+/// cascading across sub-bins.
 ///
 /// Class set (bytes):
 ///
@@ -34,9 +34,10 @@
 /// warm-list links. The "S/M/L" tier names are a documentation
 /// convenience; internally every descriptor lives in an
 /// open-addressed hash table keyed by user-page base, so free is one
-/// hash probe regardless of class. XL descriptors live in a separate
-/// sorted-by-address array (the XL path is rare and benefits more
-/// from the smaller per-entry footprint of the sorted form).
+/// hash probe regardless of class. XL descriptors live in a SECOND
+/// open-addressed hash table keyed by allocation base (same shape
+/// as the S/M/L table, no warm-list bookkeeping), so XL alloc / free
+/// / lookup are also O(1) probe-and-write.
 
 #ifndef MISRA_STD_ALLOCATOR_HEAP_H
 #define MISRA_STD_ALLOCATOR_HEAP_H
@@ -68,8 +69,9 @@
 //
 // The fast validator masks this bit when comparing magic, so neither
 // state breaks type-confusion detection. Structural-mutation sites
-// (descriptor array growth, sorted insert/remove, reclaim) set the
-// bit; per-slot ops (bitmap flips, used_count++/--) leave it alone.
+// (hash table grow / rebuild, XL hash grow / rebuild, recycle storage
+// grow) set the bit; per-slot ops (bitmap flips, used_count++/--,
+// warm-list linkage, single-bucket insert/remove) leave it alone.
 // Exposed in the header so other modules (DebugAllocator) can mask
 // the bit when sanity-checking the embedded heap's magic field.
 #define HEAP_MAGIC_VALIDATED_BIT (1ULL << 63)
@@ -92,7 +94,7 @@ extern "C" {
     /// Sentinel for "no bucket" / "list end" in the hash table and warm
     /// lists. `0xFFFFFFFFu` is unreachable as a real bucket index since
     /// `pages_cap` is bounded well below 2^32.
-#define HEAP_BUCKET_NONE ((u32)-1)
+#define HEAP_BUCKET_NONE ((u32) - 1)
 
     /// Per-heap-page descriptor. One per user page across every S/M/L
     /// size class. Lives in the HeapAllocator's hash table; the `page`
@@ -131,10 +133,9 @@ extern "C" {
     /// Per-XL-region descriptor. One per allocation >2 KiB. XL
     /// allocations are page-aligned standalone mmaps with no bitmap
     /// and no sub-slotting; the descriptor existence IS the in-use
-    /// bit. The XL array is kept sorted by `page` so free is a
-    /// binary search; entries are small enough (16 bytes) that the
-    /// sorted-array MemMove cost is acceptable for the rare-event
-    /// XL path.
+    /// bit. The XL descriptors live in an open-addressed hash table
+    /// keyed by allocation base (same shape as the S/M/L `pages[]`),
+    /// so alloc / free / lookup are O(1) probe-and-write.
     ///
     /// FIELDS:
     /// - page     : Base of the user mmap (4 KiB-aligned).
@@ -152,8 +153,8 @@ extern "C" {
     ///     by user-page base (`pages` / `pages_cap` / `pages_count`),
     ///   - a per-class doubly-linked warm list of pages with at least
     ///     one free slot (`class_warm_head`),
-    ///   - an XL sorted-array path for >2 KiB allocations
-    ///     (`xl` / `xl_len` / `xl_cap`),
+    ///   - an open-addressed hash table of XL descriptors keyed by
+    ///     allocation base (`xl` / `xl_cap` / `xl_count`),
     ///   - a per-class live page count (`class_count`) for the reclaim
     ///     guard,
     ///   - and a private LIFO retention pool of reclaimed user-page
@@ -181,13 +182,14 @@ extern "C" {
         /// has no such page.
         u32 class_warm_head[HEAP_NUM_CLASSES];
 
-        /// XL allocation table: sorted-by-page-base array. Sized
-        /// independently of `pages`; XL is rare enough that the
-        /// per-entry footprint of the sorted form wins over a second
-        /// hash table.
+        /// XL allocation table. Same shape as `pages` -- open-addressed
+        /// hash table keyed by allocation base, linear probing, no
+        /// tombstones (back-shift delete), capacity is a power of two,
+        /// empty bucket sentinel is `xl[i].page == NULL`. `xl_count`
+        /// tracks occupancy for the >= 50% load grow check.
         HeapPageXL *xl;
-        u32         xl_len;
         u32         xl_cap;
+        u32         xl_count;
 
         /// LIFO retention. When a heap page becomes empty, its OS-page
         /// mmap is pushed here instead of being returned to the kernel;
@@ -214,7 +216,7 @@ extern "C" {
 
     ///
     /// Serve a bitmap-classed or XL-passthrough allocation. Routes the
-    /// request to the matching size class (or the XL sorted array for
+    /// request to the matching size class (or the XL hash table for
     /// requests above the largest class), picks a free slot via
     /// `ctz` over the page bitmap, and stamps it in-use.
     ///
@@ -241,7 +243,7 @@ extern "C" {
     ///
     /// TAGS: Allocator, Heap, Memory, InPlace
     ///
-    i8    heap_allocator_resize(HeapAllocator *self, void *ptr, size new_size);
+    i8 heap_allocator_resize(HeapAllocator *self, void *ptr, size new_size);
 
     ///
     /// Resize a heap allocation with relocation allowed. May allocate
@@ -250,7 +252,10 @@ extern "C" {
     ///
     /// SUCCESS: Returns the (possibly moved) pointer. When `ptr` is
     ///          NULL this behaves like
-    ///          `heap_allocator_allocate(self, new_size, 0)`.
+    ///          `heap_allocator_allocate(self, new_size, true)` --
+    ///          fresh allocations from a remap-NULL are zeroed. When
+    ///          `new_size == 0` the allocation is freed and NULL is
+    ///          returned.
     /// FAILURE: Returns NULL when the underlying allocation cannot
     ///          be served. The old allocation is left untouched.
     ///
@@ -273,7 +278,7 @@ extern "C" {
     ///
     /// TAGS: Allocator, Heap, Memory, Deallocation
     ///
-    size  heap_allocator_deallocate(HeapAllocator *self, void *ptr);
+    size heap_allocator_deallocate(HeapAllocator *self, void *ptr);
 
     ///
     /// Release every user page and bookkeeping array owned by `self`,
@@ -315,7 +320,7 @@ extern "C" {
 ///
 /// TAGS: Allocator, Heap, Query
 ///
-#define HeapAllocatorXlCount(h) ((void)0, (h)->xl_len)
+#define HeapAllocatorXlCount(h) ((void)0, (h)->xl_count)
 
 // Designated init for the class_count[] array. Done as a macro so
 // init macros below stay readable. C99 allows omitted designators
@@ -327,9 +332,23 @@ extern "C" {
 // head" which is wrong. _Static_assert below catches HEAP_NUM_CLASSES
 // drift.
 #define HEAP_CLASS_WARM_HEAD_NONE                                                                                      \
-    {HEAP_BUCKET_NONE, HEAP_BUCKET_NONE, HEAP_BUCKET_NONE, HEAP_BUCKET_NONE, HEAP_BUCKET_NONE, HEAP_BUCKET_NONE,        \
-        HEAP_BUCKET_NONE, HEAP_BUCKET_NONE, HEAP_BUCKET_NONE, HEAP_BUCKET_NONE, HEAP_BUCKET_NONE, HEAP_BUCKET_NONE,     \
-        HEAP_BUCKET_NONE, HEAP_BUCKET_NONE, HEAP_BUCKET_NONE, HEAP_BUCKET_NONE, HEAP_BUCKET_NONE}
+    {HEAP_BUCKET_NONE,                                                                                                 \
+     HEAP_BUCKET_NONE,                                                                                                 \
+     HEAP_BUCKET_NONE,                                                                                                 \
+     HEAP_BUCKET_NONE,                                                                                                 \
+     HEAP_BUCKET_NONE,                                                                                                 \
+     HEAP_BUCKET_NONE,                                                                                                 \
+     HEAP_BUCKET_NONE,                                                                                                 \
+     HEAP_BUCKET_NONE,                                                                                                 \
+     HEAP_BUCKET_NONE,                                                                                                 \
+     HEAP_BUCKET_NONE,                                                                                                 \
+     HEAP_BUCKET_NONE,                                                                                                 \
+     HEAP_BUCKET_NONE,                                                                                                 \
+     HEAP_BUCKET_NONE,                                                                                                 \
+     HEAP_BUCKET_NONE,                                                                                                 \
+     HEAP_BUCKET_NONE,                                                                                                 \
+     HEAP_BUCKET_NONE,                                                                                                 \
+     HEAP_BUCKET_NONE}
 _Static_assert(HEAP_NUM_CLASSES == 17, "HEAP_CLASS_WARM_HEAD_NONE has 17 entries; sync with HEAP_NUM_CLASSES");
 
 /// Construct a HeapAllocator with default alignment (`1`). Use as a
@@ -352,25 +371,26 @@ _Static_assert(HEAP_NUM_CLASSES == 17, "HEAP_CLASS_WARM_HEAD_NONE has 17 entries
 #define HeapAllocatorInit()                                                                                            \
     ((HeapAllocator) {                                                                                                 \
         .base =                                                                                                        \
-            {.allocate    = (AllocatorAllocateFn)heap_allocator_allocate,                                              \
-                   .resize      = (AllocatorResizeFn)heap_allocator_resize,                                                 \
-                   .remap       = (AllocatorRemapFn)heap_allocator_remap,                                                   \
-                   .deallocate  = (AllocatorDeallocateFn)heap_allocator_deallocate,                                         \
-                   .alignment   = 1,                                                                                         \
-                   .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
-                   .retry_limit = 0,                                                                                         \
-                   .__magic     = HEAP_ALLOCATOR_MAGIC},                                                                         \
-        .pages            = NULL,                                                                                      \
-        .pages_cap        = 0,                                                                                         \
-        .pages_count      = 0,                                                                                         \
-        .class_warm_head  = HEAP_CLASS_WARM_HEAD_NONE,                                                                 \
-        .xl               = NULL,                                                                                      \
-        .xl_len           = 0,                                                                                         \
-        .xl_cap           = 0,                                                                                         \
-        .recycle          = NULL,                                                                                      \
-        .recycle_len      = 0,                                                                                         \
-        .recycle_cap      = 0,                                                                                         \
-        .class_count      = HEAP_CLASS_COUNT_ZERO                                                                      \
+            {.allocate        = (AllocatorAllocateFn)heap_allocator_allocate,                                          \
+                   .resize          = (AllocatorResizeFn)heap_allocator_resize,                                              \
+                   .remap           = (AllocatorRemapFn)heap_allocator_remap,                                                \
+                   .deallocate      = (AllocatorDeallocateFn)heap_allocator_deallocate,                                      \
+                   .alignment       = 1,                                                                                     \
+                   .effort          = ALLOCATOR_EFFORT_ONCE,                                                                 \
+                   .retry_limit     = 0,                                                                                     \
+                   .__magic         = HEAP_ALLOCATOR_MAGIC,                                                                  \
+                   .footprint_bytes = 0},                                                                                    \
+        .pages           = NULL,                                                                                       \
+        .pages_cap       = 0,                                                                                          \
+        .pages_count     = 0,                                                                                          \
+        .class_warm_head = HEAP_CLASS_WARM_HEAD_NONE,                                                                  \
+        .xl              = NULL,                                                                                       \
+        .xl_count        = 0,                                                                                          \
+        .xl_cap          = 0,                                                                                          \
+        .recycle         = NULL,                                                                                       \
+        .recycle_len     = 0,                                                                                          \
+        .recycle_cap     = 0,                                                                                          \
+        .class_count     = HEAP_CLASS_COUNT_ZERO                                                                       \
     })
 
 /// Same as `HeapAllocatorInit()` but with a caller-supplied
@@ -390,25 +410,26 @@ _Static_assert(HEAP_NUM_CLASSES == 17, "HEAP_CLASS_WARM_HEAD_NONE has 17 entries
 #define HeapAllocatorInitAligned(N)                                                                                    \
     ((HeapAllocator) {                                                                                                 \
         .base =                                                                                                        \
-            {.allocate    = (AllocatorAllocateFn)heap_allocator_allocate,                                              \
-                   .resize      = (AllocatorResizeFn)heap_allocator_resize,                                                 \
-                   .remap       = (AllocatorRemapFn)heap_allocator_remap,                                                   \
-                   .deallocate  = (AllocatorDeallocateFn)heap_allocator_deallocate,                                         \
-                   .alignment   = (N) ? (N) : 1,                                                                             \
-                   .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
-                   .retry_limit = 0,                                                                                         \
-                   .__magic     = HEAP_ALLOCATOR_MAGIC},                                                                         \
-        .pages            = NULL,                                                                                      \
-        .pages_cap        = 0,                                                                                         \
-        .pages_count      = 0,                                                                                         \
-        .class_warm_head  = HEAP_CLASS_WARM_HEAD_NONE,                                                                 \
-        .xl               = NULL,                                                                                      \
-        .xl_len           = 0,                                                                                         \
-        .xl_cap           = 0,                                                                                         \
-        .recycle          = NULL,                                                                                      \
-        .recycle_len      = 0,                                                                                         \
-        .recycle_cap      = 0,                                                                                         \
-        .class_count      = HEAP_CLASS_COUNT_ZERO                                                                      \
+            {.allocate        = (AllocatorAllocateFn)heap_allocator_allocate,                                          \
+                   .resize          = (AllocatorResizeFn)heap_allocator_resize,                                              \
+                   .remap           = (AllocatorRemapFn)heap_allocator_remap,                                                \
+                   .deallocate      = (AllocatorDeallocateFn)heap_allocator_deallocate,                                      \
+                   .alignment       = (N) ? (N) : 1,                                                                         \
+                   .effort          = ALLOCATOR_EFFORT_ONCE,                                                                 \
+                   .retry_limit     = 0,                                                                                     \
+                   .__magic         = HEAP_ALLOCATOR_MAGIC,                                                                  \
+                   .footprint_bytes = 0},                                                                                    \
+        .pages           = NULL,                                                                                       \
+        .pages_cap       = 0,                                                                                          \
+        .pages_count     = 0,                                                                                          \
+        .class_warm_head = HEAP_CLASS_WARM_HEAD_NONE,                                                                  \
+        .xl              = NULL,                                                                                       \
+        .xl_count        = 0,                                                                                          \
+        .xl_cap          = 0,                                                                                          \
+        .recycle         = NULL,                                                                                       \
+        .recycle_len     = 0,                                                                                          \
+        .recycle_cap     = 0,                                                                                          \
+        .class_count     = HEAP_CLASS_COUNT_ZERO                                                                       \
     })
 
 #endif // MISRA_STD_ALLOCATOR_HEAP_H

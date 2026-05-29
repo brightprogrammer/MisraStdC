@@ -8,7 +8,7 @@
 //   5. alloc + write every byte         (alloc cost vs zero-touch cost)
 //
 // Each runs once per binary; the binary itself picks the backend at
-// link time. The runner script (Scripts/run.sh) executes one binary per
+// link time. The runner script (Scripts/run.py) executes one binary per
 // allocator and concatenates the JSON output.
 
 #include "Allocator.h"

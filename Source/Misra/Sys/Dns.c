@@ -5,7 +5,7 @@
 /// In-tree DNS resolver: reads /etc/hosts and /etc/resolv.conf at
 /// init, then resolves hostnames via the local table first and the
 /// configured nameservers (UDP) second. Wire-format work goes through
-/// Parsers/Dns; transport goes through Sys/Socket. No libc.
+/// Parsers/Dns; transport goes through Sys/Socket.
 
 #include <Misra/Sys/Dns.h>
 #include <Misra/Std/Zstr.h>
@@ -292,11 +292,11 @@ static void parse_hosts_table(HostsTable *table, Allocator *alloc) {
         }
 
         // First token: IP literal.
-        size ip_start = si.pos;
+        size ip_start = StrIterIndex(&si);
         while (StrIterPeek(&si, &c) && !is_hspace(c) && c != '\n') {
             StrIterMustNext(&si);
         }
-        u64 ip_len = (u64)(si.pos - ip_start);
+        u64 ip_len = (u64)(StrIterIndex(&si) - ip_start);
 
         bool got_v4 = false;
         bool got_v6 = false;
@@ -307,7 +307,7 @@ static void parse_hosts_table(HostsTable *table, Allocator *alloc) {
             // `parse_ipv4` / `parse_ipv6` can scan it. Cap matches
             // the longest reasonable IPv6-with-zone-id literal.
             StrInitStack(ip_buf, 64) {
-                StrPushBackMany(&ip_buf, (Zstr)(si.data + ip_start), ip_len);
+                StrPushBackMany(&ip_buf, (Zstr)StrIterDataAt(&si, ip_start), ip_len);
                 got_v4 = parse_ipv4(StrBegin(&ip_buf), v4);
                 if (!got_v4) {
                     got_v6 = parse_ipv6(StrBegin(&ip_buf), v6);
@@ -326,17 +326,17 @@ static void parse_hosts_table(HostsTable *table, Allocator *alloc) {
             if (!StrIterPeek(&si, &c) || c == '\n' || c == '#') {
                 break;
             }
-            size nm_start = si.pos;
+            size nm_start = StrIterIndex(&si);
             while (StrIterPeek(&si, &c) && !is_hspace(c) && c != '\n' && c != '#') {
                 StrIterMustNext(&si);
             }
-            u64 nm_len = (u64)(si.pos - nm_start);
+            u64 nm_len = (u64)(StrIterIndex(&si) - nm_start);
             if (nm_len == 0) {
                 break;
             }
 
             HostsEntry e = {0};
-            e.name       = StrInitFromCstr((Zstr)(si.data + nm_start), nm_len, alloc);
+            e.name       = StrInitFromCstr((Zstr)StrIterDataAt(&si, nm_start), nm_len, alloc);
             ascii_lower((u8 *)StrBegin(&e.name), StrLen(&e.name));
             if (got_v4) {
                 MemCopy(e.ip, v4, 4);
@@ -393,19 +393,19 @@ static void parse_resolv_conf(DnsAddrs *out, Allocator *alloc) {
         // `kw_len` for the required separator -- both bounds-checked.
         char sep;
         if (StrIterRemainingLength(&si) > kw_len &&
-            MemCompare(si.data + si.pos, NS_KEYWORD, kw_len) == 0 &&
+            MemCompare(StrIterDataAt(&si, StrIterIndex(&si)), NS_KEYWORD, kw_len) == 0 &&
             StrIterPeekAt(&si, (i64)kw_len, &sep) && (sep == ' ' || sep == '\t')) {
             StrIterMustMove(&si, (i64)kw_len);
             skip_hspace_iter(&si);
 
-            size ip_start = si.pos;
+            size ip_start = StrIterIndex(&si);
             while (StrIterPeek(&si, &c) && !is_hspace(c) && c != '\n' && c != '#') {
                 StrIterMustNext(&si);
             }
-            u64 ip_len = (u64)(si.pos - ip_start);
+            u64 ip_len = (u64)(StrIterIndex(&si) - ip_start);
             if (ip_len > 0 && ip_len < 64) {
                 StrInitStack(ip_buf, 64) {
-                    StrPushBackMany(&ip_buf, (Zstr)(si.data + ip_start), ip_len);
+                    StrPushBackMany(&ip_buf, (Zstr)StrIterDataAt(&si, ip_start), ip_len);
                     u8 v4[4]  = {0};
                     u8 v6[16] = {0};
                     if (parse_ipv4(StrBegin(&ip_buf), v4)) {
@@ -434,7 +434,7 @@ bool dns_resolver_init(DnsResolver *out, Allocator *alloc) {
         return false;
     }
     MemSet(out, 0, sizeof(*out));
-    out->alloc       = alloc;
+    out->allocator   = alloc;
     out->hosts       = VecInitT(out->hosts, alloc);
     out->nameservers = VecInitT(out->nameservers, alloc);
     out->timeout_ms  = 5000;
@@ -464,7 +464,7 @@ void DnsResolverDeinit(DnsResolver *self) {
     if (VecBegin(&self->nameservers)) {
         VecDeinit(&self->nameservers);
     }
-    self->alloc = NULL;
+    self->allocator = NULL;
 }
 
 // ---------------------------------------------------------------------------
@@ -550,14 +550,8 @@ static i64 udp_round_trip(const SocketAddr *ns, const u8 *query, u64 qlen, u8 *r
 // extracted with NOERROR rcode; false otherwise. The transaction id
 // is generated locally per call (see `random_query_id`) and the
 // response's id is checked to match before the records are extracted.
-static bool try_one_query(
-    DnsResolver      *self,
-    const SocketAddr *ns,
-    Zstr              hostname,
-    DnsType           qtype,
-    u16               port,
-    DnsAddrs         *out
-) {
+static bool
+    try_one_query(DnsResolver *self, const SocketAddr *ns, Zstr hostname, DnsType qtype, u16 port, DnsAddrs *out) {
     // Per-call scratch: one DNS query buffer (<= 1232 B) plus the parsed
     // response with its records vector. Everything is dropped at function
     // exit, so a bump arena fits better than DefaultAllocator -- a single
@@ -574,8 +568,7 @@ static bool try_one_query(
     }
 
     u8  resp_buf[1232]; // safe UDP payload (avoids IP fragmentation)
-    i64 got =
-        udp_round_trip(ns, VecBegin(&query), VecLen(&query), resp_buf, sizeof(resp_buf), self->timeout_ms);
+    i64 got = udp_round_trip(ns, VecBegin(&query), VecLen(&query), resp_buf, sizeof(resp_buf), self->timeout_ms);
     VecDeinit(&query);
     if (got <= 0) {
         ArenaAllocatorDeinit(&scratch);
@@ -585,7 +578,7 @@ static bool try_one_query(
     DnsResponse resp = {0};
     // DnsParseResponse takes `Allocator *` -- legitimate erasure
     // boundary; pass at the call site, no intermediate variable.
-    bool        ok   = DnsParseResponse(&resp, resp_buf, (u64)got, ALLOCATOR_OF(&scratch));
+    bool ok = DnsParseResponse(&resp, resp_buf, (u64)got, ALLOCATOR_OF(&scratch));
     if (!ok || resp.id != id || resp.rcode != DNS_RCODE_NOERROR) {
         DnsResponseDeinit(&resp);
         ArenaAllocatorDeinit(&scratch);
@@ -753,7 +746,7 @@ bool dns_resolve_4_one_zstr(DnsResolver *self, Zstr spec, SocketKind kind, Socke
     if (!self || !spec || !out) {
         return false;
     }
-    DnsAddrs addrs    = VecInitT(addrs, self->alloc);
+    DnsAddrs addrs    = VecInitT(addrs, self->allocator);
     bool     ok       = dns_resolve_4_vec_zstr(self, spec, kind, &addrs);
     bool     have_one = ok && VecLen(&addrs) > 0;
     if (have_one) {

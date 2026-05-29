@@ -2,8 +2,28 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Provides an easy to use API to serialize and deserialize JSON to and from
-/// C structs.
+/// JSON (RFC 8259) reader + writer. Both sides are macro-driven: the
+/// reader walks a `StrIter` over caller-owned text, the writer appends
+/// into a caller-owned `Str` -- no parser/serializer object, no AST,
+/// no separate `Init` / `Deinit` step.
+///
+/// The reader macros (`JR_OBJ`, `JR_ARR`, `JR_STR_KV`, ...) bind a
+/// JSON tree to existing C-struct fields by name. Each `JR_*_KV` line
+/// names the JSON key and the struct field; missing keys are skipped,
+/// unrecognized keys are diagnosed and skipped. The shape mirrors the
+/// struct, so the same block doubles as schema documentation.
+///
+/// The writer macros (`JW_OBJ`, `JW_ARR`, `JW_STR_KV`, ...) emit the
+/// inverse render into a `Str`. The serializer is the obvious mirror
+/// of the reader: same nesting, same key/field pairing, opposite
+/// direction.
+///
+/// v1 scope: strings (with `\\` / `\"` / `\b` / `\f` / `\n` / `\r` /
+/// `\t` escapes -- `\uXXXX` is detected and skipped, NOT decoded),
+/// signed integers, doubles (including exponent form), `true` /
+/// `false`, `null`, objects, arrays. The reader is best-effort on
+/// malformed input -- structural failures log and rewind the iterator;
+/// recognised-but-unhandled keys/values are skipped via `JSkipValue`.
 ///
 
 #ifndef MISRA_PARSERS_JSON_H
@@ -16,64 +36,71 @@
 
 /* Usage Example :
 
-    Str json = StrInitFromZstr(
-        "{   \"name\"  :    \"misra\", \"data\":{\"x_axis_val\":-22.24485,\"gname\":\"a random "
-        "graph\",\"y_axis_val\":133.455234} ,\"ref\":40, \"strs\":[\"x\", \"ah _ ha\", \"lessa do something\"]}"
-    );
-    StrIter si = StrIterFromStr(&json);
+    // The JR_/JW_ macros expand into containers that resolve `MisraScope`,
+    // so the example body lives inside a `Scope(...)` block. The user-
+    // facing `alloc` name is bound to the scope's user pool; key/value
+    // storage inside the parser routes through `MisraScope`.
+    Scope(alloc, DefaultAllocator) {
+        Str json = StrInitFromZstr(
+            "{   \"name\"  :    \"misra\", \"data\":{\"x_axis_val\":-22.24485,\"gname\":\"a random "
+            "graph\",\"y_axis_val\":133.455234} ,\"ref\":40, \"strs\":[\"x\", \"ah _ ha\", \"lessa do something\"]}",
+            alloc
+        );
+        StrIter si = StrIterFromStr(json);
 
-    struct {
         struct {
-            float x;
-            float y;
-            Str   n;
-        } data;
-        Str  name;
-        int  ref;
-        Strs strs;
-    } obj = {0};
+            struct {
+                float x;
+                float y;
+                Str   n;
+            } data;
+            Str  name;
+            int  ref;
+            Strs strs;
+        } obj = {0};
 
-    obj.strs = VecInit_T(&obj.strs);
+        obj.strs = VecInitT(obj.strs, alloc);
 
-    JR_OBJ(si, {
-        JR_INT_KV(si, "ref", obj.ref);
-        JR_OBJ_KV(si, "data", {
-            JR_FLT_KV(si, "y_axis_val", obj.data.y);
-            JR_FLT_KV(si, "x_axis_val", obj.data.x);
-            JR_STR_KV(si, "gname", obj.data.n);
+        JR_OBJ(si, {
+            JR_INT_KV(si, "ref", obj.ref);
+            JR_OBJ_KV(si, "data", {
+                JR_FLT_KV(si, "y_axis_val", obj.data.y);
+                JR_FLT_KV(si, "x_axis_val", obj.data.x);
+                JR_STR_KV(si, "gname", obj.data.n);
+            });
+            JR_STR_KV(si, "name", obj.name);
+            JR_ARR_KV(si, "strs", {
+                Str tmp_s;
+                JR_STR(si, tmp_s);
+                VecPushBackR(&obj.strs, tmp_s);
+            });
         });
-        JR_STR_KV(si, "name", obj.name);
-        JR_ARR_KV(si, "strs", {
-            Str tmp_s;
-            JR_STR(si, tmp_s);
-            VecPushBack(&obj.strs, tmp_s);
+
+        WriteFmtLn("Name : {}", obj.name);
+        WriteFmtLn("Ref : {}", obj.ref);
+        WriteFmtLn("X : {}", obj.data.x);
+        WriteFmtLn("X : {}", obj.data.y);
+        WriteFmtLn("N : {}", obj.data.n);
+        WriteFmt("strs : [");
+        VecForeach(&obj.strs, str) { WriteFmt("{}, ", str); }
+        WriteFmtLn("]");
+
+        StrClear(&json);
+
+        JW_OBJ(json, {
+            JW_INT_KV(json, "ref", obj.ref);
+            JW_OBJ_KV(json, "data", {
+                JW_FLT_KV(json, "y_axis_val", obj.data.y);
+                JW_FLT_KV(json, "x_axis_val", obj.data.x);
+                JW_STR_KV(json, "gname", obj.data.n);
+            });
+            JW_STR_KV(json, "name", obj.name);
+            JW_ARR_KV(json, "strs", obj.strs, s, { JW_STR(json, s); });
         });
-    });
 
-    WriteFmtLn("Name : {}", obj.name);
-    WriteFmtLn("Ref : {}", obj.ref);
-    WriteFmtLn("X : {}", obj.data.x);
-    WriteFmtLn("X : {}", obj.data.y);
-    WriteFmtLn("N : {}", obj.data.n);
-    WriteFmt("strs : [");
-    VecForeach(&obj.strs, str) { WriteFmt("{}, ", str); }
-    WriteFmtLn("]");
-
-    StrClear(&json);
-
-    JW_OBJ(json, {
-        JW_INT_KV(json, "ref", obj.ref);
-        JW_OBJ_KV(json, "data", {
-            JW_FLT_KV(json, "y_axis_val", obj.data.y);
-            JW_FLT_KV(json, "x_axis_val", obj.data.x);
-            JW_STR_KV(json, "gname", obj.data.n);
-        });
-        JW_STR_KV(json, "name", obj.name);
-        JW_ARR_KV(json, "strs", obj.strs, s, { JW_STR(json, s); });
-    });
-
-    // {"ref":40,"data":{"y_axis_val":133.455231,"x_axis_val":-22.244850,"gname":"a random graph"},"name":"misra","strs":["x","ah _ ha","lessa do something"]}
-    WriteFmtLn("{}", json);
+        // {"ref":40,"data":{"y_axis_val":133.455231,"x_axis_val":-22.244850,"gname":"a random graph"},"name":"misra","strs":["x","ah _ ha","lessa do something"]}
+        WriteFmtLn("{}", json);
+    }
 */
 
 ///
@@ -114,7 +141,9 @@ StrIter JSkipWhitespace(StrIter si);
 /// si[in]   : Current reading position in input string
 /// str[out] : Output string to store parsed result
 ///
-/// NOTE: Unicode escape sequences like `\uXXXX` are not supported.
+/// NOTE: `\uXXXX` escapes are recognised but not decoded -- the parser
+///       logs a warning and skips the six bytes so the surrounding
+///       string still parses. See the top-of-file v1 scope note.
 ///
 /// SUCCESS : Returns `StrIter` advanced past closing quote
 /// FAILURE : Returns original `StrIter` on error (invalid escape, missing quote, etc.)
@@ -239,7 +268,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_STR_KV(si, k, str)                                                                                          \
     do {                                                                                                               \
-        if (!StrCmp(&key, (k))) {                                                                                  \
+        if (!StrCmp(&key, (k))) {                                                                                      \
             Str UNPL(my_str) = StrInit();                                                                              \
             si               = JReadString((si), &UNPL(my_str));                                                       \
             (str)            = UNPL(my_str);                                                                           \
@@ -284,7 +313,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_INT_KV(si, k, i)                                                                                            \
     do {                                                                                                               \
-        if (!StrCmp(&key, (k))) {                                                                                  \
+        if (!StrCmp(&key, (k))) {                                                                                      \
             i64 UNPL(my_int) = 0;                                                                                      \
             si               = JReadInteger((si), &UNPL(my_int));                                                      \
             (i)              = UNPL(my_int);                                                                           \
@@ -329,7 +358,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_FLT_KV(si, k, f)                                                                                            \
     do {                                                                                                               \
-        if (!StrCmp(&key, (k))) {                                                                                  \
+        if (!StrCmp(&key, (k))) {                                                                                      \
             f64 UNPL(my_flt) = 0;                                                                                      \
             si               = JReadFloat((si), &UNPL(my_flt));                                                        \
             (f)              = UNPL(my_flt);                                                                           \
@@ -374,7 +403,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_BOOL_KV(si, k, b)                                                                                           \
     do {                                                                                                               \
-        if (!StrCmp(&key, (k))) {                                                                                  \
+        if (!StrCmp(&key, (k))) {                                                                                      \
             bool UNPL(my_b) = 0;                                                                                       \
             si              = JReadBool((si), &UNPL(my_b));                                                            \
             (b)             = UNPL(my_b);                                                                              \
@@ -397,7 +426,7 @@ StrIter JSkipValue(StrIter si);
 ///           JR_INT_KV(si, "x", tmp.x);
 ///           JR_FLT_KV(si, "y", tmp.y);
 ///       });
-///       VecPush(&data.items, tmp);
+///       VecPushBackR(&data.items, tmp);
 ///   });
 ///
 /// SUCCESS : All values processed or skipped gracefully
@@ -445,12 +474,12 @@ StrIter JSkipValue(StrIter si);
             { reader }                                                                                                 \
                                                                                                                        \
             /* if no advancement in read position */                                                                   \
-            if (UNPL(si_before_read).pos == si.pos) {                                                                  \
+            if (StrIterIndex(&UNPL(si_before_read)) == StrIterIndex(&si)) {                                            \
                 /* skip the value */                                                                                   \
                 StrIter UNPL(read_si) = JSkipValue(si);                                                                \
                                                                                                                        \
                 /* if still no advancement in read position */                                                         \
-                if (UNPL(read_si).pos == si.pos) {                                                                     \
+                if (StrIterIndex(&UNPL(read_si)) == StrIterIndex(&si)) {                                               \
                     LOG_ERROR("Failed to parse value. Invalid JSON.");                                                 \
                     UNPL(failed) = true;                                                                               \
                     si           = UNPL(saved_si);                                                                     \
@@ -542,7 +571,7 @@ StrIter JSkipValue(StrIter si);
                                                                                                                        \
             /* key start */                                                                                            \
             UNPL(read_si) = JReadString(si, &key);                                                                     \
-            if (UNPL(read_si).pos == si.pos) {                                                                         \
+            if (StrIterIndex(&UNPL(read_si)) == StrIterIndex(&si)) {                                                   \
                 LOG_ERROR("Failed to read string key in object. Invalid JSON");                                        \
                 StrDeinit(&key);                                                                                       \
                 UNPL(failed) = true;                                                                                   \
@@ -570,13 +599,13 @@ StrIter JSkipValue(StrIter si);
             { reader }                                                                                                 \
                                                                                                                        \
             /* if no advancement in read position */                                                                   \
-            if (UNPL(si_before_read).pos == si.pos) {                                                                  \
+            if (StrIterIndex(&UNPL(si_before_read)) == StrIterIndex(&si)) {                                            \
                 /* skip the value */                                                                                   \
                 UNPL(read_si) = JSkipValue(si);                                                                        \
                                                                                                                        \
                                                                                                                        \
                 /* if still no advancement in read position */                                                         \
-                if (UNPL(read_si).pos == si.pos) {                                                                     \
+                if (StrIterIndex(&UNPL(read_si)) == StrIterIndex(&si)) {                                               \
                     LOG_ERROR("Failed to parse value. Invalid JSON.");                                                 \
                     StrDeinit(&key);                                                                                   \
                     UNPL(failed) = true;                                                                               \
@@ -626,7 +655,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_OBJ_KV(si, k, reader)                                                                                       \
     do {                                                                                                               \
-        if (!StrCmp(&key, (k))) {                                                                                  \
+        if (!StrCmp(&key, (k))) {                                                                                      \
             JR_OBJ(si, reader);                                                                                        \
         }                                                                                                              \
     } while (0)
@@ -640,8 +669,9 @@ StrIter JSkipValue(StrIter si);
 ///
 /// USAGE:
 ///   JR_ARR_KV(si, "list", {
+///       i64 val = 0;
 ///       JR_INT(si, val);
-///       VecPush(&arr, val);
+///       VecPushBackR(&arr, val);
 ///   });
 ///
 /// SUCCESS : Array parsed if key matched
@@ -651,7 +681,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_ARR_KV(si, k, reader)                                                                                       \
     do {                                                                                                               \
-        if (!StrCmp(&key, (k))) {                                                                                  \
+        if (!StrCmp(&key, (k))) {                                                                                      \
             JR_ARR(si, reader);                                                                                        \
         }                                                                                                              \
     } while (0)
@@ -682,9 +712,9 @@ StrIter JSkipValue(StrIter si);
     do {                                                                                                               \
         bool ___is_first___ = true;                                                                                    \
         (void)___is_first___;                                                                                          \
-        StrPushBackR(&(j), '{');                                                                                        \
+        StrPushBackR(&(j), '{');                                                                                       \
         {writer};                                                                                                      \
-        StrPushBackR(&(j), '}');                                                                                        \
+        StrPushBackR(&(j), '}');                                                                                       \
     } while (0)
 
 ///
@@ -710,9 +740,9 @@ StrIter JSkipValue(StrIter si);
         if (___is_first___) {                                                                                          \
             ___is_first___ = false;                                                                                    \
         } else {                                                                                                       \
-            StrPushBackR(&(j), ',');                                                                                    \
+            StrPushBackR(&(j), ',');                                                                                   \
         }                                                                                                              \
-        StrAppendFmt(&(j), "\"{}\":", (Zstr)(k));                                                              \
+        StrAppendFmt(&(j), "\"{}\":", (Zstr)(k));                                                                      \
         JW_OBJ(j, writer);                                                                                             \
     } while (0)
 
@@ -739,16 +769,16 @@ StrIter JSkipValue(StrIter si);
     do {                                                                                                               \
         bool ___is_first___ = true;                                                                                    \
         (void)___is_first___;                                                                                          \
-        StrPushBackR(&(j), '[');                                                                                        \
+        StrPushBackR(&(j), '[');                                                                                       \
         VecForeach(&(arr), item) {                                                                                     \
             if (___is_first___) {                                                                                      \
                 ___is_first___ = false;                                                                                \
             } else {                                                                                                   \
-                StrPushBackR(&(j), ',');                                                                                \
+                StrPushBackR(&(j), ',');                                                                               \
             }                                                                                                          \
             { writer }                                                                                                 \
         }                                                                                                              \
-        StrPushBackR(&(j), ']');                                                                                        \
+        StrPushBackR(&(j), ']');                                                                                       \
     } while (0)
 
 ///
@@ -776,9 +806,9 @@ StrIter JSkipValue(StrIter si);
         if (___is_first___) {                                                                                          \
             ___is_first___ = false;                                                                                    \
         } else {                                                                                                       \
-            StrPushBackR(&(j), ',');                                                                                    \
+            StrPushBackR(&(j), ',');                                                                                   \
         }                                                                                                              \
-        StrAppendFmt(&(j), "\"{}\":", (Zstr)(k));                                                              \
+        StrAppendFmt(&(j), "\"{}\":", (Zstr)(k));                                                                      \
         JW_ARR(j, arr, item, writer);                                                                                  \
     } while (0)
 
@@ -822,9 +852,9 @@ StrIter JSkipValue(StrIter si);
         if (___is_first___) {                                                                                          \
             ___is_first___ = false;                                                                                    \
         } else {                                                                                                       \
-            StrPushBackR(&(j), ',');                                                                                    \
+            StrPushBackR(&(j), ',');                                                                                   \
         }                                                                                                              \
-        StrAppendFmt(&(j), "\"{}\":", (Zstr)(k));                                                              \
+        StrAppendFmt(&(j), "\"{}\":", (Zstr)(k));                                                                      \
         JW_INT(j, i);                                                                                                  \
     } while (0)
 
@@ -868,9 +898,9 @@ StrIter JSkipValue(StrIter si);
         if (___is_first___) {                                                                                          \
             ___is_first___ = false;                                                                                    \
         } else {                                                                                                       \
-            StrPushBackR(&(j), ',');                                                                                    \
+            StrPushBackR(&(j), ',');                                                                                   \
         }                                                                                                              \
-        StrAppendFmt(&(j), "\"{}\":", (Zstr)(k));                                                              \
+        StrAppendFmt(&(j), "\"{}\":", (Zstr)(k));                                                                      \
         JW_FLT(j, f);                                                                                                  \
     } while (0)
 
@@ -890,7 +920,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JW_STR(j, s)                                                                                                   \
     do {                                                                                                               \
-        StrAppendFmt(&(j), "\"{}\"", StrLen(&(s)) ? (Zstr)StrBegin(&(s)) : (Zstr)"");                                  \
+        StrAppendFmt(&(j), "\"{}\"", StrLen(&(s)) ? (Zstr)StrBegin(&(s)) : (Zstr) "");                                 \
     } while (0)
 
 ///
@@ -913,9 +943,9 @@ StrIter JSkipValue(StrIter si);
         if (___is_first___) {                                                                                          \
             ___is_first___ = false;                                                                                    \
         } else {                                                                                                       \
-            StrPushBackR(&(j), ',');                                                                                    \
+            StrPushBackR(&(j), ',');                                                                                   \
         }                                                                                                              \
-        StrAppendFmt(&(j), "\"{}\":", (Zstr)(k));                                                              \
+        StrAppendFmt(&(j), "\"{}\":", (Zstr)(k));                                                                      \
         JW_STR(j, s);                                                                                                  \
     } while (0)
 
@@ -935,7 +965,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JW_BOOL(j, b)                                                                                                  \
     do {                                                                                                               \
-        StrAppendFmt(&(j), "{}", (Zstr)((b) ? "true" : "false"));                                              \
+        StrAppendFmt(&(j), "{}", (Zstr)((b) ? "true" : "false"));                                                      \
     } while (0)
 
 ///
@@ -958,9 +988,9 @@ StrIter JSkipValue(StrIter si);
         if (___is_first___) {                                                                                          \
             ___is_first___ = false;                                                                                    \
         } else {                                                                                                       \
-            StrPushBackR(&(j), ',');                                                                                    \
+            StrPushBackR(&(j), ',');                                                                                   \
         }                                                                                                              \
-        StrAppendFmt(&(j), "\"{}\":", (Zstr)(k));                                                              \
+        StrAppendFmt(&(j), "\"{}\":", (Zstr)(k));                                                                      \
         JW_BOOL(j, b);                                                                                                 \
     } while (0)
 

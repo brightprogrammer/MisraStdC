@@ -20,7 +20,7 @@ static bool test_kvconfig_basic_parse(void) {
     bool    debug  = false;
     bool    result = true;
 
-    result = result && (si.pos == si.length);
+    result = result && (StrIterIndex(&si) == StrIterLength(&si));
     result = result && (MapPairCount(&cfg) == 3);
     result = result && KvConfigContains(&cfg, "host");
     result = result && host && StrCmp(host, "localhost") == 0;
@@ -54,7 +54,7 @@ static bool test_kvconfig_comments_quotes_and_duplicates(void) {
     Str    *empty  = KvConfigGetPtr(&cfg, "empty");
     bool    result = true;
 
-    result = result && (si.pos == si.length);
+    result = result && (StrIterIndex(&si) == StrIterLength(&si));
     result = result && (MapPairCount(&cfg) == 4);
     result = result && path && StrCmp(path, "/srv/my app") == 0;
     result = result && user && StrCmp(user, "root") == 0;
@@ -148,7 +148,7 @@ static bool test_kvconfig_invalid_line_fails(void) {
     bool    enabled = false;
     bool    result  = true;
 
-    result = result && (si.pos == 0);
+    result = result && (StrIterIndex(&si) == 0);
     result = result && KvConfigGetBool(&cfg, "valid", &enabled) && enabled;
     result = result && !KvConfigContains(&cfg, "later");
 

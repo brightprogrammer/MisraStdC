@@ -273,8 +273,8 @@ bool test_bitvec_try_conversion_allocators(void) {
     BitVec bv;
     Str    str;
     bool   ok = BitVecTryFromStr(&bv, "101001", ALLOCATOR_OF(&alloc));
-    bool   result = ok && (VecAllocator(&bv)->effort == alloc.base.effort) &&
-                  (VecAllocator(&bv)->retry_limit == alloc.base.retry_limit);
+    bool   result = ok && (BitVecAllocator(&bv)->effort == alloc.base.effort) &&
+                  (BitVecAllocator(&bv)->retry_limit == alloc.base.retry_limit);
 
     ok     = BitVecTryToStr(&str, &bv);
     result = result && ok && (StrAllocator(&str)->effort == alloc.base.effort) &&
@@ -725,10 +725,16 @@ bool test_bitvec_integer_bounds_failures(void) {
 
 // Deadend tests
 bool test_bitvec_convert_null_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec convert NULL pointer handling\n");
 
-    // Test NULL bitvec pointer - should abort
-    BitVecToStr(NULL);
+    // Use the explicit-allocator form so the NULL bitvec reaches the
+    // function-level ValidateBitVec instead of dereferencing NULL
+    // inside the BitVecAllocator accessor macro.
+    BitVecToStr((BitVec *)NULL, ALLOCATOR_OF(&alloc));
+
+    DefaultAllocatorDeinit(&alloc);
 
     return false;
 }

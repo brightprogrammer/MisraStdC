@@ -94,7 +94,9 @@ uint64_t bench_live_bytes(void);
 //   * jemalloc:  mallctl("stats.mapped")
 //   * mimalloc:  mi_process_info(&current_commit, ...)
 //   * tcmalloc:  MallocExtension_GetNumericProperty("generic.heap_size")
-//   * misra:     sum of PageAllocator.entries[i].bytes
+//   * misra:     AllocatorFootprintBytes(a) -- direct read of
+//                base.footprint_bytes, which every typed allocator's
+//                os_page_map/unmap pair maintains.
 //
 // (footprint - live) / footprint is the fragmentation ratio.
 uint64_t bench_footprint_bytes(void);
