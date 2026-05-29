@@ -27,17 +27,50 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # Allocators in column order. Misra columns last so improvements stand
-# out next to the production baselines.
-BACKENDS = [
-    "glibc",
-    "jemalloc",
-    "mimalloc",
-    "tcmalloc",
-    "misra",            # HeapAllocator for every bench
-    "misra-correct",    # Heap or Slab per bench (the "right tool" comparison)
-    "misra-arena",      # ArenaAllocator (bump + bulk-reset)
-    "misra-page",       # PageAllocator (mmap-per-alloc)
-]
+# out next to the production baselines. `misra` and `misra-correct`
+# come in two flavours when a second builddir is supplied:
+# `*-full` (heap_validate_full=true: per-dispatch cross-class checks
+# + volatile descriptor probes) and `*-fast` (heap_validate_full=false:
+# magic-only check). The other backends are unaffected by that flag.
+LIBC_BACKENDS = ["glibc", "jemalloc", "mimalloc", "tcmalloc"]
+MISRA_VALIDATE_SENSITIVE = ["misra", "misra-correct"]
+MISRA_VALIDATE_INSENSITIVE = ["misra-arena", "misra-page"]
+
+# Default single-builddir column list (back-compat). When `--validate-fast`
+# is supplied, the per-run build_backends() helper produces the doubled
+# column list instead.
+BACKENDS = LIBC_BACKENDS + MISRA_VALIDATE_SENSITIVE + MISRA_VALIDATE_INSENSITIVE
+
+
+def build_backends(have_fast_builddir: bool) -> list[str]:
+    """Column list for a run. With a fast builddir we split misra /
+    misra-correct into `-full` and `-fast` flavours; everything else
+    stays single-column."""
+    if not have_fast_builddir:
+        return list(BACKENDS)
+    cols = list(LIBC_BACKENDS)
+    for be in MISRA_VALIDATE_SENSITIVE:
+        cols.append(f"{be}-full")
+        cols.append(f"{be}-fast")
+    cols.extend(MISRA_VALIDATE_INSENSITIVE)
+    return cols
+
+
+def binary_name_for(column: str) -> str:
+    """The bench-* binary that backs a given column. The `-full` /
+    `-fast` suffix on misra columns is a per-builddir distinction, not
+    a per-binary one -- the underlying binary name strips it."""
+    for be in MISRA_VALIDATE_SENSITIVE:
+        if column == f"{be}-full" or column == f"{be}-fast":
+            return be
+    return column
+
+
+def builddir_for(column: str, full: Path, fast: Path | None) -> Path:
+    """Which builddir owns this column's binary."""
+    if fast is not None and column.endswith("-fast"):
+        return fast
+    return full
 
 MIN_TIME_OVERRIDES: dict[str, str] = {}
 
@@ -71,7 +104,7 @@ BENCHMARK_FILTERS = {
     #     rewind for the (N-1) older items. Memory would grow without
     #     bound. These are workloads arena isn't built for; the table
     #     shows n/a for arena on those rows.
-    "misra-arena": "BM_(AllocFreePair|AllocTouchFree|ArenaBumpReset|ReallocGrow)",
+    "misra-arena":      "BM_(AllocFreePair|AllocTouchFree|ArenaBumpReset|ReallocGrow)",
 
     # PageAllocator's contract is "one mmap per alloc, page-rounded".
     # Testing it on sub-page allocations measures mmap dispatch + the
@@ -86,7 +119,7 @@ BENCHMARK_FILTERS = {
     #   all sub-page or many-live-allocs workloads that would have a
     #   real user reach for Heap or Slab instead. Same framing as the
     #   arena filter above: specialised backend, specialised workload.
-    "misra-page":  "BM_AllocFreePair/(4096|16384|65536)$|BM_AllocTouchFree/(4096|65536)$",
+    "misra-page":       "BM_AllocFreePair/(4096|16384|65536)$|BM_AllocTouchFree/(4096|65536)$",
 }
 
 # Per-test column groups. Each entry: (template-placeholder, list of
@@ -186,15 +219,15 @@ def fmt_time(t_ns: float | None, unit: str) -> str:
     return f"{t_ns:.0f}"
 
 
-def render_timing_table(rows: list, unit_hint: str, data: dict) -> str:
+def render_timing_table(rows: list, unit_hint: str, data: dict, backends: list[str]) -> str:
     """Render one markdown table with allocators as columns, benchmark rows as rows."""
-    hdr = ["benchmark"] + BACKENDS
-    aligns = ["---"] + [f"---:" for _ in BACKENDS]
+    hdr = ["benchmark"] + backends
+    aligns = ["---"] + [f"---:" for _ in backends]
     out = ["| " + " | ".join(hdr) + " |"]
     out.append("|" + "|".join(aligns) + "|")
     for bench_name, label, unit in rows:
         cells = [label]
-        for be in BACKENDS:
+        for be in backends:
             j = data.get(be)
             if j is None:
                 cells.append("n/a")
@@ -209,16 +242,16 @@ def render_timing_table(rows: list, unit_hint: str, data: dict) -> str:
     return "\n".join(out)
 
 
-def render_frag_table(data: dict) -> str:
+def render_frag_table(data: dict, backends: list[str]) -> str:
     """Fragmentation table: live, then committed per backend."""
-    cols = ["benchmark", "live MB"] + [f"{be} MB" for be in BACKENDS]
-    aligns = ["---", "---:"] + ["---:" for _ in BACKENDS]
+    cols = ["benchmark", "live MB"] + [f"{be} MB" for be in backends]
+    aligns = ["---", "---:"] + ["---:" for _ in backends]
     out = ["| " + " | ".join(cols) + " |"]
     out.append("|" + "|".join(aligns) + "|")
     for bench_name, label in FRAG_ROWS:
         # Pull live_MB from whichever backend reported it (all should agree).
         live = None
-        for be in BACKENDS:
+        for be in backends:
             j = data.get(be)
             if j is None:
                 continue
@@ -226,7 +259,7 @@ def render_frag_table(data: dict) -> str:
             if live is not None:
                 break
         cells = [label, f"{live:.1f}" if live is not None else "n/a"]
-        for be in BACKENDS:
+        for be in backends:
             j = data.get(be)
             if j is None:
                 cells.append("n/a")
@@ -246,7 +279,7 @@ def render_frag_table(data: dict) -> str:
     return "\n".join(out)
 
 
-def build_tldr(data: dict) -> str:
+def build_tldr(data: dict, have_fast: bool) -> str:
     """Pull a couple of headline numbers for the TL;DR."""
     def pair_at(be: str, name: str) -> str:
         t = median_time_ns(data.get(be, {}), name)
@@ -257,17 +290,27 @@ def build_tldr(data: dict) -> str:
         "",
         "| backend | time |",
         "|---|---:|",
-        f"| tcmalloc           | {pair_at('tcmalloc', 'BM_AllocFreePair/16')} |",
-        f"| glibc              | {pair_at('glibc',    'BM_AllocFreePair/16')} |",
-        f"| jemalloc           | {pair_at('jemalloc', 'BM_AllocFreePair/16')} |",
-        f"| mimalloc           | {pair_at('mimalloc', 'BM_AllocFreePair/16')} |",
-        f"| misra (Heap only)  | {pair_at('misra',         'BM_AllocFreePair/16')} |",
-        f"| misra-correct (Slab) | {pair_at('misra-correct', 'BM_AllocFreePair/16')} |",
+        f"| tcmalloc | {pair_at('tcmalloc', 'BM_AllocFreePair/16')} |",
+        f"| glibc    | {pair_at('glibc',    'BM_AllocFreePair/16')} |",
+        f"| jemalloc | {pair_at('jemalloc', 'BM_AllocFreePair/16')} |",
+        f"| mimalloc | {pair_at('mimalloc', 'BM_AllocFreePair/16')} |",
     ]
+    if have_fast:
+        lines += [
+            f"| misra (Heap, validate-full) | {pair_at('misra-full',         'BM_AllocFreePair/16')} |",
+            f"| misra (Heap, validate-fast) | {pair_at('misra-fast',         'BM_AllocFreePair/16')} |",
+            f"| misra-correct (Slab, validate-full) | {pair_at('misra-correct-full', 'BM_AllocFreePair/16')} |",
+            f"| misra-correct (Slab, validate-fast) | {pair_at('misra-correct-fast', 'BM_AllocFreePair/16')} |",
+        ]
+    else:
+        lines += [
+            f"| misra (Heap only)    | {pair_at('misra',         'BM_AllocFreePair/16')} |",
+            f"| misra-correct (Slab) | {pair_at('misra-correct', 'BM_AllocFreePair/16')} |",
+        ]
     return "\n".join(lines)
 
 
-def gather_env(builddir: Path) -> dict:
+def gather_env(builddir: Path, fast_builddir: Path | None = None) -> dict:
     """Collect environment metadata for the README footer."""
     repo = builddir.parent  # builddir is `<repo>/build`, README lives in `<repo>/Benchmark`.
     try:
@@ -304,17 +347,16 @@ def gather_env(builddir: Path) -> dict:
                 compiler = f"{c.get('id', '')} {c.get('version', '')}".strip()
         except Exception:
             pass
-    build_options = "unknown"
-    opts_intro = builddir / "meson-info" / "intro-buildoptions.json"
-    if opts_intro.exists():
+    def opts_string(d: Path) -> str:
+        opts_intro = d / "meson-info" / "intro-buildoptions.json"
+        if not opts_intro.exists():
+            return "unknown"
         try:
             opts = json.loads(opts_intro.read_text())
             picks = []
             # Capture both meson-builtin knobs (buildtype/optimization/etc.)
-            # and the project's safety/perf-relevant flags. Readers need
-            # heap_validate_full in particular to interpret the misra
-            # numbers honestly -- "release validate-full" and "release
-            # validate-fast" are very different rows.
+            # and the project's safety/perf-relevant flags so the misra
+            # numbers are interpretable.
             wanted = (
                 "buildtype",
                 "optimization",
@@ -326,9 +368,16 @@ def gather_env(builddir: Path) -> dict:
             for o in opts:
                 if o.get("name") in wanted:
                     picks.append(f"{o['name']}={o['value']}")
-            build_options = " ".join(picks) or "default"
+            return " ".join(picks) or "default"
         except Exception:
-            pass
+            return "unknown"
+
+    build_options = opts_string(builddir)
+    if fast_builddir is not None:
+        build_options = (
+            "validate-full: " + build_options +
+            "  |  validate-fast: " + opts_string(fast_builddir)
+        )
     return {
         "TIMESTAMP": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
         "COMMIT": commit,
@@ -343,7 +392,13 @@ def main() -> int:
     ap = argparse.ArgumentParser(
         description="Run bench-* binaries and refresh Benchmark/README.md"
     )
-    ap.add_argument("builddir", type=Path, help="Meson build directory (must contain Benchmark/bench-*)")
+    ap.add_argument("builddir", type=Path,
+                    help="Primary build directory (heap_validate_full=true). "
+                         "Sources all libc backends and the validate-full misra columns.")
+    ap.add_argument("--validate-fast", type=Path, default=None,
+                    help="Optional second build directory with heap_validate_full=false. "
+                         "When given, the misra / misra-correct rows are duplicated into "
+                         "*-full and *-fast columns so the safety overhead is visible.")
     ap.add_argument("--reps", type=int, default=10, help="Repetitions per benchmark (default 10)")
     ap.add_argument(
         "--out",
@@ -353,38 +408,49 @@ def main() -> int:
     )
     args = ap.parse_args()
 
-    builddir: Path = args.builddir.resolve()
-    bench_dir = builddir / "Benchmark"
-    if not bench_dir.is_dir():
-        print(f"error: no Benchmark/ subdir under {builddir}. Did you forget -Dbenchmark=true?",
-              file=sys.stderr)
-        return 1
+    full_builddir: Path = args.builddir.resolve()
+    fast_builddir: Path | None = args.validate_fast.resolve() if args.validate_fast else None
+    for label, d in (("primary", full_builddir),
+                     ("--validate-fast", fast_builddir)):
+        if d is not None and not (d / "Benchmark").is_dir():
+            print(f"error: no Benchmark/ subdir under {label} builddir {d}. "
+                  f"Did you forget -Dbenchmark=true?", file=sys.stderr)
+            return 1
 
-    # Each bench binary lives at builddir/Benchmark/bench-<name>.
-    data = {}
-    for be in BACKENDS:
-        binary = bench_dir / f"bench-{be}"
+    backends = build_backends(have_fast_builddir=fast_builddir is not None)
+
+    # Each column maps to a (binary_name, builddir) pair. Two columns
+    # may share a binary name and differ only in builddir (the validate
+    # fast/full split).
+    data: dict[str, dict] = {}
+    for col in backends:
+        bin_name = binary_name_for(col)
+        bdir = builddir_for(col, full_builddir, fast_builddir)
+        binary = bdir / "Benchmark" / f"bench-{bin_name}"
         if not binary.exists():
-            print(f"warn: {binary} missing -- skipping {be}", file=sys.stderr)
+            print(f"warn: {binary} missing -- skipping {col}", file=sys.stderr)
             continue
-        min_time  = MIN_TIME_OVERRIDES.get(be, "0.5s")
-        filter_re = BENCHMARK_FILTERS.get(be)
-        print(f"[run] bench-{be}  (min_time={min_time}"
+        min_time  = MIN_TIME_OVERRIDES.get(bin_name, "0.5s")
+        filter_re = BENCHMARK_FILTERS.get(bin_name)
+        tag = f"bench-{bin_name}"
+        if col != bin_name:
+            tag = f"{tag}  -> column {col}  (builddir={bdir.name})"
+        print(f"[run] {tag}  (min_time={min_time}"
               + (f", filter={filter_re}" if filter_re else "") + ")",
               file=sys.stderr)
-        data[be] = run_binary(binary, args.reps, min_time=min_time, filter_re=filter_re)
+        data[col] = run_binary(binary, args.reps, min_time=min_time, filter_re=filter_re)
 
     # Build substitution map.
-    subs = {f"{{{{{k}}}}}": v for k, v in gather_env(builddir).items()}
+    subs = {f"{{{{{k}}}}}": v for k, v in gather_env(full_builddir, fast_builddir).items()}
     subs["{{REPS}}"] = str(args.reps)
-    subs["{{TLDR}}"] = build_tldr(data)
+    subs["{{TLDR}}"] = build_tldr(data, have_fast=fast_builddir is not None)
     for placeholder, rows in TABLES.items():
         unit_hint = rows[0][2]
-        subs[f"{{{{{placeholder}}}}}"] = render_timing_table(rows, unit_hint, data)
-    subs["{{TABLE_FRAG}}"] = render_frag_table(data)
+        subs[f"{{{{{placeholder}}}}}"] = render_timing_table(rows, unit_hint, data, backends)
+    subs["{{TABLE_FRAG}}"] = render_frag_table(data, backends)
 
     # Load template + substitute.
-    repo = builddir.parent
+    repo = full_builddir.parent
     tpl_path = repo / "Benchmark" / "README.template.md"
     out_path = args.out or (repo / "Benchmark" / "README.md")
     tpl = tpl_path.read_text()

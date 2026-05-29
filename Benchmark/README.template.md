@@ -54,19 +54,34 @@ Each allocator's own introspection API reports committed bytes after the workloa
 
 ## How to read
 
-Two MisraStdC entries:
+MisraStdC's typed-allocator family shows up as several columns:
 
-- **`misra`** — uses `HeapAllocator` for every benchmark. Closest apples-to-apples with the libc-shape allocators.
-- **`misra-correct`** — picks the allocator that fits the workload: `SlabAllocator(slot_size)` for fixed-size benches, `HeapAllocator` for mixed-size. What a real MisraStdC user would do.
+- **`misra` / `misra-correct`** — `HeapAllocator` everywhere vs the right tool per workload (`SlabAllocator(slot_size)` for fixed-size benches, `HeapAllocator` for mixed). The latter is what a real MisraStdC caller would do.
+- **`*-full` vs `*-fast`** — same source, different `heap_validate_full` setting. `-full` does per-dispatch cross-class checks plus volatile descriptor probes (project default; catches torn pointers / freed metadata). `-fast` is the magic-only check (catches uninitialised / post-deinit / type-confusion only). The gap between them is MisraStdC's per-call safety tax — turn it off in shipping release builds for tighter dispatch.
+- **`misra-arena` / `misra-page`** — specialised backends (bump+bulk-reset, mmap-per-alloc). `n/a` rows mean the workload doesn't fit the backend's contract (e.g. arena can't handle many-live-allocs; page wastes whole pages on sub-page requests).
 
-The gap between the two columns is the cost of wrong-allocator-for-the-job. Where tcmalloc beats `misra-correct` on small AllocFreePair, the gap is MisraStdC's per-call safety checks (double-free, misalignment) that other allocators skip.
+Where tcmalloc beats `misra-correct-fast` on small AllocFreePair, the gap is MisraStdC's structural safety (double-free, misalignment, magic-tag dispatch) that production allocators skip even in their fast paths.
 
 ## Reproduce
+
+Single-tier run (validate-full only):
 
 ```sh
 meson setup build -Dbenchmark=true -Dbuildtype=release -Doptimization=3
 ninja  -C build
 python3 Benchmark/Scripts/run.py build
+```
+
+Two-tier run that shows the safety overhead side-by-side (matches the numbers above):
+
+```sh
+meson setup build-full -Dbenchmark=true -Dbuildtype=release -Doptimization=3 \
+    -Dalloc_debug=false -Dheap_validate_full=true
+meson setup build-fast -Dbenchmark=true -Dbuildtype=release -Doptimization=3 \
+    -Dalloc_debug=false -Dheap_validate_full=false
+ninja -C build-full
+ninja -C build-fast
+python3 Benchmark/Scripts/run.py build-full --validate-fast build-fast
 ```
 
 Regenerates this file with measurements from the host.

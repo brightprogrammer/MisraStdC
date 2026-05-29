@@ -50,7 +50,7 @@ bench_cpp_sources = files(
     'Source/Main.cpp',
 )
 
-bench_inc = include_directories('Source')
+bench_inc = [include_directories('Source'), inc_misra]
 
 # Libc-shape backends. Same C wrapper, four link variants.
 bench_libc_backends = [
