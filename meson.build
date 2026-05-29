@@ -259,25 +259,35 @@ have_direct_syscall = have_misra_start or (sys_kernel == 'darwin' and (sys_cpu =
 # `freestanding`: the library's default identity. _Freestanding.c's
 # mem* overrides, _StartLinux.c's custom `_start`, the in-tree
 # stack-protector helpers, and the `-nostdlib`-shaped link args on
-# Bin/ tools are all keyed off this. Not a user-facing option;
-# auto-derived from `b_sanitize` because sanitizer instrumentation
-# structurally requires libc and so cannot coexist with freestanding:
-#   - libasan / libubsan / liblsan live in libsanitizer (libc-side).
-#     '-nostdlib' on Bin/ tools drops them, producing __asan_* /
-#     __ubsan_* undefined references at link time. (commit 6ce17b7
-#     was the Linux CI failure that first surfaced this.)
-#   - ASan's own mem* interceptors clash with our in-tree mem*
-#     overrides in _Freestanding.c.
-#   - Stack-protector + FORTIFY_SOURCE machinery is needed by some
-#     sanitizer configs.
-#   - Our _start replacement skips ASan's TLS setup / ctor running.
+# Bin/ tools are all keyed off this. Two escape hatches turn it off:
 #
-# So: sanitizer builds force a hosted build automatically. The
-# shipping configuration is freestanding; sanitizers are a CI / dev
-# tool that opts out of freestanding for libsanitizer compatibility.
-# Everything below that uses `freestanding` is gating freestanding-
-# specific behaviour, not making a user-visible choice.
-freestanding = get_option('b_sanitize') == 'none'
+#   1. `b_sanitize` != 'none' -- sanitizer instrumentation
+#      structurally requires libc and so cannot coexist with
+#      freestanding:
+#        - libasan / libubsan / liblsan live in libsanitizer
+#          (libc-side). '-nostdlib' on Bin/ tools drops them,
+#          producing __asan_* / __ubsan_* undefined references at
+#          link time. (commit 6ce17b7 was the Linux CI failure that
+#          first surfaced this.)
+#        - ASan's own mem* interceptors clash with our in-tree mem*
+#          overrides in _Freestanding.c.
+#        - Stack-protector + FORTIFY_SOURCE machinery is needed by
+#          some sanitizer configs.
+#        - Our _start replacement skips ASan's TLS setup / ctor
+#          running.
+#
+#   2. `-Ddisable_libc_diet=true` -- explicit hosted build for CI
+#      matrix entries (and downstream packagers) that want to keep
+#      libc / UCRT on the link line without enabling a sanitizer.
+#      The Windows-LLVM `standard` matrix entry uses this to verify
+#      the hosted clang-cl + UCRT path stays green alongside the
+#      sibling `freestanding` entry that exercises /NODEFAULTLIB.
+#
+# So: freestanding is the shipping default. Sanitizers or
+# disable_libc_diet flip the build into hosted mode. Everything
+# below that uses `freestanding` is gating freestanding-specific
+# behaviour, not making a user-visible choice.
+freestanding = (get_option('b_sanitize') == 'none') and not get_option('disable_libc_diet')
 
 # `-ffreestanding` (C only). Tells the compiler the program is
 # freestanding; implies `-fno-builtin` and stops the optimizer from

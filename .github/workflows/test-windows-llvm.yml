@@ -19,21 +19,34 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Standard pass: clang (GCC-style driver) + lld. Full UCRT,
-          # no sanitizers (see Configure step for why). Verifies the
-          # build works with default CRT linkage. This is the
-          # historically-proven config for this workflow.
+          # Standard pass: clang-cl (MSVC driver) + lld-link + full
+          # UCRT. Mirrors the toolchain every major C/C++ project
+          # uses for clang-on-Windows (WebKit, Chromium, cpptrace).
+          # `-Ddisable_libc_diet=true` flips the meson `freestanding`
+          # boolean off so libc / UCRT stay on the link line; the
+          # sibling freestanding entry below exercises the opposite
+          # /NODEFAULTLIB path.
+          #
+          # Historical note: this entry previously used `clang`
+          # (GCC-style driver) + generic `lld`. That config was
+          # dropped after the Windows-LLVM AllocDebug TEST 7/8
+          # investigation found clang's gcc-driver mode on
+          # x86_64-pc-windows-msvc emits incomplete `.pdata`/`.xdata`
+          # at -O0, silently truncating CaptureStackBackTrace to zero
+          # frames and disabling DebugAllocator's trace capture. No
+          # major project ships the gcc-driver-on-Windows config in
+          # production, so the matrix mirrors actual user toolchain
+          # choice.
           - flavour: standard
-            cc: clang
-            cc_ld: lld
-            setup_extra: ''
+            cc: clang-cl
+            cc_ld: lld-link
+            setup_extra: '-Ddisable_libc_diet=true'
             verify_libc_diet: 'no'
           # Freestanding pass: clang-cl (MSVC driver) + lld-link.
-          # Needed because the freestanding link args in meson.build
-          # are MSVC syntax (/NODEFAULTLIB:..., /ENTRY:misra_start,
-          # /SUBSYSTEM:CONSOLE) and only clang-cl forwards them to
-          # the linker. MSVC syntax also requires lld in MSVC mode
-          # (lld-link), not the generic lld dispatcher. Both
+          # Drops UCRT via /NODEFAULTLIB and routes through the
+          # in-tree _Freestanding.c / _StartWin.c / _WinStubs.c path.
+          # MSVC link syntax (/NODEFAULTLIB:..., /ENTRY:misra_start,
+          # /SUBSYSTEM:CONSOLE) requires clang-cl + lld-link. Both
           # conditions come together at have_misra_start_win in
           # meson.build (clang-cl + x86_64).
           - flavour: freestanding
