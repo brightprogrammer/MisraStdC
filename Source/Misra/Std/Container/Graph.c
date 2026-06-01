@@ -138,6 +138,10 @@ static bool graph_copy_node_data(GenericGraph *graph, void *dst, const void *src
 
 static void graph_bump_mutation_epoch(GenericGraph *graph) {
     graph->mutation_epoch += 1;
+    // Every existing structural-mutation site already calls this; piggy-
+    // back so the validator's deep body re-runs after any change to
+    // slots / free_indices / live_count / edges / pending lists.
+    MAGIC_MARK_DIRTY(graph);
 }
 
 static void graph_ensure_slot_generation_available(GenericGraphSlot *slot) {
@@ -304,8 +308,18 @@ void validate_graph(const GenericGraph *graph) {
         LOG_FATAL("Expected a valid Graph pointer");
     }
 
-    if (graph->__magic != GRAPH_MAGIC) {
+    if (!MAGIC_MATCHES(graph->__magic, GRAPH_MAGIC)) {
         LOG_FATAL("Graph is uninitialized or corrupted");
+    }
+
+    // Graph's body walks every slot and verifies every reverse-edge,
+    // which is too expensive to run on each dispatch -- memoize via
+    // MAGIC_VALIDATED_BIT. Every mutator that touches slots /
+    // free_indices / live_count / pending_delete_count / edges /
+    // pending_edge_removals flips the bit; per-element reads leave
+    // it alone.
+    if (!(graph->__magic & MAGIC_VALIDATED_BIT)) {
+        return;
     }
 
     // Graph has no stack-init form, so a NULL allocator on a magic-OK
@@ -436,6 +450,8 @@ void validate_graph(const GenericGraph *graph) {
     if (graph->pending_delete_count != marked_count) {
         LOG_FATAL("Graph pending delete count is inconsistent");
     }
+    // Mark verified.
+    ((GenericGraph *)(void *)graph)->__magic &= ~MAGIC_VALIDATED_BIT;
 }
 
 void deinit_graph(GenericGraph *graph, size item_size) {

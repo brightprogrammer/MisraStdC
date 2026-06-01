@@ -22,7 +22,6 @@ option('alloc_slab',   type: 'boolean', value: true,  description: 'Build SlabAl
 option('alloc_budget', type: 'boolean', value: true,  description: 'Build BudgetAllocator (caller-buffer bounded pool, no growth).')
 option('alloc_stats',  type: 'boolean', value: true,  description: 'Track per-Allocator memory-pressure stats (byte counts, alloc/realloc/free counters, peak usage).')
 option('alloc_debug',  type: 'boolean', value: true,  description: 'Build DebugAllocator wrapper (GPA-style leak / double-free / overflow / stack-trace tracking). Requires map and sys_backtrace.')
-option('heap_validate_full', type: 'boolean', value: true,  description: 'HeapAllocator full per-dispatch validation: cross-class (len, cap, ptr) invariants plus forced volatile cache-line probes of each descriptor array. Catches torn-pointer / freed-metadata corruption on the dispatch boundary. Off keeps a magic-only fast check (catches uninitialised / post-deinit / type-confusion via _Generic mismatch escape). On by default for dev / CI; turn off in shipping release builds for the smaller dispatch cost.')
 option('default_alloc_debug', type: 'boolean', value: false, description: 'Alias DefaultAllocator to DebugAllocator (per-instance, no globals). Drop-in ASan/MSan-style leak + double-free + overflow detection without changing call sites. Requires alloc_debug.')
 option('default_alloc_debug_page_backed', type: 'boolean', value: false, description: 'Route default_alloc_debug through DebugAllocator.force_page_backing: every alloc consumes whole pages and frees PROT_NONE the region, so UAF reads/writes trap with SIGSEGV. Much higher memory cost (freed pages are never reclaimed). Requires default_alloc_debug.')
 
@@ -40,7 +39,6 @@ option('float',  type: 'boolean', value: true, description: 'Build Float arbitra
 
 # --- Std subsystems ---------------------------------------------------------
 option('file', type: 'boolean', value: true, description: 'Build File helpers (FileOpen / FileRead / FileReadAndClose / FileWrite / FileWriteAndClose).')
-option('iter', type: 'boolean', value: true, description: 'Build Iter utility helpers.')
 
 # --- Sys subsystems ---------------------------------------------------------
 option('sys_dir',    type: 'boolean', value: true, description: 'Build directory-handling syscalls (DirGetContents, ...).')

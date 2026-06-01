@@ -154,6 +154,7 @@ bool BitVecReserve(BitVec *bitvec, u64 n) {
     bitvec->data      = new_data;
     bitvec->capacity  = n;
     bitvec->byte_size = new_byte_size;
+    MAGIC_MARK_DIRTY(bitvec);
     return true;
 }
 
@@ -164,6 +165,7 @@ void BitVecShrinkToFit(BitVec *bv) {
         bv->data      = NULL;
         bv->capacity  = 0;
         bv->byte_size = 0;
+        MAGIC_MARK_DIRTY(bv);
         return;
     }
 
@@ -176,6 +178,7 @@ void BitVecShrinkToFit(BitVec *bv) {
         // Same backing byte count -- only the bit-level capacity tail
         // needs trimming; the allocation itself is already right-sized.
         bv->capacity = bv->length;
+        MAGIC_MARK_DIRTY(bv);
         return;
     }
 
@@ -190,6 +193,7 @@ void BitVecShrinkToFit(BitVec *bv) {
     bv->data      = new_data;
     bv->capacity  = bv->length;
     bv->byte_size = new_byte_size;
+    MAGIC_MARK_DIRTY(bv);
 }
 
 void BitVecSwap(BitVec *bv1, BitVec *bv2) {
@@ -211,6 +215,8 @@ void BitVecSwap(BitVec *bv1, BitVec *bv2) {
     u64 temp_byte_size = bv1->byte_size;
     bv1->byte_size     = bv2->byte_size;
     bv2->byte_size     = temp_byte_size;
+    MAGIC_MARK_DIRTY(bv1);
+    MAGIC_MARK_DIRTY(bv2);
 }
 
 bool BitVecTryClone(BitVec *out, BitVec *bv) {
@@ -1908,13 +1914,9 @@ u64 BitVecSuffixMatch(BitVec *bv, BitVecs *patterns) {
     return SIZE_MAX;
 }
 
-void ValidateBitVec(const BitVec *bv) {
-    if (!bv) {
-        LOG_FATAL("Invalid bitvec object: NULL.");
-    }
-    if (bv->__magic != BITVEC_MAGIC) {
-        LOG_FATAL("Invalid bitvec. Either uninitialized or corrupted!");
-    }
+// Structural body for BitVec. Memoized via MAGIC_VALIDATED_BIT;
+// capacity / data / byte_size changes (grow paths) flip the bit.
+static void validate_bitvec_structural(const BitVec *bv) {
     if (bv->length > bv->capacity) {
         LOG_FATAL("Invalid bitvec object: length > capacity.");
     }
@@ -1929,4 +1931,18 @@ void ValidateBitVec(const BitVec *bv) {
         // here, at the validate site, rather than downstream.
         (void)bv->data[0];
     }
+}
+
+void ValidateBitVec(const BitVec *bv) {
+    if (!bv) {
+        LOG_FATAL("Invalid bitvec object: NULL.");
+    }
+    if (!MAGIC_MATCHES(bv->__magic, BITVEC_MAGIC)) {
+        LOG_FATAL("Invalid bitvec. Either uninitialized or corrupted!");
+    }
+    if (!(bv->__magic & MAGIC_VALIDATED_BIT)) {
+        return;
+    }
+    validate_bitvec_structural(bv);
+    ((BitVec *)(void *)bv)->__magic &= ~MAGIC_VALIDATED_BIT;
 }

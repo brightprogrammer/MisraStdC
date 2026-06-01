@@ -27,9 +27,6 @@ void HttpHeaderDeinit(HttpHeader *header) {
 
 void http_header_deinit(void *header_ptr, const Allocator *alloc) {
     (void)alloc; // each Str carries its own allocator handle
-    if (!header_ptr) {
-        return;
-    }
     HttpHeader *header = (HttpHeader *)header_ptr;
     StrDeinit(&header->key);
     StrDeinit(&header->value);
@@ -141,12 +138,22 @@ Zstr http_request_parse_zstr(HttpRequest *req, Zstr in) {
         return in;
     }
 
+    // RFC 7230 § 3.2.5 lets servers cap per-message header count; the
+    // attacker-controlled stream otherwise grows req->headers without
+    // bound. Match common reverse-proxy ceilings (nginx/haproxy ~100).
+    enum { HTTP_REQUEST_HEADERS_MAX = 100 };
+
     while (true) {
         Zstr line_start = cursor;
 
         if (0 == ZstrCompareN(cursor, "\r\n", 2)) {
             cursor += 2;
             break;
+        }
+
+        if (VecLen(&req->headers) >= HTTP_REQUEST_HEADERS_MAX) {
+            LOG_ERROR("http request header count exceeds {} cap", HTTP_REQUEST_HEADERS_MAX);
+            return in;
         }
 
         HttpHeader hh = HttpHeaderInit(alloc);

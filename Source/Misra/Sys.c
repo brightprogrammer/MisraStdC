@@ -296,7 +296,7 @@ ProcId ProcGetCurrentId(void) {
     return (ProcId)GetCurrentProcessId();
 #elif FEATURE_DIRECT_SYSCALL
     // Linux + Darwin (XNU): direct syscall. Kernel guarantees getpid never fails.
-    return (ProcId)misra_sys0(MISRA_SYS_getpid);
+    return (ProcId)direct_sys0(MISRA_SYS_getpid);
 #else
 #    error "ProcGetCurrentId: unsupported platform/architecture (no direct-syscall path)"
 #endif
@@ -306,7 +306,7 @@ ProcId ProcGetCurrentId(void) {
 // startup machinery the platform gives us:
 //
 //   - Linux x86_64/aarch64: `_StartLinux.c` captures `envp` from the
-//     kernel-supplied stack into `misra_envp` (defined here) before
+//     kernel-supplied stack into `envp_global` (defined here) before
 //     calling `main`. We walk it directly -- no libc touch.
 //   - Windows (MSVC / clang-cl): non-freestanding builds link UCRT
 //     and pull `getenv` via a dllimport-matched prototype. The
@@ -321,11 +321,11 @@ ProcId ProcGetCurrentId(void) {
 
 #if PLATFORM_LINUX && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)
 // Owned here so the symbol is always defined in libmisra_std.a. Set
-// by `_StartLinux.c`'s `misra_start_c` trampoline before `main`.
+// by `_StartLinux.c`'s `linux_start_c` trampoline before `main`.
 // Targets that don't link our `_start` -- e.g. `Tests/Dwarf.Stripped`,
 // which provides its own entry -- leave it NULL, and `EnvGet` returns
 // NULL safely.
-char **misra_envp = NULL;
+char **envp_global = NULL;
 #elif PLATFORM_WINDOWS
 __declspec(dllimport) extern char *__cdecl getenv(Zstr name);
 #endif
@@ -335,11 +335,11 @@ Zstr EnvGet(Zstr name) {
         return NULL;
     }
 #if PLATFORM_LINUX && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)
-    if (!misra_envp) {
+    if (!envp_global) {
         return NULL;
     }
     // Match `name` against the prefix of each entry up to '='.
-    for (char **e = misra_envp; *e; ++e) {
+    for (char **e = envp_global; *e; ++e) {
         Zstr entry = *e;
         Zstr n     = name;
         while (*n && *entry == *n) {

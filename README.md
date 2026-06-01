@@ -252,7 +252,6 @@ or stick with the default configuration when running the test suite.
 | `parser_pdb`                      | PDB reader (MSF + DBI / Publics streams) — Windows symbol resolution without dbghelp                                | `parser_pe`                      |
 | `parser_macho`                    | Mach-O reader — walks loaded images on macOS                                                                        | `file`                           |
 | `parser_dns`                      | DNS wire-format encode/decode per RFC 1035                                                                          | —                                |
-| `heap_validate_full`              | `HeapAllocator` per-dispatch full invariant validation (cross-class checks + volatile descriptor-array probes)      | —                                |
 
 Every enabled feature also defines `FEATURE_<NAME>` (= 1) in the
 generated `Misra/Config.h`. User code can `#if FEATURE_BITVEC` to compile

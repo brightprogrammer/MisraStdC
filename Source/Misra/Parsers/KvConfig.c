@@ -5,7 +5,6 @@
 /// Key-value configuration parser: `key = value` lines into a Map(Str, Str).
 
 #include <Misra/Parsers/KvConfig.h>
-#include <Misra/Std/Container/Map/Private.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 #include <Misra/Std/Zstr.h>
@@ -336,16 +335,7 @@ Str *kvconfig_get_ptr_str(KvConfig *cfg, const Str *key) {
     if (!cfg || !key) {
         return NULL;
     }
-
-    return map_get_value_ptr(
-        GENERIC_MAP(cfg),
-        key,
-        sizeof(MAP_ENTRY_TYPE(cfg)),
-        offsetof(MAP_ENTRY_TYPE(cfg), key),
-        sizeof(MAP_KEY_TYPE(cfg)),
-        offsetof(MAP_ENTRY_TYPE(cfg), value),
-        offsetof(MAP_ENTRY_TYPE(cfg), hash)
-    );
+    return MapGetFirstPtr(cfg, *key);
 }
 
 Str *kvconfig_get_ptr_zstr(KvConfig *cfg, Zstr key) {

@@ -1,11 +1,11 @@
-/// file      : Source/Misra/_StartWin.c
+/// file      : _startwin.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Custom entry point for the Windows freestanding build. Replaces
 /// `mainCRTStartup` (the default console-subsystem entry that drags
 /// in UCRT initialisation, locale setup, exit handlers, exception
-/// machinery, etc.) with a minimal `misra_start` that:
+/// machinery, etc.) with a minimal `windows_start` that:
 ///
 ///   1. Calls kernel32!GetCommandLineA() to fetch the raw cmdline.
 ///   2. Tokenises it into argv[] (basic whitespace split + simple
@@ -13,7 +13,7 @@
 ///   3. Calls user's main(argc, argv).
 ///   4. Calls kernel32!ExitProcess(rc).
 ///
-/// Tell the linker about us via `/ENTRY:misra_start` in meson.
+/// Tell the linker about us via `/ENTRY:windows_start` in meson.
 ///
 /// The file is compiled only on Windows when the libc-diet path is
 /// enabled (the meson gate also requires clang-cl -- MSVC pulls
@@ -51,8 +51,8 @@ extern int main(int argc, char **argv);
 #    define START_MAX_ARGS    256
 #    define START_CMDLINE_CAP 8192
 
-static char  g_misra_start_cmdline[START_CMDLINE_CAP];
-static char *g_misra_start_argv[START_MAX_ARGS];
+static char  g_start_cmdline[START_CMDLINE_CAP];
+static char *g_start_argv[START_MAX_ARGS];
 
 // Tokenise a (mutable) command line string into argv. Rules:
 //   - Whitespace (space, tab) separates args.
@@ -112,7 +112,7 @@ static int parse_cmdline(char *cmd, char **argv, int max_args) {
 // it, so the canary slot would be set from the wrong value.
 // Skipping instrumentation here means every other function in the
 // program reads the post-init (BCryptGenRandom-seeded) cookie.
-__attribute__((no_stack_protector)) void misra_start(void) {
+__attribute__((no_stack_protector)) void windows_start(void) {
     __security_init_cookie();
 
     LPCSTR raw = GetCommandLineA();
@@ -121,14 +121,14 @@ __attribute__((no_stack_protector)) void misra_start(void) {
     // the buffer to split args, so we can't mutate the kernel-owned
     // GetCommandLineA buffer in place.
     int i = 0;
-    while (raw[i] && i < (int)sizeof(g_misra_start_cmdline) - 1) {
-        g_misra_start_cmdline[i] = raw[i];
+    while (raw[i] && i < (int)sizeof(g_start_cmdline) - 1) {
+        g_start_cmdline[i] = raw[i];
         i++;
     }
-    g_misra_start_cmdline[i] = 0;
+    g_start_cmdline[i] = 0;
 
-    int argc = parse_cmdline(g_misra_start_cmdline, g_misra_start_argv, START_MAX_ARGS);
-    int rc   = main(argc, g_misra_start_argv);
+    int argc = parse_cmdline(g_start_cmdline, g_start_argv, START_MAX_ARGS);
+    int rc   = main(argc, g_start_argv);
     ExitProcess((DWORD)rc);
 }
 

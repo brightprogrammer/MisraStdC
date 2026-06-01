@@ -493,9 +493,9 @@ static bool walk_cu_dies(
     }
 }
 
-static int cmp_dwarf_function(const void *a, const void *b) {
-    const DwarfFunction *fa = a;
-    const DwarfFunction *fb = b;
+static i32 cmp_dwarf_function(const void *lhs, const void *rhs) {
+    const DwarfFunction *fa = lhs;
+    const DwarfFunction *fb = rhs;
     if (fa->low_pc < fb->low_pc)
         return -1;
     if (fa->low_pc > fb->low_pc)

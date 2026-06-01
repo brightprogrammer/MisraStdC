@@ -64,7 +64,6 @@ opt_alloc_stats    = get_option('alloc_stats')
 opt_alloc_debug    = get_option('alloc_debug')
 opt_default_alloc_debug = get_option('default_alloc_debug')
 opt_default_alloc_debug_page_backed = get_option('default_alloc_debug_page_backed')
-opt_heap_validate_full = get_option('heap_validate_full')
 
 opt_bitvec_user    = get_option('bitvec')
 opt_list           = get_option('list')
@@ -74,7 +73,6 @@ opt_int_user       = get_option('int')
 opt_float          = get_option('float')
 
 opt_file_user      = get_option('file')
-opt_iter           = get_option('iter')
 
 opt_sys_dir        = get_option('sys_dir')
 opt_sys_proc       = get_option('sys_proc')
@@ -199,12 +197,6 @@ opt_file = opt_file_user or opt_parser_elf or opt_parser_pe or opt_parser_macho
 # `buf_read_fmt` / `buf_append_fmt` / `buf_write_fmt` use
 # `IterRemainingLength` / `IterMustMove` / `IterPos` on `BufIter`, and
 # `Io.c` is unconditionally compiled (LOG_FATAL formats through it).
-# Honour the user's `-Diter=false` only as a no-op: there is no in-tree
-# code path that builds with iter actually off. The option stays in
-# `meson_options.txt` for documentation symmetry with the other
-# subsystems but is force-enabled here so dependency-resolution stays
-# centralised.
-opt_iter = true
 
 # sys_procmaps is Linux-only; verified above.
 
@@ -267,8 +259,7 @@ have_direct_syscall = have_misra_start or (sys_kernel == 'darwin' and (sys_cpu =
 #        - libasan / libubsan / liblsan live in libsanitizer
 #          (libc-side). '-nostdlib' on Bin/ tools drops them,
 #          producing __asan_* / __ubsan_* undefined references at
-#          link time. (commit 6ce17b7 was the Linux CI failure that
-#          first surfaced this.)
+#          link time.
 #        - ASan's own mem* interceptors clash with our in-tree mem*
 #          overrides in _Freestanding.c.
 #        - Stack-protector + FORTIFY_SOURCE machinery is needed by
@@ -391,7 +382,7 @@ elif have_misra_start_win and freestanding
         # Keep the platform DLLs we actually use.
         '/DEFAULTLIB:kernel32.lib',
         # Custom entry replaces mainCRTStartup.
-        '/ENTRY:misra_start',
+        '/ENTRY:windows_start',
         '/SUBSYSTEM:CONSOLE',
     ]
     # Per-target sources for freestanding Bin/ tools: the custom
@@ -465,9 +456,7 @@ endif
 if opt_file
     misra_std_sources += files('Source/Misra/Std/File.c')
 endif
-if opt_iter
-    misra_std_sources += files('Source/Misra/Std/Utility/Iter.c')
-endif
+misra_std_sources += files('Source/Misra/Std/Utility/Iter.c')
 
 if opt_sys_dir
     misra_std_sources += files('Source/Misra/Sys/Dir.c')
@@ -543,7 +532,6 @@ config_data.set10('FEATURE_ALLOC_STATS',     opt_alloc_stats)
 config_data.set10('FEATURE_ALLOC_DEBUG',     opt_alloc_debug)
 config_data.set10('FEATURE_DEFAULT_ALLOC_DEBUG',  opt_default_alloc_debug)
 config_data.set10('FEATURE_DEFAULT_ALLOC_DEBUG_PAGE_BACKED', opt_default_alloc_debug_page_backed)
-config_data.set10('FEATURE_HEAP_VALIDATE_FULL', opt_heap_validate_full)
 config_data.set10('FEATURE_BITVEC',          opt_bitvec)
 config_data.set10('FEATURE_LIST',            opt_list)
 config_data.set10('FEATURE_MAP',             opt_map)
@@ -551,7 +539,6 @@ config_data.set10('FEATURE_GRAPH',           opt_graph)
 config_data.set10('FEATURE_INT',             opt_int)
 config_data.set10('FEATURE_FLOAT',           opt_float)
 config_data.set10('FEATURE_FILE',            opt_file)
-config_data.set10('FEATURE_ITER',            opt_iter)
 config_data.set10('FEATURE_SYS_DIR',         opt_sys_dir)
 config_data.set10('FEATURE_SYS_PROC',        opt_sys_proc)
 config_data.set10('FEATURE_SYS_SOCKET',      opt_sys_socket)
@@ -561,9 +548,7 @@ config_data.set10('FEATURE_SYS_BACKTRACE',   opt_sys_backtrace)
 config_data.set10('FEATURE_PARSER_JSON',     opt_parser_json)
 config_data.set10('FEATURE_PARSER_KVCONFIG', opt_parser_kvconf)
 config_data.set10('FEATURE_PARSER_HTTP',     opt_parser_http)
-config_data.set10('FEATURE_PARSER_ELF',      opt_parser_elf)
 config_data.set10('FEATURE_PARSER_DWARF',    opt_parser_dwarf)
-config_data.set10('FEATURE_PARSER_PE',       opt_parser_pe)
 config_data.set10('FEATURE_PARSER_PDB',      opt_parser_pdb)
 config_data.set10('FEATURE_PARSER_MACHO',    opt_parser_macho)
 # DIRECT_SYSCALL is not user-configurable; it's purely a function of
@@ -613,8 +598,8 @@ message('  default_alloc_debug=@0@  default_alloc_debug_page_backed=@1@'.format(
     opt_default_alloc_debug, opt_default_alloc_debug_page_backed))
 message('  bitvec=@0@  list=@1@  map=@2@  graph=@3@  int=@4@  float=@5@'.format(
     opt_bitvec, opt_list, opt_map, opt_graph, opt_int, opt_float))
-message('  file=@0@  iter=@1@  sys_dir=@2@  sys_proc=@3@  sys_socket=@4@'.format(
-    opt_file, opt_iter, opt_sys_dir, opt_sys_proc, opt_sys_socket))
+message('  file=@0@  sys_dir=@1@  sys_proc=@2@  sys_socket=@3@'.format(
+    opt_file, opt_sys_dir, opt_sys_proc, opt_sys_socket))
 message('  sys_dns=@0@'.format(opt_sys_dns))
 message('  sys_procmaps=@0@  sys_symresolve=@1@  sys_backtrace=@2@'.format(
     opt_sys_procmaps, opt_sys_symresolve, opt_sys_backtrace))
@@ -795,10 +780,6 @@ endif
 
 if not opt_file
     install_subdir_excludes_files += 'Std/File.h'
-endif
-if not opt_iter
-    install_subdir_excludes_dirs  += 'Std/Utility/Iter'
-    install_subdir_excludes_files += 'Std/Utility/Iter.h'
 endif
 
 if not opt_sys_dir

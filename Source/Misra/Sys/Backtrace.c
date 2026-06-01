@@ -66,20 +66,50 @@ static bool vec_sink(void *user, void *ip) {
     return true;
 }
 
+#include "_Helpers.h"
+
 // ---------------------------------------------------------------------------
-// Helpers used by formatters
+// Shared frame-pointer walker (Darwin + Linux/GCC+Clang). Windows uses
+// its own dbghelp-driven walker below.
 // ---------------------------------------------------------------------------
 
-static Zstr basename_of(Zstr path) {
-    if (!path)
-        return "?";
-    Zstr slash = path;
-    for (Zstr p = path; *p; ++p) {
-        if (*p == '/' || *p == '\\')
-            slash = p + 1;
+#if !PLATFORM_WINDOWS && (defined(__GNUC__) || defined(__clang__))
+
+enum {
+    BACKTRACE_MAX_WALK = 256,
+};
+
+// always_inline so __builtin_frame_address(0) resolves to the wrapping
+// public function's frame pointer rather than this helper's.
+static __attribute__((always_inline)) inline size fp_walk(size skip_frames, StackFrameSinkFn sink, void *user) {
+    void **fp = (void **)__builtin_frame_address(0);
+    if (!fp)
+        return 0;
+    size   captured = 0;
+    size   depth    = 0;
+    void **prev_fp  = NULL;
+    while (fp && depth < BACKTRACE_MAX_WALK) {
+        if ((u64)fp & 0x7u)
+            break;
+        if (prev_fp && (u64)fp <= (u64)prev_fp)
+            break;
+        void *saved_fp = fp[0];
+        void *ret_addr = fp[1];
+        if (!ret_addr)
+            break;
+        if (depth >= skip_frames) {
+            if (!sink(user, ret_addr))
+                break;
+            ++captured;
+        }
+        prev_fp = fp;
+        fp      = (void **)saved_fp;
+        ++depth;
     }
-    return slash;
+    return captured;
 }
+
+#endif
 
 // ---------------------------------------------------------------------------
 // Windows backend
@@ -220,7 +250,7 @@ static void format_walk_win(Str *out, const StackFrame *frames, size count, Allo
 
         DWORD line_disp = 0;
         if (g_dbghelp_initialized && SymGetLineFromAddr64(proc, ip, &line_disp, &line) && line.FileName) {
-            Zstr fname = basename_of(line.FileName);
+            Zstr fname = sys_basename_of(line.FileName);
             StrAppendFmt(out, " ({}:{})", fname, (u32)line.LineNumber);
         }
         StrPushBackR(out, '\n');
@@ -308,40 +338,6 @@ typedef struct MachoSegmentCommand64 {
 #        include <Misra/Sys/MachoCache.h>
 #    endif
 
-enum {
-    BACKTRACE_MAX_WALK = 256,
-};
-
-// always_inline so __builtin_frame_address(0) resolves to the wrapping
-// public function's frame pointer rather than this helper's.
-static __attribute__((always_inline)) inline size fp_walk(size skip_frames, StackFrameSinkFn sink, void *user) {
-    void **fp = (void **)__builtin_frame_address(0);
-    if (!fp)
-        return 0;
-    size   captured = 0;
-    size   depth    = 0;
-    void **prev_fp  = NULL;
-    while (fp && depth < BACKTRACE_MAX_WALK) {
-        if ((u64)fp & 0x7u)
-            break;
-        if (prev_fp && (u64)fp <= (u64)prev_fp)
-            break;
-        void *saved_fp = fp[0];
-        void *ret_addr = fp[1];
-        if (!ret_addr)
-            break;
-        if (depth >= skip_frames) {
-            if (!sink(user, ret_addr))
-                break;
-            ++captured;
-        }
-        prev_fp = fp;
-        fp      = (void **)saved_fp;
-        ++depth;
-    }
-    return captured;
-}
-
 size capture_stack_trace_raw(StackFrame *out, size max_frames, size skip_frames) {
     if (!out || max_frames == 0)
         return 0;
@@ -412,10 +408,10 @@ static void format_walk_mac(Str *out, const StackFrame *frames, size count, Allo
 #    endif
 
         if (named) {
-            Zstr mod = basename_of(mod_path);
+            Zstr mod = sys_basename_of(mod_path);
             StrAppendFmt(out, "  #{} {}!{}+{x} [{x}]\n", (u32)i, mod, sym_name, (u64)sym_off, ip);
         } else if (mod_path) {
-            Zstr mod = basename_of(mod_path);
+            Zstr mod = sys_basename_of(mod_path);
             StrAppendFmt(out, "  #{} {}+? [{x}]\n", (u32)i, mod, ip);
         } else {
             StrAppendFmt(out, "  #{} {x}\n", (u32)i, ip);
@@ -446,40 +442,6 @@ void format_stack_trace_vec(Str *out, const StackFrames *frames, Allocator *allo
 
 #elif defined(__GNUC__) || defined(__clang__)
 
-enum {
-    BACKTRACE_MAX_WALK = 256,
-};
-
-// always_inline so __builtin_frame_address(0) inside this helper
-// resolves to the public function's frame pointer after inlining.
-static __attribute__((always_inline)) inline size fp_walk(size skip_frames, StackFrameSinkFn sink, void *user) {
-    void **fp = (void **)__builtin_frame_address(0);
-    if (!fp)
-        return 0;
-    size   captured = 0;
-    size   depth    = 0;
-    void **prev_fp  = NULL;
-    while (fp && depth < BACKTRACE_MAX_WALK) {
-        if ((u64)fp & 0x7u)
-            break;
-        if (prev_fp && (u64)fp <= (u64)prev_fp)
-            break;
-        void *saved_fp = fp[0];
-        void *ret_addr = fp[1];
-        if (!ret_addr)
-            break;
-        if (depth >= skip_frames) {
-            if (!sink(user, ret_addr))
-                break;
-            ++captured;
-        }
-        prev_fp = fp;
-        fp      = (void **)saved_fp;
-        ++depth;
-    }
-    return captured;
-}
-
 size capture_stack_trace_raw(StackFrame *out, size max_frames, size skip_frames) {
     if (!out || max_frames == 0)
         return 0;
@@ -498,16 +460,16 @@ bool capture_stack_trace_vec(StackFrames *out, size skip_frames) {
 
 static void emit_resolved_line(Str *out, u32 idx, const ResolvedSymbol *r, void *ip) {
     if (r->symbol_name) {
-        Zstr mod = basename_of(r->module_path);
+        Zstr mod = sys_basename_of(r->module_path);
         StrAppendFmt(out, "  #{} {}!{}+{x} [{x}]", idx, mod, r->symbol_name, r->offset, (u64)ip);
     } else if (r->module_path) {
-        Zstr mod = basename_of(r->module_path);
+        Zstr mod = sys_basename_of(r->module_path);
         StrAppendFmt(out, "  #{} {}+{x} [{x}]", idx, mod, r->offset, (u64)ip);
     } else {
         StrAppendFmt(out, "  #{} {x}", idx, (u64)ip);
     }
     if (r->source_file) {
-        Zstr file = basename_of(r->source_file);
+        Zstr file = sys_basename_of(r->source_file);
         if (r->source_line > 0) {
             StrAppendFmt(out, " ({}:{})", file, r->source_line);
         } else {

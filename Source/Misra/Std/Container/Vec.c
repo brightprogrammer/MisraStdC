@@ -117,6 +117,7 @@ bool reserve_vec(GenericVec *vec, size item_size, size n) {
         vec->data = (char *)ptr;
         MemSet(ptr + old_capacity * aligned_size, 0, aligned_size * (n + 1 - old_capacity));
         vec->capacity = n;
+        MAGIC_MARK_DIRTY(vec);
     }
 
     return true;
@@ -160,6 +161,9 @@ bool reduce_space_vec(GenericVec *vec, size item_size) {
         vec->data     = NULL;
         vec->capacity = 0;
         vec->length   = 0;
+        // No MARK_DIRTY: end state (length=0, capacity=0, data=NULL)
+        // satisfies every structural check trivially -- the data
+        // force-read is gated on `v->data` so a NULL pointer skips it.
         return true;
     } else {
         u8 *ptr = (u8 *)AllocatorRealloc(vec->allocator, vec->data, aligned_size * (vec->length + 1));
@@ -171,6 +175,7 @@ bool reduce_space_vec(GenericVec *vec, size item_size) {
         }
         vec->capacity = vec->length;
         vec->data     = (char *)ptr;
+        MAGIC_MARK_DIRTY(vec);
     }
 
     return true;
@@ -513,30 +518,36 @@ bool resize_vec(GenericVec *vec, size item_size, size new_size) {
     return true;
 }
 
-void validate_vec(const GenericVec *v) {
-    if (!v) {
-        LOG_FATAL("NULL vec object pointer.");
-    }
-    if (v->__magic != VEC_MAGIC) {
-        LOG_FATAL("Invalid vec object. Either uninitialized or corrupted!");
-    }
+// Structural body for Vec. Inspects length<=capacity, the allocator
+// vtable (when present), and force-reads the first byte of `data` so
+// a freed/garbage pointer faults at the validate site rather than
+// downstream. Memoized via MAGIC_VALIDATED_BIT; capacity / data /
+// allocator changes (reserve_vec, reduce_space_vec) flip the bit.
+static void validate_vec_structural(const GenericVec *v) {
     if (v->length > v->capacity) {
         LOG_FATAL("Invalid vec object.");
     }
-    // A NULL allocator marks a non-growable vec (`StrInitStack` /
-    // `VecInitStack` etc.). Any operation that would actually need
-    // an allocator (`reserve_vec`, `deinit_vec`, ...) traps with a
-    // dedicated message instead. When an allocator is present, its
-    // method table must be sound.
     if (v->allocator &&
         (!v->allocator->allocate || !v->allocator->resize || !v->allocator->remap || !v->allocator->deallocate)) {
         LOG_FATAL("Invalid vec allocator.");
     }
-    // Force-read a byte from data so a freed/garbage pointer faults
-    // here, at the validate site, rather than downstream.
     if (v->data) {
         (void)(*(char *)(void *)(v->data));
     }
+}
+
+void validate_vec(const GenericVec *v) {
+    if (!v) {
+        LOG_FATAL("NULL vec object pointer.");
+    }
+    if (!MAGIC_MATCHES(v->__magic, VEC_MAGIC)) {
+        LOG_FATAL("Invalid vec object. Either uninitialized or corrupted!");
+    }
+    if (!(v->__magic & MAGIC_VALIDATED_BIT)) {
+        return;
+    }
+    validate_vec_structural(v);
+    ((GenericVec *)(void *)v)->__magic &= ~MAGIC_VALIDATED_BIT;
 }
 
 bool vec_insert_one_l(

@@ -30,10 +30,10 @@ extern "C" {
     typedef u64 ProcId;
 
     typedef enum ProcStatus {
-        SYS_PROC_STATUS_RUNNING,    // Process is still running
-        SYS_PROC_STATUS_COMPLETED,  // Process completed normally
-        SYS_PROC_STATUS_TERMINATED, // Process was terminated/killed
-        SYS_PROC_STATUS_ERROR       // Error occurred while checking status
+        PROC_STATUS_RUNNING,    // Process is still running
+        PROC_STATUS_COMPLETED,  // Process completed normally
+        PROC_STATUS_TERMINATED, // Process was terminated/killed
+        PROC_STATUS_ERROR       // Error occurred while checking status
     } ProcStatus;
 
 #if PLATFORM_WINDOWS
@@ -140,10 +140,10 @@ extern "C" {
     ///
     /// Block until the child exits.
     ///
-    /// SUCCESS : Returns `SYS_PROC_STATUS_COMPLETED` when the child
-    ///           exits normally, or `SYS_PROC_STATUS_TERMINATED` when
+    /// SUCCESS : Returns `PROC_STATUS_COMPLETED` when the child
+    ///           exits normally, or `PROC_STATUS_TERMINATED` when
     ///           the child was killed by a signal / external action.
-    /// FAILURE : Returns `SYS_PROC_STATUS_ERROR`; the cause is logged.
+    /// FAILURE : Returns `PROC_STATUS_ERROR`; the cause is logged.
     ///
     /// TAGS: Proc, Wait, API
     ///
@@ -153,10 +153,10 @@ extern "C" {
     /// Block for up to `timeout_ms` milliseconds waiting for the child.
     /// Pass 0 for infinite wait.
     ///
-    /// SUCCESS : Returns `SYS_PROC_STATUS_COMPLETED`,
-    ///           `SYS_PROC_STATUS_TERMINATED`, or
-    ///           `SYS_PROC_STATUS_RUNNING` if the timeout elapsed first.
-    /// FAILURE : Returns `SYS_PROC_STATUS_ERROR`; the cause is logged.
+    /// SUCCESS : Returns `PROC_STATUS_COMPLETED`,
+    ///           `PROC_STATUS_TERMINATED`, or
+    ///           `PROC_STATUS_RUNNING` if the timeout elapsed first.
+    /// FAILURE : Returns `PROC_STATUS_ERROR`; the cause is logged.
     ///
     /// TAGS: Proc, Wait, Timeout
     ///
@@ -239,10 +239,10 @@ extern "C" {
     /// Current status of the child without blocking. Useful for
     /// polling alongside `ProcWaitFor`.
     ///
-    /// SUCCESS : Returns one of `SYS_PROC_STATUS_RUNNING`,
-    ///           `SYS_PROC_STATUS_COMPLETED`, or
-    ///           `SYS_PROC_STATUS_TERMINATED`.
-    /// FAILURE : Returns `SYS_PROC_STATUS_ERROR` if `proc` is invalid
+    /// SUCCESS : Returns one of `PROC_STATUS_RUNNING`,
+    ///           `PROC_STATUS_COMPLETED`, or
+    ///           `PROC_STATUS_TERMINATED`.
+    /// FAILURE : Returns `PROC_STATUS_ERROR` if `proc` is invalid
     ///           or the OS query failed (logged).
     ///
     /// TAGS: Proc, Get, Status

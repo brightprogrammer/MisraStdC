@@ -98,46 +98,38 @@ static FORCE_INLINE u8 heap_class_idx_for(size n) {
 // =============================================================================
 // Self-validation.
 //
-// Two-tier check on every API entry. The fast tier is unconditional;
-// the deep tier is cached via a one-bit dirty marker stashed in the
-// MSB of `__magic` (see HEAP_MAGIC_VALIDATED_BIT in Heap.h).
+// Full check on every API entry: NULL + magic + cross-class
+// structural invariants + volatile probe of every descriptor-array
+// backing page. The structural body is memoized via a one-bit
+// marker stashed in the MSB of `__magic` (see MAGIC_VALIDATED_BIT
+// in Heap.h). Memoization preserves security: any mutation that
+// could break the invariants sets the bit, so the next entry
+// recomputes from scratch.
 //
-//   bit clear -> deep-check verified since last structural mutation
-//   bit set   -> deep checks must re-run
+//   bit clear -> structural invariants verified since last mutation
+//   bit set   -> structural mutation happened; body must re-run
 //
-// Only mutations that could break the deep-check invariants (pages
+// Only mutations that could break the structural invariants (pages
 // hash table grow / rebuild, xl_in_use / xl_freed array grow,
 // recycle storage grow) set the bit. Per-slot ops (bitmap flips,
-// used_count++/--, warm-list
-// linkage, single-bucket insert/remove) leave it alone -- those touch
-// fields the deep check doesn't inspect, so they're guaranteed-safe
-// to skip the re-validation.
+// used_count++/--, warm-list linkage, single-bucket insert/remove)
+// leave it alone -- they don't touch fields the structural body
+// inspects, so the memoized result stays valid.
 
-// Sets the cache-dirty bit. Called only from mutators that hold a
+// Sets the re-check marker. Called only from mutators that hold a
 // non-const HeapAllocator * (alloc / free / remap paths and the
 // internal storage-grow helpers), so no const-stripping cast is
-// needed here. The matching clean-side write lives in
-// `heap_validate_self_full`, which DOES cast through const because
-// the deep validator takes the allocator by `const HeapAllocator *`.
-#define HEAP_MARK_DIRTY(h) (h)->base.__magic |= HEAP_MAGIC_VALIDATED_BIT
+// needed here. The matching clear-side write lives in
+// `heap_validate_self`, which casts through const because the
+// validator takes the allocator by `const HeapAllocator *`.
+#define HEAP_MARK_DIRTY(h) (h)->base.__magic |= MAGIC_VALIDATED_BIT
 
-// Fast path: NULL check + magic check on the allocator. Catches
-// uninitialised / post-deinit / _Generic mismatch escape. Always on,
-// FORCE_INLINEd into every caller. Masks the dirty bit before comparing
-// magic so neither cached state fails type-confusion detection.
-static FORCE_INLINE void heap_validate_self_fast(const HeapAllocator *h) {
-    if (!h) {
-        LOG_FATAL("HeapAllocator: NULL self");
-    }
-    if ((h->base.__magic & ~HEAP_MAGIC_VALIDATED_BIT) != HEAP_ALLOCATOR_MAGIC) {
-        LOG_FATAL("type-confusion: allocator passed to heap_allocator_* is not a HeapAllocator");
-    }
-}
-
-#if FEATURE_HEAP_VALIDATE_FULL
-// Split: _inner does the actual deep checks. The dispatch wrapper
-// below decides whether to call it based on the cache bit.
-static void heap_validate_self_full_inner(const HeapAllocator *h) {
+// Structural-invariants body. Inspects the cross-class structural
+// invariants and forces a volatile probe of every descriptor-array
+// backing page so a TLB-evicted or unmapped mmap shows up as a fault
+// here, not inside the hot path. Memoized via the marker bit on
+// `__magic`; the wrapper below decides when to call it.
+static void heap_validate_self_structural(const HeapAllocator *h) {
     if (!h->base.allocate || !h->base.resize || !h->base.remap || !h->base.deallocate) {
         LOG_FATAL("HeapAllocator: vtable function pointer is NULL");
     }
@@ -184,22 +176,29 @@ static void heap_validate_self_full_inner(const HeapAllocator *h) {
     }
 }
 
-static FORCE_INLINE void heap_validate_self_full(const HeapAllocator *h) {
-    heap_validate_self_fast(h);
-    if (!(h->base.__magic & HEAP_MAGIC_VALIDATED_BIT)) {
-        return; // cache hit: invariants verified since last structural mutation
+// Single validator: NULL + magic on every entry. The structural body
+// is memoized via MAGIC_VALIDATED_BIT; if no structural mutation
+// has happened since the last verified entry, the body is skipped
+// without weakening any check -- a mutation that would break the
+// invariants sets the bit, forcing a recompute next time.
+// FORCE_INLINEd so gcc doesn't emit a standalone copy at -O3 (the
+// LOG_FATAL expansions push it past the inline-cost heuristic
+// otherwise). Masks the marker bit when comparing magic so neither
+// memoized state breaks type-confusion detection.
+static FORCE_INLINE void heap_validate_self(const HeapAllocator *h) {
+    if (!h) {
+        LOG_FATAL("HeapAllocator: NULL self");
     }
-    heap_validate_self_full_inner(h);
-    // Mark clean. Cast through void* to write through const view.
-    ((HeapAllocator *)(void *)h)->base.__magic &= ~HEAP_MAGIC_VALIDATED_BIT;
+    if (!MAGIC_MATCHES(h->base.__magic, HEAP_ALLOCATOR_MAGIC)) {
+        LOG_FATAL("type-confusion: allocator passed to heap_allocator_* is not a HeapAllocator");
+    }
+    if (!(h->base.__magic & MAGIC_VALIDATED_BIT)) {
+        return; // memoized: structural invariants verified since last mutation
+    }
+    heap_validate_self_structural(h);
+    // Mark verified. Cast through void* to write through const view.
+    ((HeapAllocator *)(void *)h)->base.__magic &= ~MAGIC_VALIDATED_BIT;
 }
-#endif
-
-#if FEATURE_HEAP_VALIDATE_FULL
-#    define heap_validate_self(self) heap_validate_self_full(self)
-#else
-#    define heap_validate_self(self) heap_validate_self_fast(self)
-#endif
 
 // Smallest bin slot is 16-byte aligned by construction. Stronger
 // alignment demands bypass bins and route to the XL list (page-aligned).

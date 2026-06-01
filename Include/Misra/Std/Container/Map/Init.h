@@ -42,7 +42,7 @@
      .states            = NULL,                                                                                        \
      .policy            = validate_map_policy_copy((policy_value)),                                                    \
      .allocator         = ALLOCATOR_OF(typed_alloc_ptr),                                                               \
-     .__magic           = MAP_MAGIC}
+     .__magic           = MAP_MAGIC | MAGIC_VALIDATED_BIT}
 
 #define MapInitFull(...) OVERLOAD(MapInitFull, __VA_ARGS__)
 #define MapInitFull_8(hash_fn, compare_fn, vcmp, kci, kcd, vci, vcd, policy_value)                                     \

@@ -27,50 +27,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # Allocators in column order. Misra columns last so improvements stand
-# out next to the production baselines. `misra` and `misra-correct`
-# come in two flavours when a second builddir is supplied:
-# `*-full` (heap_validate_full=true: per-dispatch cross-class checks
-# + volatile descriptor probes) and `*-fast` (heap_validate_full=false:
-# magic-only check). The other backends are unaffected by that flag.
+# out next to the production baselines.
 LIBC_BACKENDS = ["glibc", "jemalloc", "mimalloc", "tcmalloc"]
-MISRA_VALIDATE_SENSITIVE = ["misra", "misra-correct"]
-MISRA_VALIDATE_INSENSITIVE = ["misra-arena", "misra-page"]
-
-# Default single-builddir column list (back-compat). When `--validate-fast`
-# is supplied, the per-run build_backends() helper produces the doubled
-# column list instead.
-BACKENDS = LIBC_BACKENDS + MISRA_VALIDATE_SENSITIVE + MISRA_VALIDATE_INSENSITIVE
-
-
-def build_backends(have_fast_builddir: bool) -> list[str]:
-    """Column list for a run. With a fast builddir we split misra /
-    misra-correct into `-full` and `-fast` flavours; everything else
-    stays single-column."""
-    if not have_fast_builddir:
-        return list(BACKENDS)
-    cols = list(LIBC_BACKENDS)
-    for be in MISRA_VALIDATE_SENSITIVE:
-        cols.append(f"{be}-full")
-        cols.append(f"{be}-fast")
-    cols.extend(MISRA_VALIDATE_INSENSITIVE)
-    return cols
+MISRA_BACKENDS = ["misra", "misra-correct", "misra-arena", "misra-page"]
+BACKENDS = LIBC_BACKENDS + MISRA_BACKENDS
 
 
 def binary_name_for(column: str) -> str:
-    """The bench-* binary that backs a given column. The `-full` /
-    `-fast` suffix on misra columns is a per-builddir distinction, not
-    a per-binary one -- the underlying binary name strips it."""
-    for be in MISRA_VALIDATE_SENSITIVE:
-        if column == f"{be}-full" or column == f"{be}-fast":
-            return be
+    """The bench-* binary that backs a given column."""
     return column
-
-
-def builddir_for(column: str, full: Path, fast: Path | None) -> Path:
-    """Which builddir owns this column's binary."""
-    if fast is not None and column.endswith("-fast"):
-        return fast
-    return full
 
 MIN_TIME_OVERRIDES: dict[str, str] = {}
 
@@ -279,7 +244,7 @@ def render_frag_table(data: dict, backends: list[str]) -> str:
     return "\n".join(out)
 
 
-def build_tldr(data: dict, have_fast: bool) -> str:
+def build_tldr(data: dict) -> str:
     """Pull a couple of headline numbers for the TL;DR."""
     def pair_at(be: str, name: str) -> str:
         t = median_time_ns(data.get(be, {}), name)
@@ -294,23 +259,13 @@ def build_tldr(data: dict, have_fast: bool) -> str:
         f"| glibc    | {pair_at('glibc',    'BM_AllocFreePair/16')} |",
         f"| jemalloc | {pair_at('jemalloc', 'BM_AllocFreePair/16')} |",
         f"| mimalloc | {pair_at('mimalloc', 'BM_AllocFreePair/16')} |",
+        f"| misra (Heap)         | {pair_at('misra',         'BM_AllocFreePair/16')} |",
+        f"| misra-correct (Slab) | {pair_at('misra-correct', 'BM_AllocFreePair/16')} |",
     ]
-    if have_fast:
-        lines += [
-            f"| misra (Heap, validate-full) | {pair_at('misra-full',         'BM_AllocFreePair/16')} |",
-            f"| misra (Heap, validate-fast) | {pair_at('misra-fast',         'BM_AllocFreePair/16')} |",
-            f"| misra-correct (Slab, validate-full) | {pair_at('misra-correct-full', 'BM_AllocFreePair/16')} |",
-            f"| misra-correct (Slab, validate-fast) | {pair_at('misra-correct-fast', 'BM_AllocFreePair/16')} |",
-        ]
-    else:
-        lines += [
-            f"| misra (Heap only)    | {pair_at('misra',         'BM_AllocFreePair/16')} |",
-            f"| misra-correct (Slab) | {pair_at('misra-correct', 'BM_AllocFreePair/16')} |",
-        ]
     return "\n".join(lines)
 
 
-def gather_env(builddir: Path, fast_builddir: Path | None = None) -> dict:
+def gather_env(builddir: Path) -> dict:
     """Collect environment metadata for the README footer."""
     repo = builddir.parent  # builddir is `<repo>/build`, README lives in `<repo>/Benchmark`.
     try:
@@ -362,7 +317,6 @@ def gather_env(builddir: Path, fast_builddir: Path | None = None) -> dict:
                 "optimization",
                 "b_lto",
                 "b_sanitize",
-                "heap_validate_full",
                 "alloc_debug",
             )
             for o in opts:
@@ -373,11 +327,6 @@ def gather_env(builddir: Path, fast_builddir: Path | None = None) -> dict:
             return "unknown"
 
     build_options = opts_string(builddir)
-    if fast_builddir is not None:
-        build_options = (
-            "validate-full: " + build_options +
-            "  |  validate-fast: " + opts_string(fast_builddir)
-        )
     return {
         "TIMESTAMP": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
         "COMMIT": commit,
@@ -393,12 +342,7 @@ def main() -> int:
         description="Run bench-* binaries and refresh Benchmark/README.md"
     )
     ap.add_argument("builddir", type=Path,
-                    help="Primary build directory (heap_validate_full=true). "
-                         "Sources all libc backends and the validate-full misra columns.")
-    ap.add_argument("--validate-fast", type=Path, default=None,
-                    help="Optional second build directory with heap_validate_full=false. "
-                         "When given, the misra / misra-correct rows are duplicated into "
-                         "*-full and *-fast columns so the safety overhead is visible.")
+                    help="Build directory containing the bench-* binaries.")
     ap.add_argument("--reps", type=int, default=10, help="Repetitions per benchmark (default 10)")
     ap.add_argument(
         "--out",
@@ -408,49 +352,40 @@ def main() -> int:
     )
     args = ap.parse_args()
 
-    full_builddir: Path = args.builddir.resolve()
-    fast_builddir: Path | None = args.validate_fast.resolve() if args.validate_fast else None
-    for label, d in (("primary", full_builddir),
-                     ("--validate-fast", fast_builddir)):
-        if d is not None and not (d / "Benchmark").is_dir():
-            print(f"error: no Benchmark/ subdir under {label} builddir {d}. "
-                  f"Did you forget -Dbenchmark=true?", file=sys.stderr)
-            return 1
+    builddir: Path = args.builddir.resolve()
+    if not (builddir / "Benchmark").is_dir():
+        print(f"error: no Benchmark/ subdir under builddir {builddir}. "
+              f"Did you forget -Dbenchmark=true?", file=sys.stderr)
+        return 1
 
-    backends = build_backends(have_fast_builddir=fast_builddir is not None)
+    backends = list(BACKENDS)
 
-    # Each column maps to a (binary_name, builddir) pair. Two columns
-    # may share a binary name and differ only in builddir (the validate
-    # fast/full split).
+    # Each column maps directly to its bench-* binary name.
     data: dict[str, dict] = {}
     for col in backends:
         bin_name = binary_name_for(col)
-        bdir = builddir_for(col, full_builddir, fast_builddir)
-        binary = bdir / "Benchmark" / f"bench-{bin_name}"
+        binary = builddir / "Benchmark" / f"bench-{bin_name}"
         if not binary.exists():
             print(f"warn: {binary} missing -- skipping {col}", file=sys.stderr)
             continue
         min_time  = MIN_TIME_OVERRIDES.get(bin_name, "0.5s")
         filter_re = BENCHMARK_FILTERS.get(bin_name)
-        tag = f"bench-{bin_name}"
-        if col != bin_name:
-            tag = f"{tag}  -> column {col}  (builddir={bdir.name})"
-        print(f"[run] {tag}  (min_time={min_time}"
+        print(f"[run] bench-{bin_name}  (min_time={min_time}"
               + (f", filter={filter_re}" if filter_re else "") + ")",
               file=sys.stderr)
         data[col] = run_binary(binary, args.reps, min_time=min_time, filter_re=filter_re)
 
     # Build substitution map.
-    subs = {f"{{{{{k}}}}}": v for k, v in gather_env(full_builddir, fast_builddir).items()}
+    subs = {f"{{{{{k}}}}}": v for k, v in gather_env(builddir).items()}
     subs["{{REPS}}"] = str(args.reps)
-    subs["{{TLDR}}"] = build_tldr(data, have_fast=fast_builddir is not None)
+    subs["{{TLDR}}"] = build_tldr(data)
     for placeholder, rows in TABLES.items():
         unit_hint = rows[0][2]
         subs[f"{{{{{placeholder}}}}}"] = render_timing_table(rows, unit_hint, data, backends)
     subs["{{TABLE_FRAG}}"] = render_frag_table(data, backends)
 
     # Load template + substitute.
-    repo = full_builddir.parent
+    repo = builddir.parent
     tpl_path = repo / "Benchmark" / "README.template.md"
     out_path = args.out or (repo / "Benchmark" / "README.md")
     tpl = tpl_path.read_text()

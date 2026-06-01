@@ -41,7 +41,7 @@ static void prng_seed_from_kernel(u64 *out) {
     // getentropy: max 256 bytes per call. We only ask for 8.
     while (rem > 0) {
         long chunk = rem > 256 ? 256 : (long)rem;
-        long ret   = misra_sys2(MISRA_SYS_getentropy, (long)(u64)p, chunk);
+        long ret   = direct_sys2(MISRA_SYS_getentropy, (long)(u64)p, chunk);
         if (ret < 0) {
             LOG_FATAL("Prng: getentropy failed");
         }
@@ -51,7 +51,7 @@ static void prng_seed_from_kernel(u64 *out) {
 #    else
     // Linux getrandom: short reads possible on signal. Loop until full.
     while (rem > 0) {
-        long ret = misra_sys3(MISRA_SYS_getrandom, (long)(u64)p, (long)rem, 0);
+        long ret = direct_sys3(MISRA_SYS_getrandom, (long)(u64)p, (long)rem, 0);
         if (ret < 0) {
             if (ErrnoOf(ret) == EINTR) {
                 continue;

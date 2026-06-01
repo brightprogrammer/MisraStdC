@@ -110,14 +110,12 @@ bool pdb_cache_resolve_str(
     Zstr *out_name,
     u32       *out_offset
 );
-#define PdbCacheResolve(self, module_path, module_base, runtime_ip, out_name, out_offset)                                                                            \
-    _Generic((module_path), Str *: pdb_cache_resolve_str, Zstr: pdb_cache_resolve_zstr, char *: pdb_cache_resolve_zstr)( \
-        (self),                                                                                                                                                      \
-        (module_path),                                                                                                                                               \
-        (module_base),                                                                                                                                               \
-        (runtime_ip),                                                                                                                                                \
-        (out_name),                                                                                                                                                  \
-        (out_offset)                                                                                                                                                 \
+#define PdbCacheResolve(self, module_path, module_base, runtime_ip, out_name, out_offset)                              \
+    _Generic(                                                                                                          \
+        (module_path),                                                                                                 \
+        Str *: pdb_cache_resolve_str((self), (const Str *)(module_path), (module_base), (runtime_ip), (out_name), (out_offset)),  \
+        Zstr: pdb_cache_resolve_zstr((self), (Zstr)(module_path), (module_base), (runtime_ip), (out_name), (out_offset)),         \
+        char *: pdb_cache_resolve_zstr((self), (Zstr)(module_path), (module_base), (runtime_ip), (out_name), (out_offset))        \
     )
 
 #endif // MISRA_SYS_PDB_CACHE_H

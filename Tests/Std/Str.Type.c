@@ -134,6 +134,10 @@ bool test_validate_invalid_str(void) {
     s.length   = 100; // Set length much larger than actual capacity
     s.capacity = 5;   // Small capacity
     // s.data remains valid but length/capacity are inconsistent
+    // This bypass IS a structural mutation -- mark dirty so the next
+    // ValidateStr re-runs the body and sees the planted corruption
+    // instead of memoizing it away.
+    MAGIC_MARK_DIRTY(&s);
 
     // This should abort the program
     ValidateStr(&s);
@@ -158,6 +162,9 @@ bool test_validate_invalid_strs(void) {
     sv.length   = 50; // Set length much larger than actual capacity
     sv.capacity = 2;  // Small capacity
     // sv.data remains valid but length/capacity are inconsistent
+    // This bypass IS a structural mutation -- mark dirty so the next
+    // ValidateStrs re-runs the body and sees the planted corruption.
+    MAGIC_MARK_DIRTY(&sv);
 
     // This should abort the program
     ValidateStrs(&sv);

@@ -92,7 +92,7 @@ static bool ensure_winsock(void) {
 // Darwin and Linux x86_64 keep the legacy 3-arg shape.
 static inline long sock_poll(void *pfds, unsigned long nfds, int timeout_ms) {
 #        if PLATFORM_DARWIN || ARCHITECTURE_X86_64
-    return misra_sys3(MISRA_SYS_poll, (long)(u64)pfds, (long)nfds, (long)timeout_ms);
+    return direct_sys3(MISRA_SYS_poll, (long)(u64)pfds, (long)nfds, (long)timeout_ms);
 #        else
     struct {
         long sec;
@@ -104,7 +104,7 @@ static inline long sock_poll(void *pfds, unsigned long nfds, int timeout_ms) {
         ts.nsec = (long)(timeout_ms % 1000) * 1000000L;
         ts_ptr  = &ts;
     }
-    return misra_sys5(MISRA_SYS_ppoll, (long)(u64)pfds, (long)nfds, (long)(u64)ts_ptr, 0, 0);
+    return direct_sys5(MISRA_SYS_ppoll, (long)(u64)pfds, (long)nfds, (long)(u64)ts_ptr, 0, 0);
 #        endif
 }
 #    endif
@@ -123,17 +123,7 @@ static inline long sock_poll(void *pfds, unsigned long nfds, int timeout_ms) {
 // Pure-C parsers / formatters. No platform dependencies -- shared.
 // ---------------------------------------------------------------------------
 
-// Hex-nibble helper used by the IPv6 parser. Returns 0..15 on a valid
-// digit, -1 otherwise.
-static i32 hex_nibble_value(char c) {
-    if (c >= '0' && c <= '9')
-        return c - '0';
-    if (c >= 'a' && c <= 'f')
-        return 10 + (c - 'a');
-    if (c >= 'A' && c <= 'F')
-        return 10 + (c - 'A');
-    return -1;
-}
+#include "_IpParse.h"
 
 // Parse a decimal port number (0..65535) from a NUL-terminated string.
 // Empty / non-numeric input -> false. Out-of-range -> false.
@@ -149,118 +139,6 @@ static bool parse_port(Zstr s, u16 *out) {
             return false;
     }
     *out = (u16)v;
-    return true;
-}
-
-// Parse an IPv4 dotted-quad ("a.b.c.d") into 4 bytes.
-static bool parse_ipv4(Zstr s, u8 octets[4]) {
-    if (!s)
-        return false;
-    for (i32 i = 0; i < 4; ++i) {
-        if (*s < '0' || *s > '9')
-            return false;
-        u32 v = 0;
-        while (*s >= '0' && *s <= '9') {
-            v = v * 10 + (u32)(*s - '0');
-            if (v > 255)
-                return false;
-            ++s;
-        }
-        octets[i] = (u8)v;
-        if (i < 3) {
-            if (*s != '.')
-                return false;
-            ++s;
-        }
-    }
-    return *s == '\0';
-}
-
-// Parse an IPv6 textual form into 16 bytes. Handles RFC 5952 "::"
-// compression. Does not handle zone IDs or embedded IPv4.
-static bool parse_ipv6(Zstr s, u8 bytes[16]) {
-    if (!s)
-        return false;
-    u16  before_cc[8];
-    u16  after_cc[8];
-    i32  before_n = 0;
-    i32  after_n  = 0;
-    bool seen_cc  = false;
-    u16 *slot     = before_cc;
-    i32 *slot_n   = &before_n;
-
-    if (s[0] == ':' && s[1] == ':') {
-        seen_cc  = true;
-        slot     = after_cc;
-        slot_n   = &after_n;
-        s       += 2;
-        if (*s == '\0') {
-            for (i32 i = 0; i < 16; ++i)
-                bytes[i] = 0;
-            return true;
-        }
-    }
-
-    for (;;) {
-        if (*slot_n >= 8)
-            return false;
-        i32 v        = 0;
-        i32 n_digits = 0;
-        while (n_digits < 4) {
-            i32 nib = hex_nibble_value(*s);
-            if (nib < 0)
-                break;
-            v = (v << 4) | nib;
-            ++s;
-            ++n_digits;
-        }
-        if (n_digits == 0)
-            return false;
-        slot[(*slot_n)++] = (u16)v;
-
-        if (*s == '\0')
-            break;
-        if (*s != ':')
-            return false;
-        ++s;
-        if (*s == ':') {
-            if (seen_cc)
-                return false;
-            seen_cc = true;
-            slot    = after_cc;
-            slot_n  = &after_n;
-            ++s;
-            if (*s == '\0')
-                break;
-        }
-    }
-
-    if (!seen_cc) {
-        if (before_n != 8)
-            return false;
-        for (i32 i = 0; i < 8; ++i) {
-            bytes[i * 2]     = (u8)(before_cc[i] >> 8);
-            bytes[i * 2 + 1] = (u8)(before_cc[i] & 0xFFu);
-        }
-        return true;
-    }
-
-    if (before_n + after_n > 7)
-        return false;
-    i32 mid_zeros = 8 - before_n - after_n;
-    i32 idx       = 0;
-    for (i32 i = 0; i < before_n; ++i, ++idx) {
-        bytes[idx * 2]     = (u8)(before_cc[i] >> 8);
-        bytes[idx * 2 + 1] = (u8)(before_cc[i] & 0xFFu);
-    }
-    for (i32 i = 0; i < mid_zeros; ++i, ++idx) {
-        bytes[idx * 2]     = 0;
-        bytes[idx * 2 + 1] = 0;
-    }
-    for (i32 i = 0; i < after_n; ++i, ++idx) {
-        bytes[idx * 2]     = (u8)(after_cc[i] >> 8);
-        bytes[idx * 2 + 1] = (u8)(after_cc[i] & 0xFFu);
-    }
     return true;
 }
 
@@ -734,7 +612,7 @@ static bool plat_set_nonblocking(SockFd s, bool nonblock) {
 // direct-syscall the value is just -1 and ErrnoOf falls back to
 // reading errno; both paths land at the same log shape.
 static SockFd plat_socket(int af, int type, int proto) {
-    long ret = misra_sys3(MISRA_SYS_socket, (long)af, (long)type, (long)proto);
+    long ret = direct_sys3(MISRA_SYS_socket, (long)af, (long)type, (long)proto);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "socket() failed");
         return SOCKET_FD_INVALID;
@@ -743,7 +621,7 @@ static SockFd plat_socket(int af, int type, int proto) {
 }
 
 static bool plat_bind(SockFd s, const void *addr, u32 len) {
-    long ret = misra_sys3(MISRA_SYS_bind, (long)(int)s, (long)(u64)(const struct sockaddr *)addr, (long)(socklen_t)len);
+    long ret = direct_sys3(MISRA_SYS_bind, (long)(int)s, (long)(u64)(const struct sockaddr *)addr, (long)(socklen_t)len);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "bind() failed");
         return false;
@@ -752,7 +630,7 @@ static bool plat_bind(SockFd s, const void *addr, u32 len) {
 }
 
 static bool plat_listen(SockFd s, int backlog) {
-    long ret = misra_sys2(MISRA_SYS_listen, (long)(int)s, (long)backlog);
+    long ret = direct_sys2(MISRA_SYS_listen, (long)(int)s, (long)backlog);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "listen() failed");
         return false;
@@ -762,7 +640,7 @@ static bool plat_listen(SockFd s, int backlog) {
 
 static SockFd plat_accept(SockFd s, void *addr, u32 *len_io) {
     socklen_t sl  = (socklen_t)*len_io;
-    long      ret = misra_sys3(MISRA_SYS_accept, (long)(int)s, (long)(u64)(struct sockaddr *)addr, (long)(u64)&sl);
+    long      ret = direct_sys3(MISRA_SYS_accept, (long)(int)s, (long)(u64)(struct sockaddr *)addr, (long)(u64)&sl);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "accept() failed");
         return SOCKET_FD_INVALID;
@@ -773,7 +651,7 @@ static SockFd plat_accept(SockFd s, void *addr, u32 *len_io) {
 
 static bool plat_connect(SockFd s, const void *addr, u32 len) {
     long ret =
-        misra_sys3(MISRA_SYS_connect, (long)(int)s, (long)(u64)(const struct sockaddr *)addr, (long)(socklen_t)len);
+        direct_sys3(MISRA_SYS_connect, (long)(int)s, (long)(u64)(const struct sockaddr *)addr, (long)(socklen_t)len);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "connect() failed");
         return false;
@@ -782,7 +660,7 @@ static bool plat_connect(SockFd s, const void *addr, u32 len) {
 }
 
 static i64 plat_recv(SockFd s, void *buf, size n) {
-    long ret = misra_sys6(MISRA_SYS_recvfrom, (long)(int)s, (long)(u64)buf, (long)(size)n, 0, 0, 0);
+    long ret = direct_sys6(MISRA_SYS_recvfrom, (long)(int)s, (long)(u64)buf, (long)(size)n, 0, 0, 0);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "recv() failed");
         return -1;
@@ -791,7 +669,7 @@ static i64 plat_recv(SockFd s, void *buf, size n) {
 }
 
 static i64 plat_send(SockFd s, const void *buf, size n) {
-    long ret = misra_sys6(MISRA_SYS_sendto, (long)(int)s, (long)(u64)buf, (long)(size)n, (long)MSG_NOSIGNAL, 0, 0);
+    long ret = direct_sys6(MISRA_SYS_sendto, (long)(int)s, (long)(u64)buf, (long)(size)n, (long)MSG_NOSIGNAL, 0, 0);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "send() failed");
         return -1;
@@ -800,7 +678,7 @@ static i64 plat_send(SockFd s, const void *buf, size n) {
 }
 
 static bool plat_setsockopt(SockFd s, int level, int optname, const void *optval, u32 optlen) {
-    long ret = misra_sys5(
+    long ret = direct_sys5(
         MISRA_SYS_setsockopt,
         (long)(int)s,
         (long)level,
@@ -817,7 +695,7 @@ static bool plat_setsockopt(SockFd s, int level, int optname, const void *optval
 
 static bool plat_getsockname(SockFd s, void *addr, u32 *len_io) {
     socklen_t sl  = (socklen_t)*len_io;
-    long      ret = misra_sys3(MISRA_SYS_getsockname, (long)(int)s, (long)(u64)(struct sockaddr *)addr, (long)(u64)&sl);
+    long      ret = direct_sys3(MISRA_SYS_getsockname, (long)(int)s, (long)(u64)(struct sockaddr *)addr, (long)(u64)&sl);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "getsockname() failed");
         return false;
@@ -829,14 +707,14 @@ static bool plat_getsockname(SockFd s, void *addr, u32 *len_io) {
 static void plat_close(SockFd s) {
     if (s == SOCKET_FD_INVALID)
         return;
-    long ret = misra_sys1(MISRA_SYS_close, (long)(int)s);
+    long ret = direct_sys1(MISRA_SYS_close, (long)(int)s);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "close() failed");
     }
 }
 
 static bool plat_set_nonblocking(SockFd s, bool nonblock) {
-    long flags = misra_sys3(MISRA_SYS_fcntl, (long)(int)s, (long)F_GETFL, 0);
+    long flags = direct_sys3(MISRA_SYS_fcntl, (long)(int)s, (long)F_GETFL, 0);
     if (flags < 0) {
         LOG_SOCK_ERROR(flags, "fcntl(F_GETFL) failed");
         return false;
@@ -846,7 +724,7 @@ static bool plat_set_nonblocking(SockFd s, bool nonblock) {
     } else {
         flags &= ~O_NONBLOCK;
     }
-    long ret = misra_sys3(MISRA_SYS_fcntl, (long)(int)s, (long)F_SETFL, flags);
+    long ret = direct_sys3(MISRA_SYS_fcntl, (long)(int)s, (long)F_SETFL, flags);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "fcntl(F_SETFL) failed");
         return false;

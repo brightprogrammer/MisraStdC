@@ -19,19 +19,19 @@
 
 Zstr DirEntryTypeToZstr(DirEntryType type) {
     switch (type) {
-        case SYS_DIR_ENTRY_TYPE_UNKNOWN :
+        case DIR_ENTRY_TYPE_UNKNOWN :
             return "Unknown";
-        case SYS_DIR_ENTRY_TYPE_REGULAR_FILE :
+        case DIR_ENTRY_TYPE_REGULAR_FILE :
             return "Regular File";
-        case SYS_DIR_ENTRY_TYPE_DIRECTORY :
+        case DIR_ENTRY_TYPE_DIRECTORY :
             return "Directory";
-        case SYS_DIR_ENTRY_TYPE_PIPE :
+        case DIR_ENTRY_TYPE_PIPE :
             return "Pipe";
-        case SYS_DIR_ENTRY_TYPE_CHARACTER_DEVICE :
+        case DIR_ENTRY_TYPE_CHARACTER_DEVICE :
             return "Character Device";
-        case SYS_DIR_ENTRY_TYPE_BLOCK_DEVICE :
+        case DIR_ENTRY_TYPE_BLOCK_DEVICE :
             return "Block Device";
-        case SYS_DIR_ENTRY_TYPE_SYMBOLIC_LINK :
+        case DIR_ENTRY_TYPE_SYMBOLIC_LINK :
             return "Symbolic Link";
         default :
             return "Invalid Type";
@@ -102,13 +102,13 @@ DirContents dir_get_contents(Zstr path, Allocator *alloc) {
             DirEntry direntry = {0};
             // Determine file type based on attributes
             if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-                direntry.type = SYS_DIR_ENTRY_TYPE_DIRECTORY;
+                direntry.type = DIR_ENTRY_TYPE_DIRECTORY;
             } else if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
-                direntry.type = SYS_DIR_ENTRY_TYPE_SYMBOLIC_LINK;
+                direntry.type = DIR_ENTRY_TYPE_SYMBOLIC_LINK;
             } else if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_NORMAL) {
-                direntry.type = SYS_DIR_ENTRY_TYPE_REGULAR_FILE;
+                direntry.type = DIR_ENTRY_TYPE_REGULAR_FILE;
             } else {
-                direntry.type = SYS_DIR_ENTRY_TYPE_UNKNOWN;
+                direntry.type = DIR_ENTRY_TYPE_UNKNOWN;
             }
 
             direntry.name = StrInitFromCstr(findFileData.cFileName, ZstrLen(findFileData.cFileName), alloc);
@@ -131,7 +131,7 @@ DirContents dir_get_contents(Zstr path, Allocator *alloc) {
 //     (different field order + sizes) and takes an extra in/out
 //     `basep` (file position) pointer arg.
 // Both kernels fill d_type so we don't need a separate stat() per
-// entry; DT_UNKNOWN entries stay as SYS_DIR_ENTRY_TYPE_UNKNOWN (some
+// entry; DT_UNKNOWN entries stay as DIR_ENTRY_TYPE_UNKNOWN (some
 // filesystems don't populate d_type and force the caller to stat).
 
 // File-type bits. POSIX dirent.h constants -- shared between Linux
@@ -174,19 +174,19 @@ struct kernel_dirent {
 static DirEntryType dirent_type_to_misra(u8 dt) {
     switch (dt) {
         case DIRENT_TYPE_REG :
-            return SYS_DIR_ENTRY_TYPE_REGULAR_FILE;
+            return DIR_ENTRY_TYPE_REGULAR_FILE;
         case DIRENT_TYPE_DIR :
-            return SYS_DIR_ENTRY_TYPE_DIRECTORY;
+            return DIR_ENTRY_TYPE_DIRECTORY;
         case DIRENT_TYPE_FIFO :
-            return SYS_DIR_ENTRY_TYPE_PIPE;
+            return DIR_ENTRY_TYPE_PIPE;
         case DIRENT_TYPE_CHR :
-            return SYS_DIR_ENTRY_TYPE_CHARACTER_DEVICE;
+            return DIR_ENTRY_TYPE_CHARACTER_DEVICE;
         case DIRENT_TYPE_BLK :
-            return SYS_DIR_ENTRY_TYPE_BLOCK_DEVICE;
+            return DIR_ENTRY_TYPE_BLOCK_DEVICE;
         case DIRENT_TYPE_LNK :
-            return SYS_DIR_ENTRY_TYPE_SYMBOLIC_LINK;
+            return DIR_ENTRY_TYPE_SYMBOLIC_LINK;
         default :
-            return SYS_DIR_ENTRY_TYPE_UNKNOWN;
+            return DIR_ENTRY_TYPE_UNKNOWN;
     }
 }
 
@@ -217,10 +217,10 @@ DirContents dir_get_contents(Zstr path, Allocator *alloc) {
     // also has SYS_open (the legacy BSD numbering is intact on Apple
     // even on Apple Silicon). Linux-x86_64 has SYS_open. Linux-aarch64
     // does NOT (was removed; openat-only).
-    long fd = misra_sys3(MISRA_SYS_open, (long)(u64)path, O_RDONLY | O_DIRECTORY | O_CLOEXEC, 0);
+    long fd = direct_sys3(MISRA_SYS_open, (long)(u64)path, O_RDONLY | O_DIRECTORY | O_CLOEXEC, 0);
 #    else
     // Linux-aarch64: openat(AT_FDCWD=-100, path, flags, mode).
-    long fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(u64)path, O_RDONLY | O_DIRECTORY | O_CLOEXEC, 0);
+    long fd = direct_sys4(MISRA_SYS_openat, -100L, (long)(u64)path, O_RDONLY | O_DIRECTORY | O_CLOEXEC, 0);
 #    endif
     if (fd < 0) {
         LOG_SYS_ERROR(ErrnoOf(fd), "DirGetContents: open(\"{}\")", path);
@@ -235,9 +235,9 @@ DirContents dir_get_contents(Zstr path, Allocator *alloc) {
 #    endif
     for (;;) {
 #    if PLATFORM_DARWIN
-        long n = misra_sys4(MISRA_SYS_getdents64, fd, (long)(u64)buf, (long)sizeof(buf), (long)(u64)&basep);
+        long n = direct_sys4(MISRA_SYS_getdents64, fd, (long)(u64)buf, (long)sizeof(buf), (long)(u64)&basep);
 #    else
-        long n = misra_sys3(MISRA_SYS_getdents64, fd, (long)(u64)buf, (long)sizeof(buf));
+        long n = direct_sys3(MISRA_SYS_getdents64, fd, (long)(u64)buf, (long)sizeof(buf));
 #    endif
         if (n == 0) {
             break; // end of stream
@@ -270,7 +270,7 @@ DirContents dir_get_contents(Zstr path, Allocator *alloc) {
         }
     }
 
-    (void)misra_sys1(MISRA_SYS_close, fd);
+    (void)direct_sys1(MISRA_SYS_close, fd);
     return dc;
 }
 #else
@@ -309,16 +309,16 @@ i64 file_get_size(Zstr filename) {
 #    endif
     const long SEEK_END_ = 2;
 #    if PLATFORM_DARWIN || ARCHITECTURE_X86_64
-    long fd = misra_sys3(MISRA_SYS_open, (long)(u64)filename, O_RDONLY | O_CLOEXEC, 0);
+    long fd = direct_sys3(MISRA_SYS_open, (long)(u64)filename, O_RDONLY | O_CLOEXEC, 0);
 #    else
-    long fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(u64)filename, O_RDONLY | O_CLOEXEC, 0);
+    long fd = direct_sys4(MISRA_SYS_openat, -100L, (long)(u64)filename, O_RDONLY | O_CLOEXEC, 0);
 #    endif
     if (fd < 0) {
         LOG_SYS_ERROR(ErrnoOf(fd), "FileGetSize: open(\"{}\")", filename);
         return -1;
     }
-    long sz = misra_sys3(MISRA_SYS_lseek, fd, 0, SEEK_END_);
-    (void)misra_sys1(MISRA_SYS_close, fd);
+    long sz = direct_sys3(MISRA_SYS_lseek, fd, 0, SEEK_END_);
+    (void)direct_sys1(MISRA_SYS_close, fd);
     if (sz < 0) {
         LOG_SYS_ERROR(ErrnoOf(sz), "FileGetSize: lseek on \"{}\"", filename);
         return -1;
@@ -351,10 +351,10 @@ i8 file_remove(Zstr path) {
 #    if PLATFORM_DARWIN || ARCHITECTURE_X86_64
     // Darwin has SYS_unlink (#10, BSD) on both x86_64 and aarch64.
     // Linux x86_64 also has SYS_unlink. Linux aarch64 doesn't.
-    long ret = misra_sys1(MISRA_SYS_unlink, (long)(u64)path);
+    long ret = direct_sys1(MISRA_SYS_unlink, (long)(u64)path);
 #    else
     // Linux aarch64: AT_FDCWD = -100, flags = 0 (regular unlink).
-    long ret = misra_sys3(MISRA_SYS_unlinkat, -100L, (long)(u64)path, 0);
+    long ret = direct_sys3(MISRA_SYS_unlinkat, -100L, (long)(u64)path, 0);
 #    endif
     if (ret < 0) {
         LOG_SYS_ERROR(ErrnoOf(ret), "FileRemove(\"{}\")", path);
@@ -380,10 +380,10 @@ i8 dir_remove(Zstr path) {
 #    if PLATFORM_DARWIN || ARCHITECTURE_X86_64
     // Darwin has SYS_rmdir (#137, BSD) on both arches. Linux x86_64
     // has SYS_rmdir; Linux aarch64 went unlinkat-only.
-    long ret = misra_sys1(MISRA_SYS_rmdir, (long)(u64)path);
+    long ret = direct_sys1(MISRA_SYS_rmdir, (long)(u64)path);
 #    else
     // Linux aarch64: AT_FDCWD = -100, AT_REMOVEDIR = 0x200.
-    long ret = misra_sys3(MISRA_SYS_unlinkat, -100L, (long)(u64)path, 0x200);
+    long ret = direct_sys3(MISRA_SYS_unlinkat, -100L, (long)(u64)path, 0x200);
 #    endif
     if (ret < 0) {
         LOG_SYS_ERROR(ErrnoOf(ret), "DirRemove(\"{}\")", path);
@@ -419,10 +419,10 @@ i8 dir_create(Zstr path) {
     return 1;
 #elif FEATURE_DIRECT_SYSCALL
 #    if PLATFORM_DARWIN || ARCHITECTURE_X86_64
-    long ret = misra_sys2(MISRA_SYS_mkdir, (long)(u64)path, DIR_CREATE_MODE);
+    long ret = direct_sys2(MISRA_SYS_mkdir, (long)(u64)path, DIR_CREATE_MODE);
 #    else
     // Linux aarch64: AT_FDCWD = -100.
-    long ret = misra_sys3(MISRA_SYS_mkdirat, -100L, (long)(u64)path, DIR_CREATE_MODE);
+    long ret = direct_sys3(MISRA_SYS_mkdirat, -100L, (long)(u64)path, DIR_CREATE_MODE);
 #    endif
     if (ret < 0) {
         LOG_SYS_ERROR(ErrnoOf(ret), "DirCreate(\"{}\")", path);
@@ -449,9 +449,9 @@ static bool dir_already_exists(Zstr path) {
     u8   buf[256] = {0};
     long ret;
 #    if PLATFORM_DARWIN
-    ret = misra_sys4(MISRA_SYS_fstatat64, -100L, (long)(u64)path, (long)(u64)buf, 0);
+    ret = direct_sys4(MISRA_SYS_fstatat64, -100L, (long)(u64)path, (long)(u64)buf, 0);
 #    else
-    ret = misra_sys4(MISRA_SYS_newfstatat, -100L, (long)(u64)path, (long)(u64)buf, 0);
+    ret = direct_sys4(MISRA_SYS_newfstatat, -100L, (long)(u64)path, (long)(u64)buf, 0);
 #    endif
     return ret >= 0;
 #else
@@ -556,7 +556,7 @@ i8 dir_remove_all(Zstr path) {
         bool inner_ok = false;
         StrInitStack(child, DIR_REMOVE_ALL_PATH_CAP) {
             StrAppendFmt(&child, trail_sep ? "{}{}" : "{}/{}", path, entry_nm);
-            if (e->type == SYS_DIR_ENTRY_TYPE_DIRECTORY) {
+            if (e->type == DIR_ENTRY_TYPE_DIRECTORY) {
                 inner_ok = DirRemoveAll(&child);
             } else {
                 inner_ok = FileRemove(&child);

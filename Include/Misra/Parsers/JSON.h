@@ -920,7 +920,9 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JW_STR(j, s)                                                                                                   \
     do {                                                                                                               \
-        StrAppendFmt(&(j), "\"{}\"", StrLen(&(s)) ? (Zstr)StrBegin(&(s)) : (Zstr) "");                                 \
+        const Str *UNPL(jw_s)   = &(s);                                                                                \
+        u64        UNPL(jw_len) = StrLen(UNPL(jw_s));                                                                  \
+        StrAppendFmt(&(j), "\"{}\"", UNPL(jw_len) ? (Zstr)StrBegin(UNPL(jw_s)) : (Zstr) "");                           \
     } while (0)
 
 ///

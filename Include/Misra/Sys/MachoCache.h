@@ -113,14 +113,12 @@ bool macho_cache_resolve_str(
     Zstr *out_name,
     u32        *out_offset
 );
-#define MachoCacheResolve(self, module_path, slide, runtime_ip, out_name, out_offset)                                                                                        \
-    _Generic((module_path), Str *: macho_cache_resolve_str, Zstr: macho_cache_resolve_zstr, char *: macho_cache_resolve_zstr)( \
-        (self),                                                                                                                                                              \
-        (module_path),                                                                                                                                                       \
-        (slide),                                                                                                                                                             \
-        (runtime_ip),                                                                                                                                                        \
-        (out_name),                                                                                                                                                          \
-        (out_offset)                                                                                                                                                         \
+#define MachoCacheResolve(self, module_path, slide, runtime_ip, out_name, out_offset)                                  \
+    _Generic(                                                                                                          \
+        (module_path),                                                                                                 \
+        Str *: macho_cache_resolve_str((self), (const Str *)(module_path), (slide), (runtime_ip), (out_name), (out_offset)),  \
+        Zstr: macho_cache_resolve_zstr((self), (Zstr)(module_path), (slide), (runtime_ip), (out_name), (out_offset)),  \
+        char *: macho_cache_resolve_zstr((self), (Zstr)(module_path), (slide), (runtime_ip), (out_name), (out_offset)) \
     )
 
 #endif // MISRA_SYS_MACHO_CACHE_H

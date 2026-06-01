@@ -16,6 +16,7 @@
 #ifndef MISRA_PARSERS_ELF_H
 #define MISRA_PARSERS_ELF_H
 
+#include <Misra/Parsers/Elf/Private.h>
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Container/Str.h>
@@ -210,7 +211,6 @@ typedef struct Elf {
 ///
 /// TAGS: Parser, ELF, File
 ///
-bool elf_open(Elf *out, Zstr path, Allocator *alloc);
 #define ElfOpen(...) OVERLOAD(ElfOpen, __VA_ARGS__)
 #define ElfOpen_2(out, path)                                                                                           \
     _Generic(                                                                                                          \
@@ -279,7 +279,6 @@ bool ElfOpenFromMemory(Elf *out, Buf *in);
 ///
 /// TAGS: Parser, ELF, Memory, Copy
 ///
-bool elf_open_from_memory_copy(Elf *out, const u8 *data, size data_size, Allocator *alloc);
 #define ElfOpenFromMemoryCopy(...)                    OVERLOAD(ElfOpenFromMemoryCopy, __VA_ARGS__)
 #define ElfOpenFromMemoryCopy_3(out, data, data_size) elf_open_from_memory_copy((out), (data), (data_size), MisraScope)
 #define ElfOpenFromMemoryCopy_4(out, data, data_size, alloc)                                                           \
@@ -334,8 +333,6 @@ const ElfSymbol *ElfResolveAddress(const Elf *self, u64 vaddr);
 ///
 /// TAGS: Parser, ELF, Section, Query
 ///
-const ElfSection *elf_find_section_zstr(const Elf *self, Zstr name);
-const ElfSection *elf_find_section_str(const Elf *self, const Str *name);
 #define ElfFindSection(self, name)                                                                                     \
     _Generic((name), Str *: elf_find_section_str, Zstr: elf_find_section_zstr, char *: elf_find_section_zstr)(         \
         (self),                                                                                                        \

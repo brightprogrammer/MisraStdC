@@ -137,10 +137,10 @@ File file_open(Zstr path, Zstr mode) {
 #        if PLATFORM_DARWIN || ARCHITECTURE_X86_64
     // Darwin has SYS_open on both x86_64 and aarch64. Linux x86_64
     // does too; only Linux aarch64 went openat-only.
-    fd = misra_sys3(MISRA_SYS_open, (long)(u64)path, (long)flags, 0644L);
+    fd = direct_sys3(MISRA_SYS_open, (long)(u64)path, (long)flags, 0644L);
 #        else
     // Linux aarch64: openat(AT_FDCWD=-100, path, flags, mode).
-    fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(u64)path, (long)flags, 0644L);
+    fd = direct_sys4(MISRA_SYS_openat, -100L, (long)(u64)path, (long)flags, 0644L);
 #        endif
 #    else
     fd = open(path, flags, 0644);
@@ -218,7 +218,7 @@ bool FileClose(File *f) {
     bool ok = true;
     if (f->owns && f->fd >= 0) {
 #    if FEATURE_DIRECT_SYSCALL
-        long r = misra_sys1(MISRA_SYS_close, (long)f->fd);
+        long r = direct_sys1(MISRA_SYS_close, (long)f->fd);
         ok     = r == 0;
 #    else
         ok = close(f->fd) == 0;
@@ -262,7 +262,7 @@ i64 file_read(File *f, void *buf, u64 n) {
     }
     return (i64)got;
 #elif FEATURE_DIRECT_SYSCALL
-    long r = misra_sys3(MISRA_SYS_read, (long)f->fd, (long)(u64)buf, (long)n);
+    long r = direct_sys3(MISRA_SYS_read, (long)f->fd, (long)(u64)buf, (long)n);
     if (r < 0) {
         return -1;
     }
@@ -296,7 +296,7 @@ i64 FileWrite(File *f, const void *buf, u64 n) {
     }
     return (i64)put;
 #elif FEATURE_DIRECT_SYSCALL
-    long r = misra_sys3(MISRA_SYS_write, (long)f->fd, (long)(u64)buf, (long)n);
+    long r = direct_sys3(MISRA_SYS_write, (long)f->fd, (long)(u64)buf, (long)n);
     if (r < 0) {
         return -1;
     }
@@ -325,7 +325,7 @@ i64 FileSeek(File *f, i64 offset, FileWhence whence) {
     }
     return (i64)newpos.QuadPart;
 #elif FEATURE_DIRECT_SYSCALL
-    long r = misra_sys3(MISRA_SYS_lseek, (long)f->fd, (long)offset, (long)whence);
+    long r = direct_sys3(MISRA_SYS_lseek, (long)f->fd, (long)offset, (long)whence);
     if (r < 0) {
         return -1;
     }
@@ -588,9 +588,9 @@ File file_open_temp(Str *out_path, Allocator *alloc) {
         long fd;
 #    if FEATURE_DIRECT_SYSCALL
 #        if PLATFORM_DARWIN || ARCHITECTURE_X86_64
-        fd = misra_sys3(MISRA_SYS_open, (long)(u64)StrBegin(out_path), (long)flags, 0600L);
+        fd = direct_sys3(MISRA_SYS_open, (long)(u64)StrBegin(out_path), (long)flags, 0600L);
 #        else
-        fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(u64)StrBegin(out_path), (long)flags, 0600L);
+        fd = direct_sys4(MISRA_SYS_openat, -100L, (long)(u64)StrBegin(out_path), (long)flags, 0600L);
 #        endif
 #    else
         extern int open(Zstr, int, ...);

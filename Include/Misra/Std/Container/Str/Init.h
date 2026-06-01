@@ -238,7 +238,7 @@ extern "C" {
                          .allocator   = NULL,                                                                          \
                          .copy_init   = NULL,                                                                          \
                          .copy_deinit = NULL,                                                                          \
-                         .__magic     = VEC_MAGIC},                                                                    \
+                         .__magic     = VEC_MAGIC | MAGIC_VALIDATED_BIT},                                                                    \
                  *UNPL(_done) = &name;                                                                                  \
              UNPL(_done);                                                                                              \
              MemSet(&name, 0, sizeof(name)), UNPL(_done) = NULL)

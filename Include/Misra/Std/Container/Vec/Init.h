@@ -43,7 +43,7 @@
      .copy_deinit = NULL,                                                                                              \
      .data        = NULL,                                                                                              \
      .allocator   = ALLOCATOR_OF(allocator_ptr),                                                                       \
-     .__magic     = VEC_MAGIC}
+     .__magic     = VEC_MAGIC | MAGIC_VALIDATED_BIT}
 
 ///
 /// Typed-cast variant of `VecInit` for assigning into a typed Vec
@@ -79,7 +79,7 @@
      .copy_deinit = (GenericCopyDeinit)(cd),                                                                           \
      .data        = NULL,                                                                                              \
      .allocator   = ALLOCATOR_OF(allocator_ptr),                                                                       \
-     .__magic     = VEC_MAGIC}
+     .__magic     = VEC_MAGIC | MAGIC_VALIDATED_BIT}
 
 #define VecInitWithDeepCopyT(v, ...) OVERLOAD(VecInitWithDeepCopyT, v, __VA_ARGS__)
 #ifdef __cplusplus
@@ -158,7 +158,7 @@
                             .copy_deinit = NULL,                                                                       \
                             .data        = (T *)UNPL(_s).d,                                                            \
                             .allocator   = NULL,                                                                       \
-                            .__magic     = VEC_MAGIC},                                                                 \
+                            .__magic     = VEC_MAGIC | MAGIC_VALIDATED_BIT},                                                                 \
                  *UNPL(_done) = &name;                                                                                  \
              UNPL(_done);                                                                                              \
              MemSet(&name, 0, sizeof(name)), UNPL(_done) = NULL)

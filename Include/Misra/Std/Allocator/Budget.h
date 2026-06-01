@@ -218,7 +218,7 @@ extern "C" {
                     .alignment       = (alignment_value),                                                                    \
                     .effort          = ALLOCATOR_EFFORT_ONCE,                                                                \
                     .retry_limit     = 0,                                                                                    \
-                    .__magic         = BUDGET_ALLOCATOR_MAGIC,                                                               \
+                    .__magic         = BUDGET_ALLOCATOR_MAGIC | MAGIC_VALIDATED_BIT,                                                               \
                     .footprint_bytes = 0},                                                                                   \
          .buf          = (u8 *)(buf_ptr),                                                                              \
          .buf_bytes    = (total_bytes),                                                                                \

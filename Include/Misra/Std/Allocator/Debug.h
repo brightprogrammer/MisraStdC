@@ -456,7 +456,7 @@ extern "C" {
      .states            = NULL,                                                                                        \
      .policy            = MapPolicyLinear,                                                                             \
      .allocator         = NULL,                                                                                        \
-     .__magic           = MAP_MAGIC}
+     .__magic           = MAP_MAGIC | MAGIC_VALIDATED_BIT}
 
 ///
 /// Compound-literal initializer for the embedded `freed` Vec (a
@@ -481,7 +481,7 @@ extern "C" {
      .copy_deinit = NULL,                                                                                              \
      .data        = NULL,                                                                                              \
      .allocator   = NULL,                                                                                              \
-     .__magic     = VEC_MAGIC}
+     .__magic     = VEC_MAGIC | MAGIC_VALIDATED_BIT}
 
 ///
 /// Construct a `DebugAllocator` with caller-supplied `DebugAllocatorConfig`.
@@ -511,7 +511,7 @@ extern "C" {
                    .alignment       = 1,                                                                                     \
                    .effort          = ALLOCATOR_EFFORT_ONCE,                                                                 \
                    .retry_limit     = 0,                                                                                     \
-                   .__magic         = DEBUG_ALLOCATOR_MAGIC,                                                                 \
+                   .__magic         = DEBUG_ALLOCATOR_MAGIC | MAGIC_VALIDATED_BIT,                                                                 \
                    .footprint_bytes = 0},                                                                                    \
         .heap         = HeapAllocatorInit(),                                                                           \
         .meta         = HeapAllocatorInit(),                                                                           \

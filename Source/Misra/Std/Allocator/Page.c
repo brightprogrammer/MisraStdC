@@ -39,13 +39,16 @@
 // allocated. `entries_bytes` records the rounded mmap length of the
 // table itself so PageAllocatorDeinit can unmap it -- it's zero
 // exactly when `entries` is NULL.
-static void page_validate_self(const PageAllocator *pg) {
-    if (!pg) {
-        LOG_FATAL("PageAllocator: NULL self");
-    }
-    if (pg->base.__magic != PAGE_ALLOCATOR_MAGIC) {
-        LOG_FATAL("type-confusion: allocator passed to page_allocator_* is not a PageAllocator");
-    }
+//
+// The structural body is memoized via MAGIC_VALIDATED_BIT.
+// `page_table_grow_into` is the one place that changes the table
+// pointer / cap / entries_bytes for either `entries` or
+// `free_entries`; it flips the bit. Per-element insert/remove leave
+// it alone (they only adjust the matching `*_len` within the cap).
+
+#define PAGE_MARK_DIRTY(p) MAGIC_MARK_DIRTY(&(p)->base)
+
+static void page_validate_self_structural(const PageAllocator *pg) {
     if (!pg->base.allocate || !pg->base.resize || !pg->base.remap || !pg->base.deallocate) {
         LOG_FATAL("PageAllocator: vtable function pointer is NULL");
     }
@@ -97,6 +100,20 @@ static void page_validate_self(const PageAllocator *pg) {
     if (pg->free_entries) {
         (void)(*(const volatile u8 *)(const void *)pg->free_entries);
     }
+}
+
+static void page_validate_self(const PageAllocator *pg) {
+    if (!pg) {
+        LOG_FATAL("PageAllocator: NULL self");
+    }
+    if (!MAGIC_MATCHES(pg->base.__magic, PAGE_ALLOCATOR_MAGIC)) {
+        LOG_FATAL("type-confusion: allocator passed to page_allocator_* is not a PageAllocator");
+    }
+    if (!(pg->base.__magic & MAGIC_VALIDATED_BIT)) {
+        return;
+    }
+    page_validate_self_structural(pg);
+    ((PageAllocator *)(void *)pg)->base.__magic &= ~MAGIC_VALIDATED_BIT;
 }
 
 size PageAllocatorPageSize(PageAllocator *self) {
@@ -190,6 +207,7 @@ static bool page_table_grow_into(PageAllocator *page, PageEntry **arr_p, u32 *le
     *arr_p   = new_table;
     *bytes_p = new_rounded;
     *cap_p   = (u32)(new_rounded / sizeof(PageEntry));
+    PAGE_MARK_DIRTY(page);
     return true;
 }
 
@@ -555,7 +573,7 @@ bool PageProtect(void *ptr, size bytes, PageProtection prot) {
             return false;
     }
 #    if FEATURE_DIRECT_SYSCALL
-    long ret = misra_sys3(MISRA_SYS_mprotect, (long)(u64)ptr, (long)bytes, (long)posix_prot);
+    long ret = direct_sys3(MISRA_SYS_mprotect, (long)(u64)ptr, (long)bytes, (long)posix_prot);
     if (ret != 0) {
         LOG_SYS_ERROR(ErrnoOf((i32)ret), "PageProtect: mprotect failed");
         return false;

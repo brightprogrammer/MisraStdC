@@ -62,24 +62,14 @@
 
 #define HEAP_ALLOCATOR_MAGIC MAKE_NEW_MAGIC_VALUE("heapallc")
 
-// MSB of __magic is repurposed as a "deep-validate cache" dirty bit.
-// MAKE_NEW_MAGIC_VALUE puts the first ASCII byte ('h') in the HIGH
-// byte of the u64; 'h' = 0x68 has bit 7 = 0, so bit 63 is clear in
-// the canonical magic. LSB is not safe: low byte is 'c' (0x63),
-// bit 0 = 1.
-//
-//   bit clear -> deep-check verified since last structural mutation
-//   bit set   -> deep check must re-run
-//
-// The fast validator masks this bit when comparing magic, so neither
-// state breaks type-confusion detection. Structural-mutation sites
-// (pages hash table grow / rebuild, xl_in_use / xl_freed array grow,
-// recycle storage grow) set the bit; per-slot ops (bitmap flips,
-// used_count++/--, warm-list linkage, single-bucket insert/remove,
-// XL array swap-remove / swap-push) leave it alone.
-// Exposed in the header so other modules (DebugAllocator) can mask
-// the bit when sanity-checking the embedded heap's magic field.
-#define HEAP_MAGIC_VALIDATED_BIT (1ULL << 63)
+// Structural-mutation sites set MAGIC_VALIDATED_BIT (see Misra/Types.h)
+// so the next `heap_validate_self` call recomputes its cross-class
+// invariants. For HeapAllocator those sites are pages hash table grow
+// / rebuild, xl_in_use / xl_freed array grow, and recycle-pool grow.
+// Per-slot ops (bitmap flips, used_count++/--, warm-list linkage,
+// single-bucket insert/remove, XL array swap-remove / swap-push)
+// leave the bit alone -- they don't touch fields the deep body
+// inspects, so the memoized result stays valid.
 
 // Number of binned size classes. Indexed 0..HEAP_NUM_CLASSES-1.
 // XL is "class HEAP_NUM_CLASSES" by convention -- it has its own
@@ -406,7 +396,7 @@ _Static_assert(HEAP_NUM_CLASSES == 8, "HEAP_CLASS_WARM_HEAD_NONE has 8 entries; 
                    .alignment       = 1,                                                                                     \
                    .effort          = ALLOCATOR_EFFORT_ONCE,                                                                 \
                    .retry_limit     = 0,                                                                                     \
-                   .__magic         = HEAP_ALLOCATOR_MAGIC,                                                                  \
+                   .__magic         = HEAP_ALLOCATOR_MAGIC | MAGIC_VALIDATED_BIT,                                                                  \
                    .footprint_bytes = 0},                                                                                    \
         .pages           = NULL,                                                                                       \
         .pages_cap       = 0,                                                                                          \
@@ -448,7 +438,7 @@ _Static_assert(HEAP_NUM_CLASSES == 8, "HEAP_CLASS_WARM_HEAD_NONE has 8 entries; 
                    .alignment       = (N) ? (N) : 1,                                                                         \
                    .effort          = ALLOCATOR_EFFORT_ONCE,                                                                 \
                    .retry_limit     = 0,                                                                                     \
-                   .__magic         = HEAP_ALLOCATOR_MAGIC,                                                                  \
+                   .__magic         = HEAP_ALLOCATOR_MAGIC | MAGIC_VALIDATED_BIT,                                                                  \
                    .footprint_bytes = 0},                                                                                    \
         .pages           = NULL,                                                                                       \
         .pages_cap       = 0,                                                                                          \

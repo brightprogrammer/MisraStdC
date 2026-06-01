@@ -59,7 +59,8 @@ extern "C" {
         u64 *bitmaps;
 
         // User-configured slot size. Must be a power of two in
-        // [16, PAGE_SIZE]. Validated at first grow / on validate-full.
+        // [16, PAGE_SIZE]. Validated at first grow and on every API
+        // entry by `slab_validate_self`.
         size slot_size;
 
         // ctz(slot_size). Cached so the hot path computes
@@ -251,7 +252,7 @@ extern "C" {
                    .alignment       = 16,                                                                                    \
                    .effort          = ALLOCATOR_EFFORT_ONCE,                                                                 \
                    .retry_limit     = 0,                                                                                     \
-                   .__magic         = SLAB_ALLOCATOR_MAGIC,                                                                  \
+                   .__magic         = SLAB_ALLOCATOR_MAGIC | MAGIC_VALIDATED_BIT,                                                                  \
                    .footprint_bytes = 0},                                                                                    \
         .slabs                 = NULL,                                                                                 \
         .slabs_len             = 0,                                                                                    \
@@ -292,7 +293,7 @@ extern "C" {
                    .alignment       = (alignment_value) ? (alignment_value) : 16,                                            \
                    .effort          = ALLOCATOR_EFFORT_ONCE,                                                                 \
                    .retry_limit     = 0,                                                                                     \
-                   .__magic         = SLAB_ALLOCATOR_MAGIC,                                                                  \
+                   .__magic         = SLAB_ALLOCATOR_MAGIC | MAGIC_VALIDATED_BIT,                                                                  \
                    .footprint_bytes = 0},                                                                                    \
         .slabs                 = NULL,                                                                                 \
         .slabs_len             = 0,                                                                                    \

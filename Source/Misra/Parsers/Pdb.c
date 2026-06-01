@@ -17,7 +17,7 @@
 // Constants
 // ---------------------------------------------------------------------------
 
-static const char kMsfMagic7[32] = {'M', 'i', 'c',  'r',  'o',    's', 'o', 'f',  't',  ' ', 'C',
+static const u8 MSF_MAGIC_7[32] = {'M', 'i', 'c',  'r',  'o',    's', 'o', 'f',  't',  ' ', 'C',
                                     '/', 'C', '+',  '+',  ' ',    'M', 'S', 'F',  ' ',  '7', '.',
                                     '0', '0', '\r', '\n', '\x1A', 'D', 'S', '\0', '\0', '\0'};
 
@@ -144,7 +144,7 @@ static bool parse_superblock(Pdb *self, u32 *out_num_dir_bytes, u32 *out_block_m
         LOG_ERROR("PDB: file too small for MSF superblock");
         return false;
     }
-    if (MemCompare(BufData(&self->data), kMsfMagic7, sizeof(kMsfMagic7)) != 0) {
+    if (MemCompare(BufData(&self->data), MSF_MAGIC_7, sizeof(MSF_MAGIC_7)) != 0) {
         LOG_ERROR("PDB: bad MSF magic (not 7.00)");
         return false;
     }
@@ -518,9 +518,9 @@ typedef struct PendingPub {
 
 typedef Vec(PendingPub) PendingPubs;
 
-static int cmp_pending(const void *a, const void *b) {
-    const PendingPub *pa = a;
-    const PendingPub *pb = b;
+static i32 cmp_pending(const void *lhs, const void *rhs) {
+    const PendingPub *pa = lhs;
+    const PendingPub *pb = rhs;
     if (pa->rva < pb->rva)
         return -1;
     if (pa->rva > pb->rva)

@@ -97,6 +97,8 @@ extern "C" {
         DnsRecords additional;
     } DnsResponse;
 
+#include <Misra/Parsers/Dns/Private.h>
+
     ///
     /// Build a single-question DNS query (recursion desired) into `out`.
     ///
@@ -117,14 +119,12 @@ extern "C" {
     ///           violations, or Vec growth failure. `out` is left
     ///           with whatever was written.
     ///
-    bool dns_build_query_zstr(DnsWireBuf *out, u16 id, Zstr name, DnsType type);
-    bool dns_build_query_str(DnsWireBuf *out, u16 id, const Str *name, DnsType type);
 #define DnsBuildQuery(out, id, name, type)                                                                             \
-    _Generic((name), Str *: dns_build_query_str, Zstr: dns_build_query_zstr, char *: dns_build_query_zstr)(            \
-        (out),                                                                                                         \
-        (id),                                                                                                          \
+    _Generic(                                                                                                          \
         (name),                                                                                                        \
-        (type)                                                                                                         \
+        Str *: dns_build_query_str((out), (id), (const Str *)(name), (type)),                                          \
+        Zstr: dns_build_query_zstr((out), (id), (Zstr)(name), (type)),                                                 \
+        char *: dns_build_query_zstr((out), (id), (Zstr)(name), (type))                                                \
     )
 
     ///

@@ -28,6 +28,7 @@ static bool test_validate_corrupt_empty_list_fails(void) {
     // plant a bogus head pointer on an empty list so ValidateList trips its
     // empty-but-head-set check.
     list.head = (void *)1;
+    MAGIC_MARK_DIRTY(&list);
     ValidateList(&list);
 
     return false;
@@ -66,6 +67,7 @@ static bool test_validate_corrupt_nonempty_list_fails(void) {
     g->head   = &node;
     g->length = 1;
     g->tail   = NULL;
+    MAGIC_MARK_DIRTY(&list);
     ValidateList(&list);
 
     return false;
@@ -85,6 +87,7 @@ static bool test_validate_nonempty_head_null_fails(void) {
     g->head   = NULL;
     g->tail   = &node;
     g->length = 1;
+    MAGIC_MARK_DIRTY(&list);
     ValidateList(&list);
 
     return false;
@@ -104,6 +107,7 @@ static bool test_validate_head_prev_fails(void) {
     g->head   = &node;
     g->tail   = &node;
     g->length = 1;
+    MAGIC_MARK_DIRTY(&list);
     ValidateList(&list);
 
     return false;
@@ -123,6 +127,7 @@ static bool test_validate_tail_next_fails(void) {
     g->head   = &node;
     g->tail   = &node;
     g->length = 1;
+    MAGIC_MARK_DIRTY(&list);
     ValidateList(&list);
 
     return false;

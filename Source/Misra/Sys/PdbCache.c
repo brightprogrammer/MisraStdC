@@ -19,45 +19,7 @@
 // Helpers
 // ---------------------------------------------------------------------------
 
-static bool path_exists(Zstr path) {
-    File f = FileOpen(path, "rb");
-    if (!FileIsOpen(&f)) {
-        return false;
-    }
-    FileClose(&f);
-    return true;
-}
-
-// Return the directory portion of `path` (no trailing separator).
-// Appended into `out`. If `path` has no separator the function leaves
-// `out` empty so the caller can fall back to the same directory.
-static void append_dirname(Str *out, Zstr path) {
-    if (!path)
-        return;
-    Zstr last_sep = NULL;
-    for (Zstr p = path; *p; ++p) {
-        if (*p == '/' || *p == '\\')
-            last_sep = p;
-    }
-    if (!last_sep)
-        return;
-    u64 len = (u64)(last_sep - path);
-    for (u64 i = 0; i < len; ++i)
-        StrPushBackR(out, path[i]);
-}
-
-// Return the basename portion (last component) of `path`. The returned
-// pointer is into `path` itself.
-static Zstr basename_of(Zstr path) {
-    if (!path)
-        return "";
-    Zstr base = path;
-    for (Zstr p = path; *p; ++p) {
-        if (*p == '/' || *p == '\\')
-            base = p + 1;
-    }
-    return base;
-}
+#include "_Helpers.h"
 
 // Find the PDB referenced by a PE's CodeView record. We try, in order:
 //   1. The exact path stored in CodeView (build-machine path, usually
@@ -73,20 +35,20 @@ static bool find_pdb(const Pe *pe, Zstr pe_path, Str *out_path) {
     // (1) exact CodeView path
     *out_path = StrInit(StrAllocator(out_path));
     StrPushBackMany(out_path, cv->pdb_path);
-    if (path_exists(StrBegin(out_path)))
+    if (sys_path_exists(StrBegin(out_path)))
         return true;
 
     // (2) basename alongside PE
-    Zstr pdb_base = basename_of(cv->pdb_path);
+    Zstr pdb_base = sys_basename_of(cv->pdb_path);
     if (pdb_base[0] == '\0')
         return false;
 
     StrResize(out_path, 0);
-    append_dirname(out_path, pe_path);
+    sys_append_dirname(out_path, pe_path);
     if (StrLen(out_path) > 0)
         StrPushBackR(out_path, '/');
     StrPushBackMany(out_path, pdb_base);
-    if (path_exists(StrBegin(out_path)))
+    if (sys_path_exists(StrBegin(out_path)))
         return true;
 
     return false;

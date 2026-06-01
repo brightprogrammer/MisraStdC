@@ -42,6 +42,10 @@
 // implementation agree on the layout.
 typedef Map(Str, Str) KvConfig;
 
+// Private backends. Included AFTER the KvConfig typedef so the
+// snake_case prototypes there can name the type.
+#include <Misra/Parsers/KvConfig/Private.h>
+
 ///
 /// Key-value configuration map.
 ///
@@ -308,32 +312,8 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg);
         (value)                                                                                                        \
     )
 
-// ---------------------------------------------------------------------------
-// Private backends.
-//
-// The declarations below are the snake_case implementations the public
-// `_Generic`-dispatched macros above forward to. They are NOT part of the
-// public API — call the macros, not these functions directly. Kept in this
-// file so the dispatch arms can resolve them by name in the same TU; grouped
-// here, after the public surface, to keep the public surface readable.
-// ---------------------------------------------------------------------------
-
-Str kvconfig_get_zstr(KvConfig *cfg, Zstr key);
-Str kvconfig_get_str(KvConfig *cfg, const Str *key);
-
-Str *kvconfig_get_ptr_zstr(KvConfig *cfg, Zstr key);
-Str *kvconfig_get_ptr_str(KvConfig *cfg, const Str *key);
-
-bool kvconfig_contains_zstr(KvConfig *cfg, Zstr key);
-bool kvconfig_contains_str(KvConfig *cfg, const Str *key);
-
-bool kvconfig_get_bool_zstr(KvConfig *cfg, Zstr key, bool *value);
-bool kvconfig_get_bool_str(KvConfig *cfg, const Str *key, bool *value);
-
-bool kvconfig_get_i64_zstr(KvConfig *cfg, Zstr key, i64 *value);
-bool kvconfig_get_i64_str(KvConfig *cfg, const Str *key, i64 *value);
-
-bool kvconfig_get_f64_zstr(KvConfig *cfg, Zstr key, f64 *value);
-bool kvconfig_get_f64_str(KvConfig *cfg, const Str *key, f64 *value);
+// Snake_case backends live in <Misra/Parsers/KvConfig/Private.h>, pulled
+// in from the top of this file so the _Generic dispatch arms above can
+// resolve them by name.
 
 #endif // MISRA_PARSERS_KVCONFIG_H

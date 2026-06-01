@@ -25,6 +25,7 @@
 #ifndef MISRA_PARSERS_PDB_H
 #define MISRA_PARSERS_PDB_H
 
+#include <Misra/Parsers/Pdb/Private.h>
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Container/Str.h>
@@ -126,7 +127,6 @@ typedef struct Pdb {
 ///
 /// TAGS: Parser, PDB, File
 ///
-bool pdb_open(Pdb *out, Zstr path, Allocator *alloc);
 #define PdbOpen(...) OVERLOAD(PdbOpen, __VA_ARGS__)
 #define PdbOpen_2(out, path)                                                                                           \
     _Generic(                                                                                                          \
@@ -178,7 +178,6 @@ bool PdbOpenFromMemory(Pdb *out, Buf *in);
 ///
 /// TAGS: Parser, PDB, Memory, Copy
 ///
-bool pdb_open_from_memory_copy(Pdb *out, const u8 *data, size data_size, Allocator *alloc);
 #define PdbOpenFromMemoryCopy(...)                    OVERLOAD(PdbOpenFromMemoryCopy, __VA_ARGS__)
 #define PdbOpenFromMemoryCopy_3(out, data, data_size) pdb_open_from_memory_copy((out), (data), (data_size), MisraScope)
 #define PdbOpenFromMemoryCopy_4(out, data, data_size, alloc)                                                           \

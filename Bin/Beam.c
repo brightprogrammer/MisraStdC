@@ -91,7 +91,7 @@ static void install_signal(int signum, void (*handler)(int)) {
 #        endif
     // 4th arg = sigsetsize in bytes (Linux ABI requires 8 for the
     // standard signal set).
-    misra_sys4(MISRA_SYS_rt_sigaction, (long)signum, (long)(u64)&sa, 0, 8);
+    direct_sys4(MISRA_SYS_rt_sigaction, (long)signum, (long)(u64)&sa, 0, 8);
 }
 
 #    else     // PLATFORM_DARWIN
@@ -165,7 +165,7 @@ __attribute__((naked)) static void darwin_sigtramp(void) {
         "callq *0(%rsp)\n"        // handler(sig)
         "movq 8(%rsp), %rdi\n"    // uctx -> arg0
         "movl 16(%rsp), %esi\n"   // sigstyle -> arg1
-        "movq $0x20000B8, %rax\n" // SYS_sigreturn = MISRA_DARWIN_SC(184) = 0x20000B8
+        "movq $0x20000B8, %rax\n" // SYS_sigreturn = DARWIN_SC(184) = 0x20000B8
         "syscall\n"
         "ud2\n"                   // should not return
     );
@@ -182,7 +182,7 @@ static void install_signal(int signum, void (*handler)(int)) {
     // mismatch (declared as 5-arg in the struct; defined as naked
     // void() with kernel-shaped register entry).
     sa.kh_tramp = (void (*)(void *, int, int, void *, void *))(void (*)(void))darwin_sigtramp;
-    misra_sys3(MISRA_SYS_rt_sigaction, (long)signum, (long)(u64)&sa, 0);
+    direct_sys3(MISRA_SYS_rt_sigaction, (long)signum, (long)(u64)&sa, 0);
 }
 
 #    endif    // PLATFORM_LINUX / PLATFORM_DARWIN

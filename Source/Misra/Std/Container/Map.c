@@ -362,12 +362,12 @@ static bool map_insert_raw_entry(
     size        key_size,
     size        hash_offset
 ) {
-    u64  hash       = *(const u64 *)(const void *)((Zstr)entry + hash_offset);
+    u64  hash       = *(const u64 *)(const void *)((const u8 *)entry + hash_offset);
     size insert_idx = map->capacity;
 
     map_scan_slots(
         map,
-        (Zstr)entry + key_offset,
+        (const u8 *)entry + key_offset,
         entry_size,
         key_offset,
         key_size,
@@ -392,50 +392,49 @@ static bool map_insert_raw_entry(
     return true;
 }
 
-void validate_map(const GenericMap *map) {
-    if (!map) {
-        LOG_FATAL("Expected a valid Map pointer");
-    }
-
-    if (map->__magic != MAP_MAGIC) {
-        LOG_FATAL("Map is uninitialized or corrupted");
-    }
-
+// Structural body for Map. Memoized via MAGIC_VALIDATED_BIT;
+// capacity / entries / states / allocator changes (rehash + storage
+// realloc paths) flip the bit.
+static void validate_map_structural(const GenericMap *map) {
     if (!map->key_compare || !map->key_hash) {
         LOG_FATAL("Map must have valid key compare and key hash callbacks");
     }
-
-    // Maps have no stack-init form; a NULL allocator means the handle
-    // is corrupted between magic check and use. Surface that before
-    // dereferencing the method table below.
     if (!map->allocator) {
         LOG_FATAL("Map allocator pointer is NULL");
     }
-
     if (!map->allocator->allocate || !map->allocator->resize || !map->allocator->remap || !map->allocator->deallocate) {
         LOG_FATAL("Map allocator is invalid");
     }
-
     validate_map_policy(&map->policy);
-
     if (map->length > map->capacity) {
         LOG_FATAL("Map length cannot exceed capacity");
     }
-
     if ((map->length + map->tombstones) > map->capacity) {
         LOG_FATAL("Map occupied slots and tombstones cannot exceed capacity");
     }
-
     if (!map->capacity) {
         if (map->entries || map->states) {
             LOG_FATAL("Map with zero capacity must not have allocated storage");
         }
         return;
     }
-
     if (!map->entries || !map->states) {
         LOG_FATAL("Map storage is corrupted");
     }
+}
+
+void validate_map(const GenericMap *map) {
+    if (!map) {
+        LOG_FATAL("Expected a valid Map pointer");
+    }
+    if (!MAGIC_MATCHES(map->__magic, MAP_MAGIC)) {
+        LOG_FATAL("Map is uninitialized or corrupted");
+    }
+    if (!(map->__magic & MAGIC_VALIDATED_BIT)) {
+        return;
+    }
+    validate_map_structural(map);
+    ((GenericMap *)(void *)map)->__magic &= ~MAGIC_VALIDATED_BIT;
 }
 
 void deinit_map(
@@ -517,6 +516,7 @@ bool rehash_map(
         map->capacity   = 0;
         map->tombstones = 0;
         map->policy     = policy;
+        MAGIC_MARK_DIRTY(map);
         return true;
     }
 
@@ -598,6 +598,7 @@ bool rehash_map(
 
     (void)value_offset;
     (void)value_size;
+    MAGIC_MARK_DIRTY(map);
     return true;
 }
 

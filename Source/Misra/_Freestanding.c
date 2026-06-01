@@ -70,24 +70,24 @@
 // 'unsigned long long' (LLP64) and 'unsigned long' is 32-bit, so a
 // declaration mismatch fights with vcruntime_string.h's declaration
 // and the linker / compiler refuses with 'conflicting types'.
-typedef __SIZE_TYPE__ misra_freestanding_size_t;
+typedef __SIZE_TYPE__ freestanding_size_t;
 
-__attribute__((used)) void *memcpy(void *dst, const void *src, misra_freestanding_size_t n) {
+__attribute__((used)) void *memcpy(void *dst, const void *src, freestanding_size_t n) {
     MemCopy(dst, src, (size)n);
     return dst;
 }
 
-__attribute__((used)) void *memmove(void *dst, const void *src, misra_freestanding_size_t n) {
+__attribute__((used)) void *memmove(void *dst, const void *src, freestanding_size_t n) {
     MemMove(dst, src, (size)n);
     return dst;
 }
 
-__attribute__((used)) void *memset(void *dst, int c, misra_freestanding_size_t n) {
+__attribute__((used)) void *memset(void *dst, int c, freestanding_size_t n) {
     MemSet(dst, c, (size)n);
     return dst;
 }
 
-__attribute__((used)) int memcmp(const void *a, const void *b, misra_freestanding_size_t n) {
+__attribute__((used)) int memcmp(const void *a, const void *b, freestanding_size_t n) {
     return (int)MemCompare(a, b, (size)n);
 }
 
@@ -97,7 +97,7 @@ __attribute__((used)) int memcmp(const void *a, const void *b, misra_freestandin
 // (Skip on Windows: clang-cl doesn't emit bzero, and Windows headers
 // don't declare it.)
 #    if !PLATFORM_WINDOWS
-__attribute__((used)) void bzero(void *dst, misra_freestanding_size_t n) {
+__attribute__((used)) void bzero(void *dst, freestanding_size_t n) {
     MemSet(dst, 0, (size)n);
 }
 #    endif

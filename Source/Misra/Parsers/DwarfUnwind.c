@@ -509,8 +509,8 @@ typedef struct CfiVm {
     DwarfUnwindRow initial;  // snapshot after running the CIE's instructions
     DwarfUnwindRow saved_state_stack[CFI_STATE_STACK];
     u8             saved_state_top;
-    u64            location; // current PC inside the FDE's range
-    i64            code_align;
+    u64            location;   // current PC inside the FDE's range
+    u64            code_align; // ULEB128 from CIE; non-negative by spec.
     i64            data_align;
 } CfiVm;
 
@@ -518,8 +518,11 @@ static void cfi_vm_init(CfiVm *vm, const DwarfCie *cie, u64 fde_pc_begin, u8 ra_
     MemSet(vm, 0, sizeof(*vm));
     vm->row.return_address_register = ra_reg;
     vm->location                    = fde_pc_begin;
-    vm->code_align                  = cie->code_alignment_factor ? cie->code_alignment_factor : 1;
-    vm->data_align                  = cie->data_alignment_factor ? cie->data_alignment_factor : 1;
+    // Reject crafted CIEs that ship a ULEB128 large enough to wrap into
+    // the negative i64 range (and would then re-wrap on (u64) cast and
+    // overflow the `delta = low * code_align` multiplications below).
+    vm->code_align = (cie->code_alignment_factor > 0) ? (u64)cie->code_alignment_factor : 1;
+    vm->data_align = cie->data_alignment_factor ? cie->data_alignment_factor : 1;
 }
 
 // One instruction. `stop_at` lets the caller bail mid-stream once an
@@ -533,9 +536,13 @@ static bool cfi_vm_step(CfiVm *vm, BufIter *cur, u64 stop_at, bool *stop_now) {
     u8 low  = op & 0x3f;
 
     if (high == 0x40) {
-        // DW_CFA_advance_loc
-        u64 delta   = (u64)low * (u64)vm->code_align;
-        u64 next_pc = vm->location + delta;
+        // DW_CFA_advance_loc -- low ∈ [0, 63] and code_align is u64; we
+        // still saturate to UINT64_MAX on the (admittedly unreachable for
+        // sane CIEs) overflow path so an attacker cannot smuggle a wrap.
+        u64 delta = 0, next_pc = 0;
+        if (!MulOverflow64((u64)low, vm->code_align, &delta) || !AddOverflow64(vm->location, delta, &next_pc)) {
+            next_pc = (u64)-1;
+        }
         if (vm->location <= stop_at && stop_at < next_pc) {
             *stop_now = true;
             return true;
@@ -581,7 +588,10 @@ static bool cfi_vm_step(CfiVm *vm, BufIter *cur, u64 stop_at, bool *stop_now) {
             u8 d = 0;
             if (!BufReadU8(cur, &d))
                 return false;
-            u64 next = vm->location + (u64)d * (u64)vm->code_align;
+            u64 delta = 0, next = 0;
+            if (!MulOverflow64((u64)d, vm->code_align, &delta) || !AddOverflow64(vm->location, delta, &next)) {
+                next = (u64)-1;
+            }
             if (vm->location <= stop_at && stop_at < next) {
                 *stop_now = true;
                 return true;
@@ -593,7 +603,10 @@ static bool cfi_vm_step(CfiVm *vm, BufIter *cur, u64 stop_at, bool *stop_now) {
             u16 d = 0;
             if (!BufReadU16LE(cur, &d))
                 return false;
-            u64 next = vm->location + (u64)d * (u64)vm->code_align;
+            u64 delta = 0, next = 0;
+            if (!MulOverflow64((u64)d, vm->code_align, &delta) || !AddOverflow64(vm->location, delta, &next)) {
+                next = (u64)-1;
+            }
             if (vm->location <= stop_at && stop_at < next) {
                 *stop_now = true;
                 return true;
@@ -605,7 +618,10 @@ static bool cfi_vm_step(CfiVm *vm, BufIter *cur, u64 stop_at, bool *stop_now) {
             u32 d = 0;
             if (!BufReadU32LE(cur, &d))
                 return false;
-            u64 next = vm->location + (u64)d * (u64)vm->code_align;
+            u64 delta = 0, next = 0;
+            if (!MulOverflow64((u64)d, vm->code_align, &delta) || !AddOverflow64(vm->location, delta, &next)) {
+                next = (u64)-1;
+            }
             if (vm->location <= stop_at && stop_at < next) {
                 *stop_now = true;
                 return true;

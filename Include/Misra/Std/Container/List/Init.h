@@ -43,7 +43,7 @@
      .copy_deinit = (GenericCopyDeinit)(cd),                                                                           \
      .length      = 0,                                                                                                 \
      .allocator   = ALLOCATOR_OF(typed_alloc_ptr),                                                                     \
-     .__magic     = LIST_MAGIC}
+     .__magic     = LIST_MAGIC | MAGIC_VALIDATED_BIT}
 
 #define ListInitWithDeepCopyT(l, ...) OVERLOAD(ListInitWithDeepCopyT, l, __VA_ARGS__)
 #ifdef __cplusplus

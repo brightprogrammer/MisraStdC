@@ -31,15 +31,13 @@
 // Relational invariants for BudgetAllocator. The caller-provided
 // buffer is partitioned at init into a bitmap region followed by a
 // slots region; the linked fields stay synchronized for the lifetime
-// of the allocator. The magic check is the first guard below; the
-// remaining checks assume the struct is otherwise well-formed.
-static void budget_validate_self(const BudgetAllocator *self) {
-    if (!self) {
-        LOG_FATAL("BudgetAllocator: NULL self");
-    }
-    if (self->base.__magic != BUDGET_ALLOCATOR_MAGIC) {
-        LOG_FATAL("type-confusion: allocator passed to budget_allocator_* is not a BudgetAllocator");
-    }
+// of the allocator (Budget has no growth, no rehash, no mutator that
+// rearranges the layout). The structural body is memoized via
+// MAGIC_VALIDATED_BIT; with no mutators that set the bit, the body
+// runs exactly once -- the first dispatch after init -- and the
+// memoization holds for the rest of the allocator's life.
+
+static void budget_validate_self_structural(const BudgetAllocator *self) {
     if (!self->base.allocate || !self->base.resize || !self->base.remap || !self->base.deallocate) {
         LOG_FATAL("BudgetAllocator: vtable function pointer is NULL");
     }
@@ -86,6 +84,20 @@ static void budget_validate_self(const BudgetAllocator *self) {
     if ((const u8 *)self->bitmap >= self->slots) {
         LOG_FATAL("BudgetAllocator: bitmap region must precede slot region");
     }
+}
+
+static void budget_validate_self(const BudgetAllocator *self) {
+    if (!self) {
+        LOG_FATAL("BudgetAllocator: NULL self");
+    }
+    if (!MAGIC_MATCHES(self->base.__magic, BUDGET_ALLOCATOR_MAGIC)) {
+        LOG_FATAL("type-confusion: allocator passed to budget_allocator_* is not a BudgetAllocator");
+    }
+    if (!(self->base.__magic & MAGIC_VALIDATED_BIT)) {
+        return;
+    }
+    budget_validate_self_structural(self);
+    ((BudgetAllocator *)(void *)self)->base.__magic &= ~MAGIC_VALIDATED_BIT;
 }
 
 // ---------------------------------------------------------------------------

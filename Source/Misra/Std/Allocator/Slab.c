@@ -21,30 +21,17 @@
 #include "_Os.h"
 
 // =============================================================================
-// Self-validation.
-//
-// Fast path: magic on the allocator. Catches uninitialised /
-// post-deinit / _Generic mismatch escape. Always on, FORCE_INLINEd
-// into every caller -- without it gcc emits a standalone copy at -O3
-// because the LOG_FATAL macro expansions count against the inline-cost
-// heuristic, and the standalone copy then shows up as ~50% of
-// self-time in profiles.
-//
-// Full path (FEATURE_HEAP_VALIDATE_FULL): adds vtable / alignment /
-// slot_size sanity / slabs[]-vs-bitmaps consistency / power-of-two
-// check on slot_size. Costs ~7 ns / dispatch when on.
-static FORCE_INLINE void slab_validate_self_fast(const SlabAllocator *self) {
-    if (!self) {
-        LOG_FATAL("SlabAllocator: NULL self");
-    }
-    if (self->base.__magic != SLAB_ALLOCATOR_MAGIC) {
-        LOG_FATAL("type-confusion: allocator passed to slab_allocator_* is not a SlabAllocator");
-    }
-}
+// Self-validation. NULL + magic on every API entry; the structural
+// body (vtable + alignment + slot_size sanity + slabs[]-vs-bitmaps
+// consistency) is memoized via MAGIC_VALIDATED_BIT. Structural
+// mutations -- `slab_grow_caps` -- set the bit so the body re-runs;
+// per-slot ops (bitmap flips, slabs_len++ within cap) leave it
+// alone. FORCE_INLINEd so gcc keeps the precheck inlined at the call
+// site at -O3.
 
-#if FEATURE_HEAP_VALIDATE_FULL
-static void slab_validate_self_full(const SlabAllocator *self) {
-    slab_validate_self_fast(self);
+#define SLAB_MARK_DIRTY(s) MAGIC_MARK_DIRTY(&(s)->base)
+
+static void slab_validate_self_structural(const SlabAllocator *self) {
     if (!self->base.allocate || !self->base.resize || !self->base.remap || !self->base.deallocate) {
         LOG_FATAL("SlabAllocator: vtable function pointer is NULL");
     }
@@ -77,13 +64,21 @@ static void slab_validate_self_full(const SlabAllocator *self) {
         LOG_FATAL("SlabAllocator: slabs_len {} exceeds slabs_cap {}", (u64)self->slabs_len, (u64)self->slabs_cap);
     }
 }
-#endif
 
-#if FEATURE_HEAP_VALIDATE_FULL
-#    define slab_validate_self(self) slab_validate_self_full(self)
-#else
-#    define slab_validate_self(self) slab_validate_self_fast(self)
-#endif
+static FORCE_INLINE void slab_validate_self(const SlabAllocator *self) {
+    if (!self) {
+        LOG_FATAL("SlabAllocator: NULL self");
+    }
+    if (!MAGIC_MATCHES(self->base.__magic, SLAB_ALLOCATOR_MAGIC)) {
+        LOG_FATAL("type-confusion: allocator passed to slab_allocator_* is not a SlabAllocator");
+    }
+    if (!(self->base.__magic & MAGIC_VALIDATED_BIT)) {
+        return; // memoized: structural body verified since last mutation
+    }
+    slab_validate_self_structural(self);
+    // Mark verified; cast through void* to clear under const.
+    ((SlabAllocator *)(void *)self)->base.__magic &= ~MAGIC_VALIDATED_BIT;
+}
 
 // =============================================================================
 // Bookkeeping helpers.
@@ -124,6 +119,11 @@ static void slab_finalize_runtime_consts(SlabAllocator *slab) {
         LOG_FATAL("SlabAllocator: bitmap words per slab {} exceeds u8 range", (u64)words);
     }
     slab->bitmap_words_per_slab = (u8)words;
+    // Validator reads bitmap_words_per_slab and slot_size_shift; mark
+    // dirty here so this routine remains correct regardless of which
+    // path drives it (today: only slab_grow_one, which also calls
+    // slab_grow_caps that marks; keep the mark local for future-proofing).
+    SLAB_MARK_DIRTY(slab);
 }
 
 // Grow slabs[] + bitmaps[] capacity geometrically. Both arrays are
@@ -167,6 +167,7 @@ static bool slab_grow_caps(SlabAllocator *slab) {
     slab->slabs     = new_slabs;
     slab->bitmaps   = new_bitmaps;
     slab->slabs_cap = new_cap;
+    SLAB_MARK_DIRTY(slab);
     return true;
 }
 

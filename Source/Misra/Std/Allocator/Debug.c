@@ -125,13 +125,7 @@ static bool debug_check_canary(const u8 *trail, size n) {
 // entry, against the now-stable `self`.
 // ---------------------------------------------------------------------------
 
-static void debug_validate_self(const DebugAllocator *self) {
-    if (!self) {
-        LOG_FATAL("DebugAllocator: NULL self");
-    }
-    if (self->base.__magic != DEBUG_ALLOCATOR_MAGIC) {
-        LOG_FATAL("type-confusion: allocator passed to debug_allocator_* is not a DebugAllocator");
-    }
+static void debug_validate_self_structural(const DebugAllocator *self) {
     if (!self->base.allocate || !self->base.resize || !self->base.remap || !self->base.deallocate) {
         LOG_FATAL("DebugAllocator: vtable function pointer is NULL");
     }
@@ -141,23 +135,21 @@ static void debug_validate_self(const DebugAllocator *self) {
     // Embedded backing allocators must themselves be sane. We don't
     // call their full validators here (they have side effects via
     // _validate_self in their own dispatch) but the magic check is
-    // already strong enough to catch corruption.
-    // Mask HEAP_MAGIC_VALIDATED_BIT before comparing -- HeapAllocator's
-    // validator caches its deep-check result in that bit (see Heap.h).
-    // The bit is part of the cache state, not the allocator's identity.
-    if ((self->heap.base.__magic & ~HEAP_MAGIC_VALIDATED_BIT) != HEAP_ALLOCATOR_MAGIC) {
+    // already strong enough to catch corruption. `MAGIC_MATCHES`
+    // masks the memo bit so neither memoized state breaks the check.
+    if (!MAGIC_MATCHES(self->heap.base.__magic, HEAP_ALLOCATOR_MAGIC)) {
         LOG_FATAL("DebugAllocator: embedded heap has bad magic");
     }
-    if ((self->meta.base.__magic & ~HEAP_MAGIC_VALIDATED_BIT) != HEAP_ALLOCATOR_MAGIC) {
+    if (!MAGIC_MATCHES(self->meta.base.__magic, HEAP_ALLOCATOR_MAGIC)) {
         LOG_FATAL("DebugAllocator: embedded meta has bad magic");
     }
-    if (self->page.base.__magic != PAGE_ALLOCATOR_MAGIC) {
+    if (!MAGIC_MATCHES(self->page.base.__magic, PAGE_ALLOCATOR_MAGIC)) {
         LOG_FATAL("DebugAllocator: embedded page has bad magic");
     }
-    if (self->live.__magic != MAP_MAGIC) {
+    if (!MAGIC_MATCHES(self->live.__magic, MAP_MAGIC)) {
         LOG_FATAL("DebugAllocator: live map has bad magic");
     }
-    if (self->freed.__magic != VEC_MAGIC) {
+    if (!MAGIC_MATCHES(self->freed.__magic, VEC_MAGIC)) {
         LOG_FATAL("DebugAllocator: freed vec has bad magic");
     }
     // bytes_in_use must be consistent with live: if live is non-empty
@@ -175,17 +167,32 @@ static void debug_validate_self(const DebugAllocator *self) {
             cur_tid
         );
     }
+}
+
+static void debug_validate_self(const DebugAllocator *self) {
+    if (!self) {
+        LOG_FATAL("DebugAllocator: NULL self");
+    }
+    if (!MAGIC_MATCHES(self->base.__magic, DEBUG_ALLOCATOR_MAGIC)) {
+        LOG_FATAL("type-confusion: allocator passed to debug_allocator_* is not a DebugAllocator");
+    }
+    // Lazy-bind the embedded Map/Vec's `.allocator` pointer. The
+    // compound literal couldn't fill it in (the final struct address
+    // isn't known yet); we do it here, always, before any branch
+    // skips. Idempotent: writes the same pointer on every entry
+    // after the first.
     // intentional bypass: Debug allocator swap; no public MapSetAllocator mutator.
-    // Cast away const to write through the lazy-bind fields; the mutation is
-    // observably a no-op once bound (writes the same pointer on every entry
-    // after the first). The underlying storage is the allocator's own map/vec
-    // fields which it owns.
     if (!self->live.allocator) {
         ((DebugAllocator *)(void *)self)->live.allocator = ALLOCATOR_OF(&((DebugAllocator *)(void *)self)->meta);
     }
     if (!self->freed.allocator) {
         ((DebugAllocator *)(void *)self)->freed.allocator = ALLOCATOR_OF(&((DebugAllocator *)(void *)self)->meta);
     }
+    if (!(self->base.__magic & MAGIC_VALIDATED_BIT)) {
+        return;
+    }
+    debug_validate_self_structural(self);
+    ((DebugAllocator *)(void *)self)->base.__magic &= ~MAGIC_VALIDATED_BIT;
 }
 
 // ---------------------------------------------------------------------------
@@ -446,7 +453,7 @@ void *debug_allocator_remap(DebugAllocator *self, void *ptr, size new_size) {
 // ---------------------------------------------------------------------------
 
 void DebugAllocatorDeinit(DebugAllocator *self) {
-    if (!self || self->base.__magic != DEBUG_ALLOCATOR_MAGIC)
+    if (!self || !MAGIC_MATCHES(self->base.__magic, DEBUG_ALLOCATOR_MAGIC))
         return;
 
     u64 cur_tid = debug_current_tid();

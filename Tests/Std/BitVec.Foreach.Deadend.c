@@ -96,6 +96,7 @@ bool test_bitvec_foreach_invalid_usage(void) {
     BitVec bv   = BitVecInit(ALLOCATOR_OF(&alloc));
     bv.length   = 5;
     bv.capacity = 10;
+    MAGIC_MARK_DIRTY(&bv);
 
     // This should abort due to ValidateBitVec check
     int count = 0;

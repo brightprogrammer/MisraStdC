@@ -84,7 +84,7 @@
      .pending_delete_count  = 0,                                                                                       \
      .mutation_epoch        = 0,                                                                                       \
      .allocator             = ALLOCATOR_OF(typed_alloc_ptr),                                                           \
-     .__magic               = GRAPH_MAGIC}
+     .__magic               = GRAPH_MAGIC | MAGIC_VALIDATED_BIT}
 
 ///
 /// Release every node, every edge list, and the backing slot storage of `g`. If the graph

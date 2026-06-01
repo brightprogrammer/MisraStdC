@@ -59,10 +59,10 @@ static inline void mutex_wait(_Atomic int *addr, int expected) {
     // __ulock_wait(op_and_flags, addr, value, timeout_us=0=infinite)
     (
         void
-    )misra_sys4(MISRA_SYS___ulock_wait, (long)(UL_COMPARE_AND_WAIT | ULF_NO_ERRNO), (long)(u64)addr, (long)expected, 0);
+    )direct_sys4(MISRA_SYS___ulock_wait, (long)(UL_COMPARE_AND_WAIT | ULF_NO_ERRNO), (long)(u64)addr, (long)expected, 0);
 #    else
     // futex(addr, FUTEX_WAIT_PRIVATE, val=expected, timeout=NULL)
-    (void)misra_sys4(MISRA_SYS_futex, (long)(u64)addr, FUTEX_WAIT_PRIVATE, expected, 0);
+    (void)direct_sys4(MISRA_SYS_futex, (long)(u64)addr, FUTEX_WAIT_PRIVATE, expected, 0);
 #    endif
 }
 
@@ -71,10 +71,10 @@ static inline void mutex_wake_one(_Atomic int *addr) {
     // __ulock_wake(op_and_flags, addr, wake_value=0) -- with
     // UL_COMPARE_AND_WAIT alone (no ULF_WAKE_ALL) the kernel wakes
     // exactly one waiter, same as FUTEX_WAKE with val=1.
-    (void)misra_sys3(MISRA_SYS___ulock_wake, (long)(UL_COMPARE_AND_WAIT | ULF_NO_ERRNO), (long)(u64)addr, 0);
+    (void)direct_sys3(MISRA_SYS___ulock_wake, (long)(UL_COMPARE_AND_WAIT | ULF_NO_ERRNO), (long)(u64)addr, 0);
 #    else
     // futex(addr, FUTEX_WAKE_PRIVATE, val=1) -- wake at most one.
-    (void)misra_sys3(MISRA_SYS_futex, (long)(u64)addr, FUTEX_WAKE_PRIVATE, 1);
+    (void)direct_sys3(MISRA_SYS_futex, (long)(u64)addr, FUTEX_WAKE_PRIVATE, 1);
 #    endif
 }
 #endif

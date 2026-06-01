@@ -85,7 +85,7 @@ void *os_page_map(Allocator *owner, size bytes) {
 #if defined(OS_WINDOWS)
     void *p = VirtualAlloc(NULL, (SIZE_T)bytes, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 #elif FEATURE_DIRECT_SYSCALL
-    long  ret = misra_sys6(MISRA_SYS_mmap, 0, (long)bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    long  ret = direct_sys6(MISRA_SYS_mmap, 0, (long)bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     void *p   = ((unsigned long)ret >= (unsigned long)-4095) ? NULL : (void *)ret;
 #else
     void *p = mmap(NULL, (size_t)bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -105,7 +105,7 @@ void os_page_unmap(Allocator *owner, void *ptr, size bytes) {
     (void)bytes;
     VirtualFree(ptr, 0, MEM_RELEASE);
 #elif FEATURE_DIRECT_SYSCALL
-    (void)misra_sys2(MISRA_SYS_munmap, (long)(u64)ptr, (long)bytes);
+    (void)direct_sys2(MISRA_SYS_munmap, (long)(u64)ptr, (long)bytes);
 #else
     munmap(ptr, (size_t)bytes);
 #endif
@@ -118,7 +118,7 @@ void *os_page_remap(Allocator *owner, void *ptr, size old_bytes, size new_bytes)
     }
 #if PLATFORM_LINUX && FEATURE_DIRECT_SYSCALL
     // mremap(old_addr, old_size, new_size, flags). Flag 1 = MREMAP_MAYMOVE.
-    long ret = misra_sys4(MISRA_SYS_mremap, (long)(u64)ptr, (long)old_bytes, (long)new_bytes, 1L /* MREMAP_MAYMOVE */);
+    long ret = direct_sys4(MISRA_SYS_mremap, (long)(u64)ptr, (long)old_bytes, (long)new_bytes, 1L /* MREMAP_MAYMOVE */);
     if ((unsigned long)ret >= (unsigned long)-4095) {
         return NULL;
     }

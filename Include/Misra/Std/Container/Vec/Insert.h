@@ -531,7 +531,7 @@
                                .copy_deinit = VecCopyDeinit(vs),                                                       \
                                .data        = NULL,                                                                    \
                                .allocator   = VecAllocator(vs),                                                        \
-                               .__magic     = VEC_MAGIC},                                                              \
+                               .__magic     = VEC_MAGIC | MAGIC_VALIDATED_BIT},                                                              \
      clone_vec(GENERIC_VEC(vd), GENERIC_VEC(vs), sizeof(VEC_DATATYPE(vd))))
 
 ///

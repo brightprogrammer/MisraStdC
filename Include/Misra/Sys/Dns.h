@@ -126,12 +126,11 @@ extern "C" {
     bool dns_resolve_5_zstr(DnsResolver *self, Zstr hostname, u16 port, SocketKind kind, DnsAddrs *out);
     bool dns_resolve_5_str(DnsResolver *self, const Str *hostname, u16 port, SocketKind kind, DnsAddrs *out);
 #define DnsResolve_5(self, hostname, port, kind, out)                                                                  \
-    _Generic((hostname), Str *: dns_resolve_5_str, Zstr: dns_resolve_5_zstr, char *: dns_resolve_5_zstr)(              \
-        (self),                                                                                                        \
+    _Generic(                                                                                                          \
         (hostname),                                                                                                    \
-        (port),                                                                                                        \
-        (kind),                                                                                                        \
-        (out)                                                                                                          \
+        Str *: dns_resolve_5_str((self), (const Str *)(hostname), (port), (kind), (out)),                              \
+        Zstr: dns_resolve_5_zstr((self), (Zstr)(hostname), (port), (kind), (out)),                                     \
+        char *: dns_resolve_5_zstr((self), (Zstr)(hostname), (port), (kind), (out))                                    \
     )
 
     ///
@@ -151,12 +150,12 @@ extern "C" {
     bool dns_resolve_4_vec_zstr(DnsResolver *self, Zstr spec, SocketKind kind, DnsAddrs *out);
     bool dns_resolve_4_vec_str(DnsResolver *self, const Str *spec, SocketKind kind, DnsAddrs *out);
 #define DnsResolve_4_vec(self, spec, kind, out)                                                                        \
-    (_Generic((spec), Str *: dns_resolve_4_vec_str, Zstr: dns_resolve_4_vec_zstr, char *: dns_resolve_4_vec_zstr)(     \
-        (self),                                                                                                        \
+    _Generic(                                                                                                          \
         (spec),                                                                                                        \
-        (kind),                                                                                                        \
-        (out)                                                                                                          \
-    ))
+        Str *: dns_resolve_4_vec_str((self), (const Str *)(spec), (kind), (out)),                                      \
+        Zstr: dns_resolve_4_vec_zstr((self), (Zstr)(spec), (kind), (out)),                                             \
+        char *: dns_resolve_4_vec_zstr((self), (Zstr)(spec), (kind), (out))                                            \
+    )
 
     ///
     /// Spec-based overload (single-addr form). Same parse path as the
@@ -182,12 +181,21 @@ extern "C" {
     /// TAGS: Dns, Resolve, API
     ///
 #define DnsResolve(...) OVERLOAD(DnsResolve, __VA_ARGS__)
-#define DnsResolve_4(self, spec, kind, out)                                                                                                                                                                                                                                \
-    _Generic((out), DnsAddrs *: _Generic((spec), Str *: dns_resolve_4_vec_str, Zstr: dns_resolve_4_vec_zstr, char *: dns_resolve_4_vec_zstr), SocketAddr *: _Generic((spec), Str *: dns_resolve_4_one_str, Zstr: dns_resolve_4_one_zstr, char *: dns_resolve_4_one_zstr))( \
-        (self),                                                                                                                                                                                                                                                            \
-        (spec),                                                                                                                                                                                                                                                            \
-        (kind),                                                                                                                                                                                                                                                            \
-        (out)                                                                                                                                                                                                                                                              \
+#define DnsResolve_4(self, spec, kind, out)                                                                            \
+    _Generic(                                                                                                          \
+        (out),                                                                                                         \
+        DnsAddrs *: _Generic(                                                                                          \
+            (spec),                                                                                                    \
+            Str *: dns_resolve_4_vec_str((self), (const Str *)(spec), (kind), (DnsAddrs *)(out)),                      \
+            Zstr: dns_resolve_4_vec_zstr((self), (Zstr)(spec), (kind), (DnsAddrs *)(out)),                             \
+            char *: dns_resolve_4_vec_zstr((self), (Zstr)(spec), (kind), (DnsAddrs *)(out))                            \
+        ),                                                                                                             \
+        SocketAddr *: _Generic(                                                                                        \
+            (spec),                                                                                                    \
+            Str *: dns_resolve_4_one_str((self), (const Str *)(spec), (kind), (SocketAddr *)(out)),                    \
+            Zstr: dns_resolve_4_one_zstr((self), (Zstr)(spec), (kind), (SocketAddr *)(out)),                           \
+            char *: dns_resolve_4_one_zstr((self), (Zstr)(spec), (kind), (SocketAddr *)(out))                          \
+        )                                                                                                              \
     )
 
 #ifdef __cplusplus

@@ -12,12 +12,45 @@
 // build time and installed alongside the rest of the public headers.
 #include <Misra/Config.h>
 
+// MSB of every `__magic` field is the "structural invariants need
+// re-checking" memo bit, shared across all magic-bearing types
+// (containers + allocators). Semantics:
+//
+//   bit clear -> structural invariants verified since last mutation;
+//                validator may skip its deep body
+//   bit set   -> a structural mutation happened; validator must
+//                re-run the body, then clear the bit
+//
+// MAKE_NEW_MAGIC_VALUE below force-clears bit 63 on every result, so
+// the identity payload structurally cannot collide with this bit no
+// matter what string the caller supplied.
+#define MAGIC_VALIDATED_BIT (1ULL << 63)
+
 // Pack an 8-character tag string into a u64 sentinel used as the
-// `__magic` field on containers/allocators for runtime type-discrimination
-// and uninitialised-object detection.
+// `__magic` field on containers/allocators for runtime type-
+// discrimination and uninitialised-object detection. The first
+// ASCII character lands in the HIGH byte of the u64. The trailing
+// `& ~MAGIC_VALIDATED_BIT` strips the top bit so the identity payload
+// never collides with the memo bit even if a future magic string starts
+// with a high-bit byte; cost is one bit of entropy in the first byte.
 #define MAKE_NEW_MAGIC_VALUE(s)                                                                                        \
     ((((u64)(s[0]) << 56) ^ ((u64)(s[1]) << 48) ^ ((u64)(s[2]) << 40) ^ ((u64)(s[3]) << 32) ^ ((u64)(s[4]) << 24) ^    \
-      ((u64)(s[5]) << 16) ^ ((u64)(s[6]) << 8) ^ ((u64)(s[7]))))
+      ((u64)(s[5]) << 16) ^ ((u64)(s[6]) << 8) ^ ((u64)(s[7]))) &                                                      \
+     ~MAGIC_VALIDATED_BIT)
+
+// True iff `actual` carries the identity payload `expected`, ignoring
+// the memo bit. Use at every `if (__magic != EXPECTED)` site so
+// neither memo state breaks type-confusion detection.
+#define MAGIC_MATCHES(actual, expected) (((actual) & ~MAGIC_VALIDATED_BIT) == (expected))
+
+// Mark structural invariants dirty so the next validator call
+// re-runs its deep body. Called from mutators (grow / rehash /
+// allocator reassignment etc.) at the *structural* boundary; per-
+// element ops that maintain the invariants by construction (push,
+// pop, single-element insert/remove without growth) don't need to
+// touch this. The argument is the magic-bearing object's address;
+// `__magic` is accessed via `->`.
+#define MAGIC_MARK_DIRTY(obj_ptr) ((obj_ptr)->__magic |= MAGIC_VALIDATED_BIT)
 
 // signed types
 typedef signed char      i8;
@@ -187,7 +220,7 @@ typedef i8 bool;
 ///     compiler is free to ignore the hint.
 ///
 /// USAGE:
-///   static FORCE_INLINE void heap_validate_self_fast(const Allocator *self) {
+///   static FORCE_INLINE void heap_validate_self(const Allocator *self) {
 ///       ...
 ///   }
 ///

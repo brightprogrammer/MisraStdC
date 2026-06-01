@@ -51,7 +51,7 @@ extern int main(int argc, char **argv);
 // the lifetime of the process.
 // Defined in `Sys.c` so the symbol is always present in libmisra_std.a.
 // We just write to it here before calling `main`.
-extern char **misra_envp;
+extern char **envp_global;
 
 // __stack_chk_guard lives in _Freestanding.c (weak). Seeded from
 // AT_RANDOM by init_stack_canary below before any canary-using
@@ -98,18 +98,18 @@ __attribute__((no_stack_protector, used)) static void init_stack_canary(char **e
     __stack_chk_guard = (unsigned long)&__stack_chk_guard ^ 0xdeadbeefcafef00dUL;
 }
 
-__attribute__((used, noreturn)) static void misra_start_c(long *kernel_sp) {
+__attribute__((used, noreturn)) static void linux_start_c(long *kernel_sp) {
     int    argc = (int)kernel_sp[0];
     char **argv = (char **)(kernel_sp + 1);
-    misra_envp  = argv + argc + 1;
-    init_stack_canary(misra_envp);
+    envp_global  = argv + argc + 1;
+    init_stack_canary(envp_global);
     int rc = main(argc, argv);
-    (void)misra_sys1(MISRA_SYS_exit_group, rc);
+    (void)direct_sys1(MISRA_SYS_exit_group, rc);
     __builtin_unreachable();
 }
 
 // Naked entry point. The kernel jumps here with a freshly-set-up
-// stack as described above. We hand the raw SP to `misra_start_c`,
+// stack as described above. We hand the raw SP to `linux_start_c`,
 // which decodes argc/argv/envp and dispatches to `main`.
 __attribute__((naked, used, noreturn)) void _start(void) {
 #    if ARCHITECTURE_X86_64
@@ -117,7 +117,7 @@ __attribute__((naked, used, noreturn)) void _start(void) {
         "xor %ebp, %ebp\n"
         "mov %rsp, %rdi\n" // kernel_sp (1st arg)
         "and $-16, %rsp\n" // 16-byte stack align for the C call
-        "call misra_start_c\n"
+        "call linux_start_c\n"
         "ud2\n"            // unreachable
     );
 #    elif ARCHITECTURE_AARCH64
@@ -125,7 +125,7 @@ __attribute__((naked, used, noreturn)) void _start(void) {
         "mov x29, #0\n"
         "mov x30, #0\n"
         "mov x0, sp\n" // kernel_sp (1st arg)
-        "bl misra_start_c\n"
+        "bl linux_start_c\n"
         "brk #0\n"     // unreachable
     );
 #    endif

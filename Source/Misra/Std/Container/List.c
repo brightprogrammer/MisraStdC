@@ -85,6 +85,10 @@ bool insert_into_list(GenericList *list, const void *item_data, u64 item_size, u
     }
 
     list->length += 1;
+    // No MARK_DIRTY: insert threads new_node into the chain leaving
+    // every structural invariant intact -- head->prev is NULL whether or
+    // not insert was at the front, tail->next is NULL whether or not
+    // insert was at the back, length>0 iff head/tail non-NULL.
     return true;
 }
 
@@ -161,6 +165,7 @@ void remove_range_list(GenericList *list, void *removed_data, u64 item_size, u64
         AllocatorFree(list->allocator, node);
         node = next;
     }
+    MAGIC_MARK_DIRTY(list);
 }
 
 
@@ -389,16 +394,10 @@ size find_idx_list(GenericList *list, const void *item_data, u64 item_size, Gene
     return SIZE_MAX;
 }
 
-void validate_list(const GenericList *l) {
-    if (!l) {
-        LOG_FATAL("List pointer is NULL.");
-    }
-    if (l->__magic != LIST_MAGIC) {
-        LOG_FATAL("Invalid list. Either not initialized or corrupted!");
-    }
-    // List has no stack-init form, so a NULL allocator on a magic-OK
-    // handle means corruption between init and use. Surface it before
-    // dereferencing the method table.
+// Structural body for List: allocator vtable + head/tail/length
+// consistency. Memoized via MAGIC_VALIDATED_BIT; every mutator that
+// touches head/tail/length flips the bit at the end of its work.
+static void validate_list_structural(const GenericList *l) {
     if (!l->allocator) {
         LOG_FATAL("List allocator pointer is NULL.");
     }
@@ -423,6 +422,20 @@ void validate_list(const GenericList *l) {
             LOG_FATAL("List tail must not have a next node.");
         }
     }
+}
+
+void validate_list(const GenericList *l) {
+    if (!l) {
+        LOG_FATAL("List pointer is NULL.");
+    }
+    if (!MAGIC_MATCHES(l->__magic, LIST_MAGIC)) {
+        LOG_FATAL("Invalid list. Either not initialized or corrupted!");
+    }
+    if (!(l->__magic & MAGIC_VALIDATED_BIT)) {
+        return;
+    }
+    validate_list_structural(l);
+    ((GenericList *)(void *)l)->__magic &= ~MAGIC_VALIDATED_BIT;
 }
 
 GenericListNode *get_node_relative_to_list_node(GenericListNode *node, i64 ridx) {

@@ -15,36 +15,14 @@
 #include <Misra/Std/File.h>
 #include <Misra/Std/Memory.h>
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-static bool path_exists(Zstr path) {
-    File f = FileOpen(path, "rb");
-    if (!FileIsOpen(&f)) {
-        return false;
-    }
-    FileClose(&f);
-    return true;
-}
-
-static Zstr basename_of(Zstr path) {
-    if (!path)
-        return "";
-    Zstr base = path;
-    for (Zstr p = path; *p; ++p) {
-        if (*p == '/')
-            base = p + 1;
-    }
-    return base;
-}
+#include "_Helpers.h"
 
 // Compose the conventional dSYM location for `binary_path`:
 //   <binary_path>.dSYM/Contents/Resources/DWARF/<basename>
 static bool compose_dsym_path(Zstr binary_path, Str *out) {
     if (!binary_path)
         return false;
-    Zstr base = basename_of(binary_path);
+    Zstr base = sys_basename_of(binary_path);
     if (base[0] == '\0')
         return false;
     StrResize(out, 0);
@@ -107,7 +85,7 @@ static bool entry_open_dsym(MachoCacheEntry *e, Allocator *alloc) {
         StrDeinit(&path);
         return false;
     }
-    if (!path_exists(StrBegin(&path)) || !MachoOpen(&e->dsym, &path, alloc)) {
+    if (!sys_path_exists(StrBegin(&path)) || !MachoOpen(&e->dsym, &path, alloc)) {
         StrDeinit(&path);
         return false;
     }

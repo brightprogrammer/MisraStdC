@@ -39,7 +39,7 @@
 //     We supply the same trio UCRT does: the cookie itself, the
 //     check function, and the init routine that seeds the cookie
 //     from BCryptGenRandom at process start. __security_init_cookie
-//     is called from _StartWin.c's misra_start before main runs.
+//     is called from _StartWin.c's windows_start before main runs.
 //
 //     The cookie's top 16 bits are forced to zero per the MSVC ABI:
 //     a stack-canary value that fits in the kernel-pointer range
@@ -98,14 +98,14 @@ __attribute__((no_stack_protector, used)) void __security_init_cookie(void) {
 // debuggers and crash reporters categorise the abort correctly.
 // no_stack_protector + noreturn: don't want a canary check on the
 // path that handles a canary failure.
-__attribute__((no_stack_protector, used, noreturn)) static void misra_security_failure(void) {
+__attribute__((no_stack_protector, used, noreturn)) static void security_failure(void) {
     ExitProcess(0xC0000409UL);
     __builtin_unreachable();
 }
 
 __attribute__((no_stack_protector, used)) void __security_check_cookie(unsigned long long cookie) {
     if (cookie != __security_cookie) {
-        misra_security_failure();
+        security_failure();
     }
 }
 
@@ -135,7 +135,7 @@ __attribute__((used)) int _fltused = 0x9875;
 //
 //     dllimport convention: the linker looks for __imp_<symbol>
 //     as a function pointer. Provide that.
-static long long misra_stdio_common_vsprintf_stub(
+static long long stdio_common_vsprintf_stub(
     unsigned long long options,
     char              *buf,
     unsigned long long bufsize,
@@ -151,7 +151,7 @@ static long long misra_stdio_common_vsprintf_stub(
     (void)arglist;
     return -1;
 }
-__attribute__((used)) void *__imp___stdio_common_vsprintf = (void *)misra_stdio_common_vsprintf_stub;
+__attribute__((used)) void *__imp___stdio_common_vsprintf = (void *)stdio_common_vsprintf_stub;
 
 // (5) UCRT `getenv`. `Sys.c`'s `EnvGet` calls `getenv` on Windows;
 //     non-freestanding builds resolve it from UCRT via dllimport.
@@ -159,10 +159,10 @@ __attribute__((used)) void *__imp___stdio_common_vsprintf = (void *)misra_stdio_
 //     NULL -- matching the Darwin `EnvGet` behaviour (no env access
 //     without libc). Same `__imp_<name>` indirect-call convention as
 //     `__stdio_common_vsprintf` above.
-static char *misra_getenv_stub(Zstr name) {
+static char *getenv_stub(Zstr name) {
     (void)name;
     return ((char *)0);
 }
-__attribute__((used)) void *__imp_getenv = (void *)misra_getenv_stub;
+__attribute__((used)) void *__imp_getenv = (void *)getenv_stub;
 
 #endif // PLATFORM_WINDOWS

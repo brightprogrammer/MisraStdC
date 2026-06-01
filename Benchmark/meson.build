@@ -80,46 +80,32 @@ endforeach
 # `bench_realloc` wrappers into `Bench.cpp`'s hot loop relies on the
 # project being configured with `-Db_lto=true`; without that the
 # wrapper costs a real function call per iteration.
-executable(
-    'bench-misra',
-    files('Source/Allocator_misra.c') + bench_cpp_sources,
-    c_args: ['-DBENCH_MISRA_VARIANT_NAME="misra"'],
-    include_directories: bench_inc,
-    dependencies: [bench_gbench_dep, misra_std_dep],
-    install: false,
-)
+#
+# Variants:
+#   - misra         : HeapAllocator (the default in-tree path).
+#   - misra-correct : same but with extra invariant assertions enabled.
+#   - misra-arena   : ArenaAllocator. Bump-pointer with no per-alloc
+#                     free; targets BM_ArenaBumpReset (bulk-O(1) reset).
+#                     Pair-style benches leak until the next teardown,
+#                     which the benchmarks tolerate.
+#   - misra-page    : PageAllocator. One mmap per alloc rounded to a
+#                     page; useful at page-aligned sizes
+#                     (AllocFreePair/4096, /16384, /65536). Sub-page
+#                     requests round up and waste the rest.
+bench_misra_backends = [
+    {'name': 'misra',         'src': 'Source/Allocator_misra.c'},
+    {'name': 'misra-correct', 'src': 'Source/Allocator_misra_correct.c'},
+    {'name': 'misra-arena',   'src': 'Source/Allocator_misra_arena.c'},
+    {'name': 'misra-page',    'src': 'Source/Allocator_misra_page.c'},
+]
 
-executable(
-    'bench-misra-correct',
-    files('Source/Allocator_misra_correct.c') + bench_cpp_sources,
-    c_args: ['-DBENCH_MISRA_VARIANT_NAME="misra-correct"'],
-    include_directories: bench_inc,
-    dependencies: [bench_gbench_dep, misra_std_dep],
-    install: false,
-)
-
-# ArenaAllocator backend. Bump-pointer with no per-alloc free.
-# Targets BM_ArenaBumpReset specifically: arena's reset is bulk-O(1).
-# For pair-style benches this backend leaks until the next teardown,
-# which the benchmarks tolerate (they don't run long enough to
-# exhaust an arena).
-executable(
-    'bench-misra-arena',
-    files('Source/Allocator_misra_arena.c') + bench_cpp_sources,
-    c_args: ['-DBENCH_MISRA_VARIANT_NAME="misra-arena"'],
-    include_directories: bench_inc,
-    dependencies: [bench_gbench_dep, misra_std_dep],
-    install: false,
-)
-
-# PageAllocator backend. One mmap per alloc, rounded to a page.
-# Useful at page-aligned sizes (AllocFreePair/4096, /16384, /65536);
-# sub-page requests round up to a full page and waste the rest.
-executable(
-    'bench-misra-page',
-    files('Source/Allocator_misra_page.c') + bench_cpp_sources,
-    c_args: ['-DBENCH_MISRA_VARIANT_NAME="misra-page"'],
-    include_directories: bench_inc,
-    dependencies: [bench_gbench_dep, misra_std_dep],
-    install: false,
-)
+foreach b : bench_misra_backends
+    executable(
+        'bench-' + b['name'],
+        files(b['src']) + bench_cpp_sources,
+        c_args: ['-DBENCH_MISRA_VARIANT_NAME="' + b['name'] + '"'],
+        include_directories: bench_inc,
+        dependencies: [bench_gbench_dep, misra_std_dep],
+        install: false,
+    )
+endforeach

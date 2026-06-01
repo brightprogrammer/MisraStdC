@@ -7,7 +7,7 @@
 /// Include/Misra/, the underscore prefix marks it as private to the
 /// implementation.
 ///
-/// Provides misra_sys0..misra_sys6 -- thin inline-asm wrappers that
+/// Provides direct_sys0..direct_sys6 -- thin inline-asm wrappers that
 /// invoke a kernel syscall by number with the platform's argument
 /// register conventions. On Linux (System V AMD64 / ARM64) the kernel
 /// returns the result in rax / x0; negative values < 4096 indicate
@@ -29,7 +29,7 @@
 
 #if PLATFORM_LINUX && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)
 
-static inline long misra_sys0(long nr) {
+static inline long direct_sys0(long nr) {
     long ret;
 #    if ARCHITECTURE_X86_64
     __asm__ volatile("syscall"
@@ -48,7 +48,7 @@ static inline long misra_sys0(long nr) {
     return ret;
 }
 
-static inline long misra_sys1(long nr, long a) {
+static inline long direct_sys1(long nr, long a) {
     long ret;
 #    if ARCHITECTURE_X86_64
     __asm__ volatile("syscall"
@@ -67,7 +67,7 @@ static inline long misra_sys1(long nr, long a) {
     return ret;
 }
 
-static inline long misra_sys2(long nr, long a, long b) {
+static inline long direct_sys2(long nr, long a, long b) {
     long ret;
 #    if ARCHITECTURE_X86_64
     __asm__ volatile("syscall"
@@ -87,7 +87,7 @@ static inline long misra_sys2(long nr, long a, long b) {
     return ret;
 }
 
-static inline long misra_sys3(long nr, long a, long b, long c) {
+static inline long direct_sys3(long nr, long a, long b, long c) {
     long ret;
 #    if ARCHITECTURE_X86_64
     __asm__ volatile("syscall"
@@ -108,7 +108,7 @@ static inline long misra_sys3(long nr, long a, long b, long c) {
     return ret;
 }
 
-static inline long misra_sys4(long nr, long a, long b, long c, long d) {
+static inline long direct_sys4(long nr, long a, long b, long c, long d) {
     long ret;
 #    if ARCHITECTURE_X86_64
     register long r10 __asm__("r10") = d;
@@ -131,7 +131,7 @@ static inline long misra_sys4(long nr, long a, long b, long c, long d) {
     return ret;
 }
 
-static inline long misra_sys5(long nr, long a, long b, long c, long d, long e) {
+static inline long direct_sys5(long nr, long a, long b, long c, long d, long e) {
     long ret;
 #    if ARCHITECTURE_X86_64
     register long r10 __asm__("r10") = d;
@@ -156,7 +156,7 @@ static inline long misra_sys5(long nr, long a, long b, long c, long d, long e) {
     return ret;
 }
 
-static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, long f) {
+static inline long direct_sys6(long nr, long a, long b, long c, long d, long e, long f) {
     long ret;
 #    if ARCHITECTURE_X86_64
     register long r10 __asm__("r10") = d;
@@ -309,12 +309,12 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 //     return means -errno, non-negative means success.
 
 #    if ARCHITECTURE_X86_64
-#        define MISRA_DARWIN_SC(n) ((long)((n) | 0x2000000L)) // BSD class
+#        define DARWIN_SC(n) ((long)((n) | 0x2000000L)) // BSD class
 #    else
-#        define MISRA_DARWIN_SC(n) ((long)(n))
+#        define DARWIN_SC(n) ((long)(n))
 #    endif
 
-static inline long misra_sys0(long nr) {
+static inline long direct_sys0(long nr) {
     long ret;
 #    if ARCHITECTURE_X86_64
     __asm__ volatile(
@@ -343,7 +343,7 @@ static inline long misra_sys0(long nr) {
     return ret;
 }
 
-static inline long misra_sys1(long nr, long a) {
+static inline long direct_sys1(long nr, long a) {
     long ret;
 #    if ARCHITECTURE_X86_64
     __asm__ volatile(
@@ -372,7 +372,7 @@ static inline long misra_sys1(long nr, long a) {
     return ret;
 }
 
-static inline long misra_sys2(long nr, long a, long b) {
+static inline long direct_sys2(long nr, long a, long b) {
     long ret;
 #    if ARCHITECTURE_X86_64
     __asm__ volatile(
@@ -402,7 +402,7 @@ static inline long misra_sys2(long nr, long a, long b) {
     return ret;
 }
 
-static inline long misra_sys3(long nr, long a, long b, long c) {
+static inline long direct_sys3(long nr, long a, long b, long c) {
     long ret;
 #    if ARCHITECTURE_X86_64
     __asm__ volatile(
@@ -433,7 +433,7 @@ static inline long misra_sys3(long nr, long a, long b, long c) {
     return ret;
 }
 
-static inline long misra_sys4(long nr, long a, long b, long c, long d) {
+static inline long direct_sys4(long nr, long a, long b, long c, long d) {
     long ret;
 #    if ARCHITECTURE_X86_64
     register long r10 __asm__("r10") = d;
@@ -466,7 +466,7 @@ static inline long misra_sys4(long nr, long a, long b, long c, long d) {
     return ret;
 }
 
-static inline long misra_sys5(long nr, long a, long b, long c, long d, long e) {
+static inline long direct_sys5(long nr, long a, long b, long c, long d, long e) {
     long ret;
 #    if ARCHITECTURE_X86_64
     register long r10 __asm__("r10") = d;
@@ -501,7 +501,7 @@ static inline long misra_sys5(long nr, long a, long b, long c, long d, long e) {
     return ret;
 }
 
-static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, long f) {
+static inline long direct_sys6(long nr, long a, long b, long c, long d, long e, long f) {
     long ret;
 #    if ARCHITECTURE_X86_64
     register long r10 __asm__("r10") = d;
@@ -541,62 +541,62 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 // XNU BSD syscall numbers. Source: apple-oss-distributions/xnu
 // bsd/kern/syscalls.master. Numbers are the same on x86_64 and
 // aarch64; only the class-prefix encoding differs (handled by
-// MISRA_DARWIN_SC).
-#    define MISRA_SYS_exit            MISRA_DARWIN_SC(1)
-#    define MISRA_SYS_fork            MISRA_DARWIN_SC(2)
-#    define MISRA_SYS_read            MISRA_DARWIN_SC(3)
-#    define MISRA_SYS_write           MISRA_DARWIN_SC(4)
-#    define MISRA_SYS_open            MISRA_DARWIN_SC(5)
-#    define MISRA_SYS_close           MISRA_DARWIN_SC(6)
-#    define MISRA_SYS_wait4           MISRA_DARWIN_SC(7)
-#    define MISRA_SYS_unlink          MISRA_DARWIN_SC(10)
-#    define MISRA_SYS_getpid          MISRA_DARWIN_SC(20)
-#    define MISRA_SYS_recvfrom        MISRA_DARWIN_SC(29)
-#    define MISRA_SYS_accept          MISRA_DARWIN_SC(30)
-#    define MISRA_SYS_getsockname     MISRA_DARWIN_SC(32)
-#    define MISRA_SYS_kill            MISRA_DARWIN_SC(37)
-#    define MISRA_SYS_pipe            MISRA_DARWIN_SC(42)
-#    define MISRA_SYS_rt_sigaction    MISRA_DARWIN_SC(46) // XNU `sigaction`
-#    define MISRA_SYS_ioctl           MISRA_DARWIN_SC(54)
-#    define MISRA_SYS_execve          MISRA_DARWIN_SC(59)
-#    define MISRA_SYS_munmap          MISRA_DARWIN_SC(73)
-#    define MISRA_SYS_mprotect        MISRA_DARWIN_SC(74)
-#    define MISRA_SYS_dup2            MISRA_DARWIN_SC(90)
-#    define MISRA_SYS_fcntl           MISRA_DARWIN_SC(92)
-#    define MISRA_SYS_socket          MISRA_DARWIN_SC(97)
-#    define MISRA_SYS_connect         MISRA_DARWIN_SC(98)
-#    define MISRA_SYS_bind            MISRA_DARWIN_SC(104)
-#    define MISRA_SYS_setsockopt      MISRA_DARWIN_SC(105)
-#    define MISRA_SYS_listen          MISRA_DARWIN_SC(106)
-#    define MISRA_SYS_sendto          MISRA_DARWIN_SC(133)
-#    define MISRA_SYS_rmdir           MISRA_DARWIN_SC(137)
-#    define MISRA_SYS_rt_sigreturn    MISRA_DARWIN_SC(184) // XNU `sigreturn`
-#    define MISRA_SYS_mmap            MISRA_DARWIN_SC(197)
-#    define MISRA_SYS_lseek           MISRA_DARWIN_SC(199)
-#    define MISRA_SYS_poll            MISRA_DARWIN_SC(230)
-#    define MISRA_SYS_stat64          MISRA_DARWIN_SC(338)
-#    define MISRA_SYS_fstat64         MISRA_DARWIN_SC(339)
-#    define MISRA_SYS_getdirentries64 MISRA_DARWIN_SC(344)
-#    define MISRA_SYS_thread_selfid   MISRA_DARWIN_SC(372) // = Linux gettid
-#    define MISRA_SYS_openat          MISRA_DARWIN_SC(463)
-#    define MISRA_SYS_fstatat64       MISRA_DARWIN_SC(470)
-#    define MISRA_SYS_unlinkat        MISRA_DARWIN_SC(472)
-#    define MISRA_SYS_mkdir           MISRA_DARWIN_SC(136)
-#    define MISRA_SYS_mkdirat         MISRA_DARWIN_SC(475)
+// DARWIN_SC).
+#    define MISRA_SYS_exit            DARWIN_SC(1)
+#    define MISRA_SYS_fork            DARWIN_SC(2)
+#    define MISRA_SYS_read            DARWIN_SC(3)
+#    define MISRA_SYS_write           DARWIN_SC(4)
+#    define MISRA_SYS_open            DARWIN_SC(5)
+#    define MISRA_SYS_close           DARWIN_SC(6)
+#    define MISRA_SYS_wait4           DARWIN_SC(7)
+#    define MISRA_SYS_unlink          DARWIN_SC(10)
+#    define MISRA_SYS_getpid          DARWIN_SC(20)
+#    define MISRA_SYS_recvfrom        DARWIN_SC(29)
+#    define MISRA_SYS_accept          DARWIN_SC(30)
+#    define MISRA_SYS_getsockname     DARWIN_SC(32)
+#    define MISRA_SYS_kill            DARWIN_SC(37)
+#    define MISRA_SYS_pipe            DARWIN_SC(42)
+#    define MISRA_SYS_rt_sigaction    DARWIN_SC(46) // XNU `sigaction`
+#    define MISRA_SYS_ioctl           DARWIN_SC(54)
+#    define MISRA_SYS_execve          DARWIN_SC(59)
+#    define MISRA_SYS_munmap          DARWIN_SC(73)
+#    define MISRA_SYS_mprotect        DARWIN_SC(74)
+#    define MISRA_SYS_dup2            DARWIN_SC(90)
+#    define MISRA_SYS_fcntl           DARWIN_SC(92)
+#    define MISRA_SYS_socket          DARWIN_SC(97)
+#    define MISRA_SYS_connect         DARWIN_SC(98)
+#    define MISRA_SYS_bind            DARWIN_SC(104)
+#    define MISRA_SYS_setsockopt      DARWIN_SC(105)
+#    define MISRA_SYS_listen          DARWIN_SC(106)
+#    define MISRA_SYS_sendto          DARWIN_SC(133)
+#    define MISRA_SYS_rmdir           DARWIN_SC(137)
+#    define MISRA_SYS_rt_sigreturn    DARWIN_SC(184) // XNU `sigreturn`
+#    define MISRA_SYS_mmap            DARWIN_SC(197)
+#    define MISRA_SYS_lseek           DARWIN_SC(199)
+#    define MISRA_SYS_poll            DARWIN_SC(230)
+#    define MISRA_SYS_stat64          DARWIN_SC(338)
+#    define MISRA_SYS_fstat64         DARWIN_SC(339)
+#    define MISRA_SYS_getdirentries64 DARWIN_SC(344)
+#    define MISRA_SYS_thread_selfid   DARWIN_SC(372) // = Linux gettid
+#    define MISRA_SYS_openat          DARWIN_SC(463)
+#    define MISRA_SYS_fstatat64       DARWIN_SC(470)
+#    define MISRA_SYS_unlinkat        DARWIN_SC(472)
+#    define MISRA_SYS_mkdir           DARWIN_SC(136)
+#    define MISRA_SYS_mkdirat         DARWIN_SC(475)
 // Darwin has no `getrandom`; BSD-class #500 `getentropy` is the
 // kernel-CSPRNG entry. 256-byte per-call cap, no flags arg.
-#    define MISRA_SYS_getentropy      MISRA_DARWIN_SC(500)
-#    define MISRA_SYS_nanosleep       MISRA_DARWIN_SC(240)
-#    define MISRA_SYS_readlink        MISRA_DARWIN_SC(58)
-#    define MISRA_SYS_readlinkat      MISRA_DARWIN_SC(473)
-#    define MISRA_SYS_gettimeofday    MISRA_DARWIN_SC(116)
+#    define MISRA_SYS_getentropy      DARWIN_SC(500)
+#    define MISRA_SYS_nanosleep       DARWIN_SC(240)
+#    define MISRA_SYS_readlink        DARWIN_SC(58)
+#    define MISRA_SYS_readlinkat      DARWIN_SC(473)
+#    define MISRA_SYS_gettimeofday    DARWIN_SC(116)
 // Darwin __ulock syscalls (XNU's analogue of Linux's futex). #515 is
 // the wait side, #516 the wake side -- both 4-arg / 3-arg shape with
 // op-bitfield as first arg. Use UL_COMPARE_AND_WAIT (=1) for 32-bit
 // futex-like compare-and-wait semantics, ULF_NO_ERRNO (=0x1000000)
 // in the op to get -errno return instead of libSystem errno-set.
-#    define MISRA_SYS___ulock_wait    MISRA_DARWIN_SC(515)
-#    define MISRA_SYS___ulock_wake    MISRA_DARWIN_SC(516)
+#    define MISRA_SYS___ulock_wait    DARWIN_SC(515)
+#    define MISRA_SYS___ulock_wake    DARWIN_SC(516)
 // Aliases so files written for the Linux name still compile on Darwin.
 #    define MISRA_SYS_exit_group      MISRA_SYS_exit // Darwin has no exit_group; plain exit terminates the whole task
 #    define MISRA_SYS_gettid          MISRA_SYS_thread_selfid
@@ -609,7 +609,7 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 // the two fds in registers (rax = read fd, rdx = write fd on x86_64;
 // x0 = read fd, x1 = write fd on aarch64). Wrap so callers can use
 // the Linux-style fds[] buffer convention.
-static inline long misra_darwin_pipe(int fds[2]) {
+static inline long darwin_sys_pipe(int fds[2]) {
 #    if ARCHITECTURE_X86_64
     long fd0, fd1;
     __asm__ volatile(

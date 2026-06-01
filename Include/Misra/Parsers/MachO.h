@@ -22,6 +22,7 @@
 #ifndef MISRA_PARSERS_MACHO_H
 #define MISRA_PARSERS_MACHO_H
 
+#include <Misra/Parsers/MachO/Private.h>
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Container/Str.h>
@@ -152,7 +153,6 @@ typedef struct Macho {
 ///
 /// TAGS: Parser, MachO, File
 ///
-bool macho_open(Macho *out, Zstr path, Allocator *alloc);
 #define MachoOpen(...) OVERLOAD(MachoOpen, __VA_ARGS__)
 #define MachoOpen_2(out, path)                                                                                         \
     _Generic(                                                                                                          \
@@ -205,7 +205,6 @@ bool MachoOpenFromMemory(Macho *out, Buf *in);
 ///
 /// TAGS: Parser, MachO, Memory, Copy
 ///
-bool macho_open_from_memory_copy(Macho *out, const u8 *data, size data_size, Allocator *alloc);
 #define MachoOpenFromMemoryCopy(...) OVERLOAD(MachoOpenFromMemoryCopy, __VA_ARGS__)
 #define MachoOpenFromMemoryCopy_3(out, data, data_size)                                                                \
     macho_open_from_memory_copy((out), (data), (data_size), MisraScope)
@@ -233,7 +232,6 @@ void MachoDeinit(Macho *self);
 ///
 /// TAGS: Parser, MachO, Section, Query
 ///
-const MachoSection *macho_find_section(const Macho *self, Zstr segment, Zstr section);
 #define MachoFindSection(self, segment, section)                                                                       \
     macho_find_section(                                                                                                \
         (self),                                                                                                        \

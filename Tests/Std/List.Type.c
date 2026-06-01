@@ -18,7 +18,7 @@ static bool test_list_type_defaults(void) {
     // checks; no public accessor exposes it, so the layout test reads it
     // directly to confirm ListInit planted the right value.
     bool result = (ListHead(&list) == NULL) && (ListTail(&list) == NULL) && (ListCopyInit(&list) == NULL) &&
-                  (ListCopyDeinit(&list) == NULL) && (ListLen(&list) == 0) && (list.__magic == LIST_MAGIC);
+                  (ListCopyDeinit(&list) == NULL) && (ListLen(&list) == 0) && MAGIC_MATCHES(list.__magic, LIST_MAGIC);
 
     ListDeinit(&list);
     DefaultAllocatorDeinit(&alloc);

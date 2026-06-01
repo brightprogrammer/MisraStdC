@@ -10,6 +10,7 @@
 #ifndef MISRA_PARSERS_HTTP_H
 #define MISRA_PARSERS_HTTP_H
 
+#include <Misra/Parsers/Http/Private.h>
 #include <Misra/Std.h>
 #include <Misra/Types.h>
 
@@ -61,7 +62,7 @@ typedef Vec(HttpHeader) HttpHeaders;
 /// `header->key` and `header->value`, then zeros the struct.
 ///
 /// SUCCESS : Returns to the caller. `*header` is zeroed.
-/// FAILURE : Function cannot fail. NULL `header` is a no-op.
+/// FAILURE : Aborts via `LOG_FATAL` when `header` is NULL.
 ///
 /// TAGS: Http, Deinit, Header, Init
 ///
@@ -73,25 +74,11 @@ void HttpHeaderDeinit(HttpHeader *header);
 /// `Vec(HttpHeader)` automatically deinits each entry on removal.
 ///
 /// SUCCESS : Returns to the caller. `*(HttpHeader *)header` is zeroed.
-/// FAILURE : Function cannot fail. NULL `header` is a no-op.
+/// FAILURE : Function cannot fail. The container guarantees `header` is
+///           non-NULL and a valid entry slot.
 ///
 /// TAGS: Http, Deinit, Header, Init
 ///
-void http_header_deinit(void *header, const Allocator *alloc);
-
-///
-/// Container-callback for deep copy. Used as the `copy_init` half of a
-/// deeply-copying `Vec(HttpHeader)`.
-///
-/// SUCCESS : Returns `true`. `*(HttpHeader *)dst` is a deep copy of
-///           `*(const HttpHeader *)src` allocated through `alloc`.
-/// FAILURE : Returns `false` on allocator OOM. `*(HttpHeader *)dst` is
-///           left zeroed.
-///
-/// TAGS: Http, Init, Copy, Header
-///
-bool http_header_init_copy(void *dst, const void *src, const Allocator *alloc);
-
 ///
 /// Find a header by key (case-sensitive zero-terminated comparison).
 ///
@@ -272,12 +259,12 @@ typedef struct HttpRequest {
 ///
 /// TAGS: Http, Parse, Request
 ///
-Zstr http_request_parse_zstr(HttpRequest *req, Zstr in);
-Zstr http_request_parse_str(HttpRequest *req, const Str *in);
 #define HttpRequestParse(req, in)                                                                                      \
-    _Generic((in), Str *: http_request_parse_str, Zstr: http_request_parse_zstr, char *: http_request_parse_zstr)(     \
-        (req),                                                                                                         \
-        (in)                                                                                                           \
+    _Generic(                                                                                                          \
+        (in),                                                                                                          \
+        Str *: http_request_parse_str((req), (const Str *)(in)),                                                       \
+        Zstr: http_request_parse_zstr((req), (Zstr)(in)),                                                              \
+        char *: http_request_parse_zstr((req), (Zstr)(in))                                                             \
     )
 
 ///
@@ -285,7 +272,7 @@ Zstr http_request_parse_str(HttpRequest *req, const Str *in);
 /// a partially-parsed request.
 ///
 /// SUCCESS : Returns to the caller. `*req` is zeroed.
-/// FAILURE : Function cannot fail. NULL `req` is a no-op.
+/// FAILURE : Aborts via `LOG_FATAL` when `req` is NULL.
 ///
 /// TAGS: Http, Request, Deinit, Init
 ///
@@ -363,24 +350,12 @@ HttpResponse *HttpRespondWithHtml(HttpResponse *response, HttpResponseCode statu
 ///
 /// TAGS: Http, Respond, File
 ///
-HttpResponse *http_respond_with_file_zstr(
-    HttpResponse    *response,
-    HttpResponseCode status,
-    HttpContentType  content_type,
-    Zstr             filepath
-);
-HttpResponse *http_respond_with_file_str(
-    HttpResponse    *response,
-    HttpResponseCode status,
-    HttpContentType  content_type,
-    const Str       *filepath
-);
-#    define HttpRespondWithFile(response, status, content_type, filepath)                                                                \
-        _Generic((filepath), Str *: http_respond_with_file_str, Zstr: http_respond_with_file_zstr, char *: http_respond_with_file_zstr)( \
-            (response),                                                                                                                  \
-            (status),                                                                                                                    \
-            (content_type),                                                                                                              \
-            (filepath)                                                                                                                   \
+#    define HttpRespondWithFile(response, status, content_type, filepath)                                              \
+        _Generic(                                                                                                      \
+            (filepath),                                                                                                \
+            Str *: http_respond_with_file_str((response), (status), (content_type), (const Str *)(filepath)),          \
+            Zstr: http_respond_with_file_zstr((response), (status), (content_type), (Zstr)(filepath)),                 \
+            char *: http_respond_with_file_zstr((response), (status), (content_type), (Zstr)(filepath))                \
         )
 #endif
 
@@ -396,7 +371,6 @@ HttpResponse *http_respond_with_file_str(
 ///
 /// TAGS: Http, Serialize, Response
 ///
-Str http_response_serialize(const HttpResponse *response, Allocator *alloc);
 #define HttpResponseSerialize(...)               OVERLOAD(HttpResponseSerialize, __VA_ARGS__)
 #define HttpResponseSerialize_1(response)        http_response_serialize((response), MisraScope)
 #define HttpResponseSerialize_2(response, alloc) http_response_serialize((response), ALLOCATOR_OF(alloc))
@@ -405,7 +379,7 @@ Str http_response_serialize(const HttpResponse *response, Allocator *alloc);
 /// Release storage owned by `response` and zero the struct.
 ///
 /// SUCCESS : Returns to the caller. `*response` is zeroed.
-/// FAILURE : Function cannot fail. NULL `response` is a no-op.
+/// FAILURE : Aborts via `LOG_FATAL` when `response` is NULL.
 ///
 /// TAGS: Http, Response, Deinit, Init
 ///

@@ -18,6 +18,7 @@
 #ifndef MISRA_PARSERS_PE_H
 #define MISRA_PARSERS_PE_H
 
+#include <Misra/Parsers/Pe/Private.h>
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Container/Str.h>
@@ -131,7 +132,6 @@ typedef struct Pe {
 ///
 /// TAGS: Parser, PE, File
 ///
-bool pe_open(Pe *out, Zstr path, Allocator *alloc);
 #define PeOpen(...) OVERLOAD(PeOpen, __VA_ARGS__)
 #define PeOpen_2(out, path)                                                                                            \
     _Generic(                                                                                                          \
@@ -183,7 +183,6 @@ bool PeOpenFromMemory(Pe *out, Buf *in);
 ///
 /// TAGS: Parser, PE, Memory, Copy
 ///
-bool pe_open_from_memory_copy(Pe *out, const u8 *data, size data_size, Allocator *alloc);
 #define PeOpenFromMemoryCopy(...)                    OVERLOAD(PeOpenFromMemoryCopy, __VA_ARGS__)
 #define PeOpenFromMemoryCopy_3(out, data, data_size) pe_open_from_memory_copy((out), (data), (data_size), MisraScope)
 #define PeOpenFromMemoryCopy_4(out, data, data_size, alloc)                                                            \
@@ -211,8 +210,6 @@ void PeDeinit(Pe *self);
 ///
 /// TAGS: Parser, PE, Section, Query
 ///
-const PeSection *pe_find_section_zstr(const Pe *self, Zstr name);
-const PeSection *pe_find_section_str(const Pe *self, const Str *name);
 #define PeFindSection(self, name)                                                                                      \
     _Generic((name), Str *: pe_find_section_str, Zstr: pe_find_section_zstr, char *: pe_find_section_zstr)(            \
         (self),                                                                                                        \

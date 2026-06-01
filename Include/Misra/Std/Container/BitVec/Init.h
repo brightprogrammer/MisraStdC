@@ -69,7 +69,7 @@ extern "C" {
             .data      = NULL,                                                                                         \
             .byte_size = 0,                                                                                            \
             .allocator = ALLOCATOR_OF(allocator_ptr),                                                                  \
-            .__magic   = BITVEC_MAGIC                                                                                  \
+            .__magic   = BITVEC_MAGIC | MAGIC_VALIDATED_BIT                                                                                  \
         })
 #else
 #    define BitVecInit_1(allocator_ptr)                                                                                \
@@ -78,7 +78,7 @@ extern "C" {
                    .data      = NULL,                                                                                  \
                    .byte_size = 0,                                                                                     \
                    .allocator = ALLOCATOR_OF(allocator_ptr),                                                           \
-                   .__magic   = BITVEC_MAGIC})
+                   .__magic   = BITVEC_MAGIC | MAGIC_VALIDATED_BIT})
 #endif
 
     ///

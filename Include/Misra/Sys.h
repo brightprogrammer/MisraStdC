@@ -47,8 +47,8 @@ typedef u64 ProcId;
 // when you want the resolver, the backtrace formatter, or the
 // PE+PDB / Mach-O symbol caches.
 
-#ifndef SYS_ERROR_STR_MAX_LENGTH
-#    define SYS_ERROR_STR_MAX_LENGTH 128
+#ifndef ERROR_STR_MAX_LENGTH
+#    define ERROR_STR_MAX_LENGTH 128
 #endif
 
 ///

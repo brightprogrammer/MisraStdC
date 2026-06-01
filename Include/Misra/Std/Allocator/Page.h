@@ -272,7 +272,7 @@ extern "C" {
                    .alignment       = 1,                                                                                     \
                    .effort          = ALLOCATOR_EFFORT_ONCE,                                                                 \
                    .retry_limit     = 0,                                                                                     \
-                   .__magic         = PAGE_ALLOCATOR_MAGIC,                                                                  \
+                   .__magic         = PAGE_ALLOCATOR_MAGIC | MAGIC_VALIDATED_BIT,                                                                  \
                    .footprint_bytes = 0},                                                                                    \
         .cached_page_size   = 0,                                                                                       \
         .entries            = NULL,                                                                                    \
@@ -306,7 +306,7 @@ extern "C" {
                    .alignment       = (N) ? (N) : 1,                                                                         \
                    .effort          = ALLOCATOR_EFFORT_ONCE,                                                                 \
                    .retry_limit     = 0,                                                                                     \
-                   .__magic         = PAGE_ALLOCATOR_MAGIC,                                                                  \
+                   .__magic         = PAGE_ALLOCATOR_MAGIC | MAGIC_VALIDATED_BIT,                                                                  \
                    .footprint_bytes = 0},                                                                                    \
         .cached_page_size   = 0,                                                                                       \
         .entries            = NULL,                                                                                    \

@@ -14,13 +14,16 @@
 //   - last_ptr / last_size record the most recent allocation for
 //     resize-in-place; both NULL/0 means no rollback target, but a
 //     non-NULL last_ptr requires a chunk to exist for it to live in.
-static void arena_validate_self(const ArenaAllocator *self) {
-    if (!self) {
-        LOG_FATAL("ArenaAllocator: NULL self");
-    }
-    if (self->base.__magic != ARENA_ALLOCATOR_MAGIC) {
-        LOG_FATAL("type-confusion: allocator passed to arena_allocator_* is not an ArenaAllocator");
-    }
+//
+// The structural body is memoized via MAGIC_VALIDATED_BIT: chunk-list
+// growth (`arena_new_chunk` linked into head/tail) and bulk teardown
+// (Reset / Deinit prep) flip the bit; the per-allocation `last_ptr` /
+// `last_size` update maintains the invariant by construction and
+// leaves the bit alone.
+
+#define ARENA_MARK_DIRTY(a) MAGIC_MARK_DIRTY(&(a)->base)
+
+static void arena_validate_self_structural(const ArenaAllocator *self) {
     if (!self->base.allocate || !self->base.resize || !self->base.remap || !self->base.deallocate) {
         LOG_FATAL("ArenaAllocator: vtable function pointer is NULL");
     }
@@ -36,6 +39,20 @@ static void arena_validate_self(const ArenaAllocator *self) {
     if (self->last_ptr && !self->head) {
         LOG_FATAL("ArenaAllocator: last_ptr is set but chunk list is empty");
     }
+}
+
+static void arena_validate_self(const ArenaAllocator *self) {
+    if (!self) {
+        LOG_FATAL("ArenaAllocator: NULL self");
+    }
+    if (!MAGIC_MATCHES(self->base.__magic, ARENA_ALLOCATOR_MAGIC)) {
+        LOG_FATAL("type-confusion: allocator passed to arena_allocator_* is not an ArenaAllocator");
+    }
+    if (!(self->base.__magic & MAGIC_VALIDATED_BIT)) {
+        return; // memoized
+    }
+    arena_validate_self_structural(self);
+    ((ArenaAllocator *)(void *)self)->base.__magic &= ~MAGIC_VALIDATED_BIT;
 }
 
 #define ARENA_DEFAULT_CHUNK_SIZE (size)(64 * 1024)
@@ -127,6 +144,9 @@ void *arena_allocator_allocate(ArenaAllocator *self, size bytes, i8 zeroed) {
         self->tail->next = chunk;
     }
     self->tail = chunk;
+    // No MARK_DIRTY: chunk-list grow moves head/tail from (NULL,NULL) ->
+    // (chunk,chunk) or (h,t) -> (h,chunk); the structural invariant
+    // (head==NULL) == (tail==NULL) is preserved either way.
 
     {
         u64  base_addr    = (u64)chunk->base;
@@ -296,6 +316,8 @@ void ArenaAllocatorReset(ArenaAllocator *self) {
     }
     self->last_ptr  = NULL;
     self->last_size = 0;
+    // No MARK_DIRTY: both fields go to zero together; the structural
+    // invariant (last_ptr==NULL) == (last_size==0) is preserved.
 }
 
 void ArenaAllocatorDeinit(ArenaAllocator *self) {

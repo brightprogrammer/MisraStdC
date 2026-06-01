@@ -21,6 +21,7 @@
 #ifndef MISRA_PARSERS_DWARF_H
 #define MISRA_PARSERS_DWARF_H
 
+#include <Misra/Parsers/Dwarf/Private.h>
 #include <Misra/Parsers/Elf.h>
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Str.h>
@@ -93,7 +94,6 @@ typedef struct DwarfLines {
 ///
 /// TAGS: Parser, DWARF, Lines
 ///
-bool dwarf_lines_build_from_elf(DwarfLines *out, const Elf *elf, Allocator *alloc);
 #define DwarfLinesBuildFromElf(...)               OVERLOAD(DwarfLinesBuildFromElf, __VA_ARGS__)
 #define DwarfLinesBuildFromElf_2(out, elf)        dwarf_lines_build_from_elf((out), (elf), MisraScope)
 #define DwarfLinesBuildFromElf_3(out, elf, alloc) dwarf_lines_build_from_elf((out), (elf), ALLOCATOR_OF(alloc))
@@ -196,7 +196,6 @@ typedef struct DwarfCfi {
 ///
 /// TAGS: Parser, DWARF, CFI
 ///
-bool dwarf_cfi_build_from_elf(DwarfCfi *out, const Elf *elf, Allocator *alloc);
 #define DwarfCfiBuildFromElf(...)               OVERLOAD(DwarfCfiBuildFromElf, __VA_ARGS__)
 #define DwarfCfiBuildFromElf_2(out, elf)        dwarf_cfi_build_from_elf((out), (elf), MisraScope)
 #define DwarfCfiBuildFromElf_3(out, elf, alloc) dwarf_cfi_build_from_elf((out), (elf), ALLOCATOR_OF(alloc))
@@ -359,7 +358,6 @@ typedef struct DwarfFunctions {
 ///
 /// TAGS: Parser, DWARF, Info
 ///
-bool dwarf_functions_build_from_elf(DwarfFunctions *out, const Elf *elf, Allocator *alloc);
 #define DwarfFunctionsBuildFromElf(...)               OVERLOAD(DwarfFunctionsBuildFromElf, __VA_ARGS__)
 #define DwarfFunctionsBuildFromElf_2(out, elf)        dwarf_functions_build_from_elf((out), (elf), MisraScope)
 #define DwarfFunctionsBuildFromElf_3(out, elf, alloc) dwarf_functions_build_from_elf((out), (elf), ALLOCATOR_OF(alloc))
