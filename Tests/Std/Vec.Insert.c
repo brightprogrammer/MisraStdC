@@ -18,6 +18,7 @@ bool test_vec_merge(void);
 bool test_vec_init_clone_inherits_allocator_config(void);
 bool test_lvalue_rvalue_operations(void);
 bool test_lvalue_zero_on_take_after_insertion(void);
+bool test_vec_insert_range_fast_overflowing_tail(void);
 
 // Test VecPushBack function
 static DefaultAllocator alloc;
@@ -510,6 +511,59 @@ bool test_lvalue_zero_on_take_after_insertion(void) {
     return result;
 }
 
+// Fast range insert where count > (length - idx): the displacement block must
+// be sized to the live tail (length - idx), not to count, otherwise the
+// implementation reads past the live region and loses the original tail
+// elements. Verifies the new items occupy [idx, idx+count), the displaced
+// originals all show up in the new tail (order not guaranteed), and the
+// untouched prefix [0, idx) is intact.
+bool test_vec_insert_range_fast_overflowing_tail(void) {
+    WriteFmt("Testing VecInsertRangeFast with count > (length - idx)\n");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit(&alloc);
+
+    int  originals[] = {10, 20, 30, 40, 50, 60, 70, 80};
+    size orig_count  = sizeof(originals) / sizeof(originals[0]);
+    for (size i = 0; i < orig_count; i++) {
+        VecPushBackR(&vec, originals[i]);
+    }
+
+    size idx         = 5;
+    int  new_items[] = {100, 200, 300, 400, 500, 600, 700, 800, 900, 1000};
+    size new_count   = sizeof(new_items) / sizeof(new_items[0]);
+
+    bool result = VecInsertRangeFastR(&vec, new_items, idx, new_count);
+    result      = result && (VecLen(&vec) == orig_count + new_count);
+
+    for (size i = 0; i < idx; i++) {
+        result = result && (VecAt(&vec, i) == originals[i]);
+    }
+
+    for (size i = 0; i < new_count; i++) {
+        result = result && (VecAt(&vec, idx + i) == new_items[i]);
+    }
+
+    // Displaced originals [idx, orig_count) must all appear somewhere in
+    // [idx + new_count, new length). Order is intentionally unspecified.
+    size tail_start = idx + new_count;
+    size tail_end   = VecLen(&vec);
+    result          = result && (tail_end - tail_start == orig_count - idx);
+    for (size i = idx; i < orig_count; i++) {
+        bool found = false;
+        for (size j = tail_start; j < tail_end; j++) {
+            if (VecAt(&vec, j) == originals[i]) {
+                found = true;
+                break;
+            }
+        }
+        result = result && found;
+    }
+
+    VecDeinit(&vec);
+    return result;
+}
+
 // Main function that runs all tests
 int main(void) {
     alloc = DefaultAllocatorInit();
@@ -527,7 +581,8 @@ int main(void) {
         test_vec_merge,
         test_vec_init_clone_inherits_allocator_config,
         test_lvalue_rvalue_operations,
-        test_lvalue_zero_on_take_after_insertion
+        test_lvalue_zero_on_take_after_insertion,
+        test_vec_insert_range_fast_overflowing_tail
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);

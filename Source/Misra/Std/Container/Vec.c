@@ -276,6 +276,7 @@ bool insert_range_into_vec(GenericVec *vec, const u8 *item_data, size item_size,
 bool insert_range_fast_into_vec(GenericVec *vec, const u8 *item_data, size item_size, size idx, size count) {
     size aligned_size;
     size inserted_count = 0;
+    size displaced      = 0;
 
     if (!count) {
         return true;
@@ -298,8 +299,21 @@ bool insert_range_fast_into_vec(GenericVec *vec, const u8 *item_data, size item_
         }
     }
 
+    // Displace at most `length - idx` originals (the actual live tail);
+    // a naive `count`-sized move would read past `length` when the new
+    // range extends beyond the current end. Park the displaced block at
+    // the very end of the new tail so its destination [length+count-d,
+    // length+count) never overlaps the new-item slots [idx, idx+count).
     if (idx < vec->length) {
-        MemMove(vec_ptr_at(vec, vec->length, item_size), vec_ptr_at(vec, idx, item_size), aligned_size * count);
+        displaced = vec->length - idx;
+        if (displaced > count) {
+            displaced = count;
+        }
+        MemMove(
+            vec_ptr_at(vec, vec->length + count - displaced, item_size),
+            vec_ptr_at(vec, idx, item_size),
+            aligned_size * displaced
+        );
     }
 
     for (size i = 0; i < count; i++) {
@@ -310,11 +324,11 @@ bool insert_range_fast_into_vec(GenericVec *vec, const u8 *item_data, size item_
                     vec->copy_deinit(vec_ptr_at(vec, idx + s, item_size), vec->allocator);
                 }
 
-                if (idx < vec->length) {
+                if (displaced) {
                     MemMove(
                         vec_ptr_at(vec, idx, item_size),
-                        vec_ptr_at(vec, vec->length, item_size),
-                        aligned_size * count
+                        vec_ptr_at(vec, vec->length + count - displaced, item_size),
+                        aligned_size * displaced
                     );
                 }
 
