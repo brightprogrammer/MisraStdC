@@ -39,6 +39,7 @@ test(
 io_tests = [
     ['Io.Write', 'Std/Io.Write.c'],
     ['Io.Read', 'Std/Io.Read.c'],
+    ['Io.UserTypes', 'Std/Io.UserTypes.c'],
 ]
 
 file_tests = [
