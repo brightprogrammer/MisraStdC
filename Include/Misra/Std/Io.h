@@ -245,7 +245,7 @@ Float:                                                                          
 /// `TO_TYPE_SPECIFIC_IO(T, addr)`.
 ///
 /// EXAMPLE (per-TU or per-project header):
-///   #define IOFMT_USER_CASES_(x, addr)
+///   #define IOFMT_USER_CASE_(x, addr)
 ///       MyWidget : TO_TYPE_SPECIFIC_IO(MyWidget, addr),
 ///       OtherT   : TO_TYPE_SPECIFIC_IO(OtherT,   addr),
 ///   #include <Misra/Std/Io.h>
@@ -258,9 +258,21 @@ Float:                                                                          
 /// See `Docs/.../extending-io-with-user-types.md` for the full guide,
 /// including the multi-library chain-extension pattern.
 ///
+/// SUCCESS: Once defined before `<Misra/Std/Io.h>` is processed in a TU,
+///          every listed type becomes an explicit `_Generic` arm in
+///          `IOFMT(x)` for that TU; subsequent `WriteFmt` / `StrReadFmt`
+///          / `FReadFmt` / `BufReadFmt` calls dispatch user values
+///          through the matching `_write_T` / `_read_T` symbols with
+///          the same compile-time selection as in-tree types.
+/// FAILURE: Cannot fail at the macro-expansion layer. Mis-typed arms or
+///          missing `_write_T` / `_read_T` symbols surface as compile or
+///          link errors at the call site; a user value whose type is
+///          not listed produces the standard `_Generic`
+///          "no matching association" diagnostic.
+///
 /// TAGS: I/O, Generic, Extension, Macro
-#ifndef IOFMT_USER_CASES_
-#    define IOFMT_USER_CASES_(x, addr) /* empty -- override before include */
+#ifndef IOFMT_USER_CASE_
+#    define IOFMT_USER_CASE_(x, addr) /* empty -- override before include */
 #endif
 
 ///
@@ -285,7 +297,7 @@ Float:                                                                          
             (x),                                                                                                       \
             TypeSpecificIO: (x),                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, &(x)),                                                                       \
-            IOFMT_FLOAT_CASE_(x, &(x)) IOFMT_INT_CASE_(x, &(x)) IOFMT_BITVEC_CASE_(x, &(x)) IOFMT_USER_CASES_(x, &(x)) \
+            IOFMT_FLOAT_CASE_(x, &(x)) IOFMT_INT_CASE_(x, &(x)) IOFMT_BITVEC_CASE_(x, &(x)) IOFMT_USER_CASE_(x, &(x))  \
                 Zstr: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                 \
             char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                   \
             unsigned char: TO_TYPE_SPECIFIC_IO(u8, &(x)),                                                              \
@@ -310,7 +322,7 @@ Float:                                                                          
             TypeSpecificIO: (x),                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, (void *)&(x)),                                                               \
             IOFMT_FLOAT_CASE_(x, (void *)&(x)) IOFMT_INT_CASE_(x, (void *)&(x)) IOFMT_BITVEC_CASE_(x, (void *)&(x))    \
-                IOFMT_USER_CASES_(x, (void *)&(x)) Zstr: TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                      \
+                IOFMT_USER_CASE_(x, (void *)&(x)) Zstr: TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                       \
             char *: TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                                                           \
             unsigned char: TO_TYPE_SPECIFIC_IO(u8, (void *)&(x)),                                                      \
             unsigned short: TO_TYPE_SPECIFIC_IO(u16, (void *)&(x)),                                                    \

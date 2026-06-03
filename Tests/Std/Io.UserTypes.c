@@ -1,10 +1,15 @@
-// Demonstrates the IOFMT_USER_CASES_ extension hook: plug an out-of-tree
+// Demonstrates the IOFMT_USER_CASE_ extension hook: plug an out-of-tree
 // type into the formatted-I/O pipeline so `WriteFmt("{}", val)` dispatches
 // through user-supplied _write_T / _read_T without any wrapper at the call
 // site.
 
+// Only headers that do NOT transitively pull Misra/Std/Io.h are allowed
+// above the IOFMT_USER_CASE_ define below -- any earlier Io.h expansion
+// would lock in the empty-fallback definition before our override is
+// seen. Log.h pulls Io.h, so it lives below the include of Io.h.
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Utility/StrIter.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Types.h>
 
@@ -33,12 +38,13 @@ typedef struct {
 // All three user types live in the same hook because the writer for the
 // outer types (Bounds, Region) recursively expands IOFMT on inner-type
 // arguments -- every arm must be visible at every call site.
-#define IOFMT_USER_CASES_(x, addr)                                                                                     \
+#define IOFMT_USER_CASE_(x, addr)                                                                                      \
 Point2D:                                                                                                               \
     TO_TYPE_SPECIFIC_IO(Point2D, addr), Bounds : TO_TYPE_SPECIFIC_IO(Bounds, addr),                                    \
                                                  Region : TO_TYPE_SPECIFIC_IO(Region, addr),
 
 #include <Misra/Std/Io.h>
+#include <Misra/Std/Log.h>
 
 #include "../Util/TestRunner.h"
 
@@ -67,27 +73,34 @@ Zstr _read_Point2D(Zstr i, FmtInfo *info, Point2D *p) {
         return i;
     }
 
-    while (*i == ' ' || *i == '\t') {
-        i++;
+    StrIter si = StrIterFromZstr(i);
+    char    c  = 0;
+
+    while (StrIterPeek(&si, &c) && IS_SPACE(c)) {
+        StrIterMustNext(&si);
     }
-    if (*i != '(') {
-        return i;
+    if (!StrIterPeek(&si, &c) || c != '(') {
+        return StrIterDataAt(&si, StrIterIndex(&si));
     }
-    i++;
+    StrIterMustNext(&si);
 
     FmtInfo inner = {0};
-    i             = _read_i32(i, &inner, &p->x);
-    while (*i == ' ' || *i == '\t' || *i == ',') {
-        i++;
+    Zstr    rest  = _read_i32(StrIterDataAt(&si, StrIterIndex(&si)), &inner, &p->x);
+
+    si = StrIterFromZstr(rest);
+    while (StrIterPeek(&si, &c) && (IS_SPACE(c) || c == ',')) {
+        StrIterMustNext(&si);
     }
-    i = _read_i32(i, &inner, &p->y);
-    while (*i == ' ' || *i == '\t') {
-        i++;
+    rest = _read_i32(StrIterDataAt(&si, StrIterIndex(&si)), &inner, &p->y);
+
+    si = StrIterFromZstr(rest);
+    while (StrIterPeek(&si, &c) && IS_SPACE(c)) {
+        StrIterMustNext(&si);
     }
-    if (*i == ')') {
-        i++;
+    if (StrIterPeek(&si, &c) && c == ')') {
+        StrIterMustNext(&si);
     }
-    return i;
+    return StrIterDataAt(&si, StrIterIndex(&si));
 }
 
 // Bounds delegates to Point2D for its two corners. Verifies the
@@ -106,26 +119,35 @@ Zstr _read_Bounds(Zstr i, FmtInfo *info, Bounds *b) {
     if (!i || !b) {
         return i;
     }
-    while (*i == ' ' || *i == '\t') {
-        i++;
+
+    StrIter si = StrIterFromZstr(i);
+    char    c  = 0;
+
+    while (StrIterPeek(&si, &c) && IS_SPACE(c)) {
+        StrIterMustNext(&si);
     }
-    if (*i != '[') {
-        return i;
+    if (!StrIterPeek(&si, &c) || c != '[') {
+        return StrIterDataAt(&si, StrIterIndex(&si));
     }
-    i++;
+    StrIterMustNext(&si);
+
     FmtInfo inner = {0};
-    i             = _read_Point2D(i, &inner, &b->min);
-    while (*i == '.') {
-        i++;
+    Zstr    rest  = _read_Point2D(StrIterDataAt(&si, StrIterIndex(&si)), &inner, &b->min);
+
+    si = StrIterFromZstr(rest);
+    while (StrIterPeek(&si, &c) && c == '.') {
+        StrIterMustNext(&si);
     }
-    i = _read_Point2D(i, &inner, &b->max);
-    while (*i == ' ' || *i == '\t') {
-        i++;
+    rest = _read_Point2D(StrIterDataAt(&si, StrIterIndex(&si)), &inner, &b->max);
+
+    si = StrIterFromZstr(rest);
+    while (StrIterPeek(&si, &c) && IS_SPACE(c)) {
+        StrIterMustNext(&si);
     }
-    if (*i == ']') {
-        i++;
+    if (StrIterPeek(&si, &c) && c == ']') {
+        StrIterMustNext(&si);
     }
-    return i;
+    return StrIterDataAt(&si, StrIterIndex(&si));
 }
 
 // Region is 3-deep: it embeds Bounds (which itself embeds Point2D) plus
@@ -144,17 +166,24 @@ Zstr _read_Region(Zstr i, FmtInfo *info, Region *r) {
     if (!i || !r) {
         return i;
     }
+
     FmtInfo inner = {0};
-    i             = _read_i32(i, &inner, &r->id);
-    while (*i == ' ' || *i == '\t' || *i == ':') {
-        i++;
+    Zstr    rest  = _read_i32(i, &inner, &r->id);
+
+    StrIter si = StrIterFromZstr(rest);
+    char    c  = 0;
+    while (StrIterPeek(&si, &c) && (IS_SPACE(c) || c == ':')) {
+        StrIterMustNext(&si);
     }
-    i = _read_Bounds(i, &inner, &r->bbox);
-    while (*i == ' ' || *i == '\t' || *i == '@') {
-        i++;
+    rest = _read_Bounds(StrIterDataAt(&si, StrIterIndex(&si)), &inner, &r->bbox);
+
+    si = StrIterFromZstr(rest);
+    while (StrIterPeek(&si, &c) && (IS_SPACE(c) || c == '@')) {
+        StrIterMustNext(&si);
     }
-    i = _read_Point2D(i, &inner, &r->centroid);
-    return i;
+    rest = _read_Point2D(StrIterDataAt(&si, StrIterIndex(&si)), &inner, &r->centroid);
+
+    return rest;
 }
 
 bool test_user_type_write_basic(void);
@@ -168,7 +197,7 @@ bool test_deep_nested_user_type_round_trip(void);
 bool test_nested_user_type_mixed_with_builtins(void);
 
 bool test_user_type_write_basic(void) {
-    WriteFmt("Testing user-type write through IOFMT_USER_CASES_\n");
+    WriteFmt("Testing user-type write through IOFMT_USER_CASE_\n");
 
     DefaultAllocator alloc = DefaultAllocatorInit();
     Str              out   = StrInit(&alloc);
@@ -199,7 +228,7 @@ bool test_user_type_write_mixed_args(void) {
 }
 
 bool test_user_type_read_basic(void) {
-    WriteFmt("Testing user-type read through IOFMT_USER_CASES_\n");
+    WriteFmt("Testing user-type read through IOFMT_USER_CASE_\n");
 
     Zstr    in = "(42, -9)";
     Point2D p  = {0};
