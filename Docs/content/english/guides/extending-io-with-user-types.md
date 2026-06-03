@@ -152,6 +152,52 @@ bool _write_Point2D(Str *o, FmtInfo *info, Point2D *p) { … }
 
 Pattern A is the safe default once you have more than one user type.
 
+## Recommended Layout: One `Io.h` / `Io.c` Pair per Project
+
+The mechanism above is per-TU, but the natural unit of organisation is the
+project: every TU that formats your types needs the same `IOFMT_USER_CASES_`
+list visible, every `_write_T` / `_read_T` symbol needs to be linkable from
+those TUs, and every user type in the list needs its struct declaration in
+scope so the `_Generic` arm can mention it.
+
+The cleanest way to satisfy all three constraints is to keep your IO
+extension in a single project-internal pair:
+
+```
+MyApp/Io.h    -- forward-declares every user type's _write_T / _read_T,
+                 defines IOFMT_USER_CASES_, then #include <Misra/Std/Io.h>
+MyApp/Io.c    -- defines the bodies for every _write_T / _read_T
+```
+
+Every TU in your project then has exactly one extra include:
+
+```c
+#include "MyApp/Io.h"   // pulls in everything: types, hook, Misra/Std/Io.h
+```
+
+You can absolutely split the writers/readers across multiple `.c` files, or
+keep them next to each type's own module, and it will compile and link.
+But maintenance gets harder fast:
+
+- **Macro drift.** Each TU that calls `WriteFmt(..., my_t)` needs
+  `IOFMT_USER_CASES_` defined with `my_t`'s arm. If one TU's hook lags
+  behind, that TU silently fails to match (compile error if you're lucky,
+  wrong-arm dispatch if a built-in coincidentally matches the type).
+- **Forward-declaration sprawl.** Pattern A (forward-declare every
+  user-type writer/reader before any body) becomes "every TU has to
+  forward-declare every user type's writer/reader" once nested writers
+  cross TU boundaries. Centralising the forward decls in one header
+  removes the bookkeeping.
+- **Include-order auditing.** The "define hook before `<Misra/Std/Io.h>`"
+  rule is easy to violate when the IO header is pulled transitively. A
+  single project IO header that wraps the rule once eliminates the audit
+  surface entirely.
+
+If you do split, treat `MyApp/Io.h` as authoritative for the hook + forward
+decls and treat the per-module `.c` files purely as homes for the bodies.
+That keeps the macro discipline in one place and lets the bodies live next
+to their data.
+
 ## Composing Across Libraries
 
 `IOFMT_USER_CASES_` is a single preprocessor symbol. If two libraries both want to publish IO-able types, the consumer's chain has to thread them together. The usual idiom is *rename-then-extend*:
