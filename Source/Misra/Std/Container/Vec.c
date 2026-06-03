@@ -225,10 +225,7 @@ bool insert_range_into_vec(GenericVec *vec, const u8 *item_data, size item_size,
 
     aligned_size = vec_aligned_size(vec, item_size);
     if (vec->length + count >= vec->capacity) {
-        if (count > (size)-1 - vec->capacity) {
-            LOG_FATAL("vector insert: capacity + count overflows size");
-        }
-        if (!reserve_pow2_vec(vec, item_size, vec->capacity + count)) {
+        if (!reserve_pow2_vec(vec, item_size, vec->length + count)) {
             return false;
         }
     }
