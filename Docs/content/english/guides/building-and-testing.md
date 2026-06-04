@@ -1,7 +1,7 @@
 ---
 title: "Building and Testing MisraStdC"
 date: 2026-04-19
-description: "A practical local workflow for cloning, building, testing, and debugging the library."
+description: "Clone, build, and run the test suite."
 authors:
   - siddharth-mishra
 tags:
@@ -11,84 +11,52 @@ tags:
   - ninja
 ---
 
-MisraStdC uses a conventional Meson plus Ninja workflow. The build story is intentionally boring, which is the right choice for a C library.
+> **Note**: This post was drafted by an AI assistant under direction from the author. It is not first-hand writing; the design choices it describes are real, the prose explaining them is generated. Treat the technical content as the design talking, and the framing as a translation layer.
 
-## Requirements
+## What you need
 
-You need:
+A C11 compiler (GCC, Clang, or MSVC), Meson, and Ninja.
 
-- a C11 compiler
-- Meson
-- Ninja
-
-The project is meant to work across GCC, Clang, and modern MSVC.
-
-## Standard Build Flow
-
-The normal local flow is:
+## Build
 
 ```bash
 git clone --recursive https://github.com/brightprogrammer/MisraStdC.git
 cd MisraStdC
-
-meson setup builddir
-ninja -C builddir
-ninja -C builddir test
+meson setup build
+ninja -C build
+ninja -C build test
 ```
 
-That gets you a clean local build and runs the test suite in the same build directory.
+## Build with sanitizers
 
-## Development Build With Sanitizers
-
-When debugging memory or UB problems, use sanitizers early instead of waiting until the code is already tangled.
+When chasing a memory or UB bug, turn on ASan + UBSan from the start:
 
 ```bash
-meson setup builddir -Db_sanitize=address,undefined -Db_lundef=false
-ninja -C builddir
-ninja -C builddir test
+meson setup build -Db_sanitize=address,undefined -Db_lundef=false
+ninja -C build
+ninja -C build test
 ```
 
-This is a good default when changing low-level container code, string code, parsing code, or ownership-related paths.
+This is the default flavor you want while changing container, string, parser, or ownership code.
 
-## What To Expect From Tests
+## Running a single test
 
-The test suite is not only regression coverage. It also acts as documentation.
+`meson test` accepts test names from `Tests/meson.build`:
 
-The generated API docs cross-reference usages found in `Tests/`, which means good tests do double duty:
+```bash
+meson test -C build Vec.Insert
+meson test -C build -t 4 Io.Write Io.Read   # parallel, multiple
+```
 
-- they validate behavior
-- they provide concrete call-site examples for the published reference pages
+Add `--print-errorlogs` to see the failing test's output without re-running it manually.
 
-That matters especially for public generic APIs such as:
+## Documentation
 
-- `IntCompare`
-- `IntAdd`, `IntSub`, `IntMul`, `IntDiv`, `IntPow`
-- `FloatFrom`, `FloatCompare`, `FloatAdd`, `FloatMul`, `FloatDiv`
+The Hugo site under `Docs/` is rebuilt by CI on every push to `master`; you can serve it locally too:
 
-If a public API has no test usage, its generated documentation tends to look thinner and less trustworthy.
+```bash
+cd Docs
+hugo server
+```
 
-## A Good Workflow For Local Changes
-
-For most changes, the practical loop is:
-
-1. change one focused area
-2. run the smallest relevant test targets first
-3. run a broader suite if the change touches shared runtime helpers
-4. regenerate docs if public comments or exported APIs changed
-
-That last point matters because the docs are partly generated from the source tree, not maintained as a separate manual.
-
-## Documentation Build Flow
-
-The documentation site combines two pieces:
-
-- generated API pages from `Scripts/DocuGen.py`
-- curated prose content under `Docs/content/english`
-
-So when public APIs move, the correct workflow is not just "fix code and push". It is:
-
-1. update public comments
-2. regenerate docs
-3. make sure the generated pages still reflect the intended public surface
-
-That keeps the published site aligned with the code instead of drifting into a stale wrapper around the headers.
+Public-API reference pages are generated from header comments by `Scripts/DocuGen.py`. If you change a public comment, regenerate the docs before pushing so the site reflects what the headers actually say.

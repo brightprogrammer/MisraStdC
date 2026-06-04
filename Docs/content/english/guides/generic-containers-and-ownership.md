@@ -1,7 +1,7 @@
 ---
 title: "Generic Containers and Ownership"
 date: 2026-04-19
-description: "How MisraStdC uses macros for generic containers, and why l-value vs r-value insertion matters."
+description: "Type-parameterized containers in MisraStdC, and the L vs R insertion forms."
 authors:
   - siddharth-mishra
 tags:
@@ -10,132 +10,56 @@ tags:
   - ownership
 ---
 
-One of the core ideas in MisraStdC is that generic containers should feel reusable without requiring a code generator.
+> **Note**: This post was drafted by an AI assistant under direction from the author. It is not first-hand writing; the design choices it describes are real, the prose explaining them is generated. Treat the technical content as the design talking, and the framing as a translation layer.
 
-The implementation approach is macro-based, but the runtime model is shared.
+`Vec(T)`, `List(T)`, `Map(K, V)`, `Graph(T)`, and `Pair(A, B)` are type-parameterized containers. You pick the element type at the declaration; the container handles storage and bookkeeping.
 
-## How The Generic Model Works
-
-Template-style APIs such as `Vec(T)`, `List(T)`, `Iter(T)`, and `Pair(xT, yT)` expand through macros.
-
-The important part is what happens after expansion:
-
-- the call site determines the concrete type information
-- the macro forwards size and layout details to shared helpers in `Source/`
-- the runtime code performs the actual storage management and operations
-
-That means the project gets a generic programming style without introducing a separate template compiler or code generation phase.
-
-## Practical Consequences
-
-This model has a few consequences that matter when writing real code.
-
-### Distinct Expanded Types
-
-Each `Vec(T)` expansion is its own anonymous type.
-
-If you want to reuse it across declarations, create a `typedef`:
+## Declaring a container type
 
 ```c
 typedef Vec(int) IntVec;
 typedef List(Str) StrList;
+typedef Map(Str, i32) Counts;
 ```
 
-### Nested Macro Types Need Wrapping
-
-If a nested macro type contains commas, wrap it so the outer macro sees it as one argument:
+If the element type itself contains a comma (most often a nested template), wrap it in `T(...)` so the preprocessor sees one argument:
 
 ```c
 typedef Vec(T(Pair(i32, Str))) PairVec;
 ```
 
-Without that wrapper, the preprocessor will split the inner commas as separate macro arguments.
+## L vs R: who owns the value after insertion
 
-## Ownership Is An API-Level Concept
-
-MisraStdC makes ownership transfer visible in insertion APIs.
-
-That is the reason for the `...L` and `...R` distinction in many container operations.
-
-### L-Value Insertion
-
-The `...L` forms are about explicit ownership transfer.
-
-If the container does not have a deep-copy callback, it may take ownership by zeroing the source l-value after insertion. The intent is that only one live owner remains.
-
-This is useful when building values in a temporary variable and moving them into a container.
-
-### R-Value Insertion
-
-The `...R` forms are less strict. They let the caller treat the insertion more like a normal value-style operation.
-
-That does not make ownership disappear. It just means the API is not trying to annotate the transfer as aggressively.
-
-## Allocator Ownership
-
-Every dynamically-sized container in MisraStdC carries an `Allocator *` field
-internally. Containers do not own their allocator and never deinit it; the
-allocator must outlive every container that references it.
-
-The recommended way to bind a container to an allocator is the `Scope` macro:
+Most insertion APIs come in two forms. The difference is what happens to the *source* after the call.
 
 ```c
-#include <Misra/Std/Allocator/Default.h>
+Scope(lt, DefaultAllocator) {
+    Vec(int) v = VecInit();
 
-Scope(alloc, DefaultAllocator) {
-    Vec(int) v = VecInit();         // implicit MisraScope pool
-    Vec(int) w = VecInit(alloc);    // explicit named pool
-    ...
+    int x = 42;
+    VecPushBackL(&v, x);     // L: container takes ownership of x
+    // x is now zero.
+
+    int y = 99;
+    VecPushBackR(&v, y);     // R: container copies y
+    // y is still 99.
+
     VecDeinit(&v);
-    VecDeinit(&w);
-}   // allocator destroyed automatically at block exit
+}
 ```
 
-`Scope(name, AllocType)` constructs two typed allocator instances on the stack:
+L is for *move*: the source is left empty. R is for *copy*: the source is unchanged.
 
-- `name` - the user-visible pool, available to the caller and any helper
-  the caller hands the allocator to.
-- `MisraScope` - an internal pool that the zero-arg form of every `*Init()`
-  macro picks up implicitly.
+For plain `int`, the practical difference is small. It matters when the element owns memory of its own — a `Str`, an `Int`, a nested `Vec`. With L, you avoid duplicating the inner allocation; with R, the container makes its own deep copy through a registered `copy_init` callback.
 
-Both are deinit'd together when control leaves the block. Outside a `Scope`,
-calling `VecInit()` with no argument fails to compile, which is the safety net
-that prevents accidental dependence on a hidden global heap.
+The unsuffixed form (`VecPushBack`, `VecInsert`, `MapInsert`) is an alias for the L form. Reach for R explicitly when you want to keep the source around.
 
-For helpers that take an `Allocator *` parameter, use `ScopeWith(alloc)` to
-borrow the caller's allocator into the same `MisraScope` slot without
-constructing a new one. `return` and `goto` that leave a `Scope` block
-skip the deinit step and leak the allocator - a C-level limitation with no
-portable workaround. Use `ExitScope` (an alias for `break`) when you need to
-leave early but still run the cleanup.
+## A few rules to keep in mind
 
-The four other allocator types - `PageAllocator`, `ArenaAllocator`,
-`SlabAllocator`, `BudgetAllocator` - all work the same way: declare on the
-stack, hand to containers (or `Scope`), deinit at the end of their useful
-lifetime.
+- **L requires a writable l-value.** A string literal or an arithmetic literal will not compile against `VecPushBackL`; it needs storage the macro can zero.
+- **R takes anything assignable.** Literals, `const`-qualified sources, expressions — all fine.
+- **Container-owning element types still need a copy callback.** When the element is a `Str` and you want R to deep-copy instead of bit-copy, register a `copy_init` / `copy_deinit` pair at init time (`VecInitWithDeepCopy`).
 
-## Why This Matters
+## Allocator
 
-A lot of C bugs are not algorithmic bugs. They are lifetime bugs:
-
-- double ownership of mutable state
-- cleanup responsibilities that are implied rather than stated
-- container insertion code that silently copies in one place and silently moves in another
-
-MisraStdC tries to make those transitions more visible in the function names and call sites.
-
-It is a stricter style than plain C utility code, but it makes large container-heavy code easier to reason about.
-
-## Where This Connects To The Rest Of The Library
-
-The same philosophy shows up in the newer `Int` and `Float` APIs too.
-
-The public surface is being pushed toward generic front doors:
-
-- one `IntCompare`, not a pile of public compare overload names
-- one `IntFrom`, not a user-facing family of construction helpers by exact scalar type
-- one `FloatFrom`, `FloatAdd`, `FloatSub`, and related arithmetic entry points
-
-The common theme is simple:
-
-Users should learn the API they are meant to call, not the implementation fan-out behind it.
+Every container carries an `Allocator *` field. You bind it at construction inside a `Scope` block — see *Scope-Based Allocator Discipline* for the full story. The container never destroys the allocator; the surrounding scope does.

@@ -9,7 +9,6 @@
 // seen. Log.h pulls Io.h, so it lives below the include of Io.h.
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Str.h>
-#include <Misra/Std/Utility/StrIter.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Types.h>
 
@@ -44,7 +43,6 @@ Point2D:                                                                        
                                                  Region : TO_TYPE_SPECIFIC_IO(Region, addr),
 
 #include <Misra/Std/Io.h>
-#include <Misra/Std/Log.h>
 
 #include "../Util/TestRunner.h"
 
@@ -72,35 +70,8 @@ Zstr _read_Point2D(Zstr i, FmtInfo *info, Point2D *p) {
     if (!i || !p) {
         return i;
     }
-
-    StrIter si = StrIterFromZstr(i);
-    char    c  = 0;
-
-    while (StrIterPeek(&si, &c) && IS_SPACE(c)) {
-        StrIterMustNext(&si);
-    }
-    if (!StrIterPeek(&si, &c) || c != '(') {
-        return StrIterDataAt(&si, StrIterIndex(&si));
-    }
-    StrIterMustNext(&si);
-
-    FmtInfo inner = {0};
-    Zstr    rest  = _read_i32(StrIterDataAt(&si, StrIterIndex(&si)), &inner, &p->x);
-
-    si = StrIterFromZstr(rest);
-    while (StrIterPeek(&si, &c) && (IS_SPACE(c) || c == ',')) {
-        StrIterMustNext(&si);
-    }
-    rest = _read_i32(StrIterDataAt(&si, StrIterIndex(&si)), &inner, &p->y);
-
-    si = StrIterFromZstr(rest);
-    while (StrIterPeek(&si, &c) && IS_SPACE(c)) {
-        StrIterMustNext(&si);
-    }
-    if (StrIterPeek(&si, &c) && c == ')') {
-        StrIterMustNext(&si);
-    }
-    return StrIterDataAt(&si, StrIterIndex(&si));
+    StrReadFmt(i, "({}, {})", p->x, p->y);
+    return i;
 }
 
 // Bounds delegates to Point2D for its two corners. Verifies the
@@ -119,35 +90,8 @@ Zstr _read_Bounds(Zstr i, FmtInfo *info, Bounds *b) {
     if (!i || !b) {
         return i;
     }
-
-    StrIter si = StrIterFromZstr(i);
-    char    c  = 0;
-
-    while (StrIterPeek(&si, &c) && IS_SPACE(c)) {
-        StrIterMustNext(&si);
-    }
-    if (!StrIterPeek(&si, &c) || c != '[') {
-        return StrIterDataAt(&si, StrIterIndex(&si));
-    }
-    StrIterMustNext(&si);
-
-    FmtInfo inner = {0};
-    Zstr    rest  = _read_Point2D(StrIterDataAt(&si, StrIterIndex(&si)), &inner, &b->min);
-
-    si = StrIterFromZstr(rest);
-    while (StrIterPeek(&si, &c) && c == '.') {
-        StrIterMustNext(&si);
-    }
-    rest = _read_Point2D(StrIterDataAt(&si, StrIterIndex(&si)), &inner, &b->max);
-
-    si = StrIterFromZstr(rest);
-    while (StrIterPeek(&si, &c) && IS_SPACE(c)) {
-        StrIterMustNext(&si);
-    }
-    if (StrIterPeek(&si, &c) && c == ']') {
-        StrIterMustNext(&si);
-    }
-    return StrIterDataAt(&si, StrIterIndex(&si));
+    StrReadFmt(i, "[{}..{}]", b->min, b->max);
+    return i;
 }
 
 // Region is 3-deep: it embeds Bounds (which itself embeds Point2D) plus
@@ -166,24 +110,8 @@ Zstr _read_Region(Zstr i, FmtInfo *info, Region *r) {
     if (!i || !r) {
         return i;
     }
-
-    FmtInfo inner = {0};
-    Zstr    rest  = _read_i32(i, &inner, &r->id);
-
-    StrIter si = StrIterFromZstr(rest);
-    char    c  = 0;
-    while (StrIterPeek(&si, &c) && (IS_SPACE(c) || c == ':')) {
-        StrIterMustNext(&si);
-    }
-    rest = _read_Bounds(StrIterDataAt(&si, StrIterIndex(&si)), &inner, &r->bbox);
-
-    si = StrIterFromZstr(rest);
-    while (StrIterPeek(&si, &c) && (IS_SPACE(c) || c == '@')) {
-        StrIterMustNext(&si);
-    }
-    rest = _read_Point2D(StrIterDataAt(&si, StrIterIndex(&si)), &inner, &r->centroid);
-
-    return rest;
+    StrReadFmt(i, "{}:{}@{}", r->id, r->bbox, r->centroid);
+    return i;
 }
 
 bool test_user_type_write_basic(void);

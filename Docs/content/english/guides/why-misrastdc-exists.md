@@ -10,6 +10,9 @@ tags:
   - c11
 ---
 
+> **Note**: This post was drafted by an AI assistant under direction from the author. It is not first-hand writing; the design choices it describes are real, the prose explaining them is generated. Treat the technical content as the design talking, and the framing as a translation layer.
+
+
 MisraStdC is an attempt to make day-to-day C programming less tedious without pretending C is a different language.
 
 The project stays in pure C11, but it tries to make common tasks feel less raw:

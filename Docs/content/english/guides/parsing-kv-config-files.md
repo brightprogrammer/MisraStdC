@@ -1,7 +1,7 @@
 ---
 title: "Parsing Key-Value Config Files"
 date: 2026-04-19
-description: "How to use the KvConfig parser for simple application and server configuration."
+description: "Read simple `key = value` config files with KvConfig."
 authors:
   - siddharth-mishra
 tags:
@@ -11,19 +11,19 @@ tags:
   - strings
 ---
 
-`KvConfig` is the simple parser you reach for when JSON is unnecessary and environment variables are too flat.
+> **Note**: This post was drafted by an AI assistant under direction from the author. It is not first-hand writing; the design choices it describes are real, the prose explaining them is generated. Treat the technical content as the design talking, and the framing as a translation layer.
 
-It is meant for the common case of application configuration files:
+`KvConfig` parses flat configuration files like:
 
-- `key = value`
-- `key: value`
-- blank lines
-- `#` and `;` comments
-- quoted values when whitespace matters
+```text
+host = localhost
+port = 8080
+debug = true
+```
 
-The parsed result is stored in a `Map(Str, Str)`, so the interface stays close to the rest of MisraStdC instead of inventing a separate config object model.
+It supports `=` or `:` as separators, `#` and `;` comments, blank lines, and single- or double-quoted values for strings with embedded whitespace. The result is a `Map(Str, Str)` you read by key.
 
-## A Minimal Example
+## Example
 
 ```c
 #include <Misra.h>
@@ -36,15 +36,14 @@ int main(void) {
             "port = 8080\n"
             "debug = true\n"
         );
-        KvConfig cfg   = KvConfigInit();
-        StrIter  si    = StrIterFromStr(text);
-        i64      port  = 0;
-        bool     debug = false;
-        Str      host  = StrInit();
 
+        KvConfig cfg = KvConfigInit();
+        StrIter  si  = StrIterFromStr(text);
         si = KvConfigParse(si, &cfg);
 
-        host = KvConfigGet(&cfg, "host");
+        Str   host  = KvConfigGet(&cfg, "host");
+        i64   port  = 0;
+        bool  debug = false;
         KvConfigGetI64(&cfg, "port", &port);
         KvConfigGetBool(&cfg, "debug", &debug);
 
@@ -59,83 +58,18 @@ int main(void) {
 }
 ```
 
-The important point is that parsing and access are separate concerns:
+## Reading values
 
-- `KvConfigParse(...)` reads the file format
-- `KvConfigGet(...)` returns a new `Str` copy that the caller owns
-- `KvConfigGetPtr(...)` returns an internal reference when no copy is needed
-- typed helpers like `KvConfigGetI64(...)` and `KvConfigGetBool(...)` convert the stored text when needed
+| Function | What it returns |
+| --- | --- |
+| `KvConfigGet(&cfg, "key")` | A fresh `Str` copy. Caller owns it and must `StrDeinit`. |
+| `KvConfigGetPtr(&cfg, "key")` | An internal reference. No allocation, no ownership; valid until the config is mutated or deinit'd. |
+| `KvConfigGetI64(&cfg, "key", &out)` | `false` if the key is missing or the value does not parse as `i64`. |
+| `KvConfigGetF64(&cfg, "key", &out)` | Same shape for `f64`. |
+| `KvConfigGetBool(&cfg, "key", &out)` | Accepts `true` / `false`, `1` / `0`, `yes` / `no`. |
 
-## What Syntax It Accepts
+If a key appears more than once in the file, the later line wins.
 
-The parser supports both `=` and `:` as separators:
+## When to use it
 
-```text
-host = localhost
-port: 8080
-```
-
-Leading and trailing whitespace around keys and unquoted values is ignored.
-
-Comments are supported in two forms:
-
-```text
-# full-line comment
-workers = 16 ; inline comment
-```
-
-Quoted values keep inner whitespace:
-
-```text
-path = "/srv/my app"
-title = 'hello world'
-```
-
-If the same key appears multiple times, the later value replaces the earlier one. That is usually the least surprising behavior for layered config files.
-
-## Why It Uses `Map(Str, Str)`
-
-This is intentional.
-
-The parser is not trying to become a schema system. It gives you a small, predictable configuration representation and lets the application decide what keys mean.
-
-That keeps the parser useful across very different programs:
-
-- small command-line tools
-- daemons and services
-- game/server config
-- parser frontends and analysis tools
-
-It also means config access composes naturally with the rest of the container APIs.
-
-## When To Use This Instead Of JSON
-
-Use `KvConfig` when:
-
-- the file is mostly flat
-- you want hand-editable config
-- comments matter
-- startup configuration is more important than nested data modeling
-
-Use JSON when:
-
-- nested data is essential
-- arrays and structured objects are part of the format
-- the file is meant for interchange, not just local configuration
-
-So the practical split is simple:
-
-- `KvConfig` for human-edited runtime config
-- `JSON` for structured data interchange
-
-## Typed Access Is Deliberately Small
-
-The current typed getters are:
-
-- `KvConfigGetBool(...)`
-- `KvConfigGetI64(...)`
-- `KvConfigGetF64(...)`
-
-Everything else can still be read as a plain `Str` and interpreted by the application.
-
-That is the right tradeoff for now. A config parser should make common cases easy without pretending it can infer a whole application schema from text.
+Pick `KvConfig` for hand-edited, mostly flat config: short daemon settings, CLI defaults, small game configs. If you need nested objects, arrays, or strict schemas, use the `JSON` parser instead.
