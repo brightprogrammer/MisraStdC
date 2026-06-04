@@ -16,14 +16,13 @@
 
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Allocator/Arena.h>
-#include <Misra/Std/Allocator/Page.h>
 
 static ArenaAllocator g_arena;
 static bool           g_arena_live = false;
 
 Zstr bench_backend_name(void) {
-#ifdef BENCH_MISRA_VARIANT_NAME
-    return BENCH_MISRA_VARIANT_NAME;
+#ifdef BENCH_BACKEND_NAME
+    return BENCH_BACKEND_NAME;
 #else
     return "misra-arena";
 #endif
@@ -53,13 +52,17 @@ void bench_teardown(void) {
 // the bench cadence.)
 void bench_use_fixed_size(size_t slot) {
     (void)slot;
-    if (g_arena_live) ArenaAllocatorReset(&g_arena);
+    if (g_arena_live)
+        ArenaAllocatorReset(&g_arena);
 }
 void bench_use_general(void) {
-    if (g_arena_live) ArenaAllocatorReset(&g_arena);
+    if (g_arena_live)
+        ArenaAllocatorReset(&g_arena);
 }
 
-int bench_can_reset(void) { return 1; }
+int bench_can_reset(void) {
+    return 1;
+}
 void bench_reset(void) {
     // ArenaAllocatorReset rewinds the bump pointer and frees every
     // page-backed slab the arena owns except the most recent one.
@@ -101,6 +104,7 @@ uint64_t bench_footprint_bytes(void) {
     // / draws down `base.footprint_bytes` on the owner allocator
     // it was handed. So the direct-field accessor on the live arena
     // is the exact OS-page footprint, no estimation.
-    if (!g_arena_live) return 0;
+    if (!g_arena_live)
+        return 0;
     return (uint64_t)AllocatorFootprintBytes(&g_arena);
 }

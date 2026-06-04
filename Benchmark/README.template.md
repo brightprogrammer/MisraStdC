@@ -2,7 +2,9 @@
 
 > Generated automatically by `Scripts/run.py`. Do not edit by hand.
 
-Compares MisraStdC's `HeapAllocator` and `SlabAllocator` against four production allocators: glibc, jemalloc, mimalloc, tcmalloc.
+One column per allocator. The libc-shape columns (`glibc`, `jemalloc`, `mimalloc`, `tcmalloc`) sit next to one column for each MisraStdC allocator type (`misra-heap`, `misra-slab`, `misra-arena`, `misra-page`, `misra-budget`). Rows that fall outside an allocator's contract -- mixed sizes for a fixed-slot allocator, sub-page requests for `PageAllocator`, many-live-allocs for `ArenaAllocator`, and so on -- read `n/a`. The benchmark does not decide which allocator is the "right tool" for a workload; the reader does.
+
+`DebugAllocator` is intentionally not benchmarked. It's a diagnostic wrapper (leak / canary / trace tracking) for tests and fuzz, not a production allocator -- the column would measure diagnostic overhead, not allocator design.
 
 ## Headline
 
@@ -48,25 +50,37 @@ Allocate N small (32 B) objects, then release them all. Arena does this as one O
 
 ## Fragmentation
 
-Each allocator's own introspection API reports committed bytes after the workload runs. Lower committed-bytes for the same live-bytes is better.
+Each cell shows `live / footprint` for one backend, both numbers as the backend's OWN introspection API reports them. `live` is what's currently outstanding to the user; `footprint` is what the allocator pulled from the OS. Lower footprint at the same live = less fragmentation. `n/a` means the backend's stats API didn't expose the number -- the harness does not synthesize a value to fill the cell.
 
 {{TABLE_FRAG}}
 
 ## How to read
 
-MisraStdC's typed-allocator family shows up as several columns:
+Each `misra-*` column is one MisraStdC allocator type, not a choice between "fast" and "correct". The libc-shape columns are general-purpose by design and run every row; the MisraStdC columns vary by contract:
 
-- **`misra` / `misra-correct`** — `HeapAllocator` everywhere vs the right tool per workload (`SlabAllocator(slot_size)` for fixed-size benches, `HeapAllocator` for mixed). The latter is what a real MisraStdC caller would do.
-- **`misra-arena` / `misra-page`** — specialised backends (bump+bulk-reset, mmap-per-alloc). `n/a` rows mean the workload doesn't fit the backend's contract (e.g. arena can't handle many-live-allocs; page wastes whole pages on sub-page requests).
+- **`misra-heap`** — `HeapAllocator`. General-purpose binned heap; runs every workload. The baseline for an apples-to-apples comparison against glibc / jemalloc / mimalloc / tcmalloc.
+- **`misra-slab`** — `SlabAllocator(slot)`. Fixed slot, power of two in [16, 4096]. Runs the fixed-size rows whose slot fits the cap (`AllocFreePair/16..4096`, all `BatchAllocFree`, `AllocTouchFree/64,4096`). `n/a` everywhere else: super-page slots, mixed sizes, and any realloc that crosses the slot.
+- **`misra-arena`** — `ArenaAllocator`. Bump-pointer with single-deep LIFO rewind on free and one bulk O(1) `Reset`. Runs the pair-style rows (last-ptr rewind keeps growth flat), `ReallocGrow` (last-ptr remap fast-path), and `ArenaBumpReset`. `n/a` on many-live-allocs and mixed sizes -- the workload would grow unbounded.
+- **`misra-page`** — `PageAllocator`. One mmap per alloc, page-rounded. Restricted to page-aligned sizes (4 KiB and up) so the row reflects mmap dispatch and not rounding waste from sub-page requests. `n/a` everywhere else.
+- **`misra-budget`** — `BudgetAllocator`. Caller-buffer fixed-budget pool, no growth. Runs the fixed-size rows that fit the 16 MiB backing buffer. `n/a` on mixed sizes and realloc (one slot for life).
 
-Where tcmalloc beats `misra-correct` on small AllocFreePair, the gap is MisraStdC's structural safety (double-free, misalignment, magic-tag dispatch, cross-class invariants) that production allocators skip even in their fast paths.
+`n/a` is a deliberate signal that the row falls outside the allocator's contract. The reader picks the workload-matched column instead of relying on the benchmark to pick one for them.
 
 ## Reproduce
 
+Two builds: timing rows want `-Dalloc_stats=false` so per-allocator counters don't bias the hot path; fragmentation rows want `-Dalloc_stats=true` so the misra columns can report live bytes. `run.py` runs each row group against the matching binary.
+
 ```sh
-meson setup build -Dbenchmark=true -Dbuildtype=release -Doptimization=3
-ninja  -C build
+# perf build (timing rows)
+meson setup build      -Dbenchmark=true -Dbuildtype=release -Doptimization=3 -Dalloc_stats=false
+ninja -C build
+
+# frag build (fragmentation rows)
+meson setup build-frag -Dbenchmark=true -Dbuildtype=release -Doptimization=3 -Dalloc_stats=true
+ninja -C build-frag
+
 python3 Benchmark/Scripts/run.py build
+# --frag-builddir defaults to <perf-builddir>-frag (i.e. "build-frag" here).
 ```
 
 Regenerates this file with measurements from the host.
@@ -80,5 +94,6 @@ Regenerates this file with measurements from the host.
 | host CPU  | {{CPU}} |
 | kernel    | {{KERNEL}} |
 | compiler  | {{COMPILER}} |
-| build     | {{BUILD_OPTIONS}} |
+| build (perf) | {{BUILD_OPTIONS}} |
+| build (frag) | {{BUILD_OPTIONS_FRAG}} |
 | reps      | {{REPS}} per row (median reported) |

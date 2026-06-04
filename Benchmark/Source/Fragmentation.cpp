@@ -1,18 +1,27 @@
 // Fragmentation benchmark.
 //
 // Google Benchmark itself doesn't measure space -- only time. So this
-// file uses GBench as a harness but reports three custom counters:
+// file uses GBench as a harness but reports three custom counters,
+// every one of which comes from the backend's OWN introspection API.
+// The harness never counts bytes on its own behalf -- if a backend
+// can't report a number, the row reads n/a rather than getting a
+// faked-up "we tracked it ourselves" value:
 //
-//   live_MB       : sum of currently-outstanding allocation sizes,
-//                   tracked by us (this file owns the {ptr, size} list)
+//   live_MB       : currently-outstanding allocation bytes, as the
+//                   backend itself reports them (mallinfo2 / mallctl /
+//                   MallocExtension on the libc-shape backends;
+//                   `AllocatorBytesInUse(a)` -- gated on
+//                   FEATURE_ALLOC_STATS -- on the misra backends). n/a
+//                   when the backend has no working stats API (mimalloc
+//                   3.3.0's `mi_stats_get` is broken; FEATURE_ALLOC_STATS
+//                   compiled-out on the misra backends).
 //   footprint_MB  : allocator-reported bytes pulled from the OS
-//                   (`base.footprint_bytes` on the misra backends,
-//                   mallinfo2 / mallctl on the libc-shape backends --
-//                   each backend's own introspection API, no
-//                   process-noise from gbench or libstdc++).
+//                   (`base.footprint_bytes` on misra -- ALWAYS available,
+//                   not gated; mallinfo2 / mallctl on the libc-shape).
 //   frag_ratio    : (footprint - live) / footprint, clamped to [0, 1].
 //                   Higher = more memory the allocator is holding past
-//                   what callers actually need.
+//                   what callers actually need. Emitted only when both
+//                   numbers are available; n/a otherwise.
 //
 // The workload that exposes fragmentation:
 //   1. Allocate N small + M medium + K large blocks
@@ -37,11 +46,6 @@
 
 namespace {
 
-struct Alloc {
-    void  *ptr;
-    size_t size;
-};
-
 // Write a byte pattern across the whole allocation. Two reasons:
 //   1. Faulting in every page exposes the "alloc + first touch"
 //      cost the bench is supposed to measure -- otherwise a lazy
@@ -57,41 +61,38 @@ inline void touch(void *p, size_t n) {
         std::memset(p, 0xA5, n);
 }
 
-uint64_t sum_live(const std::vector<Alloc> &v) {
-    uint64_t t = 0;
-    for (const auto &a : v)
-        if (a.ptr)
-            t += a.size;
-    return t;
-}
-
-void report_counters(benchmark::State &state, uint64_t live) {
-    // For the misra backends bench_footprint_bytes() is a single
-    // direct field read (`base.footprint_bytes`); for the libc-shape
-    // backends it's a `mallinfo2` / `mallctl` call. None of these
-    // dominate iteration timing on their own, but pause GBench's
-    // clock anyway so the reported time only reflects the
-    // alloc/free workload, not the introspection calls.
+void report_counters(benchmark::State &state) {
+    // For the misra backends bench_footprint_bytes() / bench_live_bytes()
+    // are direct field reads (`base.footprint_bytes`,
+    // `AllocatorBytesInUse`); for the libc-shape backends each is a
+    // `mallinfo2` / `mallctl` / `MallocExtension` call. None of these
+    // dominate iteration timing on their own, but pause GBench's clock
+    // anyway so the reported time only reflects the alloc/free
+    // workload, not the introspection calls.
     state.PauseTiming();
-    const uint64_t footprint    = bench_footprint_bytes();
-    const uint64_t backend_live = bench_live_bytes();
+    const uint64_t footprint = bench_footprint_bytes();
+    const uint64_t live      = bench_live_bytes();
     state.ResumeTiming();
 
-    const double live_MB      = double(live) / (1024.0 * 1024.0);
-    const double footprint_MB = double(footprint) / (1024.0 * 1024.0);
-    double       frag         = 0.0;
-    if (footprint > live)
-        frag = double(footprint - live) / double(footprint);
-
-    state.counters["live_MB"]      = benchmark::Counter(live_MB, benchmark::Counter::kAvgThreads);
-    state.counters["footprint_MB"] = benchmark::Counter(footprint_MB, benchmark::Counter::kAvgThreads);
-    state.counters["frag_ratio"]   = benchmark::Counter(frag, benchmark::Counter::kAvgThreads);
-    if (backend_live) {
-        // Allocator-reported live bytes. Should match our external
-        // sum_live() modulo internal rounding; divergence flags a
-        // bookkeeping mismatch worth investigating.
-        const double bl_MB                = double(backend_live) / (1024.0 * 1024.0);
-        state.counters["backend_live_MB"] = benchmark::Counter(bl_MB, benchmark::Counter::kAvgThreads);
+    // Counters emitted only when the backend actually reported the
+    // number. Missing counters surface as n/a in the rendered table
+    // (run.py treats 0.0 / absent counters as n/a). No harness-side
+    // bookkeeping covers for a missing API -- if jemalloc/glibc/etc.
+    // chooses not to expose a number, that's what the column shows.
+    if (live > 0) {
+        const double live_MB      = double(live) / (1024.0 * 1024.0);
+        state.counters["live_MB"] = benchmark::Counter(live_MB, benchmark::Counter::kAvgThreads);
+    }
+    if (footprint > 0) {
+        const double footprint_MB      = double(footprint) / (1024.0 * 1024.0);
+        state.counters["footprint_MB"] = benchmark::Counter(footprint_MB, benchmark::Counter::kAvgThreads);
+    }
+    // frag_ratio is derived; only meaningful when both inputs exist
+    // and footprint >= live (footprint < live is a backend-stats bug,
+    // not a fragmentation observation).
+    if (live > 0 && footprint > live) {
+        const double frag            = double(footprint - live) / double(footprint);
+        state.counters["frag_ratio"] = benchmark::Counter(frag, benchmark::Counter::kAvgThreads);
     }
 }
 
@@ -109,38 +110,37 @@ static void BM_Frag_Checkerboard(benchmark::State &state) {
     const size_t n_small  = static_cast<size_t>(state.range(0));
 
     for (auto _ : state) {
-        std::vector<Alloc> small_v(n_small);
+        std::vector<void *> small_v(n_small);
         for (size_t i = 0; i < n_small; i++) {
-            small_v[i] = {bench_alloc(small_sz), small_sz};
-            touch(small_v[i].ptr, small_sz);
+            small_v[i] = bench_alloc(small_sz);
+            touch(small_v[i], small_sz);
         }
 
         // Free even indices. Odd ones stay live, creating the checkerboard
         // of holes in the size-S bin.
         for (size_t i = 0; i < n_small; i += 2) {
-            bench_free(small_v[i].ptr);
-            small_v[i].ptr = nullptr;
+            bench_free(small_v[i]);
+            small_v[i] = nullptr;
         }
 
         // Now try to fill the gaps with allocations that DON'T match
         // the small-S slot size. A non-coalescing binned allocator
         // can't use the holes; a coalescing one can.
-        std::vector<Alloc> big_v(n_small / 2);
+        std::vector<void *> big_v(n_small / 2);
         for (size_t i = 0; i < big_v.size(); i++) {
-            big_v[i] = {bench_alloc(big_sz), big_sz};
-            touch(big_v[i].ptr, big_sz);
+            big_v[i] = bench_alloc(big_sz);
+            touch(big_v[i], big_sz);
         }
 
-        const uint64_t live = sum_live(small_v) + sum_live(big_v);
-        report_counters(state, live);
+        report_counters(state);
 
         // Drain.
-        for (auto &a : small_v)
-            if (a.ptr)
-                bench_free(a.ptr);
-        for (auto &a : big_v)
-            if (a.ptr)
-                bench_free(a.ptr);
+        for (void *p : small_v)
+            if (p)
+                bench_free(p);
+        for (void *p : big_v)
+            if (p)
+                bench_free(p);
     }
 }
 BENCHMARK(BM_Frag_Checkerboard)->Arg(4096)->Arg(16384)->Arg(65536)->Unit(benchmark::kMillisecond);
@@ -163,26 +163,26 @@ static void BM_Frag_LifetimeMix(benchmark::State &state) {
     const size_t sizes[] = {16, 32, 64, 128, 256, 1024};
 
     for (auto _ : state) {
-        std::vector<Alloc> live(n_blocks);
+        std::vector<void *> live(n_blocks);
         for (size_t i = 0; i < n_blocks; i++) {
             size_t s = sizes[size_pick(rng)];
-            live[i]  = {bench_alloc(s), s};
-            touch(live[i].ptr, s);
+            live[i]  = bench_alloc(s);
+            touch(live[i], s);
         }
         for (size_t r = 0; r < rounds; r++) {
             for (size_t i = 0; i < n_blocks; i++) {
-                if (live[i].ptr && coin(rng)) {
-                    bench_free(live[i].ptr);
+                if (live[i] && coin(rng)) {
+                    bench_free(live[i]);
                     size_t s = sizes[size_pick(rng)];
-                    live[i]  = {bench_alloc(s), s};
-                    touch(live[i].ptr, s);
+                    live[i]  = bench_alloc(s);
+                    touch(live[i], s);
                 }
             }
         }
-        report_counters(state, sum_live(live));
-        for (auto &a : live)
-            if (a.ptr)
-                bench_free(a.ptr);
+        report_counters(state);
+        for (void *p : live)
+            if (p)
+                bench_free(p);
     }
 }
 BENCHMARK(BM_Frag_LifetimeMix)->Unit(benchmark::kMillisecond);
@@ -201,16 +201,16 @@ static void BM_Frag_PageOverhang(benchmark::State &state) {
     const size_t overhangs[] = {17, 33, 65, 129, 257, 513, 1025};
 
     for (auto _ : state) {
-        std::vector<Alloc> v(n);
+        std::vector<void *> v(n);
         for (size_t i = 0; i < n; i++) {
             size_t s = overhangs[i % (sizeof(overhangs) / sizeof(overhangs[0]))];
-            v[i]     = {bench_alloc(s), s};
-            touch(v[i].ptr, s);
+            v[i]     = bench_alloc(s);
+            touch(v[i], s);
         }
-        report_counters(state, sum_live(v));
-        for (auto &a : v)
-            if (a.ptr)
-                bench_free(a.ptr);
+        report_counters(state);
+        for (void *p : v)
+            if (p)
+                bench_free(p);
     }
 }
 BENCHMARK(BM_Frag_PageOverhang)->Unit(benchmark::kMillisecond);

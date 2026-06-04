@@ -18,8 +18,8 @@ static PageAllocator g_page;
 static bool          g_page_live = false;
 
 Zstr bench_backend_name(void) {
-#ifdef BENCH_MISRA_VARIANT_NAME
-    return BENCH_MISRA_VARIANT_NAME;
+#ifdef BENCH_BACKEND_NAME
+    return BENCH_BACKEND_NAME;
 #else
     return "misra-page";
 #endif
@@ -53,10 +53,17 @@ static void page_reset(void) {
     g_page_live = true;
 }
 
-void bench_use_fixed_size(size_t slot) { (void)slot; page_reset(); }
-void bench_use_general(void)           { page_reset(); }
-int  bench_can_reset(void)             { return 0; }
-void bench_reset(void)                 {}
+void bench_use_fixed_size(size_t slot) {
+    (void)slot;
+    page_reset();
+}
+void bench_use_general(void) {
+    page_reset();
+}
+int bench_can_reset(void) {
+    return 0;
+}
+void bench_reset(void) {}
 
 void *bench_alloc(size_t n) {
     return AllocatorAlloc(&g_page, (size)n, 0);
@@ -79,6 +86,7 @@ uint64_t bench_live_bytes(void) {
 }
 
 uint64_t bench_footprint_bytes(void) {
-    if (!g_page_live) return 0;
+    if (!g_page_live)
+        return 0;
     return (uint64_t)AllocatorFootprintBytes(&g_page);
 }

@@ -12,6 +12,18 @@
 //     entry points. So it shares the "libc-shape" binary with whichever
 //     allocator the linker pulled in, but the bench code routes calls
 //     through the wrapper functions below regardless.
+//
+// Why singleton globals in every `Allocator_misra_*.c`: the misra
+// project's library convention is init-by-value with no globals (see
+// `CODING-CONVENTIONS.md`). The bench harness deliberately violates
+// that because Google Benchmark's `BENCHMARK(BM_*)` signature offers
+// no user-data slot to thread an allocator through; the body's only
+// reachable state is process-global. Each backend file therefore
+// holds one `static <X>Allocator g_<x>` plus a liveness flag, and
+// `bench_init` / `bench_teardown` book-end the process lifetime.
+// This shape is a harness contract and should NOT be copied into
+// library code or new callers; production code passes the allocator
+// in explicitly per the conventions.
 
 #ifndef BENCH_ALLOCATOR_H
 #define BENCH_ALLOCATOR_H
@@ -25,81 +37,72 @@
 extern "C" {
 #endif
 
-// Backend name used in benchmark output (e.g. "glibc", "jemalloc", "misra").
-Zstr bench_backend_name(void);
+    // Backend name used in benchmark output (e.g. "glibc", "jemalloc", "misra").
+    Zstr bench_backend_name(void);
 
-// One-time init / teardown. For libc-shape backends these are no-ops; for
-// MisraStdC they construct/destruct the HeapAllocator.
-void bench_init(void);
-void bench_teardown(void);
+    // One-time init / teardown. For libc-shape backends these are no-ops; for
+    // MisraStdC they construct/destruct the HeapAllocator.
+    void bench_init(void);
+    void bench_teardown(void);
 
-// Per-benchmark hint that lets the backend swap to a specialised
-// allocator when the workload uses a single fixed allocation size.
-// Glibc/jemalloc/mimalloc/tcmalloc and the original MisraStdC backend
-// (Allocator_misra.c) ignore these hints -- they keep using the same
-// general-purpose allocator. The "correct" MisraStdC backend
-// (Allocator_misra_correct.c) honours them by destroying its current
-// allocator and constructing a SlabAllocator(slot) for the fixed-size
-// case, then a fresh HeapAllocator on bench_use_general. This is what
-// a real MisraStdC user would do: pick the allocator that matches the
-// workload shape.
-//
-// Outstanding allocations from before the call are NOT preserved; the
-// previous allocator's state is destroyed and a fresh one constructed.
-// This is an asymmetry vs the libc-shape backends, which keep
-// per-process malloc state across benchmark runs. The asymmetry does
-// NOT favour the misra backends: a fresh slab/heap has to fault its
-// first page on iteration 1, and Google Benchmark's auto-scaled
-// iteration count (typically 10^6+ to fill --benchmark_min_time)
-// absorbs that cold-start blip in the median.
-//
-// Call bench_use_fixed_size before the first bench_alloc of a
-// fixed-size benchmark; call bench_use_general before any benchmark
-// that uses multiple sizes or realloc.
-void bench_use_fixed_size(size_t slot);
-void bench_use_general(void);
+    // Per-benchmark hint: which workload shape the next BM_* will drive.
+    // Backends whose allocator has one mode (libc-shape, HeapAllocator,
+    // ArenaAllocator, DebugAllocator wrapper) treat these as no-ops.
+    // Backends with a per-workload setup (SlabAllocator, BudgetAllocator,
+    // PageAllocator) honour the hint by tearing down and reconstructing
+    // the allocator with the requested slot size; outstanding allocations
+    // from before the call are NOT preserved. The asymmetry does not
+    // favour the misra backends -- a fresh slab/heap faults its first
+    // page on iteration 1, and gbench's auto-scaled iteration count
+    // absorbs that cold-start blip in the median.
+    //
+    // Call bench_use_fixed_size before the first bench_alloc of a
+    // fixed-size benchmark; call bench_use_general before any benchmark
+    // that uses multiple sizes or realloc.
+    void bench_use_fixed_size(size_t slot);
+    void bench_use_general(void);
 
-// Bulk-reset support. Some allocators (ArenaAllocator) can release
-// every outstanding allocation in O(1) via a single reset; others
-// have to free each one individually. Arena-shaped workloads
-// (BM_ArenaBumpReset) branch on `bench_can_reset()`:
-//   true  -> the harness calls bench_reset() once after the alloc loop.
-//   false -> the harness frees each tracked pointer in a loop.
-// Same workload, same accounting; the cost differential is the story.
-int  bench_can_reset(void);
-void bench_reset(void);
+    // Bulk-reset support. Some allocators (ArenaAllocator) can release
+    // every outstanding allocation in O(1) via a single reset; others
+    // have to free each one individually. Arena-shaped workloads
+    // (BM_ArenaBumpReset) branch on `bench_can_reset()`:
+    //   true  -> the harness calls bench_reset() once after the alloc loop.
+    //   false -> the harness frees each tracked pointer in a loop.
+    // Same workload, same accounting; the cost differential is the story.
+    int  bench_can_reset(void);
+    void bench_reset(void);
 
-void *bench_alloc(size_t n);
-void *bench_realloc(void *p, size_t n);
-void  bench_free(void *p);
+    void *bench_alloc(size_t n);
+    void *bench_realloc(void *p, size_t n);
+    void  bench_free(void *p);
 
-// Currently-live bytes, as reported by the allocator's own accounting.
-//
-//   * MisraStdC: AllocatorStats.bytes_in_use, exact.
-//   * jemalloc:  je_mallctl("stats.allocated", ...).
-//   * mimalloc:  mi_stats_get / mi_process_info.
-//   * tcmalloc:  MallocExtension::GetNumericProperty("generic.current_allocated_bytes").
-//   * glibc:     mallinfo2().uordblks.
-//
-// Returns 0 when the backend has no stats API (kept so the bench code
-// can call uniformly).
-uint64_t bench_live_bytes(void);
+    // Currently-live bytes, as reported by the allocator's own accounting.
+    //
+    //   * MisraStdC: AllocatorStats.bytes_in_use, exact.
+    //   * jemalloc:  je_mallctl("stats.allocated", ...).
+    //   * mimalloc:  mi_stats_get / mi_process_info.
+    //   * tcmalloc:  MallocExtension::GetNumericProperty("generic.current_allocated_bytes").
+    //   * glibc:     mallinfo2().uordblks.
+    //
+    // Returns 0 when the backend has no stats API (kept so the bench code
+    // can call uniformly).
+    uint64_t bench_live_bytes(void);
 
-// Allocator-committed footprint, in bytes. Each backend reports it
-// through its OWN introspection API, no /proc/self/statm reads -- so
-// the number reflects exactly what the heap pulled from the OS, with
-// zero process-noise from gbench, our std::vectors, libstdc++, etc.
-//
-//   * glibc:     mallinfo2().arena + .hblkhd
-//   * jemalloc:  mallctl("stats.mapped")
-//   * mimalloc:  mi_process_info(&current_commit, ...)
-//   * tcmalloc:  MallocExtension_GetNumericProperty("generic.heap_size")
-//   * misra:     AllocatorFootprintBytes(a) -- direct read of
-//                base.footprint_bytes, which every typed allocator's
-//                os_page_map/unmap pair maintains.
-//
-// (footprint - live) / footprint is the fragmentation ratio.
-uint64_t bench_footprint_bytes(void);
+    // Allocator-committed footprint, in bytes. Each backend reports it
+    // through its OWN introspection API, no /proc/self/statm reads -- so
+    // the number reflects exactly what the heap pulled from the OS, with
+    // zero process-noise from gbench, our std::vectors, libstdc++, etc.
+    //
+    //   * glibc:     mallinfo2().arena + .hblkhd
+    //   * jemalloc:  mallctl("stats.mapped")
+    //   * mimalloc:  mi_process_info(&current_commit, ...)
+    //   * tcmalloc:  MallocExtension_GetNumericProperty("generic.heap_size")
+    //   * misra:     AllocatorFootprintBytes(a) -- direct read of
+    //                base.footprint_bytes, which every typed allocator's
+    //                os_page_map/unmap pair maintains.
+    //
+    // (footprint - live) / footprint is the fragmentation ratio.
+    uint64_t bench_footprint_bytes(void);
 
 #ifdef __cplusplus
 }
