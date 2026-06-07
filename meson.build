@@ -291,11 +291,46 @@ if freestanding and cc.has_argument('-ffreestanding')
     add_project_arguments('-ffreestanding', language: 'c')
 endif
 
-# x86_64 baseline: AVX2-era ISA (Haswell+, Zen 1+, ~2014). Lets the
-# auto-vectorizer emit 32-byte ymm stores in Mem* loops.
-if host_machine.cpu_family() == 'x86_64' and cc.has_argument('-march=x86-64-v3')
-    add_project_arguments('-march=x86-64-v3', language: 'c')
-    add_project_arguments('-march=x86-64-v3', language: 'cpp')
+# x86_64: pick the highest microarchitecture level the *runtime* CPU
+# actually supports. cc.has_argument only checks whether the compiler
+# accepts the flag — it'll happily accept `-march=x86-64-v3` on any
+# host, and the resulting AVX2/BMI2/FMA instructions will then SIGILL
+# on a CPU that lacks them (e.g. Ivy Bridge or older). Detect via
+# /proc/cpuinfo on Linux so the same source tree compiles for a Haswell
+# CI runner the same as for a 2012 dev box.
+#
+# Levels (per System V psABI):
+#   x86-64-v4 : AVX-512F + AVX-512BW + AVX-512CD + AVX-512DQ + AVX-512VL
+#   x86-64-v3 : AVX, AVX2, BMI1, BMI2, F16C, FMA, LZCNT, MOVBE, OSXSAVE
+#   x86-64-v2 : SSE3, SSSE3, SSE4.1, SSE4.2, POPCNT, CX16, LAHF-SAHF
+#   x86-64    : baseline (always assumed; no flag needed)
+march_level = ''
+if host_machine.cpu_family() == 'x86_64' and host_machine.system() == 'linux'
+    march_probe = run_command(
+        'sh', '-c',
+        'F=$(grep "^flags" /proc/cpuinfo | head -1); ' +
+        'check() { echo "$F" | grep -qE "\\b$1\\b"; }; ' +
+        'if   check avx512f; then echo x86-64-v4; ' +
+        'elif check avx2 && check bmi2 && check fma; then echo x86-64-v3; ' +
+        'elif check sse4_2 && check popcnt; then echo x86-64-v2; ' +
+        'fi',
+        check: false,
+    )
+    march_level = march_probe.stdout().strip()
+endif
+# Non-Linux x86_64 (macOS, Windows): keep the historical default — trust
+# cc.has_argument. CI on those platforms doesn't currently target older
+# CPUs, and a proper sysctl/cpuid probe isn't worth the meson plumbing.
+if host_machine.cpu_family() == 'x86_64' and march_level == '' \
+   and host_machine.system() != 'linux' and cc.has_argument('-march=x86-64-v3')
+    march_level = 'x86-64-v3'
+endif
+if march_level != '' and cc.has_argument('-march=' + march_level)
+    add_project_arguments('-march=' + march_level, language: 'c')
+    add_project_arguments('-march=' + march_level, language: 'cpp')
+    message('x86_64: -march=' + march_level)
+elif host_machine.cpu_family() == 'x86_64'
+    message('x86_64: using baseline -march=x86-64 (no v2+ features detected)')
 endif
 
 # _Freestanding.c: compiler-/harness-emitted symbols (memcpy/memset/
