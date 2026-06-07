@@ -1,4 +1,4 @@
-name: Linux Build
+name: Linux ARM64 Build
 
 on:
   push:
@@ -6,48 +6,29 @@ on:
   pull_request:
     branches: [ main, master ]
 
-# Automatically cancel any previous workflow on new push.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
   build-and-test:
-    name: ${{ matrix.flavour }} on Ubuntu
-    runs-on: ubuntu-latest
-    # Run in an official ubuntu:24.04 container so the same image is used
-    # on github-hosted runners (which spin it up on their VM) and on the
-    # self-hosted bee runner (which spawns it via docker). On self-hosted
-    # the runner-config's --add-host and --volume options inject Forgejo
-    # routing + apt-cacher-ng proxy; github-hosted just hits public mirrors.
+    name: ${{ matrix.flavour }} on Ubuntu (arm64)
+    runs-on: ubuntu-22.04-arm
     container:
       image: ubuntu:24.04
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Correctness pass: sanitizers on, libc-diet off (the gate in
-          # meson.build flips libc-diet off when b_sanitize != none, so
-          # this links against the full libc + libasan/libubsan and
-          # catches UB, leaks, OOB).
           - flavour: sanitized
             setup_args: '-Dwarning_level=2 -Db_sanitize=address,undefined -Db_lundef=false'
             verify_libc_diet: 'no'
-          # Libc-diet pass: no sanitizers, so the meson gate keeps the
-          # freestanding machinery on. Builds with -nostdlib on Bin/
-          # tools, then asserts the shipping binaries have zero libc
-          # undefined references.
           - flavour: freestanding
             setup_args: '-Dwarning_level=2'
             verify_libc_diet: 'yes'
 
     steps:
     - name: Bootstrap container (build + runtime deps)
-      # Pristine ubuntu:24.04 has neither node (needed by every JS action
-      # including actions/checkout) nor gcc/python/meson. Install in one
-      # apt call so apt-cacher-ng fetches the whole .deb set together.
-      # No sudo — containers run as root by default; the base image
-      # doesn't ship sudo anyway.
       run: |
         apt-get update
         apt-get install -y --no-install-recommends \
@@ -60,23 +41,14 @@ jobs:
         submodules: recursive
 
     - name: Configure
-      run: |
-        meson setup build ${{ matrix.setup_args }}
+      run: meson setup build ${{ matrix.setup_args }}
 
     - name: Build
-      run: |
-        ninja -C build
+      run: ninja -C build
 
     - name: Test
-      run: |
-        meson test -C build --print-errorlogs
+      run: meson test -C build --print-errorlogs
 
-    # Libc-diet assertion: every shipping Bin/ tool must come out of
-    # the link with zero libc-resident undefined references. If anyone
-    # accidentally calls strlen / malloc / fopen / etc., 'nm -u' on
-    # the binary will surface it. Compiler-runtime calls live in
-    # libgcc which we link explicitly, so those show up as defined
-    # symbols not undef.
     - name: Verify libc-diet (Bin/ tools have no libc undef refs)
       if: matrix.verify_libc_diet == 'yes'
       run: |
@@ -95,8 +67,6 @@ jobs:
           else
             echo "OK: $bin has zero undefined references"
           fi
-          # Belt-and-braces: confirm ldd reports statically linked
-          # (nm could miss weak refs that ldd would catch).
           ldd_out=$(ldd "$bin" 2>&1 || true)
           if ! echo "$ldd_out" | grep -q 'statically linked\|not a dynamic executable'; then
             echo "::error::$bin is not statically linked:"
@@ -110,5 +80,5 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-logs-linux-${{ matrix.flavour }}
+        name: test-logs-linux-arm64-${{ matrix.flavour }}
         path: build/meson-logs/testlog.txt
