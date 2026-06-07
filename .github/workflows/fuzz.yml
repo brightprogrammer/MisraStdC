@@ -136,7 +136,7 @@ jobs:
         fi
         
     - name: Upload fuzzing results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       if: always()
       with:
         name: fuzzing-results
