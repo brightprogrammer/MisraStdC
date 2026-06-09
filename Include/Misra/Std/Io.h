@@ -297,6 +297,7 @@ Float:                                                                          
             (x),                                                                                                       \
             TypeSpecificIO: (x),                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, &(x)),                                                                       \
+            Buf: TO_TYPE_SPECIFIC_IO(Buf, &(x)),                                                                       \
             IOFMT_FLOAT_CASE_(x, &(x)) IOFMT_INT_CASE_(x, &(x)) IOFMT_BITVEC_CASE_(x, &(x)) IOFMT_USER_CASE_(x, &(x))  \
                 Zstr: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                 \
             char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                   \
@@ -321,6 +322,7 @@ Float:                                                                          
             (x),                                                                                                       \
             TypeSpecificIO: (x),                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, (void *)&(x)),                                                               \
+            Buf: TO_TYPE_SPECIFIC_IO(Buf, (void *)&(x)),                                                               \
             IOFMT_FLOAT_CASE_(x, (void *)&(x)) IOFMT_INT_CASE_(x, (void *)&(x)) IOFMT_BITVEC_CASE_(x, (void *)&(x))    \
                 IOFMT_USER_CASE_(x, (void *)&(x)) Zstr: TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                       \
             char *: TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                                                           \
@@ -729,6 +731,7 @@ bool float_try_to_scientific_str(
 
 // not for direct use
 bool _write_Str(Str *o, FmtInfo *fmt_info, Str *s);
+bool _write_Buf(Str *o, FmtInfo *fmt_info, Buf *b);
 bool _write_u8(Str *o, FmtInfo *fmt_info, u8 *v);
 bool _write_u16(Str *o, FmtInfo *fmt_info, u16 *v);
 bool _write_u32(Str *o, FmtInfo *fmt_info, u32 *v);
@@ -752,6 +755,7 @@ bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value);
 #endif
 
 Zstr _read_Str(Zstr i, FmtInfo *fmt_info, Str *s);
+Zstr _read_Buf(Zstr i, FmtInfo *fmt_info, Buf *b);
 Zstr _read_u8(Zstr i, FmtInfo *fmt_info, u8 *v);
 Zstr _read_u16(Zstr i, FmtInfo *fmt_info, u16 *v);
 Zstr _read_u32(Zstr i, FmtInfo *fmt_info, u32 *v);

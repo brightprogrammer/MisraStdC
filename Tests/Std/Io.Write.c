@@ -706,6 +706,24 @@ bool test_str_patch_fmt(void) {
     return ok;
 }
 
+bool test_buf_formatting(void) {
+    WriteFmt("Testing Buf formatting\n");
+
+    DefaultAllocator alloc  = DefaultAllocatorInit();
+    Str              output = StrInit(&alloc);
+    Buf              b      = BufInit(&alloc);
+
+    BufPushBytes(&b, (const u8 *)"hello", 5);
+    StrAppendFmt(&output, "{}", b); // Buf is a first-class {} argument now
+
+    bool ok = ZstrCompare(StrBegin(&output), "hello") == 0;
+
+    BufDeinit(&b);
+    StrDeinit(&output);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting format writer tests\n\n");
 
@@ -726,7 +744,8 @@ int main(void) {
         test_int_formatting,
         test_float_formatting,
         test_str_write_fmt_clears,
-        test_str_patch_fmt
+        test_str_patch_fmt,
+        test_buf_formatting
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);

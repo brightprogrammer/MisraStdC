@@ -1614,6 +1614,15 @@ static inline Zstr read_chars_internal(Zstr i, u8 *buffer, size buffer_size, Fmt
     return current;
 }
 
+// Buf is Vec(u8), Str is Vec(char) -- identical layout, so Buf text I/O
+// aliases the Str path (same (Str *) cast buf_append_fmt relies on).
+bool _write_Buf(Str *o, FmtInfo *fmt_info, Buf *b) {
+    return _write_Str(o, fmt_info, (Str *)b);
+}
+Zstr _read_Buf(Zstr i, FmtInfo *fmt_info, Buf *b) {
+    return _read_Str(i, fmt_info, (Str *)b);
+}
+
 bool _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
     if (!o || !s || !fmt_info) {
         LOG_FATAL("Invalid arguments");
