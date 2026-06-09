@@ -100,7 +100,7 @@ jobs:
 
     - name: Upload test logs
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: test-logs-macos-${{ matrix.flavour }}
         path: build/meson-logs/testlog.txt

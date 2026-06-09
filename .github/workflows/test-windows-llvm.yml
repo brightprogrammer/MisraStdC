@@ -205,7 +205,7 @@ jobs:
       # the artifact we have no way to tell a green run with N tests
       # from a green run with 0 tests.
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: test-logs-windows-llvm-${{ matrix.flavour }}
         path: build/meson-logs/testlog.txt
