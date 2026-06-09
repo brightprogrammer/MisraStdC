@@ -29,6 +29,13 @@
 #    include <Misra/Parsers/Dns.h>
 #endif
 
+// Note: the Generics subsystem (`Misra/Generics.h` -- a compile-time
+// type match and friends) is intentionally NOT pulled through this umbrella. Its
+// public macros use short ergonomic names (`Match`, `When`, `it`,
+// `Otherwise`) that would collide with ordinary downstream
+// identifiers in every TU. Include `<Misra/Generics.h>` (or a specific
+// `Generics/*.h`) directly where you want it.
+
 // Note: the binary-format parsers
 // (`Parsers/Elf.h`, `Parsers/Dwarf.h`, `Parsers/MachO.h`,
 // `Parsers/Pe.h`, `Parsers/Pdb.h`) are intentionally NOT pulled
