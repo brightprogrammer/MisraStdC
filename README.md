@@ -6,12 +6,13 @@
 [![Windows LLVM](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows-llvm.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows-llvm.yml)
 [![Fuzzing](https://github.com/brightprogrammer/MisraStdC/actions/workflows/fuzz.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/fuzz.yml)
 
-A C11 standard-library replacement that brings the parts of Rust, Zig, C++, and
-Python that actually pay off into plain C — without a runtime, a code generator,
-or a template compiler. Everything is opt-in at build time, so you compile only
-what you use, and nothing hides at runtime: allocators are plain values you own,
-generics expand to inlined code you can step through, and a single
-`#include <Misra.h>` pulls in whatever the build enabled.
+A C11 standard library, made with love, to bring some modern concepts into
+plain C. Everything is opt-in at build time — you compile only what you use, and
+a single `#include <Misra.h>` pulls in whatever the build enabled.
+
+> Parts of this codebase have been written and re-written with the help of LLMs,
+> under close supervision. See
+> [Transparency and use of LLMs](#transparency-and-use-of-llms) for how.
 
 > Not related to the MISRA C standard or its guidelines. The name comes from
 > the author's surname — Siddharth Mishra, nicknamed "Misra".
@@ -155,3 +156,53 @@ In-depth guides live under [`Docs/`](Docs/). Before contributing, read
 [`CODING-CONVENTIONS.md`](CODING-CONVENTIONS.md) and run the test suite plus
 `clang-format`. Released into the public domain under the
 [Unlicense](LICENSE.md).
+
+## Project status
+
+This codebase is in its very early stages. There is no stable branch yet, and
+there won't be one for a while. **Treat `master` as unstable** — agents
+introduce coding drift that gets caught and fixed later, so the tip of `master`
+can carry inconsistencies that are still being ironed out. Build against it with
+that expectation.
+
+What *is* stable is the set of standards the code is held to: naming, ownership,
+allocator rules, error handling, formatting, and the rest are written down in
+[`CODING-CONVENTIONS.md`](CODING-CONVENTIONS.md). When the code and the
+conventions disagree, the conventions are right and the code is a bug to be
+fixed.
+
+The tests aim to cover as much of the codebase as possible, and best effort goes
+into keeping everything stable *in its usage* — APIs behave as documented and
+the suite is meant to catch regressions across the library. What remains mostly
+unstable is **performance**. The prototype code just works; it isn't yet fast.
+At the time of writing a significant share of the available time and effort is
+going into benchmarking and improving it.
+
+## Transparency and use of LLMs
+
+Parts of this codebase have been written and re-written with the help of large
+language models, under close supervision. I want to be upfront about that rather
+than pretend every line was typed by hand.
+
+The models do not get a free hand. I work them in tight review loops: I read
+what they produce, scrutinize it against the conventions above, and push back
+hard when it drifts — and it does drift, sometimes from noise in the model and
+sometimes because my own prompt was sloppy. When the output starts to "slop"
+(plausible-looking code that quietly ignores an established pattern, reaches for
+libc where an in-tree primitive exists, oversells what it actually does, or
+invents an API instead of using the real one), I stop it, point at the specific
+convention it broke, and make it redo the work until it matches the rest of the
+library. Nothing lands because it looked convincing; it lands because I checked
+it.
+
+I also drive the commit history deliberately. The models tend to leave a trail
+of experimental, half-right commits while we iterate; before anything is
+published I have them cherry-pick and squash that down into a small set of
+clean, self-contained commits with honest messages, so the history reads as a
+sequence of deliberate changes rather than a transcript of the back-and-forth
+that produced them.
+
+The intent is simple: the convenience of an LLM for the mechanical work, none of
+the abdication of judgement. The author remains responsible for every design
+decision that goes in; granular, line-by-line knowledge of the code is not 100%
+guaranteed, but a high-level understanding of it is assured.
