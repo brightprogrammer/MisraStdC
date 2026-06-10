@@ -105,6 +105,36 @@ survivor to suppress. The ledger and the filter both hard-reject any entry with
 `bucket = "A"` (and any entry missing `bucket` or `rationale`) — the filter
 exits non-zero with a clear message. Only `"B"` and `"C"` may appear.
 
+### The pre-push invariant — converge to zero (BINDING)
+
+Before **any** push, the mutation report **after ledger filtering MUST contain
+zero survivors.** Every surviving mutant MUST be either killed by a test
+(bucket A) or accepted in the ledger (bucket B/C). A non-empty filtered report
+is a **hard stop: you MUST NOT push — even when the author explicitly asks.**
+`remaining == 0` after filtering is the *only* accepted pre-push state. There
+is no exception, no "push now and whittle the backlog down later," and no
+override. The invariant covers **every** survivor in the components the push
+exercises — **pre-existing survivors included**, not only those the change
+introduced.
+
+The survivor count this invariant refers to is the **true** survivor set:
+a mutant is *killed* if **any** suite kills it. The filter MUST therefore
+**dedupe** each mutant and **intersect per source file** across that file's
+component suites before counting it. `Scripts/mutation.sh` mutates one file per
+component and runs only that component's suites, so a file's mutants appear
+only in its own component's reports; a per-suite **union over-reports and MUST
+NOT be used** as the gate.
+
+### Accepting a survivor requires the user's sign-off (BINDING)
+
+A ledger `[[ignore]]` stanza **MUST NOT be added autonomously.** For every
+survivor proposed for acceptance as bucket B/C, you MUST first present it to the
+user — its location, its mutator, and why it is strategy/equivalent — and obtain
+the user's **explicit approval** before writing the stanza. Bucket-A fixes
+(adding or tightening a test) need no approval; **accepting** a crack in
+coverage always does. Every entry in the ledger is, by this rule, a survivor the
+user has knowingly signed off on.
+
 ### The ledger file — `Conventions/mull-ignores.toml`
 
 One `[[ignore]]` stanza per accepted survivor:
@@ -167,42 +197,43 @@ Scripts/mull-filter.py build_mull/Map/mutation-*.txt
 # in a commit range without its ledger stanza being updated:
 Scripts/mull-filter.py --check-range <base>..<head>
 
-# CI gate: suppress accepted survivors AND fail on a survivor that was
-# introduced in this change's diff range:
-Scripts/mull-filter.py --fail-on-new <base>..<head> build_mull/**/mutation-*.txt
+# CI / pre-push gate: suppress accepted survivors and FAIL unless the filtered
+# report is empty (remaining == 0) -- the convergence invariant:
+Scripts/mull-filter.py --gate build_mull/<comp>/mutation-*.txt
 ```
 
-Both modes exit non-zero on a hard ledger error (bucket A / missing field) or
-on any stale entry; `0` means clean.
+The gate exits non-zero on a hard ledger error (bucket A / missing field), on
+any stale entry, or on **any remaining survivor**; `0` means a clean, fully
+converged report.
 
 ### What CI gates on (and what it never gates on)
 
-The `.github/workflows/mutation.yml` job **fails the build** on exactly two
+The `.github/workflows/mutation.yml` job **fails the build** on exactly these
 conditions, and nothing else:
 
 - **(a) A stale ignore or a malformed ledger entry.** A `region_hash` mismatch
   (the anchored region moved) makes the entry STALE; a `bucket = "A"` entry, or
   one missing a required field, is a hard ledger error. The filter exits
-  non-zero on both, unconditionally — independent of any diff. **Bucket A is
-  never ignorable**: a contract gap is a missing test, not a survivor to
-  suppress (see *The accepted-survivor ledger* above).
-- **(b) A survivor newly introduced in the change.** With
-  `--fail-on-new <base>..<head>`, the filter parses
-  `git diff --unified=0 <base>..<head>` for the new-file (`+`) line ranges the
-  change adds/touches, and fails if any **remaining** (non-ledgered, non-stale)
-  survivor's reported line falls inside one of those ranges. A new gap you
-  introduced gates your change; you triage it on the spot — add a contract test
-  (bucket A) or, if it is genuinely strategy/equivalent, ledger it (bucket B/C).
-  **Pre-existing survivors in unchanged code do not gate** — they are a backlog
-  to whittle down, not a wall every unrelated change has to clear.
+  non-zero on both, unconditionally. **Bucket A is never ignorable**: a contract
+  gap is a missing test, not a survivor to suppress (see *The accepted-survivor
+  ledger* above).
+- **(b) Any remaining survivor after filtering.** After ledgered survivors are
+  suppressed, if the filtered report still lists **even one** true survivor (see
+  *the pre-push invariant*), the job fails. This is the enforcement of "converge
+  to zero": a remaining survivor is either an un-triaged gap (write a test) or a
+  strategy/equivalent survivor the user has not yet approved into the ledger.
+  **Pre-existing survivors are NOT exempt** — they gate exactly as new ones do.
+  There is no "unchanged-code backlog" carve-out; the only accepted state is
+  `remaining == 0`.
 
-The job passes the diff baseline only when there is one: on `push` it uses
-`github.event.before..github.sha`; on `schedule` / `workflow_dispatch` (no PR
-diff) it runs the filter **without** a range, so only the stale / bucket-A gate
-(a) applies. A first push / branch-create (empty or all-zeroes `before`) also
-falls back to no-range gating. The diff baseline is purely informational about
-*where* new code is; it never widens or narrows gate (a).
+A `--check-range <base>..<head>` enforcement hook additionally fails when a
+ledger-covered region moves in a commit range without its stanza being updated
+(the same staleness check, scoped to changed files as a fast-path). It does not
+relax gate (b): convergence to zero is required regardless of what the diff
+touched.
 
 **The absolute mutation score is never a gate.** It stays a discovery signal
 printed by `mutation.sh`. Gating on the score would re-introduce exactly the
-"drive it to 100%" failure mode this whole document argues against.
+"drive it to 100%" failure mode this whole document argues against — the gate is
+on *remaining survivors after filtering*, which is zero only because every one
+has been deliberately killed or signed off, never because a percentage was hit.
