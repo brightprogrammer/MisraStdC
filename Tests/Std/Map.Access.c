@@ -259,6 +259,78 @@ static bool test_map_collision_chain_lookup(void) {
     return result;
 }
 
+// One full forced-collision contract cycle, parameterised over the probing
+// policy. Every key shares a single bucket (const_hash), so the probe
+// sequence -- whatever the policy chooses -- must walk a multi-step chain to
+// place and later find each key. We assert ONLY caller-observable outcomes:
+// every key looks up to its OWN value, the count is right, removing an
+// interior key drops the count by exactly one and leaves the rest reachable.
+// We never assert probe order, slot indices, capacity, or tombstone counts.
+//
+// KEY_COUNT is chosen well above the old 4-key workload so the chain spans
+// many probe steps under both policies; under quadratic that means a key
+// landing at a triangular-number offset that a linearised formula would
+// never revisit -- so a quadratic-degraded-to-linear mutant makes some key
+// unreachable or returns a neighbour's value here.
+static bool run_collision_contract_cycle(MapPolicy policy) {
+    enum {
+        KEY_COUNT = 24
+    };
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap        map   = MapInitWithValueCompareAndPolicy(const_hash, i32_compare, i32_compare, policy, &alloc);
+
+    // Insert: distinct keys, all colliding into one bucket.
+    for (int k = 0; k < KEY_COUNT; k++)
+        MapInsertR(&map, k, k * 100 + 7);
+
+    bool result = (MapPairCount(&map) == KEY_COUNT) && (MapUniqueKeyCount(&map) == KEY_COUNT);
+
+    // Lookup: every inserted key must return ITS OWN value, not a neighbour's.
+    for (int k = 0; k < KEY_COUNT; k++) {
+        int *v = MapGetFirstPtr(&map, k);
+        result = result && v && (*v == k * 100 + 7);
+        result = result && MapContainsKey(&map, k) && (MapValueCountForKey(&map, k) == 1);
+    }
+    // A key that collides into the chain but was never inserted is absent.
+    result = result && !MapContainsKey(&map, 9999) && (MapGetFirstPtr(&map, 9999) == NULL);
+
+    // Remove an INTERIOR key from the collision chain.
+    const int removed = KEY_COUNT / 2;
+    MapRemoveFirst(&map, removed);
+
+    // Count dropped by exactly one; the removed key is gone.
+    result = result && (MapPairCount(&map) == (KEY_COUNT - 1));
+    result = result && (MapUniqueKeyCount(&map) == (KEY_COUNT - 1));
+    result = result && !MapContainsKey(&map, removed) && (MapGetFirstPtr(&map, removed) == NULL);
+
+    // Every OTHER key is still reachable with its own value -- removing an
+    // interior chain member must not strand keys probed after it.
+    for (int k = 0; k < KEY_COUNT; k++) {
+        if (k == removed)
+            continue;
+        int *v = MapGetFirstPtr(&map, k);
+        result = result && v && (*v == k * 100 + 7);
+        result = result && MapContainsKey(&map, k) && (MapValueCountForKey(&map, k) == 1);
+    }
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Run the forced-collision contract cycle under the linear policy.
+static bool test_map_collision_contract_linear(void) {
+    return run_collision_contract_cycle(MapPolicyLinear);
+}
+
+// Run the same cycle under the quadratic policy. Degrading the quadratic
+// probe formula to linear must surface a key that becomes unreachable or
+// returns a wrong value here (mutation oracle O-7).
+static bool test_map_collision_contract_quadratic(void) {
+    return run_collision_contract_cycle(MapPolicyQuadratic);
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_map_contains_and_find,
@@ -269,6 +341,8 @@ int main(void) {
         test_map_value_cursor_query,
         test_map_cursor_invalidated_after_removal,
         test_map_collision_chain_lookup,
+        test_map_collision_contract_linear,
+        test_map_collision_contract_quadratic,
     };
 
     WriteFmt("[INFO] Starting Map.Access tests\n\n");
