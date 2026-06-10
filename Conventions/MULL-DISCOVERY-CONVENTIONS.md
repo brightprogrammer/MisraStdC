@@ -91,3 +91,85 @@ containers run on the project's own allocator, not libc `malloc`. The right
 tool is the project's page-backed `DebugAllocator`, which traps such reads.
 Wiring it into the mull build is **deferred until after the allocator rewrite**;
 do not add it before then. Until it lands, these are accepted survivors.
+
+## The accepted-survivor ledger
+
+Bucket-**(B)** and bucket-**(C)** survivors are accepted *by design* — but a
+raw report re-lists them on every run, drowning out the bucket-**(A)** gaps that
+actually need a test. The ledger records each accepted survivor once, and
+`Scripts/mull-filter.py` removes it from the report so downstream readers only
+see survivors that still need triage.
+
+**Bucket A is NEVER ignorable.** A contract gap is a missing test, not a
+survivor to suppress. The ledger and the filter both hard-reject any entry with
+`bucket = "A"` (and any entry missing `bucket` or `rationale`) — the filter
+exits non-zero with a clear message. Only `"B"` and `"C"` may appear.
+
+### The ledger file — `Conventions/mull-ignores.toml`
+
+One `[[ignore]]` stanza per accepted survivor:
+
+| field | meaning |
+| --- | --- |
+| `id` | stable unique string (e.g. `MAP-REHASH-001`) |
+| `file` | repo-relative path to the source file |
+| selector | **exactly one** of `function = "name"`, `lines = [start, end]` (1-based inclusive), or `pattern = "regex"` |
+| `mutator` | *optional* mull mutator id or glob (`cxx_*`); omitted = match any mutator |
+| `bucket` | `"B"` or `"C"` only |
+| `rationale` | why it's accepted, phrased in caller-contract terms |
+| `author`, `created` | who triaged it and when (`YYYY-MM-DD`) |
+| `region_hash` | `sha256:<hex>` of the normalised anchored region |
+
+The selector names a source *region*. `function` covers the named C function's
+full body (signature line through the matching close brace); `lines` covers an
+explicit span; `pattern` covers the **set** of lines matching the regex.
+
+### `region_hash` normalisation
+
+`region_hash` is the SHA-256 of the region's lines after this per-line
+normalisation, then joined with `\n`:
+
+1. strip leading and trailing whitespace;
+2. collapse every internal run of whitespace to a single space
+   (a whitespace-only line becomes empty).
+
+For a `pattern` selector the region is the set of matching lines in **ascending
+file (line-number) order** — a deterministic ordering so the hash is stable.
+Because whitespace is normalised away, a pure-reindent / reformat of the region
+does **not** invalidate an entry; only a change to the region's *tokens* does.
+
+### Invalidation — the git tie-in
+
+Before filtering, the tool recomputes every entry's `region_hash` against the
+**current working tree**. On a mismatch the entry is **STALE**: it suppresses
+nothing, is listed loudly in the summary, and the filter **exits non-zero**. The
+hash is the source of truth — a moved region must be re-triaged and its stanza
+updated (new `region_hash`, refreshed `rationale` if the logic changed). As a
+performance fast-path the `--check-range` mode may consult
+`git diff --name-only <base>..<head>` to skip hashing entries in untouched
+files, but the hash, not the diff, decides staleness.
+
+### The filter — `Scripts/mull-filter.py`
+
+`Scripts/mutation.sh` runs `mull-runner` with no `--reporters` flag, so mull
+emits its default **IDE** reporter, which `mutation.sh` tees to
+`build_mull/<comp>/mutation-<suite>.txt`. A survivor appears as
+`…/File.c:LINE:COL: warning: Survived: <desc> [<mutator>]` followed by the
+source echo and a caret. The filter keys off that warning line.
+
+```
+# Suppress accepted survivors and print a summary:
+Scripts/mull-filter.py build_mull/Map/mutation-*.txt
+#   -> writes report.filtered.txt; summary block reports
+#      total / ignored(by id) / remaining / stale-ignores
+
+# Enforcement hook (CI step or pre-commit): fail if a covered region moved
+# in a commit range without its ledger stanza being updated:
+Scripts/mull-filter.py --check-range <base>..<head>
+```
+
+Both modes exit non-zero on a hard ledger error (bucket A / missing field) or
+on any stale entry; `0` means clean. The CI step in
+`.github/workflows/mutation.yml` runs both invocations **informationally** (it
+cannot fail the job yet) — making the filter and the `--check-range` hook
+actually gate is a deliberate later change.

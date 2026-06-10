@@ -1,0 +1,31 @@
+# Accepted-survivor ledger for Mull mutation testing.
+#
+# One [[ignore]] stanza per accepted surviving mutant. An entry suppresses a
+# survivor from the filtered report ONLY while its `region_hash` still matches
+# the anchored source region in the working tree; the moment the region moves,
+# the entry goes STALE, suppresses nothing, and Scripts/mull-filter.py exits
+# non-zero. See Conventions/MULL-DISCOVERY-CONVENTIONS.md for the full workflow.
+#
+# Schema (per [[ignore]]):
+#   id          stable unique string (e.g. "MAP-REHASH-001")
+#   file        repo-relative path to the source file
+#   ONE selector among:
+#       function = "name"          # the named C function's full body
+#       lines    = [start, end]    # 1-based inclusive line span
+#       pattern  = "regex"         # the SET of matching source lines
+#   mutator     optional mull mutator id / glob (e.g. "cxx_*"); omit = any
+#   bucket      "B" or "C" ONLY -- "A" (contract gap) is NEVER ignorable
+#   rationale   why this survivor is accepted, in caller-contract terms
+#   author      who triaged it
+#   created     YYYY-MM-DD
+#   region_hash "sha256:<hex>" of the normalised region (see the doc)
+
+[[ignore]]
+id = "MAP-REHASH-001"
+file = "Source/Misra/Std/Container/Map.c"
+function = "default_should_rehash"
+bucket = "B"
+rationale = "The probe-pressure rehash threshold (probe_pressure > 0 && probe_pressure*4 >= capacity) is a strategy/perf constant: mutating it only changes WHEN the map chooses to rehash, never WHAT a caller observes. The map's contract -- every insert retrievable with the right value and count -- is covered by the per-policy forced-collision tests, which hold across any rehash schedule. Killing this mutant would require asserting an implementation-chosen capacity/threshold, over-fitting the suite to the current code (bucket B per MULL-DISCOVERY-CONVENTIONS)."
+author = "ws5-agent"
+created = "2026-06-10"
+region_hash = "sha256:b1c8e7644e5b58f9af064833c7078f2a7f7618ccb8672264a45ebf6591b6a95c"

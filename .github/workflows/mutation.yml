@@ -72,6 +72,28 @@ jobs:
           fi
           ./Scripts/mutation.sh $COMPONENTS
 
+      - name: Filter accepted survivors (informational)
+        # Non-gating visibility step: run the accepted-survivor filter over the
+        # captured reports so the log shows which survivors the ledger
+        # (Conventions/mull-ignores.toml) suppresses and which still need
+        # triage. `|| true` keeps it from failing the job -- turning the filter
+        # (and the --check-range enforcement hook) into a GATE is a separate,
+        # later change. This step never fails the build today.
+        if: always()
+        run: |
+          shopt -s nullglob
+          reports=(build_mull/**/mutation-*.txt)
+          if [ ${#reports[@]} -gt 0 ]; then
+            python3 Scripts/mull-filter.py --root . "${reports[@]}" || true
+          fi
+          # Enforcement-hook reference invocation (also non-gating for now):
+          # flags any ledger-covered region that moved without its stanza being
+          # updated over the push range. Informational until the gating flip.
+          if [ -n "${{ github.event.before }}" ]; then
+            python3 Scripts/mull-filter.py --root . \
+              --check-range "${{ github.event.before }}..${{ github.sha }}" || true
+          fi
+
       - name: Upload mutation reports
         if: always()
         uses: actions/upload-artifact@v4
