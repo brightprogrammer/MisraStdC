@@ -1,6 +1,7 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Std/Container/Map.h>
+#include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Log.h>
 #include "../Util/TestRunner.h"
 
@@ -130,12 +131,64 @@ static bool test_validate_map_policy(void) {
            custom_next_index(0x55u, 5, 1, 2) < 5;
 }
 
+static bool test_map_type_value_compare_and_policy(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc         = DefaultAllocatorInit();
+    MapPolicy        custom_policy = {
+               .name            = "vcmp-policy",
+               .should_rehash   = custom_should_rehash_snapshot,
+               .next_capacity   = custom_next_capacity,
+               .first_index     = custom_first_index,
+               .next_index      = custom_next_index,
+               .max_probe_count = 13,
+    };
+    IntIntMap map = MapInitWithValueCompareAndPolicy(i32_hash, i32_compare, i32_compare, custom_policy, &alloc);
+
+    bool result = MapKeyHash(&map) == i32_hash && MapKeyCompare(&map) == i32_compare &&
+                  MapValueCompare(&map) == i32_compare && ZstrCompare(MapPolicy(&map).name, "vcmp-policy") == 0 &&
+                  MapPolicy(&map).should_rehash == custom_should_rehash_snapshot &&
+                  MapPolicy(&map).next_capacity == custom_next_capacity &&
+                  MapPolicy(&map).first_index == custom_first_index &&
+                  MapPolicy(&map).next_index == custom_next_index && MapPolicy(&map).max_probe_count == 13;
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+static bool test_map_type_deep_copy_wiring(void) {
+    typedef Map(Zstr, Zstr) ZstrMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    ZstrMap          map   = MapInitWithDeepCopy(
+        zstr_hash,
+        zstr_compare,
+        zstr_init_clone,
+        zstr_deinit,
+        zstr_init_clone,
+        zstr_deinit,
+        &alloc
+    );
+
+    bool result = MapKeyHash(&map) == (GenericHash)zstr_hash && MapKeyCompare(&map) == (GenericCompare)zstr_compare &&
+                  MapValueCompare(&map) == NULL && MapKeyCopyInit(&map) == (GenericCopyInit)zstr_init_clone &&
+                  MapKeyCopyDeinit(&map) == (GenericCopyDeinit)zstr_deinit &&
+                  MapValueCopyInit(&map) == (GenericCopyInit)zstr_init_clone &&
+                  MapValueCopyDeinit(&map) == (GenericCopyDeinit)zstr_deinit &&
+                  MapAllocator(&map) == ALLOCATOR_OF(&alloc);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_map_type_defaults,
         test_map_type_with_value_compare,
         test_map_policy_copy,
         test_validate_map_policy,
+        test_map_type_value_compare_and_policy,
+        test_map_type_deep_copy_wiring,
     };
 
     WriteFmt("[INFO] Starting Map.Type tests\n\n");

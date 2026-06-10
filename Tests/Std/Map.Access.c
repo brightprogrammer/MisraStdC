@@ -18,6 +18,16 @@ static i32 i32_compare(const void *lhs, const void *rhs) {
     return (a > b) - (a < b);
 }
 
+// Degenerate hash: every key lands in the same bucket, forcing the probe
+// sequence to walk a collision chain and the key comparator to disambiguate.
+// With a non-degenerate hash a lookup can succeed on the cached-hash check
+// alone, so this is what actually exercises map_keys_equal.
+static u64 const_hash(const void *data, u32 size) {
+    (void)data;
+    (void)size;
+    return 0;
+}
+
 static bool test_map_contains_and_find(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
@@ -60,17 +70,60 @@ static bool test_map_get_ptr(void) {
     return result;
 }
 
-static bool test_map_try_get_ptr(void) {
+// Contract: MapGetFirstPtr returns a *live* pointer into the value slot
+// (valid until next rehash). Writing through it must mutate the stored
+// value, and the first stored value is the duplicate inserted first.
+static bool test_map_get_first_ptr_is_live(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
+    IntIntMap        map   = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare, &alloc);
 
     MapSetOnlyR(&map, 11, 110);
     MapInsertR(&map, 11, 111);
 
     int *value  = MapGetFirstPtr(&map, 11);
     bool result = value && (*value == 110);
-    result      = result && (MapGetFirstPtr(&map, 999) == NULL);
+
+    // Mutate through the live pointer; the change must persist in the map.
+    if (value)
+        *value = 999;
+    int *value_again = MapGetFirstPtr(&map, 11);
+    result           = result && value_again && (*value_again == 999);
+    result           = result && (value == value_again);
+
+    // The second duplicate must be untouched (still 111).
+    result = result && MapContainsPair(&map, 11, 111);
+    result = result && !MapContainsPair(&map, 11, 110);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Contract: every query on an EMPTY map (capacity 0) takes its early-out
+// branch in Map.c. Guards `if (!map->capacity) return ...;` lines.
+static bool test_map_empty_queries(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap        map   = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare, &alloc);
+
+    bool result = (MapGetFirstPtr(&map, 7) == NULL);             // map_get_value_ptr early-out
+    result      = result && !MapContainsKey(&map, 7);            // map_contains early-out
+    result      = result && !MapContainsPair(&map, 7, 0);        // map_contains_pair early-out
+    result      = result && (MapValueCountForKey(&map, 7) == 0); // map_value_count early-out
+    result      = result && (MapUniqueKeyCount(&map) == 0);
+    result      = result && (MapPairCount(&map) == 0);
+
+    // Cursor APIs on an empty map are invalid / NULL.
+    MapValueCursor cursor = MapFindFirstForKey(&map, 7);
+    result                = result && !MapValueCursorIsValid(cursor);
+    result                = result && (MapValuePtrFromCursor(&map, cursor) == NULL);
+
+    // MapGetOrDefault on an empty map returns the default, inserts nothing.
+    int got = MapGetOrDefault(&map, 7, 1234);
+    result  = result && (got == 1234);
+    result  = result && (MapPairCount(&map) == 0);
+    result  = result && !MapContainsKey(&map, 7);
 
     MapDeinit(&map);
     DefaultAllocatorDeinit(&alloc);
@@ -127,6 +180,17 @@ static bool test_map_value_cursor_query(void) {
     result      = result && !MapValueCursorIsValid(MapFindFirstForKey(&map, 99));
     result      = result && (MapValuePtrFromCursor(&map, MapValueCursorInvalid()) == NULL);
 
+    // Loop terminated because the cursor went invalid past the last value.
+    result = result && !MapValueCursorIsValid(cursor);
+
+    // Single-valued key: first is valid, next past the end stays invalid,
+    // and advancing an already-invalid cursor remains invalid.
+    MapValueCursor single = MapFindFirstForKey(&map, 9);
+    result                = result && MapValueCursorIsValid(single);
+    MapValueCursor past   = MapFindNextForKey(&map, 9, single);
+    result                = result && !MapValueCursorIsValid(past);
+    result                = result && !MapValueCursorIsValid(MapFindNextForKey(&map, 9, past));
+
     MapDeinit(&map);
     DefaultAllocatorDeinit(&alloc);
     return result;
@@ -159,14 +223,52 @@ static bool test_map_cursor_invalidated_after_removal(void) {
     return result;
 }
 
+// Under a degenerate (all-colliding) hash, lookups must still return the
+// value stored for the *requested* key, not whatever shares its bucket. This
+// pins map_keys_equal on the probe path: a mutant that bypasses the key
+// comparator (treats the first hash-matching slot as a match) returns a
+// neighbour's value and turns this RED.
+static bool test_map_collision_chain_lookup(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap        map   = MapInitWithValueCompare(const_hash, i32_compare, i32_compare, &alloc);
+
+    // Distinct keys, all in one bucket.
+    for (int k = 0; k < 8; k++)
+        MapInsertR(&map, k, k * 100 + 7);
+
+    bool result = (MapPairCount(&map) == 8) && (MapUniqueKeyCount(&map) == 8);
+    for (int k = 0; k < 8; k++) {
+        int *v = MapGetFirstPtr(&map, k);
+        result = result && v && (*v == k * 100 + 7);
+        result = result && MapContainsKey(&map, k) && (MapValueCountForKey(&map, k) == 1);
+    }
+    // A key that collides into the chain but was never inserted is absent.
+    result = result && !MapContainsKey(&map, 99) && (MapGetFirstPtr(&map, 99) == NULL);
+
+    // Multivalued key inside the colliding chain: count is per-key, not
+    // per-bucket.
+    MapInsertR(&map, 3, 999);
+    result = result && (MapValueCountForKey(&map, 3) == 2);
+    result = result && (MapValueCountForKey(&map, 4) == 1);
+    result = result && MapContainsPair(&map, 3, 307) && MapContainsPair(&map, 3, 999);
+    result = result && !MapContainsPair(&map, 4, 999);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_map_contains_and_find,
         test_map_get_ptr,
-        test_map_try_get_ptr,
+        test_map_get_first_ptr_is_live,
+        test_map_empty_queries,
         test_map_get_or_default,
         test_map_value_cursor_query,
         test_map_cursor_invalidated_after_removal,
+        test_map_collision_chain_lookup,
     };
 
     WriteFmt("[INFO] Starting Map.Access tests\n\n");

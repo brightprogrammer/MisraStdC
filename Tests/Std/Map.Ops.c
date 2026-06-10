@@ -153,6 +153,110 @@ static bool retain_values_above_threshold(const void *key, const void *value, vo
     return *(const int *)value >= *threshold;
 }
 
+// MapEmpty must be true only when length is exactly 0; it must flip to
+// false the instant a single pair exists, and back to true once every
+// pair is removed/cleared.
+static bool test_map_empty_true_and_false(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
+
+    bool result = MapEmpty(&map);
+
+    MapInsertR(&map, 1, 10);
+    result = result && !MapEmpty(&map);
+
+    MapInsertR(&map, 2, 20);
+    result = result && !MapEmpty(&map);
+
+    // Removing one of two pairs must keep it non-empty.
+    MapRemoveFirst(&map, 1);
+    result = result && !MapEmpty(&map);
+
+    // Removing the last pair must make it empty again.
+    MapRemoveFirst(&map, 2);
+    result = result && MapEmpty(&map);
+    result = result && (MapPairCount(&map) == 0);
+
+    // Refill then clear -> empty.
+    MapInsertR(&map, 3, 30);
+    MapInsertR(&map, 4, 40);
+    result = result && !MapEmpty(&map);
+    MapClear(&map);
+    result = result && MapEmpty(&map);
+    result = result && (MapPairCount(&map) == 0);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// MapMustCompact success path: the effect (tombstone removal, entries
+// preserved, length exact) happened and control returned to the caller.
+static bool test_map_must_compact_success(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap        map   = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare, &alloc);
+
+    MapInsertR(&map, 1, 10);
+    MapInsertR(&map, 2, 20);
+    MapInsertR(&map, 3, 30);
+    MapRemoveFirst(&map, 2);
+
+    bool result = (MapTombstones(&map) == 1);
+
+    MapMustCompact(&map);
+
+    // Returned to caller; tombstones cleared, survivors intact, length exact.
+    result = result && (MapTombstones(&map) == 0);
+    result = result && MapContainsPair(&map, 1, 10);
+    result = result && MapContainsPair(&map, 3, 30);
+    result = result && !MapContainsKey(&map, 2);
+    result = result && (MapPairCount(&map) == 2);
+    result = result && (MapUniqueKeyCount(&map) == 2);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// MapMustRehashWithPolicy success path: policy switched in by value, every
+// live entry survives the rehash, tombstones gone, and control returned.
+static bool test_map_must_rehash_with_policy_success(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap        map   = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare, &alloc);
+
+    MapInsertR(&map, 1, 10);
+    MapInsertR(&map, 2, 20);
+    MapInsertR(&map, 2, 21);
+    MapInsertR(&map, 3, 30);
+    MapRemoveFirst(&map, 1);
+
+    bool result = (MapTombstones(&map) == 1);
+
+    MapMustRehashWithPolicy(&map, MapPairCount(&map), MapPolicyQuadratic);
+
+    // Policy is now quadratic (copied in by value).
+    result = result && (MapPolicy(&map).first_index == MapPolicyQuadratic.first_index);
+    result = result && (MapPolicy(&map).next_index == MapPolicyQuadratic.next_index);
+    result = result && (MapPolicy(&map).next_capacity == MapPolicyQuadratic.next_capacity);
+    result = result && (MapPolicy(&map).should_rehash == MapPolicyQuadratic.should_rehash);
+    // Tombstones gone, survivors intact, exact counts preserved.
+    result = result && (MapTombstones(&map) == 0);
+    result = result && !MapContainsKey(&map, 1);
+    result = result && MapContainsPair(&map, 2, 20);
+    result = result && MapContainsPair(&map, 2, 21);
+    result = result && MapContainsPair(&map, 3, 30);
+    result = result && (MapValueCountForKey(&map, 2) == 2);
+    result = result && (MapPairCount(&map) == 3);
+    result = result && (MapUniqueKeyCount(&map) == 2);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 static bool test_map_retain_if(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc     = DefaultAllocatorInit();
@@ -182,6 +286,9 @@ int main(void) {
         test_map_policy_switch_preserves_entries,
         test_map_compact_and_swap,
         test_map_retain_if,
+        test_map_empty_true_and_false,
+        test_map_must_compact_success,
+        test_map_must_rehash_with_policy_success,
     };
 
     WriteFmt("[INFO] Starting Map.Ops tests\n\n");
