@@ -49,8 +49,8 @@ diff as a fast-path to skip hashing entries in untouched files.
 
 Usage
 -----
-    mull-filter.py [--ledger PATH] [--root DIR]
-                   [--out PATH] REPORT [REPORT ...]
+    mull-filter.py [--ledger PATH] [--root DIR] [--out PATH]
+                   [--fail-on-new <base>..<head>] REPORT [REPORT ...]
     mull-filter.py --check-range <base>..<head> [--ledger PATH] [--root DIR]
 
 In the default mode it reads one or more report files, writes the filtered
@@ -60,8 +60,22 @@ runs only the stale-detection (no report needed) over the entries whose files
 changed in ``<base>..<head>`` and exits non-zero if any covered region moved
 without its ledger stanza being updated.
 
+CI gating (``--fail-on-new``)
+-----------------------------
+``--fail-on-new <base>..<head>`` turns the default filter mode into the CI gate.
+On top of the unconditional stale / bucket-A non-zero exits, it parses
+``git diff --unified=0 <base>..<head>`` for the new-file (``+``) line ranges each
+hunk adds/changes, and exits non-zero if any REMAINING (non-ignored, non-stale)
+survivor's reported ``(file, line)`` falls inside one of those ranges -- i.e. a
+survivor that was *introduced by this change* and has no ledger entry. Survivors
+in unchanged code never gate. When the range cannot be resolved (git missing or
+an unknown / all-zeroes ref -- e.g. a first push / branch create), this gate is
+skipped gracefully and only the stale / bucket-A gates apply; it is never an
+error to pass an unresolvable range. The absolute mutation score is NEVER a gate.
+
 Exit codes: 0 = clean; non-zero = a hard ledger error (bucket A / missing
-fields), or one or more stale entries.
+fields), one or more stale entries, or (with ``--fail-on-new``) a survivor newly
+introduced in the diff range.
 """
 
 import argparse
@@ -394,19 +408,89 @@ class LedgerEntry:
 # --------------------------------------------------------------------------
 # git fast-path
 # --------------------------------------------------------------------------
-def changed_files(root, rng):
-    base, _, head = rng.partition("..")
-    if ".." not in rng:
-        head = "HEAD"
-        base = rng
+def _split_range(rng):
+    """Split "<base>..<head>" into (base, head). A bare ref (no "..") is
+    treated as base with head defaulting to HEAD."""
+    if ".." in rng:
+        base, _, head = rng.partition("..")
+        return base, (head or "HEAD")
+    return rng, "HEAD"
+
+
+def _git_run(root, args):
+    """Run `git -C root <args>` and return stdout, or None if git is missing
+    or the command fails (e.g. an unknown ref)."""
     try:
-        out = subprocess.run(
-            ["git", "-C", root, "diff", "--name-only", "%s..%s" % (base, head or "HEAD")],
+        return subprocess.run(
+            ["git", "-C", root] + args,
             capture_output=True, text=True, check=True,
         ).stdout
     except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+
+
+def changed_files(root, rng):
+    base, head = _split_range(rng)
+    out = _git_run(root, ["diff", "--name-only", "%s..%s" % (base, head)])
+    if out is None:
         return None  # unknown -> caller must hash everything
     return {line.strip() for line in out.splitlines() if line.strip()}
+
+
+# Hunk header: @@ -a[,b] +c[,d] @@ -- the "+c,d" side names the new-file lines
+# that were added/changed (d defaults to 1 when omitted; d==0 = pure deletion).
+HUNK_RE = re.compile(r"^@@ -\d+(?:,\d+)? \+(?P<start>\d+)(?:,(?P<count>\d+))? @@")
+
+
+def parse_diff_added_ranges(diff_text):
+    """Parse a `git diff --unified=0` body into {new_file_path: set(line nums)}
+    -- the line numbers ADDED or CHANGED on the new-file (+) side of each hunk.
+    Pure deletions (d==0) contribute no new-file lines."""
+    added = {}
+    cur = None
+    for raw in diff_text.splitlines():
+        if raw.startswith("+++ "):
+            path = raw[4:].strip()
+            # strip the conventional "b/" prefix; "/dev/null" -> no file
+            if path == "/dev/null":
+                cur = None
+            else:
+                if path.startswith("b/"):
+                    path = path[2:]
+                cur = os.path.normpath(path)
+                added.setdefault(cur, set())
+            continue
+        m = HUNK_RE.match(raw)
+        if not m or cur is None:
+            continue
+        start = int(m.group("start"))
+        count = 1 if m.group("count") is None else int(m.group("count"))
+        for ln in range(start, start + count):
+            added[cur].add(ln)
+    return added
+
+
+def diff_added_ranges(root, rng):
+    """Return {new_file: set(added line nums)} for <base>..<head>, or None if
+    git is unavailable / the range cannot be resolved."""
+    base, head = _split_range(rng)
+    out = _git_run(root, ["diff", "--unified=0", "%s..%s" % (base, head)])
+    if out is None:
+        return None
+    return parse_diff_added_ranges(out)
+
+
+def _survivor_in_added(sv, added):
+    """True iff survivor sv's (file, line) lies in a +range of `added`. Paths
+    are matched by suffix to tolerate abs-vs-rel report paths."""
+    sv_norm = os.path.normpath(sv.file)
+    sv_base = os.path.basename(sv_norm)
+    for path, lines in added.items():
+        if sv_norm == path or sv_norm.endswith(path) or path.endswith(sv_norm) \
+                or os.path.basename(path) == sv_base and sv_norm.endswith(os.path.basename(path)):
+            if sv.line in lines:
+                return True
+    return False
 
 
 # --------------------------------------------------------------------------
@@ -441,6 +525,7 @@ def run_filter(args):
     total_survivors = 0
     ignored_by_id = {}
     kept_lines = []
+    remaining_survivors = []  # non-ignored, non-stale survivors still in report
 
     for rp, text in inputs:
         for sv, raw in parse_report(text):
@@ -455,6 +540,7 @@ def run_filter(args):
                 # drop the whole block (suppressed)
             else:
                 kept_lines.extend(sv.block)
+                remaining_survivors.append(sv)
 
     out_path = args.out or os.path.join(
         os.path.dirname(os.path.abspath(inputs[0][0])) if inputs else ".",
@@ -465,6 +551,22 @@ def run_filter(args):
 
     ignored_total = sum(ignored_by_id.values())
     remaining = total_survivors - ignored_total
+
+    # --fail-on-new gate (b): of the survivors still in the filtered report,
+    # which sit inside a line region added/changed by the diff range? Those are
+    # NEW survivors and gate the job. Pre-existing survivors in unchanged code
+    # do not. When no range is given (schedule / dispatch -- no diff baseline)
+    # this gate is skipped entirely; only stale/bucket-A gate then.
+    new_survivors = []
+    diff_unavailable = False
+    if args.fail_on_new:
+        added = diff_added_ranges(args.root, args.fail_on_new)
+        if added is None:
+            diff_unavailable = True
+        else:
+            new_survivors = [
+                sv for sv in remaining_survivors if _survivor_in_added(sv, added)
+            ]
 
     print("=== mull-filter summary ===")
     print("filtered report : %s" % out_path)
@@ -477,6 +579,25 @@ def run_filter(args):
     for e in stale:
         print("    !! STALE %-20s %s [%s]" % (e.id, e.stale_reason, e.file))
 
+    if args.fail_on_new:
+        if diff_unavailable:
+            print(
+                "new-in-diff gate: SKIPPED (could not resolve diff range %s -- "
+                "git missing or unknown ref); gating on stale/bucket-A only."
+                % args.fail_on_new
+            )
+        else:
+            print("new-in-diff range : %s" % args.fail_on_new)
+            print("NEW survivors     : %d" % len(new_survivors))
+            for sv in new_survivors:
+                print(
+                    "    !! NEW   %s:%d:%d [%s] -- survivor introduced in this "
+                    "change with no ledger entry; triage it (add a test for "
+                    "bucket A, or ledger it for B/C)"
+                    % (sv.file, sv.line, sv.col, sv.mutator or "?")
+                )
+
+    rc = 0
     if stale:
         print(
             "error: %d stale ledger entr%s -- suppressed nothing; update the "
@@ -484,8 +605,17 @@ def run_filter(args):
             % (len(stale), "y" if len(stale) == 1 else "ies"),
             file=sys.stderr,
         )
-        return 1
-    return 0
+        rc = 1
+    if new_survivors:
+        print(
+            "error: %d survivor(s) newly introduced in %s and not ledgered -- "
+            "see the NEW lines above. The mutation gate fails on survivors that "
+            "appear in changed code."
+            % (len(new_survivors), args.fail_on_new),
+            file=sys.stderr,
+        )
+        rc = 1
+    return rc
 
 
 def run_check_range(args):
@@ -540,6 +670,12 @@ def main(argv=None):
                    help="filtered report path (default: report.filtered.txt)")
     p.add_argument("--check-range", default=None, metavar="BASE..HEAD",
                    help="enforcement-hook mode: stale-detect over a commit range")
+    p.add_argument("--fail-on-new", default=None, metavar="BASE..HEAD",
+                   help="gate: in the default filter mode, also exit non-zero if "
+                        "a remaining (non-ignored) survivor lies in a line region "
+                        "added/changed by BASE..HEAD. An unresolvable range "
+                        "(missing git / unknown ref) downgrades to stale-only "
+                        "gating instead of erroring.")
     args = p.parse_args(argv)
 
     try:

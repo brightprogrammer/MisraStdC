@@ -72,26 +72,47 @@ jobs:
           fi
           ./Scripts/mutation.sh $COMPONENTS
 
-      - name: Filter accepted survivors (informational)
-        # Non-gating visibility step: run the accepted-survivor filter over the
-        # captured reports so the log shows which survivors the ledger
-        # (Conventions/mull-ignores.toml) suppresses and which still need
-        # triage. `|| true` keeps it from failing the job -- turning the filter
-        # (and the --check-range enforcement hook) into a GATE is a separate,
-        # later change. This step never fails the build today.
-        if: always()
+      - name: Gate on stale ledger entries and new survivors
+        # GATING step (no `|| true`): the accepted-survivor filter runs over the
+        # captured reports and FAILS the job iff EITHER
+        #   (a) a ledger entry is stale (region_hash mismatch) or malformed
+        #       (bucket A / missing field) -- the filter exits non-zero on these
+        #       unconditionally; OR
+        #   (b) a remaining (non-ledgered) survivor was INTRODUCED in this
+        #       change's diff range -- `--fail-on-new <base>..<head>` flags any
+        #       survivor whose source line lies inside a range added/changed by
+        #       the diff. Pre-existing survivors in unchanged code do NOT gate.
+        # The absolute mutation score is NEVER a gate (mutation.sh just prints
+        # it). On `push` the diff baseline is `github.event.before..github.sha`;
+        # on `schedule` / `workflow_dispatch` there is no diff baseline, so the
+        # filter runs WITHOUT a range (stale + bucket-A gating only). An empty or
+        # all-zeroes `before` (first push / branch create) also falls back to
+        # no-range gating -- `--fail-on-new` would degrade gracefully anyway, but
+        # we skip passing it so the intent is explicit.
         run: |
+          set -euo pipefail
           shopt -s nullglob
           reports=(build_mull/**/mutation-*.txt)
-          if [ ${#reports[@]} -gt 0 ]; then
-            python3 Scripts/mull-filter.py --root . "${reports[@]}" || true
+          if [ ${#reports[@]} -eq 0 ]; then
+            echo "no mull reports captured -- nothing to gate on"
+            exit 0
           fi
-          # Enforcement-hook reference invocation (also non-gating for now):
-          # flags any ledger-covered region that moved without its stanza being
-          # updated over the push range. Informational until the gating flip.
-          if [ -n "${{ github.event.before }}" ]; then
+
+          BEFORE='${{ github.event.before }}'
+          ZEROES='0000000000000000000000000000000000000000'
+          RANGE=''
+          if [ "${{ github.event_name }}" = "push" ] \
+             && [ -n "$BEFORE" ] && [ "$BEFORE" != "$ZEROES" ]; then
+            RANGE="${BEFORE}..${{ github.sha }}"
+          fi
+
+          if [ -n "$RANGE" ]; then
+            echo "gating: stale/bucket-A + new-survivors over $RANGE"
             python3 Scripts/mull-filter.py --root . \
-              --check-range "${{ github.event.before }}..${{ github.sha }}" || true
+              --fail-on-new "$RANGE" "${reports[@]}"
+          else
+            echo "gating: stale/bucket-A only (no diff baseline for this event)"
+            python3 Scripts/mull-filter.py --root . "${reports[@]}"
           fi
 
       - name: Upload mutation reports

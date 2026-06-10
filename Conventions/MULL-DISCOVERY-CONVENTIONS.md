@@ -166,10 +166,43 @@ Scripts/mull-filter.py build_mull/Map/mutation-*.txt
 # Enforcement hook (CI step or pre-commit): fail if a covered region moved
 # in a commit range without its ledger stanza being updated:
 Scripts/mull-filter.py --check-range <base>..<head>
+
+# CI gate: suppress accepted survivors AND fail on a survivor that was
+# introduced in this change's diff range:
+Scripts/mull-filter.py --fail-on-new <base>..<head> build_mull/**/mutation-*.txt
 ```
 
 Both modes exit non-zero on a hard ledger error (bucket A / missing field) or
-on any stale entry; `0` means clean. The CI step in
-`.github/workflows/mutation.yml` runs both invocations **informationally** (it
-cannot fail the job yet) — making the filter and the `--check-range` hook
-actually gate is a deliberate later change.
+on any stale entry; `0` means clean.
+
+### What CI gates on (and what it never gates on)
+
+The `.github/workflows/mutation.yml` job **fails the build** on exactly two
+conditions, and nothing else:
+
+- **(a) A stale ignore or a malformed ledger entry.** A `region_hash` mismatch
+  (the anchored region moved) makes the entry STALE; a `bucket = "A"` entry, or
+  one missing a required field, is a hard ledger error. The filter exits
+  non-zero on both, unconditionally — independent of any diff. **Bucket A is
+  never ignorable**: a contract gap is a missing test, not a survivor to
+  suppress (see *The accepted-survivor ledger* above).
+- **(b) A survivor newly introduced in the change.** With
+  `--fail-on-new <base>..<head>`, the filter parses
+  `git diff --unified=0 <base>..<head>` for the new-file (`+`) line ranges the
+  change adds/touches, and fails if any **remaining** (non-ledgered, non-stale)
+  survivor's reported line falls inside one of those ranges. A new gap you
+  introduced gates your change; you triage it on the spot — add a contract test
+  (bucket A) or, if it is genuinely strategy/equivalent, ledger it (bucket B/C).
+  **Pre-existing survivors in unchanged code do not gate** — they are a backlog
+  to whittle down, not a wall every unrelated change has to clear.
+
+The job passes the diff baseline only when there is one: on `push` it uses
+`github.event.before..github.sha`; on `schedule` / `workflow_dispatch` (no PR
+diff) it runs the filter **without** a range, so only the stale / bucket-A gate
+(a) applies. A first push / branch-create (empty or all-zeroes `before`) also
+falls back to no-range gating. The diff baseline is purely informational about
+*where* new code is; it never widens or narrows gate (a).
+
+**The absolute mutation score is never a gate.** It stays a discovery signal
+printed by `mutation.sh`. Gating on the score would re-introduce exactly the
+"drive it to 100%" failure mode this whole document argues against.
