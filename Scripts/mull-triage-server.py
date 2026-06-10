@@ -104,13 +104,34 @@ def survivor_desc(sv):
     return ""
 
 
-class TriageState:
-    """A per-request snapshot: TRUE survivors + LIVE/stale ledger classification.
-    Re-built each request so the UI reflects ledger edits immediately."""
+def todo_key(file, line, col, mutator):
+    """Normalised (file-basename, line, col, mutator) worklist key. Reported
+    survivor files and stored todo files may differ in abs-vs-rel form, so the
+    file part is compared by basename only (like the ledger's matcher)."""
+    return (os.path.basename(file), int(line), int(col), mutator or "?")
 
-    def __init__(self, root, ledger, report_paths):
+
+def load_todos(path):
+    """Parse the [[todo]] worklist. A missing or empty file is an empty
+    worklist (never an error). Returns the list of raw todo dicts."""
+    if not path or not os.path.isfile(path):
+        return []
+    try:
+        doc = load_todo_doc(path)
+    except OSError:
+        return []
+    return doc.get("todo", [])
+
+
+class TriageState:
+    """A per-request snapshot: TRUE survivors + LIVE/stale ledger classification
+    + the To-Fix worklist. Re-built each request so the UI reflects edits
+    immediately."""
+
+    def __init__(self, root, ledger, report_paths, todo):
         self.root = root
         self.ledger = ledger
+        self.todo = todo
         self.report_paths = report_paths
         self.survivors, self.parsed_with_path = load_survivors(report_paths)
         self.by_id = {survivor_id(sv): sv for sv in self.survivors}
@@ -125,32 +146,53 @@ class TriageState:
             else:
                 self.stale.append(e)
 
+        # Worklist -> {key: raw todo dict} for O(1) (file,line,col,mutator) match.
+        self.todos = load_todos(todo)
+        self.todo_by_key = {}
+        for raw in self.todos:
+            k = todo_key(raw.get("file", ""), raw.get("line", 0),
+                         raw.get("col", 0), raw.get("mutator"))
+            self.todo_by_key[k] = raw
+
+    def todo_for(self, sv):
+        """The raw todo dict matching this survivor's key, or None."""
+        return self.todo_by_key.get(
+            todo_key(sv.file, sv.line, sv.col, sv.mutator))
+
     def status_for(self, sv):
-        """'remaining' or 'ignored:<ledger-id>' (only LIVE entries suppress)."""
+        """Status precedence: a LIVE ledger entry ('ignored:<id>') wins over a
+        worklist entry ('tofix') over 'remaining'. Returns (status, hit) where
+        hit is the matching LedgerEntry for ignored, else None."""
         hit = next((e for e in self.live if e.matches(sv)), None)
         if hit is not None:
             return "ignored:%s" % hit.id, hit
+        if self.todo_for(sv) is not None:
+            return "tofix", None
         return "remaining", None
 
     def summary(self):
         total = len(self.survivors)
         ignored = 0
         remaining = 0
+        tofix = 0
         by_file = {}
         for sv in self.survivors:
             status, _ = self.status_for(sv)
             rel = relpath(self.root, sv.file)
             slot = by_file.setdefault(rel, {"total": 0, "ignored": 0,
-                                            "remaining": 0})
+                                            "remaining": 0, "tofix": 0})
             slot["total"] += 1
             if status.startswith("ignored"):
                 ignored += 1
                 slot["ignored"] += 1
+            elif status == "tofix":
+                tofix += 1
+                slot["tofix"] += 1
             else:
                 remaining += 1
                 slot["remaining"] += 1
         return {"total": total, "ignored": ignored, "remaining": remaining,
-                "by_file": by_file}
+                "tofix": tofix, "by_file": by_file}
 
 
 # --------------------------------------------------------------------------
@@ -469,11 +511,165 @@ def remove_stanza(ledger, target_id):
 
 
 # --------------------------------------------------------------------------
+# To-Fix worklist (fixed-schema TOML; same loader/writer style as the ledger)
+# --------------------------------------------------------------------------
+def load_todo_doc(path):
+    """Parse the worklist TOML into {"todo": [ {...}, ... ]}. Reuses tomllib
+    when available, else a minimal reader for this fixed [[todo]] shape."""
+    if mull_filter.tomllib is not None:
+        with open(path, "rb") as f:
+            doc = mull_filter.tomllib.load(f)
+        doc.setdefault("todo", [])
+        return doc
+    data = {"todo": []}
+    cur = None
+    with open(path, "r", encoding="utf-8") as f:
+        for raw in f:
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line == "[[todo]]":
+                cur = {}
+                data["todo"].append(cur)
+                continue
+            if "=" not in line or cur is None:
+                continue
+            key, _, val = line.partition("=")
+            cur[key.strip()] = mull_filter._toml_value(
+                val.split("#", 1)[0].strip())
+    return data
+
+
+def todo_region_hash(root, file, line):
+    """region_hash of the single target line via mull-filter's region_hash on a
+    lines=[line,line] selector. Returns the 'sha256:<hex>' string, or None if
+    the line cannot be resolved in the current tree."""
+    try:
+        region = select_region(root, {"file": relpath(root, file),
+                                       "lines": [line, line]})
+    except (ValueError, FileNotFoundError, OSError):
+        return None
+    return region_hash(region)
+
+
+def serialize_todo(fields):
+    """Emit one [[todo]] stanza with the fixed worklist schema."""
+    out = ["[[todo]]"]
+    out.append("file = %s" % _toml_quote(fields["file"]))
+    out.append("line = %d" % int(fields["line"]))
+    out.append("col = %d" % int(fields["col"]))
+    out.append("mutator = %s" % _toml_quote(fields.get("mutator") or "?"))
+    if fields.get("note"):
+        out.append("note = %s" % _toml_quote(fields["note"]))
+    out.append("created = %s" % _toml_quote(fields["created"]))
+    out.append("region_hash = %s" % _toml_quote(fields["region_hash"]))
+    return "\n".join(out) + "\n"
+
+
+def append_todo(path, stanza_text):
+    """Append a [[todo]] stanza, preserving all existing content (incl. the
+    header comment). Creates the file if missing."""
+    existing = ""
+    if os.path.isfile(path):
+        with open(path, "r", encoding="utf-8") as f:
+            existing = f.read()
+    if not existing:
+        sep = ""
+    elif existing.endswith("\n\n"):
+        sep = ""
+    elif existing.endswith("\n"):
+        sep = "\n"
+    else:
+        sep = "\n\n"
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(existing + sep + stanza_text)
+
+
+# A todo stanza spans from a '[[todo]]' line to the next '[[todo]]' or EOF.
+_TODO_HEADER = re.compile(r"^\s*\[\[todo\]\]\s*$")
+_TODO_FIELD = re.compile(r'^\s*(\w+)\s*=\s*(.+?)\s*$')
+
+
+def _todo_block_key(block):
+    """Extract the (basename, line, col, mutator) key from a stanza block."""
+    file = line = col = mutator = None
+    for ln in block:
+        m = _TODO_FIELD.match(ln)
+        if not m:
+            continue
+        k, v = m.group(1), mull_filter._toml_value(v_strip(m.group(2)))
+        if k == "file":
+            file = v
+        elif k == "line":
+            line = v
+        elif k == "col":
+            col = v
+        elif k == "mutator":
+            mutator = v
+    if file is None or line is None or col is None:
+        return None
+    return todo_key(file, line, col, mutator)
+
+
+def v_strip(val):
+    """Strip an inline comment from a TOML value the same way the loaders do."""
+    return val.split("#", 1)[0].strip()
+
+
+def remove_todo(path, file, line, col, mutator):
+    """Remove the [[todo]] stanza matching the (file,line,col,mutator) key,
+    preserving every other stanza and the preamble. Returns True if removed."""
+    if not os.path.isfile(path):
+        return False
+    with open(path, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+
+    blocks = []
+    preamble = []
+    cur = None
+    for ln in lines:
+        if _TODO_HEADER.match(ln):
+            if cur is not None:
+                blocks.append(cur)
+            cur = [ln]
+        elif cur is None:
+            preamble.append(ln)
+        else:
+            cur.append(ln)
+    if cur is not None:
+        blocks.append(cur)
+
+    target = todo_key(file, line, col, mutator)
+    kept = []
+    removed = False
+    for blk in blocks:
+        if not removed and _todo_block_key(blk) == target:
+            removed = True
+            continue
+        kept.append(blk)
+
+    if not removed:
+        return False
+
+    out = "".join(preamble).rstrip("\n")
+    parts = ["".join(blk).rstrip("\n") for blk in kept]
+    text = out
+    for p in parts:
+        text = (text + "\n\n" + p) if text else p
+    if text and not text.endswith("\n"):
+        text += "\n"
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text)
+    return True
+
+
+# --------------------------------------------------------------------------
 # HTTP server
 # --------------------------------------------------------------------------
 class Config:
     root = "."
     ledger = ""
+    todo = ""
     report_globs = []
 
 
@@ -483,7 +679,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     # -- helpers --
     def _state(self):
         paths = discover_reports(Config.root, Config.report_globs)
-        return TriageState(Config.root, Config.ledger, paths)
+        return TriageState(Config.root, Config.ledger, paths, Config.todo)
 
     def _send_json(self, obj, code=200):
         body = json.dumps(obj).encode("utf-8")
@@ -534,6 +730,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._api_ignore()
         if path == "/api/unignore":
             return self._api_unignore()
+        if path == "/api/tofix":
+            return self._api_tofix()
+        if path == "/api/untofix":
+            return self._api_untofix()
         return self._send_json({"error": "not found"}, 404)
 
     # -- API handlers --
@@ -571,7 +771,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "coverage_hint": coverage_hint(st, sv),
             "enclosing_function": enclosing_function(st.root, sv),
             "stanza": stanza_fields(hit) if hit is not None else None,
+            "todo": None,
         }
+        raw_todo = st.todo_for(sv)
+        if raw_todo is not None:
+            stored = raw_todo.get("region_hash")
+            current = todo_region_hash(st.root, sv.file, sv.line)
+            detail["todo"] = {
+                "note": raw_todo.get("note"),
+                "created": raw_todo.get("created"),
+                "region_hash": stored,
+                "current_region_hash": current,
+                # not stale == the stored hash still matches the current line.
+                "matches": (current is not None and current == stored),
+                "stale": (current is None or current != stored),
+            }
         return self._send_json(detail)
 
     def _api_ignore(self):
@@ -634,6 +848,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "region_hash": rhash,
         }
         append_stanza(Config.ledger, serialize_stanza(fields))
+        # Cross-flow: a survivor that was in the To-Fix worklist moves into the
+        # ledger -- it must NOT remain in both. Drop any matching todo stanza.
+        # The survivor key for the worklist is the reported (file,line,col,
+        # mutator); resolve it via the live survivor that this ignore targets.
+        st = self._state()
+        for sv in st.survivors:
+            if (relpath(Config.root, sv.file) == rel
+                    and st.todo_for(sv) is not None):
+                hit = next((e for e in st.live if e.matches(sv)), None)
+                if hit is not None and hit.id == new_id:
+                    remove_todo(Config.todo, sv.file, sv.line, sv.col,
+                                sv.mutator)
         return self._send_json({"ok": True, "id": new_id})
 
     def _api_unignore(self):
@@ -644,6 +870,58 @@ class Handler(http.server.BaseHTTPRequestHandler):
         removed = remove_stanza(Config.ledger, eid)
         if not removed:
             return self._send_json({"error": "no stanza with that id"}, 404)
+        return self._send_json({"ok": True})
+
+    def _api_tofix(self):
+        body = self._read_body()
+        sid = body.get("id")
+        note = body.get("note")
+        if not sid:
+            return self._send_json({"error": "id is required"}, 400)
+        st = self._state()
+        sv = st.by_id.get(sid)
+        if sv is None:
+            return self._send_json({"error": "unknown survivor id"}, 404)
+        status, _ = st.status_for(sv)
+        if status.startswith("ignored"):
+            return self._send_json(
+                {"error": "survivor is ignored; un-ignore it first"}, 400)
+
+        rhash = todo_region_hash(Config.root, sv.file, sv.line)
+        if rhash is None:
+            return self._send_json(
+                {"error": "target line does not resolve in the tree"}, 400)
+        note_s = str(note).strip() if note and str(note).strip() else None
+
+        # Idempotent-ish: if already in the worklist, replace it (update note).
+        existing = st.todo_for(sv)
+        if existing is not None:
+            remove_todo(Config.todo, sv.file, sv.line, sv.col, sv.mutator)
+        fields = {
+            "file": relpath(Config.root, sv.file),
+            "line": sv.line,
+            "col": sv.col,
+            "mutator": sv.mutator,
+            "note": note_s,
+            "created": today(),
+            "region_hash": rhash,
+        }
+        append_todo(Config.todo, serialize_todo(fields))
+        return self._send_json({"ok": True})
+
+    def _api_untofix(self):
+        body = self._read_body()
+        sid = body.get("id")
+        if not sid:
+            return self._send_json({"error": "id is required"}, 400)
+        st = self._state()
+        sv = st.by_id.get(sid)
+        if sv is None:
+            return self._send_json({"error": "unknown survivor id"}, 404)
+        removed = remove_todo(Config.todo, sv.file, sv.line, sv.col,
+                              sv.mutator)
+        if not removed:
+            return self._send_json({"error": "not in the worklist"}, 404)
         return self._send_json({"ok": True})
 
 
@@ -665,7 +943,7 @@ INDEX_HTML = r"""<!DOCTYPE html>
   :root {
     --bg:#0f1115; --panel:#171a21; --panel2:#1d212b; --border:#2a2f3a;
     --fg:#d7dbe0; --muted:#8a93a3; --accent:#6aa0ff; --remain:#e0a04d;
-    --ignored:#5fb87a; --target:#3a2f12; --danger:#e06c75;
+    --ignored:#5fb87a; --tofix:#f0b429; --target:#3a2f12; --danger:#e06c75;
     --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
   }
   * { box-sizing:border-box; }
@@ -681,6 +959,7 @@ INDEX_HTML = r"""<!DOCTYPE html>
   .count b { font-size:16px; }
   .count.total b { color:var(--accent); }
   .count.remaining b { color:var(--remain); }
+  .count.tofix b { color:var(--tofix); }
   .count.ignored b { color:var(--ignored); }
   main { display:flex; height:calc(100vh - 49px); }
   #left { width:42%; min-width:340px; border-right:1px solid var(--border);
@@ -702,7 +981,9 @@ INDEX_HTML = r"""<!DOCTYPE html>
   .badge { font-size:10px; padding:2px 6px; border-radius:10px;
     font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
   .badge.remaining { background:#3a2f12; color:var(--remain); }
+  .badge.tofix { background:#3a3112; color:var(--tofix); }
   .badge.ignored { background:#16331f; color:var(--ignored); }
+  .badge.stale { background:#3a1212; color:var(--danger); }
   #right { flex:1; overflow:auto; padding:16px 20px; }
   #right h2 { font-size:14px; margin:0 0 4px; font-family:var(--mono); }
   .sub { color:var(--muted); font-size:12px; margin-bottom:14px; }
@@ -751,8 +1032,9 @@ INDEX_HTML = r"""<!DOCTYPE html>
   <h1>Mull Survivor Triage</h1>
   <div class="counts">
     <span class="count total">total <b id="c-total">-</b></span>
-    <span class="count ignored">ignored <b id="c-ignored">-</b></span>
     <span class="count remaining">remaining <b id="c-remaining">-</b></span>
+    <span class="count tofix">to-fix <b id="c-tofix">-</b></span>
+    <span class="count ignored">ignored <b id="c-ignored">-</b></span>
   </div>
 </header>
 <main>
@@ -761,6 +1043,7 @@ INDEX_HTML = r"""<!DOCTYPE html>
       <select id="f-status">
         <option value="all">all</option>
         <option value="remaining" selected>remaining</option>
+        <option value="tofix">to fix</option>
         <option value="ignored">ignored</option>
       </select>
       <select id="f-file"><option value="">all files</option></select>
@@ -784,7 +1067,11 @@ async function postJSON(u,b){
   return {ok:r.ok, status:r.status, data:await r.json()};
 }
 
-function statusKind(s){ return s && s.startsWith('ignored') ? 'ignored':'remaining'; }
+function statusKind(s){
+  if (s && s.startsWith('ignored')) return 'ignored';
+  if (s === 'tofix') return 'tofix';
+  return 'remaining';
+}
 
 async function loadList(keepSel){
   const d = await getJSON('/api/survivors');
@@ -792,6 +1079,7 @@ async function loadList(keepSel){
   document.getElementById('c-total').textContent = SUMMARY.total;
   document.getElementById('c-ignored').textContent = SUMMARY.ignored;
   document.getElementById('c-remaining').textContent = SUMMARY.remaining;
+  document.getElementById('c-tofix').textContent = SUMMARY.tofix;
   populateFilter('f-file', [...new Set(ITEMS.map(i=>i.file))].sort());
   populateFilter('f-mutator',
     [...new Set(ITEMS.map(i=>i.mutator).filter(Boolean))].sort());
@@ -826,6 +1114,8 @@ function filtered(){
   });
 }
 
+function kindLabel(kind){ return kind==='tofix' ? 'to fix' : kind; }
+
 function renderList(){
   const rows = filtered().sort((a,b)=>
     a.file.localeCompare(b.file) || a.line-b.line || a.col-b.col);
@@ -834,7 +1124,7 @@ function renderList(){
     return `<div class="row ${i.id===SELECTED?'sel':''}" data-id="${esc(i.id)}">
       <span class="loc">${esc(i.file.split('/').pop())}:${i.line}</span>
       <span class="mut">${esc(i.mutator||'?')}</span>
-      <span class="badge ${kind}">${kind}</span></div>`;
+      <span class="badge ${kind}">${kindLabel(kind)}</span></div>`;
   }).join('');
   const list = document.getElementById('list');
   list.innerHTML = html || '<div class="empty">No survivors match.</div>';
@@ -894,6 +1184,34 @@ function ignoreForm(d){
     <div class="err" id="ig-err"></div></div>`;
 }
 
+function tofixForm(){
+  return `<div class="card"><h3>Mark as &ldquo;To Fix&rdquo;</h3>
+    <div class="cov-label">A genuine bucket-A gap that needs a killing test.
+      This moves it out of Remaining into the To-Fix worklist
+      (Conventions/mull-todo.toml); it does NOT suppress the survivor.</div>
+    <label>Note (optional &mdash; why / what to fix)</label>
+    <input id="tf-note" type="text" placeholder="e.g. assert retrievability after collision">
+    <button id="tf-submit">To Fix</button>
+    <div class="err" id="tf-err"></div></div>`;
+}
+
+function todoHtml(t){
+  const staleBadge = t.stale
+    ? ' <span class="badge stale">stale</span>' : '';
+  const staleNote = t.stale
+    ? `<div class="cov-label">region_hash no longer matches the current line
+        &mdash; the code moved; re-check this entry.</div>` : '';
+  return `<div class="card"><h3>To-Fix worklist entry${staleBadge}</h3>
+    ${staleNote}
+    <div class="kv">
+      <div><b>note:</b> ${t.note?esc(t.note):'<i>(none)</i>'}</div>
+      <div><b>created:</b> ${esc(t.created||'?')}</div>
+      <div><b>region_hash:</b> <code>${esc(t.region_hash||'?')}</code></div>
+    </div>
+    <button class="danger" id="tf-remove">Un-mark (To Fix)</button>
+    <div class="err" id="tf-rerr"></div></div>`;
+}
+
 function stanzaHtml(s){
   const selTxt = s.selector ? (s.selector.type==='function'
     ? 'function '+s.selector.function
@@ -921,14 +1239,25 @@ async function loadDetail(id){
   const kind = statusKind(d.status);
   let html = `<h2>${esc(d.file)}:${d.line}:${d.col}</h2>
     <div class="sub">mutator <code>${esc(d.mutator||'?')}</code> &middot;
-      <span class="badge ${kind}">${kind}</span></div>
+      <span class="badge ${kind}">${kindLabel(kind)}</span></div>
     <div class="card"><h3>Source context</h3>${srcHtml(d.source_context, d.mutation)}</div>
     <div class="card"><h3>Git blame (target line)</h3>${blameHtml(d.git_blame)}</div>
     ${covHtml(d.coverage_hint)}`;
-  if (kind==='ignored' && d.stanza) html += stanzaHtml(d.stanza);
-  else html += ignoreForm(d);
+  if (kind==='ignored' && d.stanza){
+    html += stanzaHtml(d.stanza);
+  } else if (kind==='tofix'){
+    // To-Fix: show the worklist entry + un-mark, and still offer Ignore
+    // (which moves it from to-fix to ignored).
+    if (d.todo) html += todoHtml(d.todo);
+    html += ignoreForm(d);
+  } else {
+    // Remaining: offer both Ignore and To-Fix.
+    html += ignoreForm(d);
+    html += tofixForm();
+  }
   right.innerHTML = html;
 
+  // Wire the un-ignore button when present.
   if (kind==='ignored' && d.stanza){
     document.getElementById('un-submit').onclick = async ()=>{
       const r = await postJSON('/api/unignore', {id:d.stanza.id});
@@ -936,7 +1265,33 @@ async function loadDetail(id){
         r.data.error||'failed'; return; }
       await loadList(true);
     };
-  } else {
+    return;
+  }
+
+  // Wire the un-mark (To Fix) button when present.
+  if (kind==='tofix'){
+    document.getElementById('tf-remove').onclick = async ()=>{
+      const r = await postJSON('/api/untofix', {id:d.id});
+      if (!r.ok){ document.getElementById('tf-rerr').textContent =
+        r.data.error||'failed'; return; }
+      await loadList(true);
+    };
+  }
+
+  // Wire the To-Fix submit button when present (remaining state only).
+  const tfBtn = document.getElementById('tf-submit');
+  if (tfBtn){
+    tfBtn.onclick = async ()=>{
+      const errEl = document.getElementById('tf-err'); errEl.textContent='';
+      const note = document.getElementById('tf-note').value;
+      const r = await postJSON('/api/tofix', {id:d.id, note});
+      if (!r.ok){ errEl.textContent = r.data.error||'failed'; return; }
+      await loadList(true);
+    };
+  }
+
+  // Wire the Ignore form (present for remaining AND tofix states).
+  {
     document.getElementById('ig-submit').onclick = async ()=>{
       const errEl = document.getElementById('ig-err'); errEl.textContent='';
       const bucket = document.getElementById('ig-bucket').value;
@@ -1085,12 +1440,16 @@ def supervise(child_args, port, watched):
 def main(argv=None):
     p = argparse.ArgumentParser(
         description="Local mull mutation-survivor triage web tool.")
-    default_ledger = os.path.join(
+    conv_dir = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        "Conventions", "mull-ignores.toml")
+        "Conventions")
+    default_ledger = os.path.join(conv_dir, "mull-ignores.toml")
+    default_todo = os.path.join(conv_dir, "mull-todo.toml")
     p.add_argument("--port", type=int, default=8765)
     p.add_argument("--root", default=".")
     p.add_argument("--ledger", default=default_ledger)
+    p.add_argument("--todo", default=default_todo,
+                   help="path to the To-Fix worklist (mull-todo.toml)")
     p.add_argument("--reload", action="store_true",
                    help="supervise mode: auto-restart the server when its "
                         "source (this file or mull-filter.py) changes")
@@ -1111,6 +1470,8 @@ def main(argv=None):
     Config.root = os.path.abspath(args.root)
     Config.ledger = (args.ledger if os.path.isabs(args.ledger)
                      else os.path.join(Config.root, args.ledger))
+    Config.todo = (args.todo if os.path.isabs(args.todo)
+                   else os.path.join(Config.root, args.todo))
     Config.report_globs = args.report_globs or ["build_mull/**/mutation-*.txt"]
 
     httpd = Server(("127.0.0.1", args.port), Handler)
