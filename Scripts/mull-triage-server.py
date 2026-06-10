@@ -30,9 +30,11 @@ import http.server
 import json
 import os
 import re
+import signal
 import socketserver
 import subprocess
 import sys
+import time
 import urllib.parse
 
 # Reuse the canonical filter engine. The server lives in Scripts/ next to it.
@@ -964,6 +966,120 @@ loadList();
 
 
 # --------------------------------------------------------------------------
+# Auto-restart supervisor (--reload)
+# --------------------------------------------------------------------------
+def _watched_files():
+    """Source files whose change should trigger a server restart: this server
+    and the mull-filter engine it imports. Resolved to real absolute paths."""
+    here = os.path.realpath(os.path.abspath(__file__))
+    files = [here]
+    flt = os.path.join(os.path.dirname(here), "mull-filter.py")
+    flt = os.path.realpath(flt)
+    if flt not in files and os.path.isfile(flt):
+        files.append(flt)
+    return files
+
+
+def _mtimes(files):
+    """Snapshot {path: mtime} for the watched files (missing files -> None)."""
+    snap = {}
+    for f in files:
+        try:
+            snap[f] = os.path.getmtime(f)
+        except OSError:
+            snap[f] = None
+    return snap
+
+
+def _spawn_child(child_args):
+    """Launch the actual server as a child subprocess (no --reload)."""
+    env = dict(os.environ)
+    env["_MULL_TRIAGE_RELOAD_CHILD"] = "1"
+    return subprocess.Popen([sys.executable, os.path.abspath(__file__),
+                             *child_args], env=env)
+
+
+def _stop_child(proc):
+    """Terminate the child gracefully (SIGTERM, then SIGKILL after ~5s)."""
+    if proc.poll() is not None:
+        return
+    try:
+        proc.terminate()
+    except OSError:
+        return
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        try:
+            proc.kill()
+        except OSError:
+            pass
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+
+
+def supervise(child_args, port, watched):
+    """Run as a supervisor: spawn the server child, watch source mtimes, and
+    restart on change. If the child crashes on its own, wait for the next
+    change before relaunching (no busy loop). Ctrl-C stops the child cleanly."""
+    names = ", ".join(os.path.relpath(f) for f in watched)
+    sys.stderr.write(
+        "[reload] watching %s; server on http://127.0.0.1:%d "
+        "(auto-restart on change)\n" % (names, port))
+
+    proc = _spawn_child(child_args)
+    snap = _mtimes(watched)
+    waiting_after_crash = False
+
+    # Ctrl-C (SIGINT) / SIGTERM: stop the child and exit cleanly. A flag set
+    # from the handler is the robust path -- it works whether the signal lands
+    # inside time.sleep or anywhere else in the loop.
+    stopping = {"flag": False}
+
+    def _on_signal(*_):
+        stopping["flag"] = True
+
+    signal.signal(signal.SIGINT, _on_signal)
+    signal.signal(signal.SIGTERM, _on_signal)
+
+    try:
+        while not stopping["flag"]:
+            time.sleep(0.5)
+            if stopping["flag"]:
+                break
+            cur = _mtimes(watched)
+            changed = next((f for f in watched if cur[f] != snap[f]), None)
+
+            if changed is not None:
+                snap = cur
+                sys.stderr.write(
+                    "[reload] change detected in %s; restarting...\n"
+                    % os.path.relpath(changed))
+                # If the child crashed we are not serving; otherwise stop it
+                # gracefully before rebinding the same port.
+                if not waiting_after_crash:
+                    _stop_child(proc)
+                proc = _spawn_child(child_args)
+                waiting_after_crash = False
+                continue
+
+            if not waiting_after_crash and proc.poll() is not None:
+                sys.stderr.write(
+                    "[reload] server exited on its own (code %s); "
+                    "waiting for next change before restart...\n"
+                    % proc.returncode)
+                waiting_after_crash = True
+    except KeyboardInterrupt:
+        stopping["flag"] = True
+
+    sys.stderr.write("\n[reload] shutting down\n")
+    _stop_child(proc)
+    return 0
+
+
+# --------------------------------------------------------------------------
 # Entry point
 # --------------------------------------------------------------------------
 def main(argv=None):
@@ -975,11 +1091,22 @@ def main(argv=None):
     p.add_argument("--port", type=int, default=8765)
     p.add_argument("--root", default=".")
     p.add_argument("--ledger", default=default_ledger)
+    p.add_argument("--reload", action="store_true",
+                   help="supervise mode: auto-restart the server when its "
+                        "source (this file or mull-filter.py) changes")
     p.add_argument("report_globs", nargs="*",
                    default=["build_mull/**/mutation-*.txt"],
                    help="report glob(s) (recursive); "
                         "default build_mull/**/mutation-*.txt")
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
     args = p.parse_args(argv)
+
+    # Supervisor mode: do not serve here. Spawn a child that runs the real
+    # server (no --reload) and restart it when watched source files change.
+    is_child = os.environ.get("_MULL_TRIAGE_RELOAD_CHILD") == "1"
+    if args.reload and not is_child:
+        child_args = [a for a in raw_argv if a != "--reload"]
+        return supervise(child_args, args.port, _watched_files())
 
     Config.root = os.path.abspath(args.root)
     Config.ledger = (args.ledger if os.path.isabs(args.ledger)
