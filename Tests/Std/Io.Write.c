@@ -724,6 +724,88 @@ bool test_buf_formatting(void) {
     return ok;
 }
 
+// A non-printable byte rendered with the `{c}` family must be escaped
+// as `\xHH` (lowercase hex for `{c}`/`{a}`, uppercase for `{A}`) so the
+// output is always ASCII-safe. The printable-byte path is covered by
+// test_char_formatting; this pins the escape branch.
+bool test_char_nonprintable_escape(void);
+bool test_char_nonprintable_escape(void) {
+    WriteFmt("Testing {c} escaping of non-printable bytes\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    bool             ok    = true;
+
+    // 0x1B (ESC) is non-printable -> "\x1b".
+    u8 esc = 0x1B;
+    StrAppendFmt(&out, "{c}", esc);
+    ok = ok && (ZstrCompare(StrBegin(&out), "\\x1b") == 0);
+    StrClear(&out);
+
+    // 0x07 (BEL) -> "\x07".
+    u8 bel = 0x07;
+    StrAppendFmt(&out, "{c}", bel);
+    ok = ok && (ZstrCompare(StrBegin(&out), "\\x07") == 0);
+    StrClear(&out);
+
+    // 0xFF with caps spec -> uppercase hex digits "\xFF".
+    u8 hi = 0xFF;
+    StrAppendFmt(&out, "{A}", hi);
+    ok = ok && (ZstrCompare(StrBegin(&out), "\\xFF") == 0);
+    StrClear(&out);
+
+    // 0xAB lowercase by default for {c}.
+    u8 ab = 0xAB;
+    StrAppendFmt(&out, "{c}", ab);
+    ok = ok && (ZstrCompare(StrBegin(&out), "\\xab") == 0);
+
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Raw binary I/O via the Buf format family: encoding a value with `{<Nr}`
+// (little-endian) vs `{>Nr}` (big-endian) lays the bytes down in the
+// requested order, and decoding the same directive recovers the value.
+// Byte order is caller-observable, so we assert the exact byte layout.
+bool test_buf_raw_endianness_and_roundtrip(void);
+bool test_buf_raw_endianness_and_roundtrip(void) {
+    WriteFmt("Testing Buf raw {<Nr}/{>Nr} byte order + read-back round-trip\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Buf              b     = BufInit(&alloc);
+    bool             ok    = true;
+
+    // Little-endian u32: 0xDEADBEEF -> EF BE AD DE.
+    ok = ok && BufWriteFmt(&b, "{<4r}", (u32)0xDEADBEEF);
+    ok = ok && (BufLength(&b) == 4);
+    {
+        const u8 *d = BufData(&b);
+        ok          = ok && d[0] == 0xEF && d[1] == 0xBE && d[2] == 0xAD && d[3] == 0xDE;
+    }
+
+    // Big-endian u32: 0xDEADBEEF -> DE AD BE EF.
+    ok = ok && BufWriteFmt(&b, "{>4r}", (u32)0xDEADBEEF);
+    {
+        const u8 *d = BufData(&b);
+        ok          = ok && d[0] == 0xDE && d[1] == 0xAD && d[2] == 0xBE && d[3] == 0xEF;
+    }
+
+    // Round-trip a u16 and a u64 through both orders.
+    ok = ok && BufWriteFmt(&b, "{<2r}{>8r}", (u16)0x1234, (u64)0x0102030405060708ULL);
+    {
+        BufIter it    = BufIterFromBuf(&b);
+        u16     v16   = 0;
+        u64     v64   = 0;
+        bool    rd_ok = BufReadFmt(&it, "{<2r}{>8r}", v16, v64);
+        ok            = ok && rd_ok && (v16 == 0x1234) && (v64 == 0x0102030405060708ULL);
+    }
+
+    BufDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting format writer tests\n\n");
 
@@ -745,7 +827,9 @@ int main(void) {
         test_float_formatting,
         test_str_write_fmt_clears,
         test_str_patch_fmt,
-        test_buf_formatting
+        test_buf_formatting,
+        test_char_nonprintable_escape,
+        test_buf_raw_endianness_and_roundtrip
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);

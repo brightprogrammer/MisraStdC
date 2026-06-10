@@ -42,6 +42,12 @@ bool test_nested_empty_containers(void);
 bool test_mixed_empty_and_filled(void);
 bool test_boundary_integers(void);
 bool test_boundary_floats(void);
+bool test_scalar_readers_reject_malformed(void);
+bool test_scalar_readers_value_and_advance(void);
+bool test_truncated_unicode_escape_rejected(void);
+bool test_unknown_keys_of_every_type_skipped(void);
+bool test_malformed_object_rejected(void);
+bool test_negative_number_exact_values(void);
 
 // Test 1: Empty object reading
 bool test_empty_object_reading(void) {
@@ -689,6 +695,331 @@ bool test_boundary_floats(void) {
     return success;
 }
 
+// Test 14: Scalar readers reject malformed tokens (FAILURE contract:
+// "returns original StrIter on error" -- the iterator must NOT advance,
+// so a caller can detect the failure and fall back).
+bool test_scalar_readers_reject_malformed(void) {
+    WriteFmtLn("Testing scalar readers reject malformed tokens");
+
+    DefaultAllocator alloc   = DefaultAllocatorInit();
+    bool             success = true;
+
+    // JReadBool on a token that starts like a bool but isn't.
+    {
+        Str     j   = StrInitFromZstr("tru3", &alloc);
+        StrIter si  = StrIterFromStr(j);
+        bool    b   = true;
+        StrIter out = JReadBool(si, &b);
+        if (StrIterIndex(&out) != StrIterIndex(&si)) {
+            WriteFmtLn("[DEBUG] JReadBool advanced on malformed 'tru3'");
+            success = false;
+        }
+        StrDeinit(&j);
+    }
+    {
+        Str     j   = StrInitFromZstr("fXlse", &alloc);
+        StrIter si  = StrIterFromStr(j);
+        bool    b   = true;
+        StrIter out = JReadBool(si, &b);
+        if (StrIterIndex(&out) != StrIterIndex(&si)) {
+            WriteFmtLn("[DEBUG] JReadBool advanced on malformed 'fXlse'");
+            success = false;
+        }
+        StrDeinit(&j);
+    }
+    // Input too short to spell a bool -- must fail (the >= length guard).
+    {
+        Str     j   = StrInitFromZstr("tr", &alloc);
+        StrIter si  = StrIterFromStr(j);
+        bool    b   = true;
+        StrIter out = JReadBool(si, &b);
+        if (StrIterIndex(&out) != StrIterIndex(&si)) {
+            WriteFmtLn("[DEBUG] JReadBool advanced on too-short 'tr'");
+            success = false;
+        }
+        StrDeinit(&j);
+    }
+    // JReadNull on a 'n...' token that isn't "null".
+    {
+        Str     j       = StrInitFromZstr("nuXX", &alloc);
+        StrIter si      = StrIterFromStr(j);
+        bool    is_null = true;
+        StrIter out     = JReadNull(si, &is_null);
+        if (StrIterIndex(&out) != StrIterIndex(&si)) {
+            WriteFmtLn("[DEBUG] JReadNull advanced on malformed 'nuXX'");
+            success = false;
+        }
+        StrDeinit(&j);
+    }
+
+    return success;
+}
+
+// Test 15: Scalar readers parse valid tokens to the right value AND
+// consume exactly the token (SUCCESS contract: advance past the token).
+bool test_scalar_readers_value_and_advance(void) {
+    WriteFmtLn("Testing scalar readers parse + advance");
+
+    DefaultAllocator alloc   = DefaultAllocatorInit();
+    bool             success = true;
+
+    {
+        Str     j   = StrInitFromZstr("true rest", &alloc);
+        StrIter si  = StrIterFromStr(j);
+        bool    b   = false;
+        StrIter out = JReadBool(si, &b);
+        // value correct and exactly 4 bytes consumed
+        if (!(b == true && StrIterIndex(&out) == 4)) {
+            WriteFmtLn("[DEBUG] JReadBool 'true' value/advance wrong: b={}, idx={}", b, StrIterIndex(&out));
+            success = false;
+        }
+        StrDeinit(&j);
+    }
+    {
+        Str     j   = StrInitFromZstr("false rest", &alloc);
+        StrIter si  = StrIterFromStr(j);
+        bool    b   = true;
+        StrIter out = JReadBool(si, &b);
+        if (!(b == false && StrIterIndex(&out) == 5)) {
+            WriteFmtLn("[DEBUG] JReadBool 'false' value/advance wrong: b={}, idx={}", b, StrIterIndex(&out));
+            success = false;
+        }
+        StrDeinit(&j);
+    }
+    {
+        Str     j       = StrInitFromZstr("null rest", &alloc);
+        StrIter si      = StrIterFromStr(j);
+        bool    is_null = false;
+        StrIter out     = JReadNull(si, &is_null);
+        if (!(is_null == true && StrIterIndex(&out) == 4)) {
+            WriteFmtLn("[DEBUG] JReadNull 'null' value/advance wrong: n={}, idx={}", is_null, StrIterIndex(&out));
+            success = false;
+        }
+        StrDeinit(&j);
+    }
+
+    // Exact-length tokens (no trailing bytes): the readers must still
+    // accept these. A token that exactly fills the remaining input is the
+    // boundary case for the minimum-length guard.
+    {
+        Str     j   = StrInitFromZstr("true", &alloc);
+        StrIter si  = StrIterFromStr(j);
+        bool    b   = false;
+        StrIter out = JReadBool(si, &b);
+        if (!(b == true && StrIterIndex(&out) == 4)) {
+            WriteFmtLn("[DEBUG] JReadBool exact 'true' wrong: b={}, idx={}", b, StrIterIndex(&out));
+            success = false;
+        }
+        StrDeinit(&j);
+    }
+    {
+        Str     j   = StrInitFromZstr("false", &alloc);
+        StrIter si  = StrIterFromStr(j);
+        bool    b   = true;
+        StrIter out = JReadBool(si, &b);
+        if (!(b == false && StrIterIndex(&out) == 5)) {
+            WriteFmtLn("[DEBUG] JReadBool exact 'false' wrong: b={}, idx={}", b, StrIterIndex(&out));
+            success = false;
+        }
+        StrDeinit(&j);
+    }
+    {
+        Str     j       = StrInitFromZstr("null", &alloc);
+        StrIter si      = StrIterFromStr(j);
+        bool    is_null = false;
+        StrIter out     = JReadNull(si, &is_null);
+        if (!(is_null == true && StrIterIndex(&out) == 4)) {
+            WriteFmtLn("[DEBUG] JReadNull exact 'null' wrong: n={}, idx={}", is_null, StrIterIndex(&out));
+            success = false;
+        }
+        StrDeinit(&j);
+    }
+
+    return success;
+}
+
+// Test 16: A truncated \uXXXX escape must be rejected, not over-read.
+// (Reader FAILURE contract: returns the original iterator.)
+bool test_truncated_unicode_escape_rejected(void) {
+    WriteFmtLn("Testing truncated \\u escape rejection");
+
+    DefaultAllocator alloc   = DefaultAllocatorInit();
+    bool             success = true;
+
+    // "\u" with no following hex digits, then closing quote/EOF.
+    Zstr cases[] = {"\"\\u\"", "\"\\u12\"", "\"ab\\u\""};
+    for (u64 i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        Str     j   = StrInitFromZstr(cases[i], &alloc);
+        StrIter si  = StrIterFromStr(j);
+        Str     out = StrInit(&alloc);
+        StrIter r   = JReadString(si, &out);
+        // Truncated escape -> failure -> iterator unchanged.
+        if (StrIterIndex(&r) != StrIterIndex(&si)) {
+            WriteFmtLn("[DEBUG] JReadString advanced on truncated escape case {}", i);
+            success = false;
+        }
+        StrDeinit(&out);
+        StrDeinit(&j);
+    }
+
+    // A complete \uXXXX escape is the minimal valid case: the string must
+    // parse (iterator advances past the closing quote) even though the
+    // escape itself is skipped rather than decoded.
+    {
+        Str     j   = StrInitFromZstr("\"a\\u00e9b\"", &alloc);
+        StrIter si  = StrIterFromStr(j);
+        Str     out = StrInit(&alloc);
+        StrIter r   = JReadString(si, &out);
+        if (StrIterIndex(&r) == StrIterIndex(&si) || StrIterIndex(&r) != StrIterLength(&r)) {
+            WriteFmtLn("[DEBUG] JReadString rejected a valid \\u escape: idx={}", StrIterIndex(&r));
+            success = false;
+        }
+        StrDeinit(&out);
+        StrDeinit(&j);
+    }
+
+    DefaultAllocatorDeinit(&alloc);
+    return success;
+}
+
+// Test 17: Unknown keys (every value shape) are skipped, and a later
+// recognized key still parses correctly. This exercises the JSkipValue /
+// JSkipObject / JSkipArray dispatch the reader relies on.
+bool test_unknown_keys_of_every_type_skipped(void) {
+    WriteFmtLn("Testing unknown keys of every value type are skipped");
+
+    DefaultAllocator alloc   = DefaultAllocatorInit();
+    bool             success = true;
+
+    Str json = StrInitFromZstr(
+        "{"
+        "\"u_str\":\"ignore\","
+        "\"u_int\":-42,"
+        "\"u_zero\":0,"
+        "\"u_flt\":3.5,"
+        "\"u_bool\":true,"
+        "\"u_null\":null,"
+        "\"u_obj\":{\"a\":1,\"b\":[2,3]},"
+        "\"u_arr\":[1,{\"x\":9},\"s\"],"
+        "\"wanted\":7"
+        "}",
+        &alloc
+    );
+    StrIter si     = StrIterFromStr(json);
+    i64     wanted = 0;
+
+    JR_OBJ(si, { JR_INT_KV(si, "wanted", wanted); });
+
+    // The recognized value past all the skipped ones must come through,
+    // and the iterator must finish at the closing brace (whole object
+    // consumed).
+    if (wanted != 7) {
+        WriteFmtLn("[DEBUG] wanted parsed wrong after skips: {}", wanted);
+        success = false;
+    }
+    if (StrIterIndex(&si) != StrIterLength(&si)) {
+        WriteFmtLn(
+            "[DEBUG] iterator did not consume whole object: idx={}, len={}",
+            StrIterIndex(&si),
+            StrIterLength(&si)
+        );
+        success = false;
+    }
+
+    StrDeinit(&json);
+    DefaultAllocatorDeinit(&alloc);
+    return success;
+}
+
+// Test 18: Structurally broken objects are rejected -- the reader rewinds
+// the iterator to the start (FAILURE contract) instead of silently
+// accepting a partial parse.
+bool test_malformed_object_rejected(void) {
+    WriteFmtLn("Testing malformed objects are rejected (iterator rewinds)");
+
+    DefaultAllocator alloc   = DefaultAllocatorInit();
+    bool             success = true;
+
+    // missing ':' separator, missing closing brace, missing comma.
+    Zstr cases[] = {
+        "{\"a\" 1}",        // no colon
+        "{\"a\":1",         // truncated, no closing brace
+        "{\"a\":1 \"b\":2}" // missing comma between pairs
+    };
+
+    for (u64 i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        Str     json = StrInitFromZstr(cases[i], &alloc);
+        StrIter si   = StrIterFromStr(json);
+        i64     a    = 0;
+        i64     b    = 0;
+
+        JR_OBJ(si, {
+            JR_INT_KV(si, "a", a);
+            JR_INT_KV(si, "b", b);
+        });
+        (void)a;
+        (void)b;
+
+        // On structural failure the macro restores si to its start.
+        if (StrIterIndex(&si) != 0) {
+            WriteFmtLn("[DEBUG] malformed object case {} did not rewind: idx={}", i, StrIterIndex(&si));
+            success = false;
+        }
+
+        StrDeinit(&json);
+    }
+
+    DefaultAllocatorDeinit(&alloc);
+    return success;
+}
+
+// Test 19: Negative numbers round-trip to their exact value. This pins
+// the sign handling in JReadNumber (the negate step) as caller-observable.
+bool test_negative_number_exact_values(void) {
+    WriteFmtLn("Testing negative number exact values");
+
+    DefaultAllocator alloc   = DefaultAllocatorInit();
+    bool             success = true;
+
+    {
+        Str     j   = StrInitFromZstr("-12345", &alloc);
+        StrIter si  = StrIterFromStr(j);
+        i64     v   = 0;
+        StrIter out = JReadInteger(si, &v);
+        if (!(StrIterIndex(&out) != StrIterIndex(&si) && v == -12345)) {
+            WriteFmtLn("[DEBUG] JReadInteger '-12345' -> {}", v);
+            success = false;
+        }
+        StrDeinit(&j);
+    }
+    {
+        // Positive control: a sign-flip mutation would make this negative.
+        Str     j   = StrInitFromZstr("12345", &alloc);
+        StrIter si  = StrIterFromStr(j);
+        i64     v   = 0;
+        StrIter out = JReadInteger(si, &v);
+        if (!(StrIterIndex(&out) != StrIterIndex(&si) && v == 12345)) {
+            WriteFmtLn("[DEBUG] JReadInteger '12345' -> {}", v);
+            success = false;
+        }
+        StrDeinit(&j);
+    }
+    {
+        Str     j   = StrInitFromZstr("-2.5", &alloc);
+        StrIter si  = StrIterFromStr(j);
+        f64     v   = 0.0;
+        StrIter out = JReadFloat(si, &v);
+        if (!(StrIterIndex(&out) != StrIterIndex(&si) && v == -2.5)) {
+            WriteFmtLn("[DEBUG] JReadFloat '-2.5' -> {}", v);
+            success = false;
+        }
+        StrDeinit(&j);
+    }
+
+    DefaultAllocatorDeinit(&alloc);
+    return success;
+}
+
 // Main function that runs all edge case reading tests
 int main(void) {
     // Array of test functions
@@ -705,7 +1036,13 @@ int main(void) {
         test_nested_empty_containers,
         test_mixed_empty_and_filled,
         test_boundary_integers,
-        test_boundary_floats
+        test_boundary_floats,
+        test_scalar_readers_reject_malformed,
+        test_scalar_readers_value_and_advance,
+        test_truncated_unicode_escape_rejected,
+        test_unknown_keys_of_every_type_skipped,
+        test_malformed_object_rejected,
+        test_negative_number_exact_values
     };
 
     int test_count = sizeof(tests) / sizeof(tests[0]);

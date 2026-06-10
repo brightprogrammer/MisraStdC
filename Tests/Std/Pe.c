@@ -219,6 +219,103 @@ bool test_pe_rejects_bad_magic(void) {
     return ok;
 }
 
+// PeFindSection finds the section built into the synthetic blob and
+// returns NULL for an absent name. The existing tests never call it.
+bool test_pe_find_section(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    build_pe_blob();
+    Pe pe;
+    if (!PeOpenFromMemoryCopy(&pe, blob, sizeof(blob), base)) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    const PeSection *s  = PeFindSection(&pe, ".debug");
+    bool             ok = s != NULL && s->virtual_address == SECTION_VA && s->raw_offset == DEBUG_RAW_OFF;
+    ok                  = ok && PeFindSection(&pe, ".nope") == NULL;
+
+    PeDeinit(&pe);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// PeRvaToOffset covers the in-section interval [VirtualAddress,
+// VirtualAddress+VirtualSize): an RVA inside round-trips, the RVA at the
+// exact section end is not covered, and an RVA below the first section
+// fails -- all without writing *out_offset on failure.
+bool test_pe_rva_boundaries(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    build_pe_blob();
+    Pe pe;
+    if (!PeOpenFromMemoryCopy(&pe, blob, sizeof(blob), base)) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    // Inside the section maps to raw_offset + delta.
+    u64  off = 0;
+    bool ok  = PeRvaToOffset(&pe, SECTION_VA + 0x10, &off) && off == DEBUG_RAW_OFF + 0x10;
+    // RVA == VirtualAddress + VirtualSize is one past the end -> not covered.
+    u64 end_off = 0;
+    ok          = ok && !PeRvaToOffset(&pe, SECTION_VA + SECTION_VSIZE, &end_off);
+    // RVA below the first section -> not covered.
+    u64 low = 0;
+    ok      = ok && !PeRvaToOffset(&pe, 0x100, &low);
+
+    PeDeinit(&pe);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Helper: a malformed image must be rejected (returns false).
+static bool pe_rejects(const u8 *bytes, u64 len) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Pe               pe;
+    bool             opened = PeOpenFromMemoryCopy(&pe, bytes, len, ALLOCATOR_OF(&alloc));
+    if (opened)
+        PeDeinit(&pe);
+    DefaultAllocatorDeinit(&alloc);
+    return !opened;
+}
+
+// A corrupt NT signature ("PE\0\0") is rejected.
+bool test_pe_rejects_bad_nt_signature(void) {
+    build_pe_blob();
+    u8 bad[BLOB_SIZE];
+    MemCopy(bad, blob, sizeof(bad));
+    bad[NT_OFF] = 'Q'; // corrupt 'P' of the NT signature
+    return pe_rejects(bad, sizeof(bad));
+}
+
+// An unsupported Optional Header magic (neither PE32 0x10B nor PE32+
+// 0x20B) is rejected.
+bool test_pe_rejects_bad_optional_magic(void) {
+    build_pe_blob();
+    u8 bad[BLOB_SIZE];
+    MemCopy(bad, blob, sizeof(bad));
+    wr_u16(&bad[OPT_HDR_OFF], 0x1234); // bogus optional magic
+    return pe_rejects(bad, sizeof(bad));
+}
+
+// e_lfanew pointing past EOF is rejected, not chased out of bounds.
+bool test_pe_rejects_lfanew_past_eof(void) {
+    build_pe_blob();
+    u8 bad[BLOB_SIZE];
+    MemCopy(bad, blob, sizeof(bad));
+    wr_u32(&bad[DOS_E_LFANEW_OFF], (u32)sizeof(bad) + 0x1000);
+    return pe_rejects(bad, sizeof(bad));
+}
+
+// A buffer smaller than the DOS header is rejected.
+bool test_pe_rejects_truncated_dos(void) {
+    build_pe_blob();
+    return pe_rejects(blob, 32); // < 64-byte DOS header minimum
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting Pe tests\n\n");
 
@@ -226,6 +323,12 @@ int main(void) {
         test_pe_parses_synthetic_blob,
         test_pe_rva_to_offset_round_trips,
         test_pe_rejects_bad_magic,
+        test_pe_find_section,
+        test_pe_rva_boundaries,
+        test_pe_rejects_bad_nt_signature,
+        test_pe_rejects_bad_optional_magic,
+        test_pe_rejects_lfanew_past_eof,
+        test_pe_rejects_truncated_dos,
     };
 
     return run_test_suite(tests, sizeof(tests) / sizeof(tests[0]), NULL, 0, "Pe");

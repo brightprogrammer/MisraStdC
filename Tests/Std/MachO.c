@@ -190,6 +190,139 @@ bool test_macho_rejects_fat_binary(void) {
     return ok;
 }
 
+// MachoFindSection finds the (segment, section) pair built into the
+// synthetic blob and returns NULL for a pair that isn't present. The
+// existing synthetic test never calls it (only the Darwin-only path
+// does), so this pins the lookup contract on Linux too.
+bool test_macho_find_section(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    build_macho_blob();
+
+    Macho m;
+    if (!MachoOpenFromMemoryCopy(&m, blob, sizeof(blob), base)) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    const MachoSection *hit = MachoFindSection(&m, "__TEXT", "__text");
+    bool                ok  = hit != NULL && hit->addr == 0x100000000ull && hit->size == 0x100;
+    // Right section name in the wrong segment -> no match.
+    ok = ok && MachoFindSection(&m, "__DATA", "__text") == NULL;
+    // Right segment, wrong section -> no match.
+    ok = ok && MachoFindSection(&m, "__TEXT", "__nope") == NULL;
+
+    MachoDeinit(&m);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Helper: a malformed image must be rejected (returns false).
+static bool macho_rejects(const u8 *bytes, u64 len) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Macho            m;
+    bool             opened = MachoOpenFromMemoryCopy(&m, bytes, len, ALLOCATOR_OF(&alloc));
+    if (opened)
+        MachoDeinit(&m);
+    DefaultAllocatorDeinit(&alloc);
+    return !opened;
+}
+
+// A buffer shorter than the 32-byte mach_header_64 is rejected, not
+// read out of bounds.
+bool test_macho_rejects_truncated_header(void) {
+    build_macho_blob();
+    return macho_rejects(blob, 16);
+}
+
+// 32-bit, byte-swapped, and arbitrary bad magics are all rejected (v1
+// is 64-bit thin little-endian only).
+bool test_macho_rejects_bad_magics(void) {
+    u8 buf[64];
+
+    MemSet(buf, 0, sizeof(buf));
+    wr_u32(&buf[0], 0xFEEDFACEu); // MH_MAGIC_32
+    bool ok = macho_rejects(buf, sizeof(buf));
+
+    MemSet(buf, 0, sizeof(buf));
+    wr_u32(&buf[0], 0xCFFAEDFEu); // MH_CIGAM_64 (byte-swapped 64-bit)
+    ok = ok && macho_rejects(buf, sizeof(buf));
+
+    MemSet(buf, 0, sizeof(buf));
+    wr_u32(&buf[0], 0xDEADBEEFu); // not a Mach-O at all
+    ok = ok && macho_rejects(buf, sizeof(buf));
+
+    return ok;
+}
+
+// LC_SYMTAB whose symbol table runs past EOF is rejected.
+bool test_macho_rejects_symtab_past_eof(void) {
+    build_macho_blob();
+    u8 bad[BLOB_SIZE];
+    MemCopy(bad, blob, sizeof(bad));
+    // The LC_SYMTAB command's symoff field lives at sym_cmd_off + 8.
+    u32 sym_cmd_off = 32 + SEG64_HDR + SECT64_SIZE;
+    wr_u32(&bad[sym_cmd_off + 8], (u32)sizeof(bad) + 0x1000); // symoff past EOF
+    return macho_rejects(bad, sizeof(bad));
+}
+
+// Build a two-symbol __TEXT blob: first symbol at 0x...10 and second
+// at 0x...40, so an address at/above the second is bounded out of the
+// first symbol's span. Kept in a separate static so the single-symbol
+// blob stays intact.
+static u8 two_blob[BLOB_SIZE];
+
+static void build_two_symbol_blob(void) {
+    build_macho_blob();
+    MemCopy(two_blob, blob, sizeof(two_blob));
+
+    // Bump nsyms to 2 in the LC_SYMTAB command.
+    u32 sym_cmd_off = 32 + SEG64_HDR + SECT64_SIZE;
+    wr_u32(&two_blob[sym_cmd_off + 12], 2); // nsyms = 2
+
+    // Second nlist_64 right after the first (first is at SYM_OFF).
+    u8 *n2 = &two_blob[SYM_OFF + NLIST64_SIZE];
+    wr_u32(&n2[0], 1);              // n_strx -> reuse "my_function" (name irrelevant here)
+    n2[4] = 0x0F;                   // N_SECT | N_EXT
+    n2[5] = 1;                      // n_sect
+    wr_u16(&n2[6], 0);              // n_desc
+    wr_u64(&n2[8], 0x100000040ull); // n_value (the "next" symbol)
+}
+
+// MachoResolveAddress bounds a match by the next symbol: an address at
+// or above the next symbol's value does NOT resolve to the earlier
+// symbol.
+bool test_macho_resolve_bounded_by_next(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    build_two_symbol_blob();
+
+    Macho m;
+    if (!MachoOpenFromMemoryCopy(&m, two_blob, sizeof(two_blob), base)) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    bool ok = VecLen(&m.symbols) == 2;
+
+    // Inside the first symbol's span [0x10, 0x40): resolves to it.
+    const MachoSymbol *s = MachoResolveAddress(&m, 0x100000010ull);
+    ok                   = ok && s != NULL && s->value == 0x100000010ull;
+    s                    = MachoResolveAddress(&m, 0x100000030ull);
+    ok                   = ok && s != NULL && s->value == 0x100000010ull;
+
+    // At the next symbol's value: resolves to the second symbol, not the
+    // first.
+    s  = MachoResolveAddress(&m, 0x100000040ull);
+    ok = ok && s != NULL && s->value == 0x100000040ull;
+
+    MachoDeinit(&m);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
 #if PLATFORM_DARWIN
 
 // Forward-declare instead of `#include <mach-o/dyld.h>` to keep
@@ -277,6 +410,11 @@ int main(void) {
         test_macho_parses_synthetic_blob,
         test_macho_resolves_address,
         test_macho_rejects_fat_binary,
+        test_macho_find_section,
+        test_macho_rejects_truncated_header,
+        test_macho_rejects_bad_magics,
+        test_macho_rejects_symtab_past_eof,
+        test_macho_resolve_bounded_by_next,
 #if PLATFORM_DARWIN
         test_macho_parses_running_binary,
         test_macho_resolves_running_binary_symbol,

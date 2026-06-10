@@ -307,6 +307,216 @@ bool test_pdb_extracts_pub32_function_name(void) {
     return ok;
 }
 
+// ---------------------------------------------------------------------------
+// Multi-function blob: three S_PUB32 records pushed in non-sorted RVA
+// order. Exercises the sort + binary-search RVA resolver, which the
+// single-function blob above cannot distinguish from a degenerate
+// (return-the-only-entry) implementation.
+// ---------------------------------------------------------------------------
+
+// Write one S_PUB32 record at `*sym` and advance it. Returns nothing;
+// `*sym` points past the record on return.
+static void write_pub32(u8 **sym, u32 offset, u16 segment, Zstr name) {
+    u32 namelen = (u32)ZstrLen(name) + 1; // include NUL
+    u16 rec_len = (u16)(2 + 4 + 4 + 2 + namelen);
+    u8 *p       = *sym;
+    wr_u16(&p[0], rec_len);
+    wr_u16(&p[2], 0x110E); // S_PUB32
+    wr_u32(&p[4], 0x2);    // flags = FUNCTION
+    wr_u32(&p[8], offset);
+    wr_u16(&p[12], segment);
+    MemCopy(&p[14], name, namelen);
+    *sym = p + 2 + rec_len;
+}
+
+enum {
+    M_BLOCK_SIZE    = 512,
+    M_NUM_PAGES     = 11,
+    M_BLOB_SIZE     = M_BLOCK_SIZE * M_NUM_PAGES,
+    M_BLOCK_MAP     = 3,
+    M_DIR_PAGE      = 4,
+    M_INFO_PAGE     = 5,
+    M_DBI_PAGE      = 6,
+    M_SYMREC_PAGE   = 7,
+    M_SECHDR_PAGE   = 8,
+    M_SYMREC_STREAM = 4,
+    M_SECHDR_STREAM = 5,
+    M_NUM_STREAMS   = 6,
+    M_INFO_SIZE     = 28,
+    M_DBI_SIZE      = 76,
+    M_SECHDR_SIZE   = 40,
+};
+
+static u8 mblob[M_BLOB_SIZE];
+
+static void build_multi_pdb_blob(u32 *out_symrec_size) {
+    MemSet(mblob, 0, sizeof(mblob));
+
+    // --- SymRecord stream (#4): three out-of-order publics --------------
+    u8 *sym = &mblob[M_SYMREC_PAGE * M_BLOCK_SIZE];
+    u8 *p   = sym;
+    // Section .text is VA 0x1000; RVA = 0x1000 + offset.
+    write_pub32(&p, 0x300, 1, "fn_gamma"); // rva 0x1300
+    write_pub32(&p, 0x100, 1, "fn_alpha"); // rva 0x1100
+    write_pub32(&p, 0x200, 1, "fn_beta");  // rva 0x1200
+    u32 symrec_size  = (u32)(p - sym);
+    *out_symrec_size = symrec_size;
+
+    // Directory size: 4 (count) + N_STREAMS*4 (sizes) + 4 block ids*4.
+    const u32 dir_bytes = 4 + M_NUM_STREAMS * 4 + 4 * 4;
+
+    MemCopy(mblob, kMagic, 32);
+    wr_u32(&mblob[32], M_BLOCK_SIZE);
+    wr_u32(&mblob[36], 1);
+    wr_u32(&mblob[40], M_NUM_PAGES);
+    wr_u32(&mblob[44], dir_bytes);
+    wr_u32(&mblob[48], 0);
+    wr_u32(&mblob[52], M_BLOCK_MAP);
+
+    wr_u32(&mblob[M_BLOCK_MAP * M_BLOCK_SIZE], M_DIR_PAGE);
+
+    u8 *dir = &mblob[M_DIR_PAGE * M_BLOCK_SIZE];
+    wr_u32(&dir[0], M_NUM_STREAMS);
+    wr_u32(&dir[4 + 0 * 4], 0);
+    wr_u32(&dir[4 + 1 * 4], M_INFO_SIZE);
+    wr_u32(&dir[4 + 2 * 4], 0);
+    wr_u32(&dir[4 + 3 * 4], M_DBI_SIZE);
+    wr_u32(&dir[4 + 4 * 4], symrec_size);
+    wr_u32(&dir[4 + 5 * 4], M_SECHDR_SIZE);
+    u8 *bids = dir + 4 + M_NUM_STREAMS * 4;
+    wr_u32(&bids[0 * 4], M_INFO_PAGE);
+    wr_u32(&bids[1 * 4], M_DBI_PAGE);
+    wr_u32(&bids[2 * 4], M_SYMREC_PAGE);
+    wr_u32(&bids[3 * 4], M_SECHDR_PAGE);
+
+    u8 *info = &mblob[M_INFO_PAGE * M_BLOCK_SIZE];
+    wr_u32(&info[0], 20040203);
+    wr_u32(&info[4], 0xfeedface);
+    wr_u32(&info[8], 1);
+    MemCopy(&info[12], kGuid, 16);
+
+    u8 *dbi = &mblob[M_DBI_PAGE * M_BLOCK_SIZE];
+    wr_u32(&dbi[0], 0xFFFFFFFFu);
+    wr_u32(&dbi[4], 19990903);
+    wr_u32(&dbi[8], 1);
+    wr_u16(&dbi[20], M_SYMREC_STREAM);
+    wr_u32(&dbi[48], 12); // OptionalDbgHeaderSize
+    wr_u16(&dbi[58], 0x8664);
+    wr_u16(&dbi[64 + 0 * 2], 0xFFFF);
+    wr_u16(&dbi[64 + 1 * 2], 0xFFFF);
+    wr_u16(&dbi[64 + 2 * 2], 0xFFFF);
+    wr_u16(&dbi[64 + 3 * 2], 0xFFFF);
+    wr_u16(&dbi[64 + 4 * 2], 0xFFFF);
+    wr_u16(&dbi[64 + 5 * 2], M_SECHDR_STREAM);
+
+    u8      *sec      = &mblob[M_SECHDR_PAGE * M_BLOCK_SIZE];
+    const u8 sname[8] = {'.', 't', 'e', 'x', 't', 0, 0, 0};
+    MemCopy(sec, sname, 8);
+    wr_u32(&sec[8], 0x2000);  // VirtualSize
+    wr_u32(&sec[12], 0x1000); // VirtualAddress
+    wr_u32(&sec[16], 0x2000);
+    wr_u32(&sec[20], 0x400);
+    wr_u32(&sec[36], 0x60000020u);
+}
+
+// Contract: with multiple functions, each RVA resolves to the function
+// whose [rva, rva+size) range covers it -- not merely "some" function.
+// Also: an RVA below the first function is unresolved (NULL).
+bool test_pdb_resolves_among_multiple_functions(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    u32 symrec_size = 0;
+    build_multi_pdb_blob(&symrec_size);
+
+    Pdb  pdb;
+    bool ok = PdbOpenFromMemoryCopy(&pdb, mblob, sizeof(mblob), base);
+    if (!ok) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    ok = VecLen(&pdb.functions) == 3;
+
+    // Functions are stored sorted by RVA regardless of input order.
+    if (ok) {
+        const PdbFunction *f0 = VecPtrAt(&pdb.functions, 0);
+        const PdbFunction *f1 = VecPtrAt(&pdb.functions, 1);
+        const PdbFunction *f2 = VecPtrAt(&pdb.functions, 2);
+        ok                    = ok && f0->rva == 0x1100 && ZstrCompare(f0->name, "fn_alpha") == 0;
+        ok                    = ok && f1->rva == 0x1200 && ZstrCompare(f1->name, "fn_beta") == 0;
+        ok                    = ok && f2->rva == 0x1300 && ZstrCompare(f2->name, "fn_gamma") == 0;
+    }
+
+    // Exact starts.
+    if (ok) {
+        const PdbFunction *a = PdbResolveRva(&pdb, 0x1100);
+        const PdbFunction *b = PdbResolveRva(&pdb, 0x1200);
+        const PdbFunction *c = PdbResolveRva(&pdb, 0x1300);
+        ok                   = ok && a && ZstrCompare(a->name, "fn_alpha") == 0;
+        ok                   = ok && b && ZstrCompare(b->name, "fn_beta") == 0;
+        ok                   = ok && c && ZstrCompare(c->name, "fn_gamma") == 0;
+    }
+
+    // Interior addresses resolve to the *containing* function, proving
+    // the resolver picks the greatest rva <= query rather than the
+    // first/only entry.
+    if (ok) {
+        const PdbFunction *mid_a = PdbResolveRva(&pdb, 0x11FF); // inside alpha
+        const PdbFunction *mid_b = PdbResolveRva(&pdb, 0x12AB); // inside beta
+        ok                       = ok && mid_a && ZstrCompare(mid_a->name, "fn_alpha") == 0;
+        ok                       = ok && mid_b && ZstrCompare(mid_b->name, "fn_beta") == 0;
+    }
+
+    // Below the first function -> unresolved.
+    if (ok)
+        ok = PdbResolveRva(&pdb, 0x1000) == NULL;
+
+    PdbDeinit(&pdb);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Contract: an MSF whose superblock advertises an unsupported page size
+// (not one of 512/1024/2048/4096) is rejected. Build a valid magic +
+// superblock but with block_size = 333.
+bool test_pdb_rejects_bad_block_size(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    u8 buf[256];
+    MemSet(buf, 0, sizeof(buf));
+    MemCopy(buf, kMagic, 32);
+    wr_u32(&buf[32], 333); // bogus block size
+    wr_u32(&buf[36], 1);
+    wr_u32(&buf[40], 1);
+    wr_u32(&buf[44], 0);
+    wr_u32(&buf[48], 0);
+    wr_u32(&buf[52], 0);
+
+    Pdb  pdb;
+    bool ok = !PdbOpenFromMemoryCopy(&pdb, buf, sizeof(buf), base);
+
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Contract: a blob shorter than the MSF superblock is rejected (no
+// over-read on a truncated file).
+bool test_pdb_rejects_truncated_superblock(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    u8 buf[16];
+    MemCopy(buf, kMagic, 16); // partial magic, far short of 56-byte superblock
+
+    Pdb  pdb;
+    bool ok = !PdbOpenFromMemoryCopy(&pdb, buf, sizeof(buf), base);
+
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting Pdb tests\n\n");
 
@@ -314,6 +524,9 @@ int main(void) {
         test_pdb_parses_minimal_msf,
         test_pdb_rejects_bad_magic,
         test_pdb_extracts_pub32_function_name,
+        test_pdb_resolves_among_multiple_functions,
+        test_pdb_rejects_bad_block_size,
+        test_pdb_rejects_truncated_superblock,
     };
 
     return run_test_suite(tests, sizeof(tests) / sizeof(tests[0]), NULL, 0, "Pdb");

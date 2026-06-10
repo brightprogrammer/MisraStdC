@@ -363,6 +363,192 @@ static bool test_too_many_positionals(void) {
 }
 
 // ----------------------------------------------------------------------------
+// Bool value parsing. ArgOptional with a bool* target accepts the
+// documented truthy/falsey spellings; anything else is a parse error.
+// ----------------------------------------------------------------------------
+
+static bool run_bool_value(Zstr text, bool *out) {
+    DefaultAllocator a = DefaultAllocatorInit();
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
+    ArgOptional(&p, NULL, "--enable", out, "toggle");
+    char  *argv[] = {(char *)"prog", (char *)"--enable", (char *)text};
+    ArgRun rc     = ArgParseRun(&p, 3, argv);
+    ArgParseDeinit(&p);
+    DefaultAllocatorDeinit(&a);
+    return rc == ARG_RUN_OK;
+}
+
+static bool test_bool_value_truthy_spellings(void) {
+    Zstr truthy[] = {"true", "1", "yes", "on"};
+    for (u32 i = 0; i < 4; i++) {
+        bool v = false;
+        if (!run_bool_value(truthy[i], &v) || v != true)
+            return false;
+    }
+    return true;
+}
+
+static bool test_bool_value_falsey_spellings(void) {
+    Zstr falsey[] = {"false", "0", "no", "off"};
+    for (u32 i = 0; i < 4; i++) {
+        bool v = true;
+        if (!run_bool_value(falsey[i], &v) || v != false)
+            return false;
+    }
+    return true;
+}
+
+static bool test_bool_value_garbage_rejected(void) {
+    // A non-bool spelling must be rejected (parse error), and the
+    // pre-existing target value must be left untouched.
+    DefaultAllocator a = DefaultAllocatorInit();
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
+    bool             v = true;
+    ArgOptional(&p, NULL, "--enable", &v, "toggle");
+    char  *argv[] = {(char *)"prog", (char *)"--enable", (char *)"maybe"};
+    ArgRun rc     = ArgParseRun(&p, 3, argv);
+    bool   ok     = (rc == ARG_RUN_ERROR) && (v == true);
+    ArgParseDeinit(&p);
+    DefaultAllocatorDeinit(&a);
+    return ok;
+}
+
+// ----------------------------------------------------------------------------
+// ArgCount across the unsigned target widths. The u32 path is covered
+// above; u8/u16/u64 counters must increment per occurrence too.
+// ----------------------------------------------------------------------------
+
+static bool test_count_u8_target(void) {
+    DefaultAllocator a = DefaultAllocatorInit();
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
+    u8               n = 0;
+    ArgCount(&p, "-v", "--verbose", &n, "v");
+    char  *argv[] = {(char *)"prog", (char *)"-v", (char *)"-v"};
+    ArgRun rc     = ArgParseRun(&p, 3, argv);
+    bool   ok     = (rc == ARG_RUN_OK) && (n == 2);
+    ArgParseDeinit(&p);
+    DefaultAllocatorDeinit(&a);
+    return ok;
+}
+
+static bool test_count_u16_target(void) {
+    DefaultAllocator a = DefaultAllocatorInit();
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
+    u16              n = 0;
+    ArgCount(&p, "-v", "--verbose", &n, "v");
+    char  *argv[] = {(char *)"prog", (char *)"-vvvv"};
+    ArgRun rc     = ArgParseRun(&p, 2, argv);
+    bool   ok     = (rc == ARG_RUN_OK) && (n == 4);
+    ArgParseDeinit(&p);
+    DefaultAllocatorDeinit(&a);
+    return ok;
+}
+
+static bool test_count_u64_target(void) {
+    DefaultAllocator a = DefaultAllocatorInit();
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
+    u64              n = 0;
+    ArgCount(&p, "-v", "--verbose", &n, "v");
+    char  *argv[] = {(char *)"prog", (char *)"-v", (char *)"-v", (char *)"-v"};
+    ArgRun rc     = ArgParseRun(&p, 4, argv);
+    bool   ok     = (rc == ARG_RUN_OK) && (n == 3);
+    ArgParseDeinit(&p);
+    DefaultAllocatorDeinit(&a);
+    return ok;
+}
+
+// ----------------------------------------------------------------------------
+// Value-form error paths
+// ----------------------------------------------------------------------------
+
+static bool test_option_missing_trailing_value(void) {
+    // "--listen" is the last token: there is no value to consume, so the
+    // parse must error rather than read past argv.
+    DefaultAllocator a      = DefaultAllocatorInit();
+    ArgParse         p      = ArgParseInit("prog", NULL, &a);
+    Zstr             listen = NULL;
+    ArgRequired(&p, "-l", "--listen", &listen, "host:port");
+    char  *argv[] = {(char *)"prog", (char *)"--listen"};
+    ArgRun rc     = ArgParseRun(&p, 2, argv);
+    bool   ok     = (rc == ARG_RUN_ERROR) && (listen == NULL);
+    ArgParseDeinit(&p);
+    DefaultAllocatorDeinit(&a);
+    return ok;
+}
+
+static bool test_flag_rejects_inline_value(void) {
+    // A boolean flag takes no value; "--verbose=1" must be rejected.
+    DefaultAllocator a = DefaultAllocatorInit();
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
+    bool             v = false;
+    ArgFlag(&p, "-v", "--verbose", &v, "v");
+    char  *argv[] = {(char *)"prog", (char *)"--verbose=1"};
+    ArgRun rc     = ArgParseRun(&p, 2, argv);
+    bool   ok     = (rc == ARG_RUN_ERROR) && (v == false);
+    ArgParseDeinit(&p);
+    DefaultAllocatorDeinit(&a);
+    return ok;
+}
+
+static bool test_count_rejects_inline_value(void) {
+    DefaultAllocator a = DefaultAllocatorInit();
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
+    u32              n = 0;
+    ArgCount(&p, "-v", "--verbose", &n, "v");
+    char  *argv[] = {(char *)"prog", (char *)"--verbose=3"};
+    ArgRun rc     = ArgParseRun(&p, 2, argv);
+    bool   ok     = (rc == ARG_RUN_ERROR) && (n == 0);
+    ArgParseDeinit(&p);
+    DefaultAllocatorDeinit(&a);
+    return ok;
+}
+
+static bool test_short_value_option_not_bundled(void) {
+    // "-lX" sticking a value onto a short value option is not supported;
+    // it must error rather than silently treat "lX" as bundled flags.
+    DefaultAllocator a      = DefaultAllocatorInit();
+    ArgParse         p      = ArgParseInit("prog", NULL, &a);
+    Zstr             listen = NULL;
+    ArgRequired(&p, "-l", "--listen", &listen, "host:port");
+    char  *argv[] = {(char *)"prog", (char *)"-lhost"};
+    ArgRun rc     = ArgParseRun(&p, 2, argv);
+    bool   ok     = (rc == ARG_RUN_ERROR);
+    ArgParseDeinit(&p);
+    DefaultAllocatorDeinit(&a);
+    return ok;
+}
+
+static bool test_signed_boundary_accepted(void) {
+    // The documented signed range endpoints must parse; one past must
+    // fail. Covers the range-check predicate in parse_signed.
+    DefaultAllocator a  = DefaultAllocatorInit();
+    ArgParse         p  = ArgParseInit("prog", NULL, &a);
+    i16              lo = 0;
+    i16              hi = 0;
+    ArgOptional(&p, NULL, "--lo", &lo, "lo");
+    ArgOptional(&p, NULL, "--hi", &hi, "hi");
+    char  *argv[] = {(char *)"prog", (char *)"--lo=-32768", (char *)"--hi=32767"};
+    ArgRun rc     = ArgParseRun(&p, 3, argv);
+    bool   ok     = (rc == ARG_RUN_OK) && (lo == -32768) && (hi == 32767);
+    ArgParseDeinit(&p);
+    DefaultAllocatorDeinit(&a);
+    return ok;
+}
+
+static bool test_signed_boundary_overflow_rejected(void) {
+    DefaultAllocator a = DefaultAllocatorInit();
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
+    i16              v = 5;
+    ArgOptional(&p, NULL, "--v", &v, "v");
+    char  *argv[] = {(char *)"prog", (char *)"--v=32768"};
+    ArgRun rc     = ArgParseRun(&p, 2, argv);
+    bool   ok     = (rc == ARG_RUN_ERROR) && (v == 5);
+    ArgParseDeinit(&p);
+    DefaultAllocatorDeinit(&a);
+    return ok;
+}
+
+// ----------------------------------------------------------------------------
 // "--" separator forces remaining tokens to positional
 // ----------------------------------------------------------------------------
 
@@ -432,6 +618,18 @@ int main(void) {
         test_invalid_value_for_type,
         test_u8_overflow,
         test_too_many_positionals,
+        test_bool_value_truthy_spellings,
+        test_bool_value_falsey_spellings,
+        test_bool_value_garbage_rejected,
+        test_count_u8_target,
+        test_count_u16_target,
+        test_count_u64_target,
+        test_option_missing_trailing_value,
+        test_flag_rejects_inline_value,
+        test_count_rejects_inline_value,
+        test_short_value_option_not_bundled,
+        test_signed_boundary_accepted,
+        test_signed_boundary_overflow_rejected,
         test_double_dash_separator,
         test_help_returns_help_code,
     };
