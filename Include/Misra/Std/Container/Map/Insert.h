@@ -258,25 +258,26 @@ static inline bool map_set_only_r_impl(
 #define MapInsert(m, in_key, in_value) MapInsertL((m), (in_key), (in_value))
 
 ///
-/// Update the value of the first existing entry that matches `in_key`, or
-/// insert a new entry if no match exists. L-value form takes ownership of
-/// `in_value` on success when the value type has no `copy_init` handler.
-/// The key is always treated as an r-value lookup.
+/// Update the value of the first existing entry that matches `in_key`.
+/// This is an update-only operation: if no entry exists for `in_key` the map
+/// is left unchanged and the call reports failure - it does NOT insert. (Use
+/// `MapInsert` to add, or `MapSet` to replace-or-add.) L-value form takes
+/// ownership of `in_value` on success when the value type has no `copy_init`
+/// handler. The key is always treated as an r-value lookup.
 ///
 /// m[in,out]    : Map handle.
 /// in_key[in]   : Lookup key (treated as r-value).
 /// in_value[in] : Addressable replacement value.
 ///
-/// SUCCESS : Returns `true`. If an entry for `in_key` already existed, the
-///           first such entry's value has been replaced with `in_value`
-///           (and the previous value torn down via `value_copy_deinit` if
-///           configured). If no entry existed, a new (key, value) entry is
-///           inserted and length grows by one. When `value_copy_init` is
-///           absent the `in_value` source has been zeroed; otherwise it is
-///           unchanged. The `in_key` source is never zeroed.
-/// FAILURE : Returns `false` on allocation failure during a new-entry
-///           insert path. Existing entries are unchanged and the source
-///           value is untouched.
+/// SUCCESS : Returns `true`. An entry for `in_key` already existed and the
+///           first such entry's value has been replaced with `in_value` (the
+///           previous value torn down via `value_copy_deinit` if configured).
+///           When `value_copy_init` is absent the `in_value` source has been
+///           zeroed; otherwise it is unchanged. The `in_key` source is never
+///           zeroed. Map length is unchanged.
+/// FAILURE : Returns `false` when no entry exists for `in_key` (nothing is
+///           inserted) or on allocation failure during the value deep-copy.
+///           The map and both sources are unchanged.
 ///
 /// TAGS: Map, SetFirst, LValue, Update
 ///
@@ -297,13 +298,15 @@ static inline bool map_set_only_r_impl(
      ))
 
 ///
-/// Update the value of the first existing entry that matches `in_key`, or
-/// insert a new entry if no match exists. R-value form.
+/// Update the value of the first existing entry that matches `in_key`.
+/// Update-only: if no entry exists the map is left unchanged and the call
+/// reports failure - it does NOT insert. R-value form.
 ///
 /// SUCCESS : Returns `true`. Same state effects as `MapSetFirstL` minus the
 ///           value-source zeroing step; the value source is left untouched.
-/// FAILURE : Returns `false` on allocation failure during a new-entry
-///           insert path. Existing entries are unchanged.
+/// FAILURE : Returns `false` when no entry exists for `in_key` (nothing is
+///           inserted) or on allocation failure during the value deep-copy.
+///           The map is unchanged.
 ///
 /// TAGS: Map, SetFirst, RValue, Update
 ///
