@@ -75,13 +75,15 @@ import sys
 # flat-table-array schema if running on an older interpreter.
 try:
     import tomllib  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover - exercised only on <3.11
+    tomllib = None
 
-    def load_toml(path):
+
+def load_toml(path):
+    if tomllib is not None:
         with open(path, "rb") as f:
             return tomllib.load(f)
-except ModuleNotFoundError:  # pragma: no cover - exercised only on <3.11
-    def load_toml(path):
-        return _minimal_toml(path)
+    return _minimal_toml(path)
 
 
 # --------------------------------------------------------------------------
