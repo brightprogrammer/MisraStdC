@@ -25,6 +25,25 @@ followed by summary lines like ``[info] Mutation score: 75%`` and
 ``...: warning: Survived: ... [<mutator>]`` line; it carries the file, line,
 column and mutator id needed to match a ledger entry.
 
+True survivors (the gate's unit of accounting)
+-----------------------------------------------
+A mutant is *killed* if **any** suite kills it. ``Scripts/mutation.sh`` mutates
+one source file per component and runs only that component's suites against it,
+so a given source file's mutants appear ONLY in that component's reports. The
+true survivor set is therefore the per-source-file **intersection** across the
+reports that mutate that file, deduped:
+
+  * A mutant is keyed by ``(file, line, col, mutator)``.
+  * Each report contributes its set of survived mutant-keys AND the set of
+    source files it mutates ("mutated-file-set").
+  * A mutant ``m`` in file ``F`` is a TRUE survivor iff ``m`` is in the survived
+    set of EVERY report whose mutated-file-set contains ``F``. If any such report
+    does not list ``m`` as survived, some suite killed it.
+  * Each true survivor is counted ONCE regardless of how many reports list it.
+
+A per-suite **union over-reports** (it double-counts cross-suite duplicates and
+re-lists mutants other suites already killed) and is NEVER used as the gate.
+
 region_hash normalisation
 -------------------------
 A ledger entry anchors to a source region via exactly one selector
@@ -50,32 +69,33 @@ diff as a fast-path to skip hashing entries in untouched files.
 Usage
 -----
     mull-filter.py [--ledger PATH] [--root DIR] [--out PATH]
-                   [--fail-on-new <base>..<head>] REPORT [REPORT ...]
+                   REPORT [REPORT ...]
+    mull-filter.py --gate [--ledger PATH] [--root DIR] REPORT [REPORT ...]
     mull-filter.py --check-range <base>..<head> [--ledger PATH] [--root DIR]
 
-In the default mode it reads one or more report files, writes the filtered
-report to ``--out`` (default ``report.filtered.txt`` next to the first input),
-and prints a summary block. ``--check-range`` is the enforcement-hook mode: it
-runs only the stale-detection (no report needed) over the entries whose files
-changed in ``<base>..<head>`` and exits non-zero if any covered region moved
-without its ledger stanza being updated.
+In the default mode it reads one or more report files, computes the deduped,
+per-file-intersected TRUE survivor set (see above), suppresses the ledgered
+ones, writes the filtered report to ``--out`` (default ``report.filtered.txt``
+next to the first input), and prints a summary block (total true survivors /
+ignored by id / remaining / stale).
 
-CI gating (``--fail-on-new``)
------------------------------
-``--fail-on-new <base>..<head>`` turns the default filter mode into the CI gate.
-On top of the unconditional stale / bucket-A non-zero exits, it parses
-``git diff --unified=0 <base>..<head>`` for the new-file (``+``) line ranges each
-hunk adds/changes, and exits non-zero if any REMAINING (non-ignored, non-stale)
-survivor's reported ``(file, line)`` falls inside one of those ranges -- i.e. a
-survivor that was *introduced by this change* and has no ledger entry. Survivors
-in unchanged code never gate. When the range cannot be resolved (git missing or
-an unknown / all-zeroes ref -- e.g. a first push / branch create), this gate is
-skipped gracefully and only the stale / bucket-A gates apply; it is never an
-error to pass an unresolvable range. The absolute mutation score is NEVER a gate.
+``--check-range`` is the enforcement-hook mode: it runs only the
+stale-detection (no report needed) over the entries whose files changed in
+``<base>..<head>`` and exits non-zero if any covered region moved without its
+ledger stanza being updated.
 
-Exit codes: 0 = clean; non-zero = a hard ledger error (bucket A / missing
-fields), one or more stale entries, or (with ``--fail-on-new``) a survivor newly
-introduced in the diff range.
+CI / pre-push gate (``--gate``)
+-------------------------------
+``--gate`` is the convergence gate from MULL-DISCOVERY-CONVENTIONS. It does
+everything the default mode does, then EXITS NON-ZERO if ANY true survivor
+remains after ledger suppression, OR any ledger entry is stale, OR any
+bucket-A / malformed ledger entry exists. On a clean fully-converged report
+(``remaining == 0``, no stale, no bad entry) it exits 0. The remaining true
+survivors are printed grouped by ``file:line:col [mutator]`` so a human can
+triage them. The absolute mutation score is NEVER a gate.
+
+Exit codes: 0 = clean; 1 = one or more stale entries or (with ``--gate``) any
+remaining true survivor; 2 = a hard ledger error (bucket A / missing fields).
 """
 
 import argparse
@@ -290,6 +310,13 @@ class Survivor:
         self.mutator = mutator
         self.block = block  # list of raw report lines (the survivor + context)
 
+    @property
+    def key(self):
+        """Identity of the mutant: (file, line, col, mutator). Two reports that
+        mutate the same source line+col with the same mutator describe the *same*
+        mutant, so this is the unit deduped + intersected across reports."""
+        return (self.file, self.line, self.col, self.mutator)
+
 
 def parse_report(text):
     """Yield (Survivor | None, raw_line). A Survivor's block is the warning
@@ -328,6 +355,55 @@ def parse_report(text):
         out.append((sv, None))
         i = j
     return out
+
+
+def compute_true_survivors(parsed_reports):
+    """Reduce the per-report parse results to the deduped, per-file-intersected
+    TRUE survivor set.
+
+    ``parsed_reports`` is a list of ``parse_report`` outputs (one per report
+    file). For each report we derive:
+
+      * ``survived``   -- the set of mutant keys it lists as Survived;
+      * ``mutated``    -- the set of source files it mutates (the files those
+                          survived keys belong to).
+
+    A mutant ``m`` in file ``F`` is a true survivor iff it is in the ``survived``
+    set of EVERY report whose ``mutated`` set contains ``F`` (if any such report
+    omits it, that suite killed it). One representative ``Survivor`` object is
+    kept per true-survivor key so the filtered report can echo it exactly once.
+
+    Returns ``(true_survivors, reports_meta)`` where ``true_survivors`` is a list
+    of ``Survivor`` (deduped, one per key, in first-seen order) and
+    ``reports_meta`` is the list of per-report ``(survived_keys, mutated_files)``
+    used (exposed for testing)."""
+    reports_meta = []
+    first_seen = {}   # key -> Survivor (representative, first occurrence)
+    order = []        # keys in first-seen order
+    for parsed in parsed_reports:
+        survived = set()
+        mutated = set()
+        for sv, _ in parsed:
+            if sv is None:
+                continue
+            survived.add(sv.key)
+            mutated.add(sv.file)
+            if sv.key not in first_seen:
+                first_seen[sv.key] = sv
+                order.append(sv.key)
+        reports_meta.append((survived, mutated))
+
+    true_keys = []
+    for key in order:
+        f = key[0]
+        relevant = [survived for survived, mutated in reports_meta if f in mutated]
+        # `relevant` is non-empty by construction (the report this key came from
+        # mutates f). True survivor iff every relevant report still lists it.
+        if relevant and all(key in survived for survived in relevant):
+            true_keys.append(key)
+
+    true_survivors = [first_seen[k] for k in true_keys]
+    return true_survivors, reports_meta
 
 
 # --------------------------------------------------------------------------
@@ -437,62 +513,6 @@ def changed_files(root, rng):
     return {line.strip() for line in out.splitlines() if line.strip()}
 
 
-# Hunk header: @@ -a[,b] +c[,d] @@ -- the "+c,d" side names the new-file lines
-# that were added/changed (d defaults to 1 when omitted; d==0 = pure deletion).
-HUNK_RE = re.compile(r"^@@ -\d+(?:,\d+)? \+(?P<start>\d+)(?:,(?P<count>\d+))? @@")
-
-
-def parse_diff_added_ranges(diff_text):
-    """Parse a `git diff --unified=0` body into {new_file_path: set(line nums)}
-    -- the line numbers ADDED or CHANGED on the new-file (+) side of each hunk.
-    Pure deletions (d==0) contribute no new-file lines."""
-    added = {}
-    cur = None
-    for raw in diff_text.splitlines():
-        if raw.startswith("+++ "):
-            path = raw[4:].strip()
-            # strip the conventional "b/" prefix; "/dev/null" -> no file
-            if path == "/dev/null":
-                cur = None
-            else:
-                if path.startswith("b/"):
-                    path = path[2:]
-                cur = os.path.normpath(path)
-                added.setdefault(cur, set())
-            continue
-        m = HUNK_RE.match(raw)
-        if not m or cur is None:
-            continue
-        start = int(m.group("start"))
-        count = 1 if m.group("count") is None else int(m.group("count"))
-        for ln in range(start, start + count):
-            added[cur].add(ln)
-    return added
-
-
-def diff_added_ranges(root, rng):
-    """Return {new_file: set(added line nums)} for <base>..<head>, or None if
-    git is unavailable / the range cannot be resolved."""
-    base, head = _split_range(rng)
-    out = _git_run(root, ["diff", "--unified=0", "%s..%s" % (base, head)])
-    if out is None:
-        return None
-    return parse_diff_added_ranges(out)
-
-
-def _survivor_in_added(sv, added):
-    """True iff survivor sv's (file, line) lies in a +range of `added`. Paths
-    are matched by suffix to tolerate abs-vs-rel report paths."""
-    sv_norm = os.path.normpath(sv.file)
-    sv_base = os.path.basename(sv_norm)
-    for path, lines in added.items():
-        if sv_norm == path or sv_norm.endswith(path) or path.endswith(sv_norm) \
-                or os.path.basename(path) == sv_base and sv_norm.endswith(os.path.basename(path)):
-            if sv.line in lines:
-                return True
-    return False
-
-
 # --------------------------------------------------------------------------
 # Driver
 # --------------------------------------------------------------------------
@@ -507,6 +527,19 @@ def load_ledger(path, root):
 
 
 def run_filter(args):
+    """Default + ``--gate`` mode.
+
+    Computes the deduped, per-file-intersected TRUE survivor set across the
+    reports, suppresses ledgered survivors, writes the filtered report, and
+    prints the summary. Returns an exit code:
+
+      * 2 is raised earlier (hard ledger error) by ``load_ledger``;
+      * 1 if any ledger entry is stale, or -- under ``--gate`` -- if any true
+        survivor remains after suppression;
+      * 0 otherwise.
+
+    Under ``--gate`` the remaining true survivors are also printed grouped by
+    ``file:line:col [mutator]`` for triage."""
     entries = load_ledger(args.ledger, args.root)
 
     live = []
@@ -522,25 +555,29 @@ def run_filter(args):
         with open(rp, "r", encoding="utf-8") as f:
             inputs.append((rp, f.read()))
 
-    total_survivors = 0
-    ignored_by_id = {}
-    kept_lines = []
-    remaining_survivors = []  # non-ignored, non-stale survivors still in report
+    parsed_reports = [parse_report(text) for _, text in inputs]
 
-    for rp, text in inputs:
-        for sv, raw in parse_report(text):
-            if raw is not None:
-                kept_lines.append(raw)
-                continue
-            total_survivors += 1
-            hit = next((e for e in live if e.matches(sv)), None)
-            if hit is not None:
-                ignored_by_id.setdefault(hit.id, 0)
-                ignored_by_id[hit.id] += 1
-                # drop the whole block (suppressed)
-            else:
-                kept_lines.extend(sv.block)
-                remaining_survivors.append(sv)
+    # The gate's unit of accounting: the deduped, per-source-file intersection
+    # across the reports. A union over the per-suite warning lines over-reports
+    # (it double-counts cross-suite duplicates and re-lists mutants other suites
+    # killed), so it must NOT drive the summary or the gate.
+    true_survivors, _ = compute_true_survivors(parsed_reports)
+
+    total_survivors = len(true_survivors)
+    ignored_by_id = {}
+    remaining_survivors = []  # true survivors not covered by a LIVE ledger entry
+
+    for sv in true_survivors:
+        hit = next((e for e in live if e.matches(sv)), None)
+        if hit is not None:
+            ignored_by_id[hit.id] = ignored_by_id.get(hit.id, 0) + 1
+        else:
+            remaining_survivors.append(sv)
+
+    # The filtered report lists each REMAINING true survivor exactly once.
+    kept_lines = []
+    for sv in remaining_survivors:
+        kept_lines.extend(sv.block)
 
     out_path = args.out or os.path.join(
         os.path.dirname(os.path.abspath(inputs[0][0])) if inputs else ".",
@@ -550,23 +587,7 @@ def run_filter(args):
         f.writelines(kept_lines)
 
     ignored_total = sum(ignored_by_id.values())
-    remaining = total_survivors - ignored_total
-
-    # --fail-on-new gate (b): of the survivors still in the filtered report,
-    # which sit inside a line region added/changed by the diff range? Those are
-    # NEW survivors and gate the job. Pre-existing survivors in unchanged code
-    # do not. When no range is given (schedule / dispatch -- no diff baseline)
-    # this gate is skipped entirely; only stale/bucket-A gate then.
-    new_survivors = []
-    diff_unavailable = False
-    if args.fail_on_new:
-        added = diff_added_ranges(args.root, args.fail_on_new)
-        if added is None:
-            diff_unavailable = True
-        else:
-            new_survivors = [
-                sv for sv in remaining_survivors if _survivor_in_added(sv, added)
-            ]
+    remaining = len(remaining_survivors)
 
     print("=== mull-filter summary ===")
     print("filtered report : %s" % out_path)
@@ -579,23 +600,15 @@ def run_filter(args):
     for e in stale:
         print("    !! STALE %-20s %s [%s]" % (e.id, e.stale_reason, e.file))
 
-    if args.fail_on_new:
-        if diff_unavailable:
-            print(
-                "new-in-diff gate: SKIPPED (could not resolve diff range %s -- "
-                "git missing or unknown ref); gating on stale/bucket-A only."
-                % args.fail_on_new
-            )
-        else:
-            print("new-in-diff range : %s" % args.fail_on_new)
-            print("NEW survivors     : %d" % len(new_survivors))
-            for sv in new_survivors:
-                print(
-                    "    !! NEW   %s:%d:%d [%s] -- survivor introduced in this "
-                    "change with no ledger entry; triage it (add a test for "
-                    "bucket A, or ledger it for B/C)"
-                    % (sv.file, sv.line, sv.col, sv.mutator or "?")
-                )
+    if args.gate:
+        print("gate            : converge-to-zero (remaining must be 0)")
+        if remaining_survivors:
+            print("remaining true survivors (triage each):")
+            for sv in sorted(remaining_survivors,
+                             key=lambda s: (s.file, s.line, s.col,
+                                            s.mutator or "")):
+                print("    %s:%d:%d [%s]"
+                      % (sv.file, sv.line, sv.col, sv.mutator or "?"))
 
     rc = 0
     if stale:
@@ -606,12 +619,13 @@ def run_filter(args):
             file=sys.stderr,
         )
         rc = 1
-    if new_survivors:
+    if args.gate and remaining_survivors:
         print(
-            "error: %d survivor(s) newly introduced in %s and not ledgered -- "
-            "see the NEW lines above. The mutation gate fails on survivors that "
-            "appear in changed code."
-            % (len(new_survivors), args.fail_on_new),
+            "error: %d true survivor(s) remain after ledger filtering -- the "
+            "mutation report has NOT converged to zero. Each must be killed by a "
+            "contract test (bucket A) or signed off into the ledger (bucket "
+            "B/C). See MULL-DISCOVERY-CONVENTIONS.md (the pre-push invariant)."
+            % remaining,
             file=sys.stderr,
         )
         rc = 1
@@ -670,12 +684,12 @@ def main(argv=None):
                    help="filtered report path (default: report.filtered.txt)")
     p.add_argument("--check-range", default=None, metavar="BASE..HEAD",
                    help="enforcement-hook mode: stale-detect over a commit range")
-    p.add_argument("--fail-on-new", default=None, metavar="BASE..HEAD",
-                   help="gate: in the default filter mode, also exit non-zero if "
-                        "a remaining (non-ignored) survivor lies in a line region "
-                        "added/changed by BASE..HEAD. An unresolvable range "
-                        "(missing git / unknown ref) downgrades to stale-only "
-                        "gating instead of erroring.")
+    p.add_argument("--gate", action="store_true",
+                   help="CI / pre-push convergence gate: suppress ledgered "
+                        "survivors, then exit non-zero if ANY true survivor "
+                        "remains, any ledger entry is stale, or any bucket-A / "
+                        "malformed entry exists. remaining==0 with no stale and "
+                        "no bad entry exits 0.")
     args = p.parse_args(argv)
 
     try:

@@ -72,23 +72,22 @@ jobs:
           fi
           ./Scripts/mutation.sh $COMPONENTS
 
-      - name: Gate on stale ledger entries and new survivors
-        # GATING step (no `|| true`): the accepted-survivor filter runs over the
-        # captured reports and FAILS the job iff EITHER
+      - name: Gate on ledger staleness and convergence to zero true survivors
+        # GATING step (no `|| true`, not `if: always()`): the accepted-survivor
+        # filter runs over the captured reports in `--gate` mode and FAILS the
+        # job iff ANY of
         #   (a) a ledger entry is stale (region_hash mismatch) or malformed
         #       (bucket A / missing field) -- the filter exits non-zero on these
         #       unconditionally; OR
-        #   (b) a remaining (non-ledgered) survivor was INTRODUCED in this
-        #       change's diff range -- `--fail-on-new <base>..<head>` flags any
-        #       survivor whose source line lies inside a range added/changed by
-        #       the diff. Pre-existing survivors in unchanged code do NOT gate.
-        # The absolute mutation score is NEVER a gate (mutation.sh just prints
-        # it). On `push` the diff baseline is `github.event.before..github.sha`;
-        # on `schedule` / `workflow_dispatch` there is no diff baseline, so the
-        # filter runs WITHOUT a range (stale + bucket-A gating only). An empty or
-        # all-zeroes `before` (first push / branch create) also falls back to
-        # no-range gating -- `--fail-on-new` would degrade gracefully anyway, but
-        # we skip passing it so the intent is explicit.
+        #   (b) ANY true survivor remains after ledger suppression -- the
+        #       convergence invariant (see MULL-DISCOVERY-CONVENTIONS.md "the
+        #       pre-push invariant"). The gate computes the deduped, per-source-
+        #       file INTERSECTION across each component's suites (a mutant is
+        #       killed if ANY suite kills it), so a per-suite union is never used.
+        #       Pre-existing survivors gate exactly as new ones do; there is no
+        #       diff baseline and no "unchanged-code backlog" carve-out. The only
+        #       accepted state is remaining == 0.
+        # The absolute mutation score is NEVER a gate (mutation.sh just prints it).
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -98,22 +97,8 @@ jobs:
             exit 0
           fi
 
-          BEFORE='${{ github.event.before }}'
-          ZEROES='0000000000000000000000000000000000000000'
-          RANGE=''
-          if [ "${{ github.event_name }}" = "push" ] \
-             && [ -n "$BEFORE" ] && [ "$BEFORE" != "$ZEROES" ]; then
-            RANGE="${BEFORE}..${{ github.sha }}"
-          fi
-
-          if [ -n "$RANGE" ]; then
-            echo "gating: stale/bucket-A + new-survivors over $RANGE"
-            python3 Scripts/mull-filter.py --root . \
-              --fail-on-new "$RANGE" "${reports[@]}"
-          else
-            echo "gating: stale/bucket-A only (no diff baseline for this event)"
-            python3 Scripts/mull-filter.py --root . "${reports[@]}"
-          fi
+          echo "gating: stale/bucket-A + converge-to-zero true survivors"
+          python3 Scripts/mull-filter.py --gate --root . "${reports[@]}"
 
       - name: Upload mutation reports
         if: always()
