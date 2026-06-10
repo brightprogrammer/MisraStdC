@@ -1,0 +1,80 @@
+name: Mutation Testing
+
+# Mutation testing with Mull (LLVM 19) on Ubuntu -- no Nix in CI (the flake's
+# .#mutation shell is local-dev only). clang-19 comes from apt.llvm.org; mull-19
+# is installed from its upstream GitHub-release .deb (libclang-cpp19 / libllvm19
+# deps resolve from apt.llvm.org). Both are LLVM 19.1.x so the
+# mull-ir-frontend-19 pass plugin (SONAME libLLVM.so.19.1) loads into this
+# clang. Scripts/mutation.sh compiles each component's suites with the plugin
+# (scoped via MULL_CONFIG) and runs mull-runner-19, reporting how many mutations
+# in each component the tests kill.
+
+on:
+  # Sweeping every component rebuilds the library once per component, so this
+  # is too heavy for every PR. Run it on pushes to the main branches, on a
+  # nightly schedule, and on demand. `workflow_dispatch` accepts a space-
+  # separated component list to scope a manual run.
+  push:
+    branches: [ main, master ]
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      components:
+        description: 'Components to mutate (space-separated; empty = default set)'
+        required: false
+        default: ''
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  mutation:
+    name: Mull mutation score
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    env:
+      MULL_LLVM_VERSION: "19"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install clang-19 + build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            wget curl gnupg ca-certificates lsb-release software-properties-common \
+            ninja-build meson python3
+          wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh
+          chmod +x /tmp/llvm.sh
+          sudo /tmp/llvm.sh 19
+
+      - name: Install Mull 19
+        # Install the exact upstream release .deb directly (apt resolves the
+        # LLVM-19 runtime deps from the apt.llvm.org repo added above). This
+        # avoids the Cloudsmith apt-repo setup, which is the fragile step.
+        run: |
+          MULL_DEB=Mull-19-0.34.0-LLVM-19.1.1-ubuntu-amd64-24.04.deb
+          wget -q "https://github.com/mull-project/mull/releases/download/0.34.0/${MULL_DEB}" -O /tmp/mull.deb
+          sudo apt-get install -y /tmp/mull.deb
+          mull-runner-19 --version
+
+      - name: Run mutation testing
+        # Full component sweep is heavy (one lib build per component); on plain
+        # pushes run a representative subset and leave the full sweep to the
+        # nightly schedule / manual dispatch.
+        run: |
+          COMPONENTS="${{ github.event.inputs.components }}"
+          if [ -z "$COMPONENTS" ] && [ "${{ github.event_name }}" = "push" ]; then
+            COMPONENTS="Map Vec Str"
+          fi
+          ./Scripts/mutation.sh $COMPONENTS
+
+      - name: Upload mutation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-reports
+          path: build_mull/**/mutation-*.txt

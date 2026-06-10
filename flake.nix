@@ -20,6 +20,9 @@
             inherit system;
             pkgs = import nixpkgs { inherit system; };
           });
+      # Mull only ships prebuilt Linux binaries (see nix/mull.nix), so the
+      # mutation-testing package and dev shell are gated to Linux systems.
+      isLinux = system: lib.hasSuffix "linux" system;
     in
     {
       packages = forAllSystems ({ system, pkgs }:
@@ -56,6 +59,9 @@
         {
           default = misraStdC;
           "misra-std-c" = misraStdC;
+        }
+        // lib.optionalAttrs (isLinux system) {
+          mull = pkgs.callPackage ./nix/mull.nix { };
         });
 
       checks = forAllSystems ({ system, ... }: {
@@ -72,6 +78,26 @@
               ninja
               pkg-config
             ];
+          };
+        }
+        // lib.optionalAttrs (isLinux system) {
+          # Mutation-testing shell: clang_19 (compiler whose libLLVM matches the
+          # mull-ir-frontend-19 plugin) + mull + the usual build tools. Run
+          # Scripts/mutation.sh from inside `nix develop .#mutation`.
+          mutation = pkgs.mkShell {
+            packages = with pkgs; [
+              llvmPackages_19.clang
+              self.packages.${system}.mull
+              meson
+              ninja
+              pkg-config
+            ];
+            shellHook = ''
+              export CC=clang
+              export MULL_LLVM_VERSION=19
+              export MULL_IR_FRONTEND="${self.packages.${system}.mull}/lib/mull-ir-frontend-19"
+              export MULL_RUNNER="mull-runner-19"
+            '';
           };
         });
     };

@@ -1,0 +1,15 @@
+# Default Mull config for standalone runs.
+#
+# Scripts/mutation.sh does NOT use this file -- it generates a per-component
+# config and points the plugin at it via the MULL_CONFIG env var, so each
+# component's suites only mutate that component's source. This tracked file is
+# the fallback the plugin reads from the working directory when MULL_CONFIG is
+# unset (e.g. a hand-run `mull-runner` during debugging).
+#
+# `includePaths` restricts which source files receive mutations; widen it for
+# an ad-hoc run, or just use Scripts/mutation.sh.
+includePaths:
+  - Source/Misra/Std/Container/Map.c
+
+mutators:
+  - cxx_all
