@@ -1083,6 +1083,41 @@ def build_function_groups(st, tags):
 
 
 # --------------------------------------------------------------------------
+# Proposals store (Conventions/mull-proposals.json)
+# --------------------------------------------------------------------------
+# A triage fleet pre-classified every remaining survivor into a JSON store of
+# {id, file, line, col, mutator, function, function_tag, decision, bucket,
+# reasoning, test_plan, status}. ``id`` is exactly the dashboard survivor id
+# (absolute-path:line:col:mutator), so a proposal joins to a live survivor by a
+# plain dict lookup. status starts "pending"; accept/reject/flip rewrite it.
+def load_proposals(path):
+    """Load the proposals JSON into a list of dicts. A missing file is an empty
+    proposal set (never an error). Returns the list of raw proposal dicts."""
+    if not path or not os.path.isfile(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            doc = json.load(f)
+    except (OSError, ValueError):
+        return []
+    items = doc.get("proposals", []) if isinstance(doc, dict) else []
+    return items if isinstance(items, list) else []
+
+
+def save_proposals(path, proposals):
+    """Rewrite the proposals JSON ({"proposals":[...]}) in the same on-disk
+    shape the fleet wrote it: 1-space indent, UTF-8, no trailing newline -- so
+    a no-op round-trip leaves the file byte-identical."""
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({"proposals": proposals}, f, indent=1)
+
+
+def proposal_by_id(proposals, pid):
+    """The raw proposal dict with this id, or None."""
+    return next((p for p in proposals if p.get("id") == pid), None)
+
+
+# --------------------------------------------------------------------------
 # HTTP server
 # --------------------------------------------------------------------------
 class Config:
@@ -1090,6 +1125,7 @@ class Config:
     ledger = ""
     todo = ""
     tags = ""
+    proposals = ""
     report_globs = []
 
 
@@ -1143,6 +1179,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._api_functions()
         if path == "/api/audit":
             return self._api_audit()
+        if path == "/api/proposals":
+            qs = urllib.parse.parse_qs(parsed.query)
+            return self._api_proposals(qs)
         if path == "/api/callers":
             qs = urllib.parse.parse_qs(parsed.query)
             name = (qs.get("function") or [""])[0]
@@ -1171,6 +1210,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._api_ignore_cluster()
         if path == "/api/tofix-cluster":
             return self._api_tofix_cluster()
+        if path == "/api/proposal/accept":
+            return self._api_proposal_accept()
+        if path == "/api/proposal/reject":
+            return self._api_proposal_reject()
+        if path == "/api/proposal/reopen":
+            return self._api_proposal_reopen()
+        if path == "/api/proposal/flip":
+            return self._api_proposal_flip()
+        if path == "/api/proposals/accept-bulk":
+            return self._api_proposals_accept_bulk()
         return self._send_json({"error": "not found"}, 404)
 
     # -- API handlers --
@@ -1528,6 +1577,320 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return self._send_json({"ok": True, "added": added,
                                 "skipped": skipped})
 
+    # -- proposals review --
+    def _proposal_survivor(self, st, p):
+        """The live survivor for a proposal. ``id`` is the dashboard survivor id
+        (abs-path:line:col:mutator); look it up directly. A proposal whose
+        mutator was serialised as the literal "None" (no [mutator] tag in the
+        report) maps to the dashboard's '?'-mutator key, so retry that form."""
+        pid = p.get("id")
+        sv = st.by_id.get(pid)
+        if sv is None and isinstance(pid, str) and pid.endswith(":None"):
+            sv = st.by_id.get(pid[:-len(":None")] + ":?")
+        return sv
+
+    def _survivor_status_for_proposal(self, st, p):
+        """The proposal's live survivor status: 'remaining' / 'ignored' /
+        'tofix' (a hand-resolved survivor), or 'gone' when no current survivor
+        carries the proposal's id. Only 'remaining' is actionable."""
+        sv = self._proposal_survivor(st, p)
+        if sv is None:
+            return "gone"
+        status, _ = st.status_for(sv)
+        if status.startswith("ignored"):
+            return "ignored"
+        return status  # "tofix" or "remaining"
+
+    def _proposal_view(self, st, p):
+        """A proposal dict joined to its live survivor status for the API."""
+        out = dict(p)
+        out["survivor_status"] = self._survivor_status_for_proposal(st, p)
+        return out
+
+    def _accept_one(self, p):
+        """Apply ONE pending proposal's decision (the shared accept logic for
+        both /accept and accept-bulk). decision=='ignore' writes a [[ignore]]
+        ledger entry (bucket B/C, line selector, mutator-scoped); 'fix' adds a
+        [[todo]] worklist entry. Mutates p['status']='accepted' on success.
+
+        Returns (applied, entry_id, error_dict). On error, applied is None and
+        the caller surfaces error_dict; nothing is written and status is left
+        unchanged."""
+        decision = p.get("decision")
+        file = p.get("file")
+        line = int(p.get("line", 0))
+        col = int(p.get("col", 0))
+        mutator = p.get("mutator")
+        reasoning = str(p.get("reasoning") or "").strip()
+        test_plan = str(p.get("test_plan") or "").strip()
+
+        if decision == "ignore":
+            bucket = p.get("bucket")
+            if bucket not in ("B", "C"):
+                return None, None, {
+                    "error": "ignore proposal bucket must be B or C "
+                             "(A is never ignorable)"}
+            rel = relpath(Config.root, file)
+            sel = {"type": "lines", "lines": [line, line]}
+            raw_sel = {"file": rel, "lines": [line, line]}
+            try:
+                region = select_region(Config.root, raw_sel)
+            except (ValueError, FileNotFoundError, OSError) as exc:
+                return None, None, {
+                    "error": "selector does not resolve: %s" % exc}
+            rhash = region_hash(region)
+            ids = existing_ids(Config.ledger)
+            new_id = make_id(component_of(file), rel, sel, ids)
+            rn = str(p.get("review_note") or "").strip()
+            rationale = reasoning or ""
+            if rn:
+                rationale = (rationale + "  [reviewer: " + rn + "]") \
+                    if rationale else ("[reviewer: " + rn + "]")
+            fields = {
+                "id": new_id,
+                "file": rel,
+                "selector": sel,
+                "mutator": (mutator if (mutator and str(mutator).strip()
+                                        and str(mutator) != "None") else None),
+                "bucket": bucket,
+                "rationale": rationale or "(no rationale)",
+                "author": "proposals",
+                "created": today(),
+                "region_hash": rhash,
+            }
+            append_stanza(Config.ledger, serialize_stanza(fields))
+            p["status"] = "accepted"
+            p["ledger_id"] = new_id  # so Reopen can undo this exact entry
+            return "ledger", new_id, None
+
+        if decision == "fix":
+            rhash = todo_region_hash(Config.root, file, line)
+            if rhash is None:
+                return None, None, {
+                    "error": "target line does not resolve in the tree"}
+            note = "[A] " + reasoning
+            if test_plan:
+                note += "  TEST: " + test_plan
+            rn = str(p.get("review_note") or "").strip()
+            if rn:
+                note += "  [reviewer: " + rn + "]"
+            fields = {
+                "file": relpath(Config.root, file),
+                "line": line,
+                "col": col,
+                "mutator": mutator,
+                "note": note,
+                "created": today(),
+                "region_hash": rhash,
+            }
+            append_todo(Config.todo, serialize_todo(fields))
+            p["status"] = "accepted"
+            return "todo", None, None
+
+        return None, None, {"error": "proposal decision must be fix or ignore"}
+
+    def _api_proposals(self, qs):
+        st = self._state()
+        proposals = load_proposals(Config.proposals)
+        want_status = (qs.get("status") or ["pending"])[0]
+        want_decision = (qs.get("decision") or [""])[0]
+        want_bucket = (qs.get("bucket") or [""])[0]
+        want_file = (qs.get("file") or [""])[0]
+        want_function = (qs.get("function") or [""])[0]
+
+        # Summary over the WHOLE store (unfiltered), survivor status included.
+        pending = accepted = rejected = consumed = 0
+        by_decision = {"fix": 0, "ignore": 0}
+        by_bucket = {"A": 0, "B": 0, "C": 0}
+        items = []
+        for p in proposals:
+            view = self._proposal_view(st, p)
+            ss = view["survivor_status"]
+            status = p.get("status")
+            # A pending proposal whose survivor was hand-resolved (no longer
+            # remaining) is "consumed" -- not actionable, not a clean pending.
+            if status == "pending" and ss != "remaining":
+                consumed += 1
+            elif status == "pending":
+                pending += 1
+            elif status == "accepted":
+                accepted += 1
+            elif status == "rejected":
+                rejected += 1
+            dec = p.get("decision")
+            if dec in by_decision:
+                by_decision[dec] += 1
+            bkt = p.get("bucket")
+            if bkt in by_bucket:
+                by_bucket[bkt] += 1
+
+            if want_status and status != want_status:
+                continue
+            if want_decision and dec != want_decision:
+                continue
+            if want_bucket and bkt != want_bucket:
+                continue
+            if want_file and p.get("file") != want_file:
+                continue
+            if want_function and p.get("function") != want_function:
+                continue
+            items.append(view)
+
+        summary = {
+            "pending": pending, "accepted": accepted, "rejected": rejected,
+            "consumed": consumed,
+            "by_decision": by_decision, "by_bucket": by_bucket,
+        }
+        return self._send_json({"summary": summary, "items": items})
+
+    def _api_proposal_accept(self):
+        body = self._read_body()
+        pid = body.get("id")
+        if not pid:
+            return self._send_json({"error": "id is required"}, 400)
+        proposals = load_proposals(Config.proposals)
+        p = proposal_by_id(proposals, pid)
+        if p is None:
+            return self._send_json({"error": "unknown proposal id"}, 404)
+        if p.get("status") != "pending":
+            return self._send_json(
+                {"error": "proposal is not pending (status=%s)"
+                          % p.get("status")}, 400)
+        note = (body.get("note") or "").strip()
+        if note:
+            p["review_note"] = note
+        applied, entry_id, err = self._accept_one(p)
+        if err is not None:
+            return self._send_json(err, 400)
+        save_proposals(Config.proposals, proposals)
+        resp = {"ok": True, "applied": applied}
+        if entry_id is not None:
+            resp["entry_id"] = entry_id
+        return self._send_json(resp)
+
+    def _api_proposal_reject(self):
+        body = self._read_body()
+        pid = body.get("id")
+        if not pid:
+            return self._send_json({"error": "id is required"}, 400)
+        proposals = load_proposals(Config.proposals)
+        p = proposal_by_id(proposals, pid)
+        if p is None:
+            return self._send_json({"error": "unknown proposal id"}, 404)
+        if p.get("status") != "pending":
+            return self._send_json(
+                {"error": "proposal is not pending (status=%s)"
+                          % p.get("status")}, 400)
+        note = (body.get("note") or "").strip()
+        if note:
+            p["review_note"] = note
+        p["status"] = "rejected"
+        save_proposals(Config.proposals, proposals)
+        return self._send_json({"ok": True})
+
+    def _api_proposal_reopen(self):
+        """Send a rejected OR accepted proposal back to 'pending' so it can be
+        reviewed again. For an accepted proposal, also UNDO what the accept
+        wrote: remove the ledger entry it created (by stored ledger_id) or the
+        worklist entry (by survivor key)."""
+        body = self._read_body()
+        pid = body.get("id")
+        if not pid:
+            return self._send_json({"error": "id is required"}, 400)
+        proposals = load_proposals(Config.proposals)
+        p = proposal_by_id(proposals, pid)
+        if p is None:
+            return self._send_json({"error": "unknown proposal id"}, 404)
+        status = p.get("status")
+        if status == "pending":
+            return self._send_json({"error": "proposal is already pending"}, 400)
+        undone = None
+        if status == "accepted":
+            if p.get("decision") == "ignore" and p.get("ledger_id"):
+                if remove_stanza(Config.ledger, p["ledger_id"]):
+                    undone = "ledger:" + p["ledger_id"]
+                p.pop("ledger_id", None)
+            elif p.get("decision") == "fix":
+                remove_todo(Config.todo, p.get("file"), int(p.get("line", 0)),
+                            int(p.get("col", 0)), p.get("mutator"))
+                undone = "worklist"
+        p["status"] = "pending"
+        save_proposals(Config.proposals, proposals)
+        return self._send_json({"ok": True, "undone": undone})
+
+    def _api_proposal_flip(self):
+        body = self._read_body()
+        pid = body.get("id")
+        decision = body.get("decision")
+        bucket = body.get("bucket")
+        if not pid:
+            return self._send_json({"error": "id is required"}, 400)
+        if decision is not None and decision not in ("fix", "ignore"):
+            return self._send_json(
+                {"error": "decision must be fix or ignore"}, 400)
+        if bucket is not None and bucket not in ("A", "B", "C"):
+            return self._send_json({"error": "bucket must be A, B or C"}, 400)
+        proposals = load_proposals(Config.proposals)
+        p = proposal_by_id(proposals, pid)
+        if p is None:
+            return self._send_json({"error": "unknown proposal id"}, 404)
+        if decision is not None:
+            p["decision"] = decision
+        if bucket is not None:
+            p["bucket"] = bucket
+        save_proposals(Config.proposals, proposals)
+        return self._send_json({"ok": True, "proposal": p})
+
+    def _api_proposals_accept_bulk(self):
+        body = self._read_body()
+        f_decision = body.get("decision")
+        f_bucket = body.get("bucket")
+        f_file = body.get("file")
+        f_function = body.get("function")
+        # Guard: require at least one filter so an empty body can't sweep
+        # every pending proposal into the ledger/worklist by accident.
+        if not any(v for v in (f_decision, f_bucket, f_file, f_function)):
+            return self._send_json(
+                {"error": "at least one filter "
+                          "(decision/bucket/file/function) is required"}, 400)
+        if f_decision is not None and f_decision not in ("fix", "ignore"):
+            return self._send_json(
+                {"error": "decision must be fix or ignore"}, 400)
+        if f_bucket is not None and f_bucket not in ("A", "B", "C"):
+            return self._send_json({"error": "bucket must be A, B or C"}, 400)
+
+        proposals = load_proposals(Config.proposals)
+        st = self._state()
+        accepted = ledger_n = todo_n = 0
+        for p in proposals:
+            if p.get("status") != "pending":
+                continue
+            if self._survivor_status_for_proposal(st, p) != "remaining":
+                continue
+            if f_decision and p.get("decision") != f_decision:
+                continue
+            if f_bucket and p.get("bucket") != f_bucket:
+                continue
+            if f_file and p.get("file") != f_file:
+                continue
+            if f_function and p.get("function") != f_function:
+                continue
+            applied, _, err = self._accept_one(p)
+            if err is not None:
+                continue  # skip un-appliable ones; leave them pending
+            accepted += 1
+            if applied == "ledger":
+                ledger_n += 1
+            elif applied == "todo":
+                todo_n += 1
+            # Re-snapshot so a newly-written ledger entry is visible to the
+            # next item's survivor-status / id checks.
+            st = self._state()
+        if accepted:
+            save_proposals(Config.proposals, proposals)
+        return self._send_json({"ok": True, "accepted": accepted,
+                                "ledger": ledger_n, "todo": todo_n})
+
 
 class Server(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
@@ -1687,6 +2050,59 @@ INDEX_HTML = r"""<!DOCTYPE html>
   .av .af { font-size:11px; color:var(--muted); margin-top:2px;
     font-family:var(--mono); }
   .hint { color:var(--muted); font-size:11px; line-height:1.5; }
+  /* Proposals review view */
+  #propbar { padding:8px 12px; background:var(--panel);
+    border-bottom:1px solid var(--border); display:none; flex-wrap:wrap;
+    gap:10px 14px; align-items:center; font-size:12px; }
+  #propbar.on { display:flex; }
+  #propbar .pseg { display:flex; gap:8px; align-items:center; }
+  #propbar select { width:auto; padding:3px 6px; font-size:12px; }
+  #propbar input { width:auto; padding:3px 6px; font-size:12px; }
+  #propbar .pcount { font-variant-numeric:tabular-nums; }
+  #propbar .pcount b { color:var(--fg); }
+  #propbulk { display:flex; gap:8px; flex-wrap:wrap; }
+  #propbulk button { margin:0; padding:5px 10px; font-size:12px; }
+  #propbulk button.ig { background:var(--remain); color:#1a1206; }
+  #propbulk button.fx { background:var(--accent); color:#08111f; }
+  .pdec { font-size:10px; padding:2px 7px; border-radius:10px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.04em; }
+  .pdec.fix { background:#16243f; color:var(--accent); }
+  .pdec.ignore { background:#3a2f12; color:var(--remain); }
+  .pchip { font-size:10px; padding:2px 6px; border-radius:4px; font-weight:700;
+    background:var(--panel2); color:var(--muted); border:1px solid var(--border); }
+  .pchip.A { color:var(--danger); border-color:#5a2020; }
+  .pchip.B { color:var(--tofix); }
+  .pchip.C { color:var(--ignored); }
+  .prow { padding:8px 12px 8px 24px; border-bottom:1px solid var(--border);
+    cursor:pointer; }
+  .prow:hover { background:var(--panel2); }
+  .prow.sel { background:#243049; }
+  .prow .ptop { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .prow .ploc { font-family:var(--mono); font-size:12px; }
+  .prow .pmut { font-family:var(--mono); font-size:11px; color:var(--muted); }
+  .prow .preason { font-size:12px; color:var(--fg); line-height:1.5;
+    margin-top:5px; max-height:3.1em; overflow:hidden; cursor:pointer;
+    position:relative; }
+  .prow .preason.open { max-height:none; }
+  .prow .preason.clip::after { content:'\2026 more'; position:absolute;
+    right:0; bottom:0; background:var(--bg); color:var(--accent);
+    padding-left:8px; font-size:11px; }
+  .prow .ptest { font-size:11px; color:var(--muted); line-height:1.5;
+    margin-top:4px; }
+  .prow .ptest b { color:var(--tofix); }
+  .prow .pact { display:flex; gap:6px; align-items:center; flex-wrap:wrap;
+    margin-top:7px; }
+  .prow .pact button { margin:0; padding:4px 10px; font-size:12px; }
+  .prow .pact button.acc { background:var(--ignored); color:#06140b; }
+  .prow .pact button.rej { background:var(--danger); color:#1a0c0e; }
+  .prow .pflip { display:flex; gap:5px; align-items:center;
+    border:1px solid var(--border); border-radius:5px; padding:2px 6px; }
+  .prow .pflip select { width:auto; padding:2px 5px; font-size:11px; }
+  .prow .pflip button.ghost { background:var(--panel); color:var(--fg);
+    border:1px solid var(--border); padding:3px 8px; font-size:11px; }
+  .prow .perr { color:var(--danger); font-size:11px; margin-top:4px; }
+  .prow.consumed { opacity:.55; }
+  .pconsumed { font-size:10px; color:var(--muted); font-style:italic; }
 </style>
 </head>
 <body>
@@ -1701,6 +2117,7 @@ INDEX_HTML = r"""<!DOCTYPE html>
   <div class="vtoggle" id="vtoggle">
     <button data-view="flat" class="on">Flat list</button>
     <button data-view="func">By function</button>
+    <button data-view="props">Proposals</button>
   </div>
   <span class="audit-pill" id="audit-pill" title="ledger / triage violations vs function tags">Audit <b id="audit-n">0</b></span>
 </header>
@@ -1717,16 +2134,60 @@ INDEX_HTML = r"""<!DOCTYPE html>
       <select id="f-mutator"><option value="">all mutators</option></select>
       <input id="f-text" type="text" placeholder="filter text..." size="14">
     </div>
+    <div id="propbar">
+      <div class="pseg">
+        <span class="pcount">pending <b id="p-pending">-</b></span>
+        <span class="pcount">accepted <b id="p-accepted">-</b></span>
+        <span class="pcount">rejected <b id="p-rejected">-</b></span>
+        <span class="pcount">consumed <b id="p-consumed">-</b></span>
+      </div>
+      <div class="pseg">
+        <span class="pdec fix">fix <b id="p-fix">-</b></span>
+        <span class="pdec ignore">ignore <b id="p-ignore">-</b></span>
+        <span class="pchip A">A <span id="p-a">-</span></span>
+        <span class="pchip B">B <span id="p-b">-</span></span>
+        <span class="pchip C">C <span id="p-c">-</span></span>
+      </div>
+      <div class="pseg">
+        <select id="p-status">
+          <option value="pending" selected>pending</option>
+          <option value="accepted">accepted</option>
+          <option value="rejected">rejected</option>
+          <option value="">(any status)</option>
+        </select>
+        <select id="p-decision">
+          <option value="">any decision</option>
+          <option value="fix">fix</option>
+          <option value="ignore">ignore</option>
+        </select>
+        <select id="p-bucket">
+          <option value="">any bucket</option>
+          <option value="A">A</option>
+          <option value="B">B</option>
+          <option value="C">C</option>
+        </select>
+        <select id="p-file"><option value="">all files</option></select>
+        <select id="p-function"><option value="">all functions</option></select>
+      </div>
+      <div id="propbulk">
+        <button class="ig" id="bulk-c">Accept all C (equivalent) &rarr; ignore</button>
+        <button class="ig" id="bulk-b">Accept all B (strategy) &rarr; ignore</button>
+        <button class="fx" id="bulk-fix">Accept all fixes &rarr; worklist</button>
+      </div>
+    </div>
     <div id="list"></div>
   </div>
   <div id="right"><div class="empty">Select a survivor to triage.</div></div>
 </main>
 <script>
 let ITEMS = [], SUMMARY = null, SELECTED = null;
-let VIEW = 'flat';          // 'flat' | 'func' | 'audit'
+let VIEW = 'flat';          // 'flat' | 'func' | 'audit' | 'props'
 let GROUPS = [];            // /api/functions groups (By-function view)
 let AUDIT = [];             // /api/audit violations
 let OPEN_CALLERS = {};      // function name -> rendered call sites (toggle)
+let PROPS = [];             // /api/proposals items (Proposals view)
+let PSUM = null;            // /api/proposals summary
+let POPEN = {};             // proposal id -> reasoning expanded (toggle)
 
 function esc(s){ return String(s==null?'':s)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -1771,7 +2232,133 @@ async function loadList(keepSel){
 function render(){
   if (VIEW==='audit') return renderAudit();
   if (VIEW==='func') return renderGroups();
+  if (VIEW==='props') return renderProposals();
   return renderList();
+}
+
+// ---- Proposals review view -------------------------------------------------
+function propQuery(){
+  const q = new URLSearchParams();
+  const st=document.getElementById('p-status').value;
+  q.set('status', st);  // '' means any (server treats empty as no filter)
+  const dec=document.getElementById('p-decision').value;
+  if (dec) q.set('decision', dec);
+  const bk=document.getElementById('p-bucket').value;
+  if (bk) q.set('bucket', bk);
+  const ff=document.getElementById('p-file').value;
+  if (ff) q.set('file', ff);
+  const fn=document.getElementById('p-function').value;
+  if (fn) q.set('function', fn);
+  return q.toString();
+}
+
+async function loadProposals(){
+  const d = await getJSON('/api/proposals?'+propQuery());
+  PROPS = d.items || [];
+  PSUM = d.summary || null;
+  if (PSUM){
+    document.getElementById('p-pending').textContent = PSUM.pending;
+    document.getElementById('p-accepted').textContent = PSUM.accepted;
+    document.getElementById('p-rejected').textContent = PSUM.rejected;
+    document.getElementById('p-consumed').textContent = PSUM.consumed;
+    document.getElementById('p-fix').textContent = PSUM.by_decision.fix;
+    document.getElementById('p-ignore').textContent = PSUM.by_decision.ignore;
+    document.getElementById('p-a').textContent = PSUM.by_bucket.A;
+    document.getElementById('p-b').textContent = PSUM.by_bucket.B;
+    document.getElementById('p-c').textContent = PSUM.by_bucket.C;
+  }
+  // Option lists are derived from the full store via one unfiltered fetch so
+  // they don't shrink as the active filter narrows the items.
+  const all = await getJSON('/api/proposals?status=');
+  const items = all.items || [];
+  populateFilter('p-file', [...new Set(items.map(i=>i.file))].sort());
+  populateFilter('p-function',
+    [...new Set(items.map(i=>i.function).filter(Boolean))].sort());
+  renderProposals();
+}
+
+function propRowHtml(p){
+  // A compact, FULL-ROW clickable summary (same pattern as the survivor rows).
+  // The mutation, full reasoning, test-plan and accept/reject/flip live in the
+  // detail pane (loadDetail) so the row has exactly one click target: open it.
+  const isFix = p.decision==='fix';
+  const sel = (p.id===SELECTED) ? ' sel' : '';
+  const cstat = (p.status!=='pending')
+    ? p.status
+    : ((p.survivor_status!=='remaining') ? 'consumed' : '');
+  const tag = cstat ? `<span class="badge">${esc(cstat)}</span>` : '';
+  return `<div class="row${sel}" data-id="${esc(p.id)}">
+    <span class="loc">${esc(p.file.split('/').pop())}:${p.line}</span>
+    <span class="mut">${esc(p.mutator||'?')}</span>
+    <span class="pdec ${isFix?'fix':'ignore'}">${esc(p.decision)}</span>
+    <span class="pchip ${esc(p.bucket)}">${esc(p.bucket)}</span>
+    ${tag}
+  </div>`;
+}
+
+function renderProposals(){
+  const list = document.getElementById('list');
+  if (!PROPS.length){
+    list.innerHTML = '<div class="empty">No proposals match the filter.</div>';
+    return;
+  }
+  // Group by function with the same divider style as the By-function view.
+  const order = [];
+  const groups = {};
+  for (const p of PROPS){
+    const key = (p.function||'(unknown)')+' '+(p.file||'');
+    if (!groups[key]){ groups[key]=[]; order.push(key); }
+    groups[key].push(p);
+  }
+  list.innerHTML = order.map(key=>{
+    const ps = groups[key];
+    const fn = ps[0].function||'(unknown)';
+    const file = ps[0].file||'';
+    return `<div class="fgroup">
+      <div class="fhead">
+        <div class="ftitle">
+          <span class="fname">${esc(fn)}</span>
+          <span class="ffile">${esc(file)}</span>
+        </div>
+        <div class="fcounts">${ps.length} proposal${ps.length===1?'':'s'}</div>
+      </div>
+      <div class="frows">${ps.map(propRowHtml).join('')}</div>
+    </div>`;
+  }).join('');
+  wireProposalRows();
+}
+
+async function propAction(url, body, errId){
+  const r = await postJSON(url, body);
+  if (!r.ok){
+    if (errId){
+      const e=document.querySelector('[data-err="'+CSS.escape(errId)+'"]');
+      if (e) e.textContent = r.data.error||'failed';
+    } else { alert(r.data.error||'failed'); }
+    return false;
+  }
+  return true;
+}
+
+function wireProposalRows(){
+  const list = document.getElementById('list');
+  // One click target per row: select it and open it in the detail pane.
+  list.querySelectorAll('.row[data-id]').forEach(r=>r.onclick=()=>{
+    SELECTED = r.dataset.id;
+    renderProposals();
+    loadDetail(SELECTED);
+  });
+}
+
+async function bulkAccept(filter, label){
+  if (!confirm('Accept ALL pending proposals matching: '+label
+    +'\\n\\nThis writes ledger/worklist entries and cannot be auto-undone.'))
+    return;
+  const r = await postJSON('/api/proposals/accept-bulk', filter);
+  if (!r.ok){ alert(r.data.error||'failed'); return; }
+  alert('Accepted '+r.data.accepted+' ('+r.data.ledger+' ledger, '
+    +r.data.todo+' worklist).');
+  await loadList(); await loadProposals();
 }
 
 function populateFilter(id, vals){
@@ -2074,6 +2661,114 @@ function stanzaHtml(s){
     <div class="err" id="un-err"></div></div>`;
 }
 
+// ---- Proposal review card (Proposals view detail pane) ---------------------
+// Find the proposal whose id joins to this survivor id. PROPS holds the
+// currently-filtered proposals; the survivor id may carry a '?' mutator where
+// the proposal serialised it as the literal "None" (mirror of the server's
+// _proposal_survivor fallback), so try that form too. If it isn't in PROPS
+// (e.g. filtered out), fetch the unfiltered store and look there.
+function findPropInLoaded(id){
+  let p = PROPS.find(x=>x.id===id);
+  if (!p && id.endsWith(':?'))
+    p = PROPS.find(x=>x.id===id.slice(0,-2)+':None');
+  return p || null;
+}
+async function findProp(id){
+  let p = findPropInLoaded(id);
+  if (p) return p;
+  const all = await getJSON('/api/proposals?status=');
+  const items = all.items || [];
+  p = items.find(x=>x.id===id);
+  if (!p && id.endsWith(':?'))
+    p = items.find(x=>x.id===id.slice(0,-2)+':None');
+  return p || null;
+}
+
+function proposalCardHtml(p){
+  const isFix = p.decision==='fix';
+  const actionable = p.survivor_status==='remaining' && p.status==='pending';
+  const statusLine = actionable ? '' :
+    `<div class="hint" style="margin-bottom:8px">not actionable &mdash; `
+    +`status <b>${esc(p.status||'?')}</b>, survivor `
+    +`<b>${esc(p.survivor_status||'?')}</b></div>`;
+  const test = (isFix && p.test_plan)
+    ? `<div class="ptest" style="margin-top:8px"><b>TEST PLAN:</b> `
+      +`${esc(p.test_plan)}</div>` : '';
+  let act = '';
+  if (actionable){
+    const flipTo = isFix ? 'ignore' : 'fix';
+    act = `<div style="margin-top:10px"><textarea id="pc-note" rows="2"
+      placeholder="your note (optional) — folded into the ledger rationale / worklist note on Accept; saved on Reject"
+      style="width:100%; box-sizing:border-box; font:inherit; font-size:12px; background:var(--panel2); color:var(--fg); border:1px solid var(--border); border-radius:4px; padding:6px">${esc(p.review_note||'')}</textarea></div>
+    <div class="pact" style="margin-top:8px">
+      <button class="acc" id="pc-accept">Accept</button>
+      <button class="rej" id="pc-reject">Reject</button>
+      <span class="pflip">
+        <button class="ghost" id="pc-flip" data-to="${flipTo}">&#8644; ${flipTo}</button>
+        <select class="pbsel" id="pc-bucket">
+          <option value="A" ${p.bucket==='A'?'selected':''}>A</option>
+          <option value="B" ${p.bucket==='B'?'selected':''}>B</option>
+          <option value="C" ${p.bucket==='C'?'selected':''}>C</option>
+        </select>
+      </span>
+    </div>
+    <div class="perr" id="pc-err" style="margin-top:6px"></div>`;
+  } else if (p.status==='accepted' || p.status==='rejected'){
+    const undoNote = (p.status==='accepted')
+      ? `<span class="hint" style="margin-left:8px">reopening undoes the `
+        +`${isFix?'worklist':'ledger'} entry this created</span>` : '';
+    const savedNote = p.review_note
+      ? `<div class="hint" style="margin-top:8px"><b>your note:</b> ${esc(p.review_note)}</div>` : '';
+    act = savedNote + `<div class="pact" style="margin-top:10px">
+      <button class="ghost" id="pc-reopen">&#8634; Reopen (back to pending)</button>
+      ${undoNote}
+    </div>
+    <div class="perr" id="pc-err" style="margin-top:6px"></div>`;
+  }
+  return `<div class="card"><h3>Proposal (fleet)</h3>
+    ${statusLine}
+    <div class="ptop" style="margin-bottom:8px">
+      <span class="pdec ${isFix?'fix':'ignore'}">${esc(p.decision)}</span>
+      <span class="pchip ${esc(p.bucket)}">${esc(p.bucket)}</span>
+    </div>
+    <div style="font-size:12px; line-height:1.6; white-space:pre-wrap">${esc(p.reasoning||'(no reasoning)')}</div>
+    ${test}
+    ${act}</div>`;
+}
+
+function wireProposalCard(p){
+  const id = p.id;
+  const errEl = document.getElementById('pc-err');
+  const setErr = (m)=>{ if (errEl) errEl.textContent = m||''; };
+  const refresh = async ()=>{ await loadList(); await loadProposals(); loadDetail(id); };
+  const noteVal = ()=>{ const t=document.getElementById('pc-note'); return t? t.value : ''; };
+  const acc = document.getElementById('pc-accept');
+  if (acc) acc.onclick = async ()=>{ setErr('');
+    const r = await postJSON('/api/proposal/accept', {id, note:noteVal()});
+    if (!r.ok){ setErr(r.data.error||'failed'); return; } await refresh(); };
+  const rej = document.getElementById('pc-reject');
+  if (rej) rej.onclick = async ()=>{ setErr('');
+    if (!confirm('Reject this proposal? (no ledger/worklist change)')) return;
+    const r = await postJSON('/api/proposal/reject', {id, note:noteVal()});
+    if (!r.ok){ setErr(r.data.error||'failed'); return; } await refresh(); };
+  const flip = document.getElementById('pc-flip');
+  if (flip) flip.onclick = async (ev)=>{ setErr('');
+    const bucket = document.getElementById('pc-bucket').value;
+    const r = await postJSON('/api/proposal/flip',
+      {id, decision:ev.currentTarget.dataset.to, bucket});
+    if (!r.ok){ setErr(r.data.error||'failed'); return; }
+    await loadProposals(); loadDetail(id); };
+  const bsel = document.getElementById('pc-bucket');
+  if (bsel) bsel.onchange = async ()=>{ setErr('');
+    const r = await postJSON('/api/proposal/flip', {id, bucket:bsel.value});
+    if (!r.ok){ setErr(r.data.error||'failed'); return; }
+    await loadProposals(); loadDetail(id); };
+  const re = document.getElementById('pc-reopen');
+  if (re) re.onclick = async ()=>{ setErr('');
+    const r = await postJSON('/api/proposal/reopen', {id});
+    if (!r.ok){ setErr(r.data.error||'failed'); return; } await refresh(); };
+}
+
 async function loadDetail(id){
   const d = await getJSON('/api/survivor/'+encodeURIComponent(id));
   const right = document.getElementById('right');
@@ -2083,13 +2778,29 @@ async function loadDetail(id){
     ? `<code>${esc(d.enclosing_function)}</code>`
     + (d.function_tag?` <span class="propose ${d.proposed_bucket==='ignore'?'ignore':d.proposed_bucket==='tofix'?'tofix':''}">${esc(d.function_tag)}${d.proposed_bucket?(' &rarr; '+(d.proposed_bucket==='ignore'?'Ignore all':'To-Fix')):''}</span>`:' <span class="hint">(untagged)</span>')
     : '<span class="hint">(unknown function)</span>';
-  let html = `<h2>${esc(d.file)}:${d.line}:${d.col}</h2>
+  const header = `<h2>${esc(d.file)}:${d.line}:${d.col}</h2>
     <div class="sub">mutator <code>${esc(d.mutator||'?')}</code> &middot;
       <span class="badge ${kind}">${kindLabel(kind)}</span>
       &middot; function ${fnTxt}</div>
     <div class="card"><h3>Source context</h3>${srcHtml(d.source_context, d.mutation)}</div>
     <div class="card"><h3>Git blame (target line)</h3>${blameHtml(d.git_blame)}</div>
     ${covHtml(d.coverage_hint)}`;
+
+  // Proposals view: the review surface is the source/blame context above plus
+  // the fleet proposal card (compare the proof against the code). The manual
+  // ignore/tofix/stanza forms are NOT shown here.
+  if (VIEW==='props'){
+    const p = await findProp(id);
+    right.innerHTML = header
+      + (p ? proposalCardHtml(p)
+           : '<div class="card"><h3>Proposal (fleet)</h3>'
+             +'<div class="hint">no proposal joins to this survivor '
+             +'(it may be filtered out).</div></div>');
+    if (p) wireProposalCard(p);
+    return;
+  }
+
+  let html = header;
   if (kind==='ignored' && d.stanza){
     html += stanzaHtml(d.stanza);
   } else if (kind==='tofix'){
@@ -2161,12 +2872,42 @@ async function loadDetail(id){
   document.getElementById(id).addEventListener('change', render));
 document.getElementById('f-text').addEventListener('input', render);
 
+// Proposals filter controls re-fetch (server-side filtering).
+['p-status','p-decision','p-bucket','p-file','p-function'].forEach(id=>
+  document.getElementById(id).addEventListener('change', loadProposals));
+
+// Bulk action bar -- each honours the CURRENT proposals filter (file/function)
+// plus the bucket/decision the button stands for.
+function currentPropFilter(extra){
+  const out = Object.assign({}, extra);
+  const ff=document.getElementById('p-file').value;
+  if (ff) out.file = ff;
+  const fn=document.getElementById('p-function').value;
+  if (fn) out.function = fn;
+  return out;
+}
+document.getElementById('bulk-c').onclick=()=>
+  bulkAccept(currentPropFilter({bucket:'C'}), 'bucket C (equivalent) -> ignore');
+document.getElementById('bulk-b').onclick=()=>
+  bulkAccept(currentPropFilter({bucket:'B'}), 'bucket B (strategy) -> ignore');
+document.getElementById('bulk-fix').onclick=()=>
+  bulkAccept(currentPropFilter({decision:'fix'}), 'all fixes -> worklist');
+
+function syncViewChrome(){
+  // The Proposals view swaps the survivor filter bar for the proposals bar.
+  document.getElementById('filters').style.display =
+    (VIEW==='props') ? 'none' : 'flex';
+  document.getElementById('propbar').classList.toggle('on', VIEW==='props');
+}
+
 document.getElementById('vtoggle').querySelectorAll('button').forEach(b=>
   b.onclick=()=>{
     VIEW = b.dataset.view;
     document.getElementById('vtoggle').querySelectorAll('button').forEach(x=>
       x.classList.toggle('on', x.dataset.view===VIEW));
     document.getElementById('audit-pill').classList.remove('on');
+    syncViewChrome();
+    if (VIEW==='props'){ loadProposals(); return; }
     render();
   });
 document.getElementById('audit-pill').onclick=()=>{
@@ -2174,6 +2915,7 @@ document.getElementById('audit-pill').onclick=()=>{
   document.getElementById('audit-pill').classList.toggle('on', VIEW==='audit');
   document.getElementById('vtoggle').querySelectorAll('button').forEach(x=>
     x.classList.toggle('on', VIEW!=='audit' && x.dataset.view===VIEW));
+  syncViewChrome();
   render();
 };
 loadList();
@@ -2309,6 +3051,7 @@ def main(argv=None):
     default_ledger = os.path.join(conv_dir, "mull-ignores.toml")
     default_todo = os.path.join(conv_dir, "mull-todo.toml")
     default_tags = os.path.join(conv_dir, "mull-function-tags.toml")
+    default_proposals = os.path.join(conv_dir, "mull-proposals.json")
     p.add_argument("--port", type=int, default=8765)
     p.add_argument("--root", default=".")
     p.add_argument("--ledger", default=default_ledger)
@@ -2317,6 +3060,9 @@ def main(argv=None):
     p.add_argument("--tags", default=default_tags,
                    help="path to the function classification store "
                         "(mull-function-tags.toml)")
+    p.add_argument("--proposals", default=default_proposals,
+                   help="path to the triage proposals store "
+                        "(mull-proposals.json); missing file = no proposals")
     p.add_argument("--reload", action="store_true",
                    help="supervise mode: auto-restart the server when its "
                         "source (this file or mull-filter.py) changes")
@@ -2341,6 +3087,8 @@ def main(argv=None):
                    else os.path.join(Config.root, args.todo))
     Config.tags = (args.tags if os.path.isabs(args.tags)
                    else os.path.join(Config.root, args.tags))
+    Config.proposals = (args.proposals if os.path.isabs(args.proposals)
+                        else os.path.join(Config.root, args.proposals))
     Config.report_globs = args.report_globs or ["build_mull/**/mutation-*.txt"]
 
     httpd = Server(("127.0.0.1", args.port), Handler)
