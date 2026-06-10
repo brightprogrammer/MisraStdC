@@ -2,6 +2,7 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
+#include <Misra/Std/Memory.h>
 #include <Misra/Types.h>
 
 // Include test utilities
@@ -367,11 +368,27 @@ bool test_special_characters_in_strings(void) {
     WriteFmt("[DEBUG] Special chars - message: '{}'\n", obj.message);
     WriteFmt("[DEBUG] Special chars - data: '{}'\n", obj.data);
 
-    // Check if strings were parsed (exact content may vary based on escape handling)
-    if (StrLen(&obj.path) > 0 && StrLen(&obj.message) > 0 && StrLen(&obj.data) > 0) {
-        WriteFmt("[DEBUG] Special characters test passed - all strings parsed\n");
-    } else {
-        WriteFmt("[DEBUG] Special characters test FAILED - some strings empty\n");
+    // Decoded content is caller-observable -- assert exact bytes, not just
+    // non-empty. Each \\ collapses to one '\', each \" to one '"', \n to LF,
+    // \t to HT.
+    //
+    // path:    "C:\\Program Files\\App"  -> C:\Program Files\App
+    // message: "Hello, \"World\"!"       -> Hello, "World"!
+    // data:    "line1\nline2\ttab"       -> line1<LF>line2<HT>tab
+    Zstr path_want = "C:\\Program Files\\App";
+    Zstr msg_want  = "Hello, \"World\"!";
+    Zstr data_want = "line1\nline2\ttab";
+    if (StrLen(&obj.path) != ZstrLen(path_want) || MemCompare(StrBegin(&obj.path), path_want, StrLen(&obj.path)) != 0) {
+        WriteFmtLn("[DEBUG] Special characters FAILED: path content wrong");
+        success = false;
+    }
+    if (StrLen(&obj.message) != ZstrLen(msg_want) ||
+        MemCompare(StrBegin(&obj.message), msg_want, StrLen(&obj.message)) != 0) {
+        WriteFmtLn("[DEBUG] Special characters FAILED: message content wrong");
+        success = false;
+    }
+    if (StrLen(&obj.data) != ZstrLen(data_want) || MemCompare(StrBegin(&obj.data), data_want, StrLen(&obj.data)) != 0) {
+        WriteFmtLn("[DEBUG] Special characters FAILED: data content wrong");
         success = false;
     }
 
@@ -391,43 +408,95 @@ bool test_escape_sequences_reading(void) {
 
     bool success = true;
 
+    // One key per escape the parser claims to support: \" \\ \/ \b \f \n \r \t.
+    // In a C source literal each backslash is doubled, so e.g. the JSON token
+    // `\n` is spelled "\\n" here.
     Str json = StrInitFromZstr(
-        "{\"escaped\":\"\\\"quotes\\\"\",\"backslash\":\"\\\\\",\"newline\":\"\\n\",\"tab\":\"\\t\"}",
+        "{"
+        "\"quote\":\"\\\"\","
+        "\"backslash\":\"\\\\\","
+        "\"slash\":\"\\/\","
+        "\"backspace\":\"\\b\","
+        "\"formfeed\":\"\\f\","
+        "\"newline\":\"\\n\","
+        "\"carriage\":\"\\r\","
+        "\"tab\":\"\\t\""
+        "}",
         &alloc
     );
     StrIter si = StrIterFromStr(json);
 
     struct {
-        Str escaped;
+        Str quote;
         Str backslash;
+        Str slash;
+        Str backspace;
+        Str formfeed;
         Str newline;
+        Str carriage;
         Str tab;
-    } obj = {StrInit(&alloc), StrInit(&alloc), StrInit(&alloc), StrInit(&alloc)};
+    } obj = {
+        StrInit(&alloc),
+        StrInit(&alloc),
+        StrInit(&alloc),
+        StrInit(&alloc),
+        StrInit(&alloc),
+        StrInit(&alloc),
+        StrInit(&alloc),
+        StrInit(&alloc)
+    };
 
     JR_OBJ(si, {
-        JR_STR_KV(si, "escaped", obj.escaped);
+        JR_STR_KV(si, "quote", obj.quote);
         JR_STR_KV(si, "backslash", obj.backslash);
+        JR_STR_KV(si, "slash", obj.slash);
+        JR_STR_KV(si, "backspace", obj.backspace);
+        JR_STR_KV(si, "formfeed", obj.formfeed);
         JR_STR_KV(si, "newline", obj.newline);
+        JR_STR_KV(si, "carriage", obj.carriage);
         JR_STR_KV(si, "tab", obj.tab);
     });
 
-    WriteFmtLn("[DEBUG] Escape sequences - escaped: '{}'\n", obj.escaped);
-    WriteFmtLn("[DEBUG] Escape sequences - backslash: '{}'\n", obj.backslash);
-    WriteFmtLn("[DEBUG] Escape sequences - newline length: {}\n", StrLen(&obj.newline));
-    WriteFmtLn("[DEBUG] Escape sequences - tab length: {}\n", StrLen(&obj.tab));
-
-    // Basic validation that strings were parsed
-    if (StrLen(&obj.escaped) > 0 && StrLen(&obj.backslash) > 0 && StrLen(&obj.newline) > 0 && StrLen(&obj.tab) > 0) {
-        WriteFmt("[DEBUG] Escape sequences test passed\n");
-    } else {
-        WriteFmt("[DEBUG] Escape sequences test FAILED\n");
-        success = false;
+    // Decoded content is caller-observable: assert exact length AND exact
+    // byte for every escape. A length-only check lets a parser that decodes
+    // \n -> literal 'n' or \" -> '\'' pass silently. mull's operators cannot
+    // express char-literal swaps, so these byte assertions are the only
+    // durable guard for escape semantics -- write them with no hedging.
+    // \uXXXX is intentionally absent: the parser rejects it (see
+    // test_truncated_unicode_escape_rejected).
+    struct {
+        const Str *got;
+        char       want;
+        Zstr       name;
+    } expect[] = {
+        {    &obj.quote,  '"',     "quote"},
+        {&obj.backslash, '\\', "backslash"},
+        {    &obj.slash,  '/',     "slash"},
+        {&obj.backspace, '\b', "backspace"},
+        { &obj.formfeed, '\f',  "formfeed"},
+        {  &obj.newline, '\n',   "newline"},
+        { &obj.carriage, '\r',  "carriage"},
+        {      &obj.tab, '\t',       "tab"},
+    };
+    for (u64 i = 0; i < sizeof(expect) / sizeof(expect[0]); i++) {
+        if (StrLen(expect[i].got) != 1 || *StrBegin(expect[i].got) != expect[i].want) {
+            WriteFmtLn(
+                "[DEBUG] Escape sequences FAILED: {} decoded wrong (len={})",
+                expect[i].name,
+                StrLen(expect[i].got)
+            );
+            success = false;
+        }
     }
 
     StrDeinit(&json);
-    StrDeinit(&obj.escaped);
+    StrDeinit(&obj.quote);
     StrDeinit(&obj.backslash);
+    StrDeinit(&obj.slash);
+    StrDeinit(&obj.backspace);
+    StrDeinit(&obj.formfeed);
     StrDeinit(&obj.newline);
+    StrDeinit(&obj.carriage);
     StrDeinit(&obj.tab);
     DefaultAllocatorDeinit(&alloc);
     return success;
@@ -838,10 +907,12 @@ bool test_scalar_readers_value_and_advance(void) {
     return success;
 }
 
-// Test 16: A truncated \uXXXX escape must be rejected, not over-read.
-// (Reader FAILURE contract: returns the original iterator.)
+// Test 16: \uXXXX escapes are unsupported and must be rejected -- both the
+// truncated form (over-read guard) AND a complete \uXXXX (no silent-drop /
+// wrong-answer). Reader FAILURE contract: returns the original iterator with
+// the output cleared. A string without \u still parses.
 bool test_truncated_unicode_escape_rejected(void) {
-    WriteFmtLn("Testing truncated \\u escape rejection");
+    WriteFmtLn("Testing \\u escape rejection (truncated and complete)");
 
     DefaultAllocator alloc   = DefaultAllocatorInit();
     bool             success = true;
@@ -862,16 +933,41 @@ bool test_truncated_unicode_escape_rejected(void) {
         StrDeinit(&j);
     }
 
-    // A complete \uXXXX escape is the minimal valid case: the string must
-    // parse (iterator advances past the closing quote) even though the
-    // escape itself is skipped rather than decoded.
+    // A well-formed \uXXXX escape is unsupported and must be REJECTED, not
+    // silently consumed: the parser has no decoder, so accepting it would
+    // hand the caller a string whose content differs from the document with
+    // a success status -- a wrong answer in a fail-fast library. Contract:
+    // reject -> iterator rewinds to start, output cleared.
     {
         Str     j   = StrInitFromZstr("\"a\\u00e9b\"", &alloc);
         StrIter si  = StrIterFromStr(j);
         Str     out = StrInit(&alloc);
         StrIter r   = JReadString(si, &out);
+        if (StrIterIndex(&r) != StrIterIndex(&si)) {
+            WriteFmtLn("[DEBUG] JReadString accepted a complete \\u escape (should reject): idx={}", StrIterIndex(&r));
+            success = false;
+        }
+        if (StrLen(&out) != 0) {
+            WriteFmtLn("[DEBUG] JReadString left partial output on rejected \\u escape: len={}", StrLen(&out));
+            success = false;
+        }
+        StrDeinit(&out);
+        StrDeinit(&j);
+    }
+
+    // A string with no \u escape still parses normally -- the rejection above
+    // is specific to \u, not a blanket failure.
+    {
+        Str     j   = StrInitFromZstr("\"plain\"", &alloc);
+        StrIter si  = StrIterFromStr(j);
+        Str     out = StrInit(&alloc);
+        StrIter r   = JReadString(si, &out);
         if (StrIterIndex(&r) == StrIterIndex(&si) || StrIterIndex(&r) != StrIterLength(&r)) {
-            WriteFmtLn("[DEBUG] JReadString rejected a valid \\u escape: idx={}", StrIterIndex(&r));
+            WriteFmtLn("[DEBUG] JReadString failed on a plain string: idx={}", StrIterIndex(&r));
+            success = false;
+        }
+        if (StrLen(&out) != 5 || MemCompare(StrBegin(&out), "plain", 5) != 0) {
+            WriteFmtLn("[DEBUG] JReadString decoded plain string wrong: len={}", StrLen(&out));
             success = false;
         }
         StrDeinit(&out);

@@ -258,24 +258,21 @@ StrIter JReadString(StrIter si, Str *str) {
                             StrIterMustNext(&si);
                             break;
 
-                        // espaced unicode sequence
+                        // escaped unicode sequence -- unsupported, rejected
                         case 'u' :
-                            // Peek above proved 1 byte (the 'u'); `\uXXXX`
-                            // needs 4 more. Bail on truncation instead of
-                            // letting StrIterMustMove abort -- attacker
-                            // JSON like `"\u"` / `"\u12"` would DoS the
-                            // process otherwise.
-                            if (StrIterRemainingLength(&si) < 5) {
-                                LOG_ERROR("Truncated \\uXXXX escape in JSON string.");
-                                StrClear(str);
-                                return saved_si;
-                            }
-                            LOG_ERROR(
-                                "No unicode support '{.6}'. Unicode sequence will be skipped.",
-                                LVAL(StrIterDataAt(&si, StrIterIndex(&si) - 1))
-                            );
-                            StrIterMustMove(&si, 5);
-                            break;
+                            // No \uXXXX decoder exists. Silently consuming the
+                            // escape would hand the caller a string whose
+                            // content differs from the document with a success
+                            // status -- a wrong-answer in a fail-fast library.
+                            // Reject loudly instead (same shape as the
+                            // truncated-\u and unknown-escape branches): clear
+                            // the partial result and rewind to saved_si so the
+                            // parse fails rather than lies. Covers both the
+                            // truncated case (fewer than 4 trailing chars) and
+                            // a well-formed \uXXXX.
+                            LOG_ERROR("Unsupported \\uXXXX escape in JSON string; rejecting.");
+                            StrClear(str);
+                            return saved_si;
 
                         default :
                             LOG_ERROR("Invalid JSON object key string.");
