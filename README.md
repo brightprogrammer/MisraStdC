@@ -153,7 +153,7 @@ the static library and its headers from the install prefix; the default build
 ## Docs, contributing, license
 
 In-depth guides live under [`Docs/`](Docs/). Before contributing, read
-[`CODING-CONVENTIONS.md`](CODING-CONVENTIONS.md) and run the test suite plus
+[`CODING-CONVENTIONS.md`](Conventions/CODING-CONVENTIONS.md) and run the test suite plus
 `clang-format`. Released into the public domain under the
 [Unlicense](LICENSE.md).
 
@@ -167,7 +167,7 @@ that expectation.
 
 What *is* stable is the set of standards the code is held to: naming, ownership,
 allocator rules, error handling, formatting, and the rest are written down in
-[`CODING-CONVENTIONS.md`](CODING-CONVENTIONS.md). When the code and the
+[`CODING-CONVENTIONS.md`](Conventions/CODING-CONVENTIONS.md). When the code and the
 conventions disagree, the conventions are right and the code is a bug to be
 fixed.
 

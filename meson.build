@@ -43,7 +43,7 @@ if cc.get_id() == 'msvc' or cc.get_id() == 'clang-cl'
     # compiler follows the C standard, which types literals as
     # `char[N]` decaying to `char *`. The codebase handles this by
     # giving every `_Generic` Zstr-arm a `char *` synonym -- see
-    # CODING-CONVENTIONS.md and Zstr.h for the rule.
+    # Conventions/CODING-CONVENTIONS.md and Zstr.h for the rule.
 endif
 
 inc_misra = include_directories('Source', 'Include')
