@@ -71,7 +71,7 @@ bool test_bitvec_from_string(void) {
     WriteFmt("Testing BitVecFromStr\n");
 
     // Convert from string
-    Zstr str = "1011";
+    Zstr   str = "1011";
     BitVec bv;
     bool   ok = BitVecTryFromStr(&bv, str, ALLOCATOR_OF(&alloc));
 
@@ -119,10 +119,9 @@ bool test_bitvec_to_bytes(void) {
     // Check result
     bool result = (byte_count == 1);
     if (result) {
-        // Expected byte value depends on bit ordering
-        // If bits are stored LSB first: 10110011 = 0xCD
-        // If bits are stored MSB first: 10110011 = 0xB3
-        result = result && (bytes[0] == 0xCD || bytes[0] == 0xB3);
+        // BitVecToBytes packs LSB-first: byte |= (1<<i) for each set bit[i].
+        // bits [1,0,1,1,0,0,1,1] -> bits 0,2,3,6,7 set -> 0b11001101 = 0xCD.
+        result = result && (bytes[0] == 0xCD);
     }
     BitVecDeinit(&bv);
 
@@ -145,8 +144,9 @@ bool test_bitvec_from_bytes(void) {
     // Check result (8 bits from 1 byte)
     bool result = ok && (BitVecLen(&bv) == 8);
 
-    // The exact bit order depends on implementation
-    // Just check that we got 8 bits and some are true, some false
+    // 0xB3 = 10110011 has a fixed popcount regardless of bit order, so the
+    // true/false split below is an exact contract (asserted at true_count==5
+    // / false_count==3), not a "some true, some false" sanity check.
     u64 true_count  = 0;
     u64 false_count = 0;
 
@@ -272,13 +272,14 @@ bool test_bitvec_try_conversion_allocators(void) {
 
     BitVec bv;
     Str    str;
-    bool   ok = BitVecTryFromStr(&bv, "101001", ALLOCATOR_OF(&alloc));
+    bool   ok     = BitVecTryFromStr(&bv, "101001", ALLOCATOR_OF(&alloc));
     bool   result = ok && (BitVecAllocator(&bv)->effort == alloc.base.effort) &&
                   (BitVecAllocator(&bv)->retry_limit == alloc.base.retry_limit);
 
     ok     = BitVecTryToStr(&str, &bv);
     result = result && ok && (StrAllocator(&str)->effort == alloc.base.effort) &&
-             (StrAllocator(&str)->retry_limit == alloc.base.retry_limit) && (ZstrCompare(StrBegin(&str), "101001") == 0);
+             (StrAllocator(&str)->retry_limit == alloc.base.retry_limit) &&
+             (ZstrCompare(StrBegin(&str), "101001") == 0);
 
     StrDeinit(&str);
     BitVecDeinit(&bv);
@@ -537,8 +538,8 @@ bool test_bitvec_conversion_comprehensive(void) {
     // Test specific bit patterns with exact expectations
     struct {
         Zstr pattern;
-        u64    expected_value;
-        u8     expected_bytes[8];
+        u64  expected_value;
+        u8   expected_bytes[8];
         size byte_count;
     } test_cases[] = {
         {        "10000000",   0x01,       {0x01}, 1}, // MSB set
@@ -557,34 +558,44 @@ bool test_bitvec_conversion_comprehensive(void) {
         result  = result && (ZstrCompare(StrBegin(&str), test_cases[i].pattern) == 0);
         StrDeinit(&str);
 
-        // Test integer conversion (may depend on bit order)
+        // Integer conversion is deterministic LSB-first (bit[i] -> 1<<i),
+        // so the table's expected_value is exact.
         u64 value = BitVecToInteger(&bv);
-        // We test that we get a consistent value (not necessarily the exact expected one)
-        result = result && (value > 0 || ZstrCompare(test_cases[i].pattern, "00000000") == 0);
+        result    = result && (value == test_cases[i].expected_value);
 
-        // Test byte conversion
+        // Byte conversion is the same LSB-first packing; assert the exact
+        // bytes the table records, not just the written count.
         u8  bytes[8] = {0};
         u64 written  = BitVecToBytes(&bv, bytes, 8);
         result       = result && (written == test_cases[i].byte_count);
+        for (size b = 0; b < test_cases[i].byte_count; b++) {
+            result = result && (bytes[b] == test_cases[i].expected_bytes[b]);
+        }
 
         BitVecDeinit(&bv);
     }
 
-    // Test cross-format validation
+    // Test cross-format validation. All three constructors are LSB-first
+    // (FromStr maps string position i -> bit[i]; FromInteger/FromBytes map
+    // bit[i] = (src >> i) & 1), so the round-tripped strings are exact and
+    // not "bit-order may vary":
+    //   FromStr("11010110")     -> bit[i]=char[i]            -> "11010110"
+    //   FromInteger(0xD6, 8)    -> bit[i]=(0xD6>>i)&1        -> "01101011"
+    //   FromBytes({0xD6}, 8)    -> bit[i]=(0xD6>>i)&1        -> "01101011"
     BitVec bv1 = BitVecFromStr("11010110", ALLOCATOR_OF(&alloc));
-    BitVec bv2 = BitVecFromInteger(0xD6, 8, ALLOCATOR_OF(&alloc)); // Assuming MSB-first: 11010110 = 0xD6
+    BitVec bv2 = BitVecFromInteger(0xD6, 8, ALLOCATOR_OF(&alloc));
     BitVec bv3 = BitVecFromBytes((u8[]) {0xD6}, 8, ALLOCATOR_OF(&alloc));
 
-    // All three should produce the same result when converted back
     Str str1 = BitVecToStr(&bv1);
     Str str2 = BitVecToStr(&bv2);
     Str str3 = BitVecToStr(&bv3);
 
-    // At least two of them should match (bit order might affect one)
-    bool cross_match = (ZstrCompare(StrBegin(&str1), StrBegin(&str2)) == 0) ||
-                       (ZstrCompare(StrBegin(&str1), StrBegin(&str3)) == 0) ||
-                       (ZstrCompare(StrBegin(&str2), StrBegin(&str3)) == 0);
-    result = result && cross_match;
+    // str2 and str3 are the same integer/byte packing; str1 is the string
+    // form. Assert each exactly.
+    result = result && (ZstrCompare(StrBegin(&str1), "11010110") == 0);
+    result = result && (ZstrCompare(StrBegin(&str2), "01101011") == 0);
+    result = result && (ZstrCompare(StrBegin(&str3), "01101011") == 0);
+    result = result && (ZstrCompare(StrBegin(&str2), StrBegin(&str3)) == 0);
 
     StrDeinit(&str1);
     StrDeinit(&str2);

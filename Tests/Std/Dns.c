@@ -158,8 +158,7 @@ static bool test_dns_parse_response_a_and_aaaa(void) {
     if (match) {
         DnsRecord *r0 = VecPtrAt(&resp.answers, 0);
         match         = r0->type == DNS_TYPE_A && r0->ttl == 300 && r0->ipv4[0] == 93 && r0->ipv4[1] == 184 &&
-                r0->ipv4[2] == 216 && r0->ipv4[3] == 34 && StrLen(&r0->name) > 0 &&
-                ZstrCompare(StrBegin(&r0->name), "example.com") == 0;
+                r0->ipv4[2] == 216 && r0->ipv4[3] == 34 && ZstrCompare(StrBegin(&r0->name), "example.com") == 0;
     }
     if (match) {
         DnsRecord *r1 = VecPtrAt(&resp.answers, 1);
@@ -292,8 +291,7 @@ static bool test_dns_parse_response_cname(void) {
     bool        match = ok && VecLen(&resp.answers) == 1;
     if (match) {
         DnsRecord *r = VecPtrAt(&resp.answers, 0);
-        match        = r->type == DNS_TYPE_CNAME && StrLen(&r->target) > 0 &&
-                ZstrCompare(StrBegin(&r->target), "example.com") == 0;
+        match        = r->type == DNS_TYPE_CNAME && ZstrCompare(StrBegin(&r->target), "example.com") == 0;
     }
 
     DnsResponseDeinit(&resp);

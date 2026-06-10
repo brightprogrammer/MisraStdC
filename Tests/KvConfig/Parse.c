@@ -83,8 +83,8 @@ static bool test_kvconfig_get_returns_copy(void) {
 
     result = result && stored_host;
     result = result && (StrBegin(&host_copy) != NULL);
-    result = result && (StrLen(&host_copy) > 0);
     result = result && (StrBegin(&host_copy) != StrBegin(stored_host));
+    // exact content (StrCmp below) subsumes any non-emptiness check.
     result = result && (StrCmp(&host_copy, "localhost") == 0);
     result = result && (StrCmp(stored_host, "localhost") == 0);
 

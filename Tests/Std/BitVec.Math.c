@@ -718,7 +718,10 @@ bool test_bitvec_math_stress_tests(void) {
     result = result && (dot_prod < 1000);
     result = result && (correlation >= -1.0 && correlation <= 1.0);
     result = result && (entropy1 >= 0.0 && entropy1 <= 1.0);
-    // Note: align_score can be 0 for some patterns, so just check it's computed
+    // bucket B (MULL-DISCOVERY-CONVENTIONS): the exact alignment score is an
+    // implementation-chosen function of the scoring strategy; the caller-
+    // observable contract is the bound -- with match=+1 / mismatch=-1 over
+    // <=1000 compared bits the score must lie in [-1000, 1000].
     result = result && (align_score >= -1000 && align_score <= 1000);
     result = result && (best_align <= 1000); // SIZE_MAX is valid
     result = result && (edit_dist < 100);

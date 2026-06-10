@@ -395,10 +395,18 @@ bool test_bitvec_pattern_stress_tests(void) {
     u64 index = BitVecFindPattern(&source, &pattern);
     result    = result && (index == 0); // Should find first pattern at beginning
 
-    // Test finding all occurrences in large data
+    // Test finding all occurrences in large data. The injected "1010"
+    // patterns plus incidental matches are implementation-positioned, but
+    // the find-all contract is observable and exact: at least one match, the
+    // first reported index is the same one BitVecFindPattern returned (0),
+    // and the indices come back strictly ascending.
     size results[200];
     u64  count = BitVecFindAllPattern(&source, &pattern, results, 200);
-    result     = result && (count > 0); // Should find at least some patterns
+    result     = result && (count > 0);
+    result     = result && (results[0] == (size)index);
+    for (u64 k = 1; k < count; k++) {
+        result = result && (results[k] > results[k - 1]);
+    }
 
     BitVecDeinit(&source);
     BitVecDeinit(&pattern);
@@ -1023,13 +1031,12 @@ int main(void) {
     TestFunction tests[] = {
         test_bitvec_basic_pattern_functions, test_bitvec_find_pattern,           test_bitvec_find_last_pattern,
         test_bitvec_find_all_pattern,        test_bitvec_find_all_pattern_vec,   test_bitvec_pattern_edge_cases,
-        test_bitvec_pattern_stress_tests,
-        test_bitvec_starts_with_basic,       test_bitvec_starts_with_edge_cases, test_bitvec_ends_with_basic,
-        test_bitvec_ends_with_edge_cases,    test_bitvec_contains_basic,         test_bitvec_contains_at_basic,
-        test_bitvec_contains_at_edge_cases,  test_bitvec_count_pattern_basic,    test_bitvec_rfind_pattern_basic,
-        test_bitvec_replace_basic,           test_bitvec_replace_all_basic,      test_bitvec_matches_basic,
-        test_bitvec_fuzzy_match_basic,       test_bitvec_regex_match_basic,      test_bitvec_prefix_match_basic,
-        test_bitvec_suffix_match_basic
+        test_bitvec_pattern_stress_tests,    test_bitvec_starts_with_basic,      test_bitvec_starts_with_edge_cases,
+        test_bitvec_ends_with_basic,         test_bitvec_ends_with_edge_cases,   test_bitvec_contains_basic,
+        test_bitvec_contains_at_basic,       test_bitvec_contains_at_edge_cases, test_bitvec_count_pattern_basic,
+        test_bitvec_rfind_pattern_basic,     test_bitvec_replace_basic,          test_bitvec_replace_all_basic,
+        test_bitvec_matches_basic,           test_bitvec_fuzzy_match_basic,      test_bitvec_regex_match_basic,
+        test_bitvec_prefix_match_basic,      test_bitvec_suffix_match_basic
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);
