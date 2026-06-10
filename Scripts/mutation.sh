@@ -40,7 +40,16 @@ SAN=${MUTATION_SANITIZE:-none}
 
 COMPONENTS=("$@")
 if [ ${#COMPONENTS[@]} -eq 0 ]; then
-  COMPONENTS=(Map Vec Str List BitVec Graph Int Float)
+  COMPONENTS=(
+    # containers
+    Map Vec Str List BitVec Graph Int Float
+    # std subsystems
+    Io File ArgParse Iter Allocator AllocDebug
+    # parsers
+    Elf MachO Pe Pdb Dwarf Json KvConfig Http Dns
+    # sys
+    Backtrace Socket ProcMaps SymbolResolver MachoCache PdbCache SysDns
+  )
 fi
 
 # Locate the pass plugin if the environment did not hand it to us.
@@ -61,35 +70,79 @@ echo "==> runner      : $MULL_RUNNER"
 echo "==> components  : ${COMPONENTS[*]}"
 echo
 
-# Resolve a component name to its implementation source file.
+# Explicit component -> source overrides, for components whose test prefix does
+# not match a unique <Component>.c basename under Source/ (case, ambiguity, or
+# a differently-named file).
+declare -A SRC_OVERRIDE=(
+  [Json]="Source/Misra/Parsers/JSON.c"
+  [Dns]="Source/Misra/Parsers/Dns.c"
+  [SysDns]="Source/Misra/Sys/Dns.c"
+  [AllocDebug]="Source/Misra/Std/Allocator/Debug.c"
+  [Iter]="Source/Misra/Std/Utility/Iter.c"
+)
+
+# Resolve a component name to its implementation source file: an explicit
+# override, else a unique <Component>.c anywhere under Source/. Returns nonzero
+# (caller skips) when there is no match or an ambiguous one.
 component_source() {
-  local c=$1 p
-  for p in "Source/Misra/Std/Container/$c.c" "Source/Misra/Std/$c.c"; do
-    [ -f "$p" ] && { echo "$p"; return 0; }
-  done
+  local c=$1
+  if [ -n "${SRC_OVERRIDE[$c]:-}" ]; then
+    [ -f "${SRC_OVERRIDE[$c]}" ] && { echo "${SRC_OVERRIDE[$c]}"; return 0; }
+    return 1
+  fi
+  local hits n
+  hits=$(find Source -type f -name "$c.c" 2>/dev/null)
+  n=$(printf '%s\n' "$hits" | grep -c .)
+  if [ "$n" = "1" ]; then
+    echo "$hits"
+    return 0
+  fi
   return 1
 }
 
+# One build dir per invocation, named by the first component so parallel runs
+# over disjoint component sets don't collide. The library is built ONCE; each
+# component is then scoped incrementally -- we delete just that source's library
+# object so ninja recompiles that single file (seconds) under the component's
+# MULL_CONFIG, instead of rebuilding the whole library per component (minutes).
+BUILD_DIR="$ROOT/${COMPONENTS[0]}"
+mkdir -p "$BUILD_DIR"
+
+# Source/Misra/Parsers/Elf.c -> Source_Misra_Parsers_Elf.c.o (meson object name)
+obj_name() { printf '%s.o' "$(printf '%s' "$1" | tr '/' '_')"; }
+
 overall_fail=0
+prev_src=""
 for comp in "${COMPONENTS[@]}"; do
   src=$(component_source "$comp") || { echo "::warning::no source for component '$comp', skipping"; continue; }
-  bdir="$ROOT/$comp"
-  cfg="$bdir/mull.yml"
-  mkdir -p "$bdir"
 
-  # Scope mutations to this component's source for both compile and run.
+  cfg="$BUILD_DIR/mull-$comp.yml"
   printf 'includePaths:\n  - %s\nmutators:\n  - cxx_all\n' "$src" > "$cfg"
   export MULL_CONFIG="$PWD/$cfg"
 
-  if [ ! -f "$bdir/build.ninja" ]; then
-    CC="$CC" meson setup "$bdir" \
+  # Force recompile of the current target (to embed its mutants) and the
+  # previously-mutated one (to drop its mutants, now out of includePaths).
+  # Deleting the library object -- not touching the shared source -- avoids
+  # churning a parallel run's build of the same file.
+  for s in "$src" "$prev_src"; do
+    [ -n "$s" ] && find "$BUILD_DIR" -path "*.a.p/$(obj_name "$s")" -delete 2>/dev/null
+    true
+  done
+  prev_src="$src"
+
+  # Configure once; MULL_CONFIG is already set so the initial full build embeds
+  # the first component's mutants.
+  if [ ! -f "$BUILD_DIR/build.ninja" ]; then
+    CC="$CC" meson setup "$BUILD_DIR" \
       -Db_sanitize="$SAN" \
       -Db_lundef=false \
       -Dc_args="-g -O0 -grecord-command-line -fno-discard-value-names -fpass-plugin=$MULL_IR_FRONTEND"
   fi
 
-  # Suites for this component: meson tests named "<comp>.*".
-  mapfile -t suites < <(meson test -C "$bdir" --list 2>/dev/null | grep -oE "(^|[^A-Za-z0-9_])$comp\.[A-Za-z0-9_]+" | grep -oE "$comp\.[A-Za-z0-9_]+" | sort -u)
+  # Suites for this component: meson tests named exactly "<comp>" or "<comp>.*"
+  # (single-token like Elf, dotted like Io.Write, multi-dot like
+  # Json.Read.Simple). meson prints "<project>:<testname>"; strip the prefix.
+  mapfile -t suites < <(meson test -C "$BUILD_DIR" --list 2>/dev/null | sed 's/^[^:]*://' | grep -E "^$comp(\.|\$)" | sort -u)
   if [ ${#suites[@]} -eq 0 ]; then
     echo "::warning::no suites found for component '$comp', skipping"
     continue
@@ -98,9 +151,16 @@ for comp in "${COMPONENTS[@]}"; do
   echo "==================== $comp  ($src)  [${#suites[@]} suites] ===================="
   for suite in "${suites[@]}"; do
     echo "-------------------- $suite --------------------"
-    ninja -C "$bdir" "Tests/$suite"
-    bin="$bdir/Tests/$suite"
-    report="$bdir/mutation-$suite.txt"
+    bin="$BUILD_DIR/Tests/$suite"
+    report="$BUILD_DIR/mutation-$suite.txt"
+
+    # Most suites build as a "Tests/<name>" target; a few (custom test exes)
+    # don't -- skip those rather than aborting the whole sweep.
+    if ! ninja -C "$BUILD_DIR" "Tests/$suite" 2>/dev/null || [ ! -x "$bin" ]; then
+      echo "::warning::$suite: no buildable 'Tests/$suite' binary -- skipping"
+      echo "$suite: no binary" > "$report"
+      continue
+    fi
 
     if ! "$bin" >/dev/null 2>&1; then
       echo "::warning::$suite baseline FAILS unmutated -- skipping mutation run"
@@ -123,5 +183,9 @@ for comp in "${COMPONENTS[@]}"; do
     echo
   done
 done
+
+# mull-runner drops per-mutant artifact files (16-hex-char names) in the CWD;
+# clean them so they don't litter the repo root.
+find . -maxdepth 1 -type f -regextype posix-extended -regex '\./[0-9a-f]{16}' -delete 2>/dev/null || true
 
 exit $overall_fail
