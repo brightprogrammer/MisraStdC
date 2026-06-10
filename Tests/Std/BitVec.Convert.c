@@ -13,6 +13,7 @@ bool test_bitvec_to_string(void);
 bool test_bitvec_from_string(void);
 bool test_bitvec_to_bytes(void);
 bool test_bitvec_from_bytes(void);
+bool test_bitvec_from_bytes_zero_bit_length(void);
 bool test_bitvec_to_integer(void);
 bool test_bitvec_from_integer(void);
 bool test_bitvec_try_conversion_allocators(void);
@@ -284,6 +285,24 @@ bool test_bitvec_try_conversion_allocators(void) {
     StrDeinit(&str);
     BitVecDeinit(&bv);
     DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Resurrected from the old clubbed test_bitvec_bytes_bounds_failures:
+// BitVecFromBytes with a non-NULL buffer but 0 bit length returns an
+// empty bitvec gracefully (no abort).
+bool test_bitvec_from_bytes_zero_bit_length(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecFromBytes with zero bit length\n");
+
+    u8     dummy_bytes[1] = {0xFF};
+    BitVec empty_bv       = BitVecFromBytes(dummy_bytes, 0, ALLOCATOR_OF(&alloc));
+    bool   result         = (BitVecLen(&empty_bv) == 0);
+    BitVecDeinit(&empty_bv);
+
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
@@ -700,28 +719,19 @@ bool test_bitvec_large_scale_conversions(void) {
 bool test_bitvec_bytes_bounds_failures(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    WriteFmt("Testing BitVec bytes bounds failures\n");
+    WriteFmt("Testing BitVec bytes zero max_len handling\n");
 
     BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv, true);
 
-    // Test with insufficient buffer size
-    u8  small_buffer[1];
-    u64 written = BitVecToBytes(&bv, small_buffer, 0); // 0 buffer size
-    (void)written;                                     // Suppress unused variable warning
+    // Zero max_len is a contract violation - should abort.
+    u8 small_buffer[1];
+    BitVecToBytes(&bv, small_buffer, 0);
 
-    // Should handle gracefully
     BitVecDeinit(&bv);
-
-    // Test fromBytes with 0 bit length - should return empty bitvec
-    u8     dummy_bytes[1] = {0xFF};
-    BitVec empty_bv       = BitVecFromBytes(dummy_bytes, 0, ALLOCATOR_OF(&alloc));
-    bool   result         = (BitVecLen(&empty_bv) == 0);
-    BitVecDeinit(&empty_bv);
-
     DefaultAllocatorDeinit(&alloc);
 
-    return result;
+    return false;
 }
 
 bool test_bitvec_integer_bounds_failures(void) {
@@ -786,6 +796,7 @@ int main(void) {
         test_bitvec_from_string,
         test_bitvec_to_bytes,
         test_bitvec_from_bytes,
+        test_bitvec_from_bytes_zero_bit_length,
         test_bitvec_to_integer,
         test_bitvec_from_integer,
         test_bitvec_try_conversion_allocators,

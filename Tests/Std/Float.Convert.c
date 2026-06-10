@@ -19,6 +19,7 @@ bool test_float_very_large_string_round_trip(void);
 bool test_float_scientific_parse(void);
 bool test_float_from_str_invalid(void);
 bool test_float_from_str_null(void);
+bool test_float_try_from_str_null(void);
 
 bool test_float_from_unsigned_integer(void) {
     WriteFmt("Testing FloatFrom with unsigned integer\n");
@@ -224,17 +225,21 @@ bool test_float_from_str_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Float parsed = FloatFromStr((Zstr)NULL, ALLOCATOR_OF(&alloc));
-    Float value  = FloatInit(ALLOCATOR_OF(&alloc));
-    bool  result = !FloatTryFromStr(&value, (Zstr)NULL);
+    FloatFromStr((Zstr)NULL, ALLOCATOR_OF(&alloc));
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
 
-    result = result && FloatIsZero(&parsed);
-    result = result && FloatIsZero(&value);
+bool test_float_try_from_str_null(void) {
+    WriteFmt("Testing FloatTryFromStr NULL handling\n");
 
-    FloatDeinit(&parsed);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float value = FloatInit(ALLOCATOR_OF(&alloc));
+    FloatTryFromStr(&value, (Zstr)NULL);
     FloatDeinit(&value);
     DefaultAllocatorDeinit(&alloc);
-    return result;
+    return false;
 }
 
 int main(void) {
@@ -257,6 +262,7 @@ int main(void) {
     // NULL-input: strict contract = LOG_FATAL; deadend driver catches.
     TestFunction deadend_tests[] = {
         test_float_from_str_null,
+        test_float_try_from_str_null,
     };
 
     int total_tests         = sizeof(tests) / sizeof(tests[0]);

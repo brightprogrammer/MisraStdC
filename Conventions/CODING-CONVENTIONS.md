@@ -686,6 +686,17 @@ up-cast.
   whole point of the fixture is to model an arbitrary T whose nested
   allocations are managed *outside* the container. A comment in the
   fixture explains the intent.
+- **One aborting operation per deadend test function.** The harness
+  `longjmp`s out of the test on the *first* `LOG_FATAL` / abort (see
+  `Tests/Util/TestRunner.c::test_deadend`), so any aborting operation
+  after the first is dead code that certifies nothing. A deadend
+  function that performs two or more independently-aborting operations
+  only ever exercises the first; split it into one function per
+  contract. Setup (`Init` / `Push` / `Alloc` / `WriteFmt`) and the
+  post-abort `Deinit` tail don't count — only operations that are
+  themselves expected to abort. With exactly one such operation per
+  function, "an abort happened" is the same statement as "the *right*
+  abort happened".
 
 ## Compiler flags (mandatory)
 

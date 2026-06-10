@@ -28,10 +28,15 @@ bool test_int_from_radix_invalid_radix(void);
 bool test_int_to_u64_overflow(void);
 bool test_int_to_str_radix_invalid_radix(void);
 bool test_int_from_binary_null(void);
+bool test_int_try_from_binary_null(void);
 bool test_int_from_decimal_null(void);
+bool test_int_try_from_decimal_null(void);
 bool test_int_from_radix_null(void);
+bool test_int_try_from_radix_null(void);
 bool test_int_from_octal_null(void);
+bool test_int_try_from_octal_null(void);
 bool test_int_from_hex_null(void);
+bool test_int_try_from_hex_null(void);
 bool test_int_from_bytes_le_null(void);
 bool test_int_to_bytes_le_null(void);
 bool test_int_to_bytes_be_zero_max_len(void);
@@ -409,17 +414,21 @@ bool test_int_from_binary_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  parsed = IntFromBinary((Zstr)NULL, ALLOCATOR_OF(&alloc));
-    Int  value  = IntInit(ALLOCATOR_OF(&alloc));
-    bool result = !IntTryFromBinary(&value, (Zstr)NULL);
+    IntFromBinary((Zstr)NULL, ALLOCATOR_OF(&alloc));
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
 
-    result = result && IntIsZero(&parsed);
-    result = result && IntIsZero(&value);
+bool test_int_try_from_binary_null(void) {
+    WriteFmt("Testing IntTryFromBinary NULL handling\n");
 
-    IntDeinit(&parsed);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Int value = IntInit(ALLOCATOR_OF(&alloc));
+    IntTryFromBinary(&value, (Zstr)NULL);
     IntDeinit(&value);
     DefaultAllocatorDeinit(&alloc);
-    return result;
+    return false;
 }
 
 bool test_int_from_decimal_null(void) {
@@ -427,17 +436,21 @@ bool test_int_from_decimal_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  parsed = IntFromStr((Zstr)NULL, ALLOCATOR_OF(&alloc));
-    Int  value  = IntInit(ALLOCATOR_OF(&alloc));
-    bool result = !IntTryFromStr(&value, (Zstr)NULL);
+    IntFromStr((Zstr)NULL, ALLOCATOR_OF(&alloc));
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
 
-    result = result && IntIsZero(&parsed);
-    result = result && IntIsZero(&value);
+bool test_int_try_from_decimal_null(void) {
+    WriteFmt("Testing IntTryFromStr NULL handling\n");
 
-    IntDeinit(&parsed);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Int value = IntInit(ALLOCATOR_OF(&alloc));
+    IntTryFromStr(&value, (Zstr)NULL);
     IntDeinit(&value);
     DefaultAllocatorDeinit(&alloc);
-    return result;
+    return false;
 }
 
 bool test_int_from_radix_null(void) {
@@ -445,17 +458,21 @@ bool test_int_from_radix_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  parsed = IntFromStrRadix((Zstr)NULL, 10, ALLOCATOR_OF(&alloc));
-    Int  value  = IntInit(ALLOCATOR_OF(&alloc));
-    bool result = !IntTryFromStrRadix(&value, (Zstr)NULL, 10);
+    IntFromStrRadix((Zstr)NULL, 10, ALLOCATOR_OF(&alloc));
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
 
-    result = result && IntIsZero(&parsed);
-    result = result && IntIsZero(&value);
+bool test_int_try_from_radix_null(void) {
+    WriteFmt("Testing IntTryFromStrRadix NULL handling\n");
 
-    IntDeinit(&parsed);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Int value = IntInit(ALLOCATOR_OF(&alloc));
+    IntTryFromStrRadix(&value, (Zstr)NULL, 10);
     IntDeinit(&value);
     DefaultAllocatorDeinit(&alloc);
-    return result;
+    return false;
 }
 
 bool test_int_from_octal_null(void) {
@@ -463,17 +480,21 @@ bool test_int_from_octal_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  parsed = IntFromOctStr((Zstr)NULL, ALLOCATOR_OF(&alloc));
-    Int  value  = IntInit(ALLOCATOR_OF(&alloc));
-    bool result = !IntTryFromOctStr(&value, (Zstr)NULL);
+    IntFromOctStr((Zstr)NULL, ALLOCATOR_OF(&alloc));
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
 
-    result = result && IntIsZero(&parsed);
-    result = result && IntIsZero(&value);
+bool test_int_try_from_octal_null(void) {
+    WriteFmt("Testing IntTryFromOctStr NULL handling\n");
 
-    IntDeinit(&parsed);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Int value = IntInit(ALLOCATOR_OF(&alloc));
+    IntTryFromOctStr(&value, (Zstr)NULL);
     IntDeinit(&value);
     DefaultAllocatorDeinit(&alloc);
-    return result;
+    return false;
 }
 
 bool test_int_from_hex_null(void) {
@@ -481,17 +502,21 @@ bool test_int_from_hex_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  parsed = IntFromHexStr((Zstr)NULL, ALLOCATOR_OF(&alloc));
-    Int  value  = IntInit(ALLOCATOR_OF(&alloc));
-    bool result = !IntTryFromHexStr(&value, (Zstr)NULL);
+    IntFromHexStr((Zstr)NULL, ALLOCATOR_OF(&alloc));
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
 
-    result = result && IntIsZero(&parsed);
-    result = result && IntIsZero(&value);
+bool test_int_try_from_hex_null(void) {
+    WriteFmt("Testing IntTryFromHexStr NULL handling\n");
 
-    IntDeinit(&parsed);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Int value = IntInit(ALLOCATOR_OF(&alloc));
+    IntTryFromHexStr(&value, (Zstr)NULL);
     IntDeinit(&value);
     DefaultAllocatorDeinit(&alloc);
-    return result;
+    return false;
 }
 
 bool test_int_from_bytes_le_null(void) {
@@ -559,10 +584,15 @@ int main(void) {
     // catches the abort and treats it as PASS.
     TestFunction deadend_tests[] = {
         test_int_from_binary_null,
+        test_int_try_from_binary_null,
         test_int_from_decimal_null,
+        test_int_try_from_decimal_null,
         test_int_from_radix_null,
+        test_int_try_from_radix_null,
         test_int_from_octal_null,
+        test_int_try_from_octal_null,
         test_int_from_hex_null,
+        test_int_try_from_hex_null,
         test_int_from_bytes_le_null,
         test_int_to_bytes_le_null,
         test_int_to_bytes_be_zero_max_len,
