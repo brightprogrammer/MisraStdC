@@ -11,6 +11,7 @@ bool test_vec_try_reduce_space(void);
 bool test_vec_resize(void);
 bool test_vec_reserve(void);
 bool test_vec_clear(void);
+bool test_vec_reserve_capacity_overflow_aborts(void);
 
 // Test VecTryReduceSpace function
 bool test_vec_try_reduce_space(void) {
@@ -188,6 +189,33 @@ bool test_vec_clear(void) {
     return result;
 }
 
+// Deadend: a reserve whose `capacity * item_size` overflows `size` must abort
+// rather than wrap and under-allocate. Pick a large element stride and an `n`
+// whose product with that stride exceeds `size`; the guard fires before any
+// allocation, so no huge buffer is ever requested. Without the guard this
+// wraps to a small allocation and later element writes run off the buffer.
+bool test_vec_reserve_capacity_overflow_aborts(void) {
+    WriteFmt("Testing VecReserve capacity*item_size overflow aborts\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    // 2 MiB element stride; aligned_size is at least sizeof(Big).
+    typedef struct {
+        u8 bytes[(size)1 << 21];
+    } Big;
+    typedef Vec(Big) BigVec;
+    BigVec vec = VecInit(&alloc);
+
+    // (size)1<<43 * 2^21 == 2^64 -> wraps past `size`. Well under the
+    // reserve_pow2 2^63 cap, and VecReserve hands `n` straight through.
+    VecReserve(&vec, (size)1 << 43);
+
+    // Unreachable: the guard LOG_FATALs above.
+    VecDeinit(&vec);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
 // Main function that runs all tests
 int main(void) {
     WriteFmt("[INFO] Starting Vec.Memory tests\n\n");
@@ -195,8 +223,11 @@ int main(void) {
     // Array of test functions
     TestFunction tests[] = {test_vec_try_reduce_space, test_vec_resize, test_vec_reserve, test_vec_clear};
 
-    int total_tests = sizeof(tests) / sizeof(tests[0]);
+    TestFunction deadend_tests[] = {test_vec_reserve_capacity_overflow_aborts};
+
+    int total_tests   = sizeof(tests) / sizeof(tests[0]);
+    int deadend_count = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
 
     // Run all tests using the centralized test driver
-    return run_test_suite(tests, total_tests, NULL, 0, "Vec.Memory");
+    return run_test_suite(tests, total_tests, deadend_tests, deadend_count, "Vec.Memory");
 }

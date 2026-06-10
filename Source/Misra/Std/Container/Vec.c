@@ -105,6 +105,13 @@ bool reserve_vec(GenericVec *vec, size item_size, size n) {
         if (!vec->allocator) {
             LOG_FATAL("vector not growable, no allocator assigned, probably stack inited");
         }
+        // Overflow check on capacity * item_size. The additive length+count
+        // path is guarded in insert; this multiplicative one wraps when a
+        // large element stride times a large `n` exceeds `size`, which would
+        // under-allocate and let later writes run off the buffer.
+        if (aligned_size != 0 && (n + 1) > (size)-1 / aligned_size) {
+            LOG_FATAL("vector reserve: capacity * item_size overflows size");
+        }
         size old_capacity = (size)vec->capacity;
         u8  *ptr          = (u8 *)AllocatorRealloc(vec->allocator, vec->data, aligned_size * (n + 1));
 
@@ -166,6 +173,11 @@ bool reduce_space_vec(GenericVec *vec, size item_size) {
         // force-read is gated on `v->data` so a NULL pointer skips it.
         return true;
     } else {
+        // Same multiplicative-overflow guard as `reserve_vec`: length*item_size
+        // must not wrap before the realloc sizes the shrunk buffer.
+        if (aligned_size != 0 && (vec->length + 1) > (size)-1 / aligned_size) {
+            LOG_FATAL("vector reduce: capacity * item_size overflows size");
+        }
         u8 *ptr = (u8 *)AllocatorRealloc(vec->allocator, vec->data, aligned_size * (vec->length + 1));
         if (!ptr) {
             // Not LOG_SYS_ERROR: allocator failures don't flow through the
