@@ -128,10 +128,11 @@ class TriageState:
     + the To-Fix worklist. Re-built each request so the UI reflects edits
     immediately."""
 
-    def __init__(self, root, ledger, report_paths, todo):
+    def __init__(self, root, ledger, report_paths, todo, tags=""):
         self.root = root
         self.ledger = ledger
         self.todo = todo
+        self.tags_path = tags
         self.report_paths = report_paths
         self.survivors, self.parsed_with_path = load_survivors(report_paths)
         self.by_id = {survivor_id(sv): sv for sv in self.survivors}
@@ -153,6 +154,18 @@ class TriageState:
             k = todo_key(raw.get("file", ""), raw.get("line", 0),
                          raw.get("col", 0), raw.get("mutator"))
             self.todo_by_key[k] = raw
+
+        # Function classification store -> {(basename, function): raw tag dict}.
+        self.tags = load_tags(tags)
+
+    def tag_for(self, sv):
+        """The tag string ("contract"|"strategy"|"mixed") for this survivor's
+        enclosing function, or None if the function is unknown or untagged."""
+        fn = enclosing_function(self.root, sv)
+        if fn is None:
+            return None
+        tg = self.tags.get(tag_key(sv.file, fn))
+        return tg.get("tag") if tg else None
 
     def todo_for(self, sv):
         """The raw todo dict matching this survivor's key, or None."""
@@ -270,6 +283,58 @@ def enclosing_function(root, sv):
                 name = cand
                 break
     return name
+
+
+def grep_callers(root, name, cap=200):
+    """Read-only search for use sites of ``name`` under Source/ and Include/,
+    using ripgrep if present (else grep -rn), excluding the definition line.
+    Returns a bounded list of {file (repo-relative), line, text}.
+
+    The pattern is a word-boundary reference (``\\bNAME\\b``) rather than only
+    ``NAME(`` so it also surfaces function-pointer wiring (e.g. a policy vtable
+    ``.next_index = quadratic_next_index,``) -- which is exactly the kind of
+    caller the strategy honesty check must inspect."""
+    dirs = [d for d in ("Source", "Include")
+            if os.path.isdir(os.path.join(root, d))]
+    if not dirs:
+        return []
+    pattern = r"\b" + re.escape(name) + r"\b"
+    if _has_cmd("rg"):
+        cmd = ["rg", "-n", "--no-heading", "--color", "never", pattern] + dirs
+    else:
+        cmd = ["grep", "-rnE", pattern] + dirs
+    try:
+        out = subprocess.run(cmd, cwd=root, capture_output=True, text=True
+                             ).stdout
+    except (OSError, FileNotFoundError):
+        return []
+    # Recognise a definition line so we can exclude it: a top-level signature
+    # `<type> name(` starting at column 0 and not ending in ';' (a prototype).
+    def_re = re.compile(r"^[A-Za-z_].*\b" + re.escape(name) + r"\s*\(")
+    hits = []
+    for raw in out.splitlines():
+        # rg/grep -n format: <file>:<line>:<text>
+        m = re.match(r"^(.+?):(\d+):(.*)$", raw)
+        if not m:
+            continue
+        f, ln, text = m.group(1), int(m.group(2)), m.group(3)
+        stripped = text.lstrip()
+        if def_re.match(stripped) and not stripped.rstrip().endswith(";"):
+            continue  # the definition itself
+        hits.append({"file": relpath(root, os.path.join(root, f)),
+                     "line": ln, "text": text.rstrip()})
+        if len(hits) >= cap:
+            break
+    return hits
+
+
+def _has_cmd(cmd):
+    """True if ``cmd`` is on PATH (used to prefer ripgrep over grep)."""
+    for d in os.environ.get("PATH", "").split(os.pathsep):
+        if d and os.path.isfile(os.path.join(d, cmd)) and os.access(
+                os.path.join(d, cmd), os.X_OK):
+            return True
+    return False
 
 
 def git_blame(root, file, line):
@@ -664,12 +729,367 @@ def remove_todo(path, file, line, col, mutator):
 
 
 # --------------------------------------------------------------------------
+# Function classification store (Conventions/mull-function-tags.toml)
+# --------------------------------------------------------------------------
+# Fixed-schema [[function]] tables; same tomllib-or-fallback loader style as the
+# ledger / todo stores. Keyed by (basename(file), function).
+VALID_TAGS = ("contract", "strategy", "mixed")
+
+
+def tag_key(file, function):
+    """Normalised (basename(file), function) classification key."""
+    return (os.path.basename(file or ""), function or "")
+
+
+def load_tags_doc(path):
+    """Parse the tags TOML into {"function": [ {...}, ... ]}. Reuses tomllib
+    when available, else a minimal reader for this fixed [[function]] shape."""
+    if mull_filter.tomllib is not None:
+        with open(path, "rb") as f:
+            doc = mull_filter.tomllib.load(f)
+        doc.setdefault("function", [])
+        return doc
+    data = {"function": []}
+    cur = None
+    with open(path, "r", encoding="utf-8") as f:
+        for raw in f:
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line == "[[function]]":
+                cur = {}
+                data["function"].append(cur)
+                continue
+            if "=" not in line or cur is None:
+                continue
+            key, _, val = line.partition("=")
+            cur[key.strip()] = mull_filter._toml_value(
+                val.split("#", 1)[0].strip())
+    return data
+
+
+def load_tags(path):
+    """Return {(basename, function): tag-dict}. Missing/empty file = no tags."""
+    if not path or not os.path.isfile(path):
+        return {}
+    try:
+        doc = load_tags_doc(path)
+    except OSError:
+        return {}
+    out = {}
+    for raw in doc.get("function", []):
+        fn = raw.get("function")
+        if not fn:
+            continue
+        out[tag_key(raw.get("file", ""), fn)] = raw
+    return out
+
+
+def serialize_tag(fields):
+    """Emit one [[function]] stanza with the fixed classification schema."""
+    out = ["[[function]]"]
+    out.append("file = %s" % _toml_quote(fields["file"]))
+    out.append("function = %s" % _toml_quote(fields["function"]))
+    out.append("tag = %s" % _toml_quote(fields["tag"]))
+    if fields.get("note"):
+        out.append("note = %s" % _toml_quote(fields["note"]))
+    out.append("author = %s" % _toml_quote(fields["author"]))
+    out.append("created = %s" % _toml_quote(fields["created"]))
+    return "\n".join(out) + "\n"
+
+
+# A function stanza spans from a '[[function]]' line to the next or EOF.
+_FN_HEADER = re.compile(r"^\s*\[\[function\]\]\s*$")
+
+
+def _fn_block_key(block):
+    """Extract the (basename, function) key from a [[function]] stanza block."""
+    file = function = None
+    for ln in block:
+        m = _TODO_FIELD.match(ln)
+        if not m:
+            continue
+        k = m.group(1)
+        v = mull_filter._toml_value(v_strip(m.group(2)))
+        if k == "file":
+            file = v
+        elif k == "function":
+            function = v
+    if function is None:
+        return None
+    return tag_key(file or "", function)
+
+
+def _split_fn_blocks(path):
+    """Split the tags file into (preamble_lines, [stanza_blocks])."""
+    with open(path, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+    blocks = []
+    preamble = []
+    cur = None
+    for ln in lines:
+        if _FN_HEADER.match(ln):
+            if cur is not None:
+                blocks.append(cur)
+            cur = [ln]
+        elif cur is None:
+            preamble.append(ln)
+        else:
+            cur.append(ln)
+    if cur is not None:
+        blocks.append(cur)
+    return preamble, blocks
+
+
+def _write_fn_blocks(path, preamble, blocks):
+    """Rejoin preamble + stanza blocks and write, preserving the header."""
+    out = "".join(preamble).rstrip("\n")
+    parts = ["".join(blk).rstrip("\n") for blk in blocks]
+    text = out
+    for p in parts:
+        text = (text + "\n\n" + p) if text else p
+    if text and not text.endswith("\n"):
+        text += "\n"
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text)
+
+
+def upsert_tag(path, file, function, tag, note, author):
+    """Insert or update the [[function]] stanza for (file, function). Preserves
+    the header and every other stanza. Creates the file if missing."""
+    fields = {
+        "file": relpath(Config.root, file),
+        "function": function,
+        "tag": tag,
+        "note": note,
+        "author": author,
+        "created": today(),
+    }
+    if not os.path.isfile(path):
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(serialize_tag(fields))
+        return
+    preamble, blocks = _split_fn_blocks(path)
+    target = tag_key(file, function)
+    new_blk = [serialize_tag(fields)]
+    replaced = False
+    kept = []
+    for blk in blocks:
+        if not replaced and _fn_block_key(blk) == target:
+            kept.append(new_blk)
+            replaced = True
+        else:
+            kept.append(blk)
+    if not replaced:
+        kept.append(new_blk)
+    _write_fn_blocks(path, preamble, kept)
+
+
+def remove_tag(path, file, function):
+    """Remove the [[function]] stanza for (file, function). Preserves the
+    header and every other stanza. Returns True if a stanza was removed."""
+    if not os.path.isfile(path):
+        return False
+    preamble, blocks = _split_fn_blocks(path)
+    target = tag_key(file, function)
+    kept = []
+    removed = False
+    for blk in blocks:
+        if not removed and _fn_block_key(blk) == target:
+            removed = True
+            continue
+        kept.append(blk)
+    if not removed:
+        return False
+    _write_fn_blocks(path, preamble, kept)
+    return True
+
+
+# --------------------------------------------------------------------------
+# Doctrine: per-function proposed bucket + ledger audit
+# --------------------------------------------------------------------------
+def proposed_bucket_for_tag(tag):
+    """The doctrine proposal for a function tag (NEVER auto-applied):
+      strategy -> "ignore" (all survivors are B/C; suppress with proof the
+                  callers re-validate);
+      contract -> "tofix"  (survivors are A or C; confirm killable, else
+                  Ignore-with-proof);
+      mixed/untagged -> None (no auto-proposal)."""
+    if tag == "strategy":
+        return "ignore"
+    if tag == "contract":
+        return "tofix"
+    return None
+
+
+def ledger_entry_function(root, entry):
+    """Map a ledger entry to its enclosing C function name. A `function`
+    selector names it directly; a `lines` selector derives it from the start
+    line; a `pattern` selector cannot be mapped (None)."""
+    raw = entry.raw
+    if "function" in raw:
+        return raw["function"]
+    if "lines" in raw:
+        start = raw["lines"][0]
+        return _function_at_line(root, raw.get("file", ""), start)
+    return None
+
+
+def _function_at_line(root, file, line):
+    """Best-effort enclosing C function name for a 1-based source line: scan
+    upward for a top-level definition signature (same heuristic as a survivor's
+    enclosing_function, but keyed on a bare line number)."""
+    path = abs_source(root, file)
+    try:
+        lines = read_source_lines(path)
+    except OSError:
+        return None
+    sig = re.compile(r"^[A-Za-z_].*\b([A-Za-z_]\w*)\s*\(")
+    for i in range(min(int(line), len(lines)) - 1, -1, -1):
+        ln = lines[i]
+        if not ln or ln[0] in " \t":
+            continue
+        stripped = ln.rstrip()
+        if stripped.endswith(";") or stripped.endswith(","):
+            continue
+        m = sig.match(ln)
+        if m:
+            cand = m.group(1)
+            if cand not in ("if", "for", "while", "switch", "return",
+                            "sizeof"):
+                return cand
+    return None
+
+
+def compute_audit(st, tags):
+    """Compute ledger/worklist/triage violations against the function tags.
+
+    Returns a flat list of dicts: {kind, severity, file, function, detail,
+    id?}. Severities: "error" (a mis-triage), "info" (a not-yet-done state).
+
+      * ignore-in-contract        a LIVE ledger ignore whose function is tagged
+                                  "contract" (a contract gap was suppressed).
+      * tofix-in-strategy         a To-Fix item whose function is tagged
+                                  "strategy".
+      * strategy-not-yet-ignored  a Remaining survivor in a "strategy" function.
+      * contract-not-yet-fixed    a Remaining survivor in a "contract" function.
+    """
+    out = []
+
+    # LIVE ledger ignores in contract-tagged functions.
+    for e in st.live:
+        fn = ledger_entry_function(st.root, e)
+        if fn is None:
+            continue
+        tg = tags.get(tag_key(e.file, fn))
+        if tg is not None and tg.get("tag") == "contract":
+            out.append({
+                "kind": "ignore-in-contract", "severity": "error",
+                "file": relpath(st.root, e.file), "function": fn,
+                "id": e.id,
+                "detail": "ledger ignore %s suppresses a survivor in a "
+                          "contract-tagged function (likely mis-triaged: a "
+                          "contract gap is bucket A, never ignorable)" % e.id,
+            })
+
+    # Per-survivor: tofix-in-strategy + the informational not-yet states.
+    for sv in st.survivors:
+        fn = enclosing_function(st.root, sv)
+        if fn is None:
+            continue
+        tg = tags.get(tag_key(sv.file, fn))
+        if tg is None:
+            continue
+        tag = tg.get("tag")
+        status, _ = st.status_for(sv)
+        if status == "tofix" and tag == "strategy":
+            out.append({
+                "kind": "tofix-in-strategy", "severity": "error",
+                "file": relpath(st.root, sv.file), "function": fn,
+                "detail": "%s:%d is marked To-Fix but its function is tagged "
+                          "strategy (a strategy survivor is B/C, not a gap "
+                          "to fix -- Ignore it instead)"
+                          % (relpath(st.root, sv.file), sv.line),
+            })
+        elif status == "remaining" and tag == "strategy":
+            out.append({
+                "kind": "strategy-not-yet-ignored", "severity": "info",
+                "file": relpath(st.root, sv.file), "function": fn,
+                "detail": "%s:%d is in a strategy function but still Remaining "
+                          "-- Ignore it (function entry, with the callers "
+                          "re-validate check)" % (relpath(st.root, sv.file),
+                                                  sv.line),
+            })
+        elif status == "remaining" and tag == "contract":
+            out.append({
+                "kind": "contract-not-yet-fixed", "severity": "info",
+                "file": relpath(st.root, sv.file), "function": fn,
+                "detail": "%s:%d is in a contract function but still Remaining "
+                          "-- To-Fix it (A or C: confirm killable, else "
+                          "Ignore-with-proof)" % (relpath(st.root, sv.file),
+                                                  sv.line),
+            })
+    return out
+
+
+def build_function_groups(st, tags):
+    """Group every TRUE survivor by its enclosing (file, function). Unknown
+    functions go under '(unknown)' (no tag/proposal). Each group carries its
+    tag, counts, proposed bucket, survivor ids, and the audit violations that
+    name it. Sorted by file, then descending remaining count (gap-heavy first).
+    """
+    audit = compute_audit(st, tags)
+    audit_by_fn = {}
+    for v in audit:
+        audit_by_fn.setdefault((v["file"], v["function"]), []).append(v)
+
+    groups = {}
+    for sv in st.survivors:
+        fn = enclosing_function(st.root, sv)
+        rel = relpath(st.root, sv.file)
+        gid = (rel, fn or "(unknown)")
+        slot = groups.get(gid)
+        if slot is None:
+            slot = {"file": rel, "function": fn or "(unknown)",
+                    "known": fn is not None,
+                    "counts": {"total": 0, "remaining": 0, "tofix": 0,
+                               "ignored": 0},
+                    "survivor_ids": []}
+            groups[gid] = slot
+        status, _ = st.status_for(sv)
+        slot["counts"]["total"] += 1
+        if status.startswith("ignored"):
+            slot["counts"]["ignored"] += 1
+        elif status == "tofix":
+            slot["counts"]["tofix"] += 1
+        else:
+            slot["counts"]["remaining"] += 1
+        slot["survivor_ids"].append(survivor_id(sv))
+
+    out = []
+    for (rel, fn), slot in groups.items():
+        tg = tags.get(tag_key(rel, fn)) if slot["known"] else None
+        tag = tg.get("tag") if tg else None
+        proposed = proposed_bucket_for_tag(tag) if slot["known"] else None
+        slot["tag"] = tag
+        slot["note"] = tg.get("note") if tg else None
+        slot["proposed_bucket"] = proposed
+        slot["audit"] = audit_by_fn.get((rel, fn), [])
+        out.append(slot)
+
+    out.sort(key=lambda g: (g["file"], -g["counts"]["remaining"],
+                            g["function"]))
+    return out
+
+
+# --------------------------------------------------------------------------
 # HTTP server
 # --------------------------------------------------------------------------
 class Config:
     root = "."
     ledger = ""
     todo = ""
+    tags = ""
     report_globs = []
 
 
@@ -679,7 +1099,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
     # -- helpers --
     def _state(self):
         paths = discover_reports(Config.root, Config.report_globs)
-        return TriageState(Config.root, Config.ledger, paths, Config.todo)
+        return TriageState(Config.root, Config.ledger, paths, Config.todo,
+                           Config.tags)
 
     def _send_json(self, obj, code=200):
         body = json.dumps(obj).encode("utf-8")
@@ -718,6 +1139,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send_html(INDEX_HTML)
         if path == "/api/survivors":
             return self._api_survivors()
+        if path == "/api/functions":
+            return self._api_functions()
+        if path == "/api/audit":
+            return self._api_audit()
+        if path == "/api/callers":
+            qs = urllib.parse.parse_qs(parsed.query)
+            name = (qs.get("function") or [""])[0]
+            return self._api_callers(name)
         if path.startswith("/api/survivor/"):
             sid = urllib.parse.unquote(path[len("/api/survivor/"):])
             return self._api_survivor(sid)
@@ -734,6 +1163,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._api_tofix()
         if path == "/api/untofix":
             return self._api_untofix()
+        if path == "/api/tag":
+            return self._api_tag()
+        if path == "/api/untag":
+            return self._api_untag()
+        if path == "/api/ignore-cluster":
+            return self._api_ignore_cluster()
+        if path == "/api/tofix-cluster":
+            return self._api_tofix_cluster()
         return self._send_json({"error": "not found"}, 404)
 
     # -- API handlers --
@@ -742,6 +1179,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         items = []
         for sv in st.survivors:
             status, _ = st.status_for(sv)
+            fn = enclosing_function(st.root, sv)
+            tag = st.tag_for(sv)
             items.append({
                 "id": survivor_id(sv),
                 "file": relpath(st.root, sv.file),
@@ -749,6 +1188,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "col": sv.col,
                 "mutator": sv.mutator,
                 "status": status,
+                "function": fn,
+                "function_tag": tag,
+                "proposed_bucket": proposed_bucket_for_tag(tag),
             })
         return self._send_json({"summary": st.summary(), "items": items})
 
@@ -758,6 +1200,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if sv is None:
             return self._send_json({"error": "unknown survivor id"}, 404)
         status, hit = st.status_for(sv)
+        tag = st.tag_for(sv)
         detail = {
             "id": sid,
             "file": relpath(st.root, sv.file),
@@ -770,6 +1213,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "git_blame": git_blame(st.root, sv.file, sv.line),
             "coverage_hint": coverage_hint(st, sv),
             "enclosing_function": enclosing_function(st.root, sv),
+            "function_tag": tag,
+            "proposed_bucket": proposed_bucket_for_tag(tag),
             "stanza": stanza_fields(hit) if hit is not None else None,
             "todo": None,
         }
@@ -924,6 +1369,165 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send_json({"error": "not in the worklist"}, 404)
         return self._send_json({"ok": True})
 
+    # -- function-grouped view + audit + callers --
+    def _api_functions(self):
+        st = self._state()
+        groups = build_function_groups(st, st.tags)
+        return self._send_json({"summary": st.summary(), "groups": groups})
+
+    def _api_audit(self):
+        st = self._state()
+        violations = compute_audit(st, st.tags)
+        return self._send_json({"violations": violations,
+                                "count": len(violations)})
+
+    def _api_callers(self, name):
+        """Read-only grep for call sites of NAME under Source/ and Include/,
+        excluding the definition line. Bounded result count."""
+        if not name or not re.fullmatch(r"[A-Za-z_]\w*", name):
+            return self._send_json({"error": "a function name is required"},
+                                   400)
+        cap = 200
+        hits = grep_callers(Config.root, name, cap)
+        return self._send_json({"function": name, "callers": hits,
+                                "capped": len(hits) >= cap})
+
+    # -- function tagging --
+    def _api_tag(self):
+        body = self._read_body()
+        file = body.get("file")
+        function = body.get("function")
+        tag = body.get("tag")
+        note = body.get("note")
+        author = body.get("author") or "triage-ui"
+        if not file:
+            return self._send_json({"error": "file is required"}, 400)
+        if not function:
+            return self._send_json({"error": "function is required"}, 400)
+        if tag not in VALID_TAGS:
+            return self._send_json(
+                {"error": "tag must be one of %s" % ", ".join(VALID_TAGS)},
+                400)
+        note_s = str(note).strip() if note and str(note).strip() else None
+        upsert_tag(Config.tags, file, function, tag, note_s,
+                   str(author).strip() or "triage-ui")
+        return self._send_json({"ok": True})
+
+    def _api_untag(self):
+        body = self._read_body()
+        file = body.get("file")
+        function = body.get("function")
+        if not file or not function:
+            return self._send_json(
+                {"error": "file and function are required"}, 400)
+        removed = remove_tag(Config.tags, file, function)
+        if not removed:
+            return self._send_json({"error": "no tag for that function"}, 404)
+        return self._send_json({"ok": True})
+
+    # -- cluster actions --
+    def _api_ignore_cluster(self):
+        """Strategy bulk-accept: ONE function-selector [[ignore]] entry covering
+        the whole function body (NOT N per-line entries)."""
+        body = self._read_body()
+        file = body.get("file")
+        function = body.get("function")
+        bucket = body.get("bucket")
+        rationale = body.get("rationale")
+        author = body.get("author") or "triage-ui"
+        if not file:
+            return self._send_json({"error": "file is required"}, 400)
+        if not function:
+            return self._send_json({"error": "function is required"}, 400)
+        if bucket not in ("B", "C"):
+            return self._send_json(
+                {"error": 'bucket must be "B" or "C" (A is never allowed)'},
+                400)
+        if not rationale or not str(rationale).strip():
+            return self._send_json({"error": "rationale is required"}, 400)
+
+        rel = relpath(Config.root, file)
+        sel = {"type": "function", "function": function}
+        raw_sel = {"file": rel, "function": function}
+        # region_hash over the WHOLE function body, via the canonical engine.
+        try:
+            region = select_region(Config.root, raw_sel)
+        except (ValueError, FileNotFoundError, OSError) as exc:
+            return self._send_json(
+                {"error": "function does not resolve: %s" % exc}, 400)
+        rhash = region_hash(region)
+
+        ids = existing_ids(Config.ledger)
+        new_id = make_id(component_of(file), rel, sel, ids)
+        fields = {
+            "id": new_id,
+            "file": rel,
+            "selector": sel,
+            "mutator": None,
+            "bucket": bucket,
+            "rationale": str(rationale).strip(),
+            "author": str(author).strip() or "triage-ui",
+            "created": today(),
+            "region_hash": rhash,
+        }
+        append_stanza(Config.ledger, serialize_stanza(fields))
+        # Any survivor in this function that was in the To-Fix worklist and is
+        # now covered by the new ledger entry must not remain in both.
+        st = self._state()
+        for sv in st.survivors:
+            if (relpath(Config.root, sv.file) == rel
+                    and enclosing_function(st.root, sv) == function
+                    and st.todo_for(sv) is not None):
+                hit = next((e for e in st.live if e.matches(sv)), None)
+                if hit is not None and hit.id == new_id:
+                    remove_todo(Config.todo, sv.file, sv.line, sv.col,
+                                sv.mutator)
+        return self._send_json({"ok": True, "id": new_id})
+
+    def _api_tofix_cluster(self):
+        """Contract bulk: add a [[todo]] for each REMAINING survivor in the
+        function (skipping any already ignored / already in the worklist)."""
+        body = self._read_body()
+        file = body.get("file")
+        function = body.get("function")
+        note = body.get("note")
+        if not file:
+            return self._send_json({"error": "file is required"}, 400)
+        if not function:
+            return self._send_json({"error": "function is required"}, 400)
+        rel = relpath(Config.root, file)
+        note_s = str(note).strip() if note and str(note).strip() else None
+
+        st = self._state()
+        added = 0
+        skipped = 0
+        for sv in st.survivors:
+            if relpath(st.root, sv.file) != rel:
+                continue
+            if enclosing_function(st.root, sv) != function:
+                continue
+            status, _ = st.status_for(sv)
+            if status != "remaining":
+                skipped += 1
+                continue
+            rhash = todo_region_hash(st.root, sv.file, sv.line)
+            if rhash is None:
+                skipped += 1
+                continue
+            fields = {
+                "file": relpath(st.root, sv.file),
+                "line": sv.line,
+                "col": sv.col,
+                "mutator": sv.mutator,
+                "note": note_s,
+                "created": today(),
+                "region_hash": rhash,
+            }
+            append_todo(Config.todo, serialize_todo(fields))
+            added += 1
+        return self._send_json({"ok": True, "added": added,
+                                "skipped": skipped})
+
 
 class Server(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
@@ -1025,6 +1629,64 @@ INDEX_HTML = r"""<!DOCTYPE html>
   .empty { color:var(--muted); padding:40px; text-align:center; }
   code { font-family:var(--mono); background:var(--panel2); padding:1px 4px;
     border-radius:3px; }
+  /* view toggle in the header */
+  .vtoggle { display:flex; gap:0; border:1px solid var(--border);
+    border-radius:5px; overflow:hidden; }
+  .vtoggle button { margin:0; border-radius:0; background:var(--panel2);
+    color:var(--fg); font-weight:500; padding:5px 12px; }
+  .vtoggle button.on { background:var(--accent); color:#08111f;
+    font-weight:600; }
+  .audit-pill { font-size:12px; padding:4px 10px; border-radius:12px;
+    cursor:pointer; font-weight:600; background:#16331f; color:var(--ignored);
+    border:1px solid var(--border); }
+  .audit-pill.has { background:#3a1212; color:var(--danger);
+    border-color:#5a2020; }
+  /* function-grouped list */
+  .fgroup { border-bottom:3px solid var(--bg); }
+  .fhead { background:var(--panel2); border-top:1px solid var(--border);
+    border-bottom:1px solid var(--border); padding:9px 12px;
+    display:flex; flex-direction:column; gap:6px; position:sticky; top:0;
+    z-index:1; }
+  .fhead.audit-bad { border-left:4px solid var(--danger);
+    background:#241317; }
+  .fhead .ftitle { display:flex; align-items:baseline; gap:8px;
+    flex-wrap:wrap; }
+  .fhead .fname { font-family:var(--mono); font-size:13px; font-weight:700;
+    color:var(--fg); }
+  .fhead .ffile { font-family:var(--mono); font-size:11px;
+    color:var(--muted); }
+  .fhead .fcounts { font-size:11px; color:var(--muted);
+    font-variant-numeric:tabular-nums; }
+  .fhead .fctl { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .fhead select { width:auto; padding:3px 6px; font-size:12px; }
+  .fhead button { margin:0; padding:4px 9px; font-size:12px; }
+  .fhead button.ghost { background:var(--panel); color:var(--fg);
+    border:1px solid var(--border); }
+  .propose { font-size:11px; padding:2px 8px; border-radius:10px;
+    font-weight:600; }
+  .propose.ignore { background:#16331f; color:var(--ignored); }
+  .propose.tofix { background:#3a3112; color:var(--tofix); }
+  .audit-flag { font-size:11px; color:var(--danger); font-weight:600; }
+  .callers { background:var(--panel); border:1px solid var(--border);
+    border-radius:4px; margin:0 12px 6px; padding:6px 8px; font-size:11px;
+    font-family:var(--mono); max-height:180px; overflow:auto; }
+  .callers .cl { white-space:pre; color:var(--muted); }
+  .callers .cl b { color:var(--accent); }
+  .frows .row { padding-left:24px; }
+  /* audit panel (replaces the list when the Audit pill is active) */
+  .auditpanel { padding:10px 14px; }
+  .av { border:1px solid var(--border); border-radius:5px; padding:8px 10px;
+    margin-bottom:8px; background:var(--panel); }
+  .av.error { border-left:4px solid var(--danger); }
+  .av.info { border-left:4px solid var(--remain); }
+  .av .ak { font-family:var(--mono); font-size:11px; font-weight:700; }
+  .av.error .ak { color:var(--danger); }
+  .av.info .ak { color:var(--remain); }
+  .av .ad { font-size:12px; color:var(--fg); margin-top:3px;
+    line-height:1.5; }
+  .av .af { font-size:11px; color:var(--muted); margin-top:2px;
+    font-family:var(--mono); }
+  .hint { color:var(--muted); font-size:11px; line-height:1.5; }
 </style>
 </head>
 <body>
@@ -1036,6 +1698,11 @@ INDEX_HTML = r"""<!DOCTYPE html>
     <span class="count tofix">to-fix <b id="c-tofix">-</b></span>
     <span class="count ignored">ignored <b id="c-ignored">-</b></span>
   </div>
+  <div class="vtoggle" id="vtoggle">
+    <button data-view="flat" class="on">Flat list</button>
+    <button data-view="func">By function</button>
+  </div>
+  <span class="audit-pill" id="audit-pill" title="ledger / triage violations vs function tags">Audit <b id="audit-n">0</b></span>
 </header>
 <main>
   <div id="left">
@@ -1056,6 +1723,10 @@ INDEX_HTML = r"""<!DOCTYPE html>
 </main>
 <script>
 let ITEMS = [], SUMMARY = null, SELECTED = null;
+let VIEW = 'flat';          // 'flat' | 'func' | 'audit'
+let GROUPS = [];            // /api/functions groups (By-function view)
+let AUDIT = [];             // /api/audit violations
+let OPEN_CALLERS = {};      // function name -> rendered call sites (toggle)
 
 function esc(s){ return String(s==null?'':s)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -1074,18 +1745,33 @@ function statusKind(s){
 }
 
 async function loadList(keepSel){
-  const d = await getJSON('/api/survivors');
+  const [d, g, a] = await Promise.all([
+    getJSON('/api/survivors'), getJSON('/api/functions'),
+    getJSON('/api/audit')]);
   ITEMS = d.items; SUMMARY = d.summary;
+  GROUPS = g.groups || [];
+  AUDIT = a.violations || [];
   document.getElementById('c-total').textContent = SUMMARY.total;
   document.getElementById('c-ignored').textContent = SUMMARY.ignored;
   document.getElementById('c-remaining').textContent = SUMMARY.remaining;
   document.getElementById('c-tofix').textContent = SUMMARY.tofix;
+  const errN = AUDIT.filter(v=>v.severity==='error').length;
+  const pill = document.getElementById('audit-pill');
+  document.getElementById('audit-n').textContent = AUDIT.length;
+  pill.classList.toggle('has', errN>0);
+  pill.classList.toggle('on', VIEW==='audit');
   populateFilter('f-file', [...new Set(ITEMS.map(i=>i.file))].sort());
   populateFilter('f-mutator',
     [...new Set(ITEMS.map(i=>i.mutator).filter(Boolean))].sort());
-  renderList();
+  render();
   if (keepSel && SELECTED && ITEMS.some(i=>i.id===SELECTED))
     loadDetail(SELECTED);
+}
+
+function render(){
+  if (VIEW==='audit') return renderAudit();
+  if (VIEW==='func') return renderGroups();
+  return renderList();
 }
 
 function populateFilter(id, vals){
@@ -1130,6 +1816,162 @@ function renderList(){
   list.innerHTML = html || '<div class="empty">No survivors match.</div>';
   list.querySelectorAll('.row').forEach(r=>
     r.onclick=()=>{ SELECTED=r.dataset.id; renderList(); loadDetail(SELECTED); });
+}
+
+// ---- By-function (grouped) view --------------------------------------------
+function statusFilterOk(kind){
+  const st=document.getElementById('f-status').value;
+  return st==='all' || kind===st;
+}
+
+function groupRowHtml(id){
+  const i = ITEMS.find(x=>x.id===id);
+  if (!i) return '';
+  const kind = statusKind(i.status);
+  if (!statusFilterOk(kind)) return '';
+  const fm=document.getElementById('f-mutator').value;
+  if (fm && i.mutator!==fm) return '';
+  const tx=document.getElementById('f-text').value.toLowerCase();
+  if (tx){
+    const hay=(i.file+':'+i.line+' '+(i.mutator||'')+' '+i.status).toLowerCase();
+    if (!hay.includes(tx)) return '';
+  }
+  return `<div class="row ${i.id===SELECTED?'sel':''}" data-id="${esc(i.id)}">
+    <span class="loc">:${i.line}:${i.col}</span>
+    <span class="mut">${esc(i.mutator||'?')}</span>
+    <span class="badge ${kind}">${kindLabel(kind)}</span></div>`;
+}
+
+function tagSelectHtml(g){
+  const cur = g.tag || '';
+  const opt = (v,l)=>`<option value="${v}" ${cur===v?'selected':''}>${l}</option>`;
+  return `<select class="tagsel" data-file="${esc(g.file)}"
+      data-fn="${esc(g.function)}" ${g.function==='(unknown)'?'disabled':''}>
+    ${opt('','untagged')}${opt('contract','contract')}
+    ${opt('strategy','strategy')}${opt('mixed','mixed')}</select>`;
+}
+
+function proposeBadge(g){
+  if (g.proposed_bucket==='ignore')
+    return `<span class="propose ignore" title="suppressing: needs the callers re-validate check">strategy &rarr; Ignore all</span>`;
+  if (g.proposed_bucket==='tofix')
+    return `<span class="propose tofix" title="A or C — confirm killable, else Ignore-with-proof">contract &rarr; To-Fix</span>`;
+  return '';
+}
+
+function groupHtml(g){
+  const c=g.counts;
+  const errs=(g.audit||[]).filter(v=>v.severity==='error');
+  const bad = errs.length>0;
+  const auditFlag = bad
+    ? `<span class="audit-flag" title="${esc(errs.map(v=>v.detail).join('\\n'))}">&#9888; ${esc(errs[0].kind)}</span>` : '';
+  const known = g.function!=='(unknown)';
+  const callersBtn = known
+    ? `<button class="ghost callers-btn" data-fn="${esc(g.function)}">show callers</button>` : '';
+  const ignoreBtn = known
+    ? `<button class="ghost ig-cluster" data-file="${esc(g.file)}" data-fn="${esc(g.function)}">Ignore all (function entry)</button>` : '';
+  const tofixBtn = (known && c.remaining>0)
+    ? `<button class="ghost tf-cluster" data-file="${esc(g.file)}" data-fn="${esc(g.function)}">To-Fix all remaining (${c.remaining})</button>` : '';
+  const rows = g.survivor_ids.map(groupRowHtml).join('');
+  const callerBox = OPEN_CALLERS[g.function]!=null
+    ? `<div class="callers">${OPEN_CALLERS[g.function]}</div>` : '';
+  return `<div class="fgroup">
+    <div class="fhead ${bad?'audit-bad':''}">
+      <div class="ftitle">
+        <span class="fname">${esc(g.function)}</span>
+        <span class="ffile">${esc(g.file)}</span>
+        ${proposeBadge(g)} ${auditFlag}
+      </div>
+      <div class="fcounts">total ${c.total} &middot; remaining ${c.remaining}
+        &middot; to-fix ${c.tofix} &middot; ignored ${c.ignored}</div>
+      <div class="fctl">
+        ${known?tagSelectHtml(g):'<span class="hint">(unknown function — no tag)</span>'}
+        ${callersBtn}${ignoreBtn}${tofixBtn}
+      </div>
+    </div>
+    ${callerBox}
+    <div class="frows">${rows||''}</div>
+  </div>`;
+}
+
+function renderGroups(){
+  const list = document.getElementById('list');
+  const html = GROUPS.map(groupHtml).join('');
+  list.innerHTML = html || '<div class="empty">No survivors.</div>';
+  // survivor rows
+  list.querySelectorAll('.row').forEach(r=>
+    r.onclick=()=>{ SELECTED=r.dataset.id; render(); loadDetail(SELECTED); });
+  // tag selectors
+  list.querySelectorAll('.tagsel').forEach(s=>s.onchange=async ()=>{
+    const file=s.dataset.file, fn=s.dataset.fn, tag=s.value;
+    if (tag) await postJSON('/api/tag', {file, function:fn, tag});
+    else await postJSON('/api/untag', {file, function:fn});
+    await loadList(true);
+  });
+  // show callers
+  list.querySelectorAll('.callers-btn').forEach(b=>b.onclick=async ()=>{
+    const fn=b.dataset.fn;
+    if (OPEN_CALLERS[fn]!=null){ delete OPEN_CALLERS[fn]; render(); return; }
+    b.textContent='loading...';
+    const d=await getJSON('/api/callers?function='+encodeURIComponent(fn));
+    const cs=(d.callers||[]);
+    OPEN_CALLERS[fn] = cs.length
+      ? `<div class="hint">call sites of <b>${esc(fn)}</b> under Source/ &amp; Include/ (strategy honesty check — do they re-validate?):</div>`
+        + cs.map(c=>`<div class="cl"><b>${esc(c.file)}:${c.line}</b>  ${esc(c.text.trim())}</div>`).join('')
+        + (d.capped?'<div class="hint">(results capped)</div>':'')
+      : `<div class="hint">no call sites found for <b>${esc(fn)}</b> under Source/ &amp; Include/.</div>`;
+    render();
+  });
+  // cluster: ignore all (function selector)
+  list.querySelectorAll('.ig-cluster').forEach(b=>b.onclick=async ()=>{
+    const file=b.dataset.file, fn=b.dataset.fn;
+    if (!confirm('Ignore ALL survivors in '+fn+' via ONE function-selector '
+      +'ledger entry?\\n\\nThis SUPPRESSES them — only sound if every caller '
+      +'re-validates this function\\u2019s output (use "show callers" first).'))
+      return;
+    const bucket=prompt('Bucket for the function entry (B = strategy/perf, '
+      +'C = equivalent):','B');
+    if (bucket==null) return;
+    if (bucket!=='B' && bucket!=='C'){ alert('bucket must be B or C'); return; }
+    const rationale=prompt('Rationale (required) — why every survivor here is '
+      +'accepted, in caller-contract terms:','');
+    if (rationale==null || !rationale.trim()){ alert('rationale is required'); return; }
+    const r=await postJSON('/api/ignore-cluster',
+      {file, function:fn, bucket, rationale, author:'triage-ui'});
+    if (!r.ok){ alert(r.data.error||'failed'); return; }
+    await loadList(true);
+  });
+  // cluster: to-fix all remaining
+  list.querySelectorAll('.tf-cluster').forEach(b=>b.onclick=async ()=>{
+    const file=b.dataset.file, fn=b.dataset.fn;
+    if (!confirm('Add a To-Fix worklist entry for every REMAINING survivor in '
+      +fn+'?\\n\\nContract proposal — A or C: confirm each is killable, else '
+      +'Ignore-with-proof. This does NOT suppress anything.')) return;
+    const note=prompt('Optional note for these To-Fix entries:','');
+    const r=await postJSON('/api/tofix-cluster',
+      {file, function:fn, note:note||''});
+    if (!r.ok){ alert(r.data.error||'failed'); return; }
+    await loadList(true);
+  });
+}
+
+// ---- Audit panel -----------------------------------------------------------
+function renderAudit(){
+  const list = document.getElementById('list');
+  if (!AUDIT.length){
+    list.innerHTML = '<div class="empty">No audit violations. Tag functions '
+      +'(By function view) to surface mis-triaged ignores / to-fixes.</div>';
+    return;
+  }
+  const order = {error:0, info:1};
+  const sorted = [...AUDIT].sort((a,b)=>
+    (order[a.severity]-order[b.severity]) || a.file.localeCompare(b.file));
+  list.innerHTML = '<div class="auditpanel">'+sorted.map(v=>
+    `<div class="av ${v.severity}">
+      <div class="ak">${esc(v.kind)}${v.severity==='error'?' \\u26a0':''}</div>
+      <div class="ad">${esc(v.detail)}</div>
+      <div class="af">${esc(v.function)} &middot; ${esc(v.file)}${v.id?' &middot; '+esc(v.id):''}</div>
+    </div>`).join('')+'</div>';
 }
 
 function srcHtml(ctx, mutation){
@@ -1237,9 +2079,14 @@ async function loadDetail(id){
   const right = document.getElementById('right');
   if (d.error){ right.innerHTML='<div class="empty">'+esc(d.error)+'</div>'; return; }
   const kind = statusKind(d.status);
+  const fnTxt = d.enclosing_function
+    ? `<code>${esc(d.enclosing_function)}</code>`
+    + (d.function_tag?` <span class="propose ${d.proposed_bucket==='ignore'?'ignore':d.proposed_bucket==='tofix'?'tofix':''}">${esc(d.function_tag)}${d.proposed_bucket?(' &rarr; '+(d.proposed_bucket==='ignore'?'Ignore all':'To-Fix')):''}</span>`:' <span class="hint">(untagged)</span>')
+    : '<span class="hint">(unknown function)</span>';
   let html = `<h2>${esc(d.file)}:${d.line}:${d.col}</h2>
     <div class="sub">mutator <code>${esc(d.mutator||'?')}</code> &middot;
-      <span class="badge ${kind}">${kindLabel(kind)}</span></div>
+      <span class="badge ${kind}">${kindLabel(kind)}</span>
+      &middot; function ${fnTxt}</div>
     <div class="card"><h3>Source context</h3>${srcHtml(d.source_context, d.mutation)}</div>
     <div class="card"><h3>Git blame (target line)</h3>${blameHtml(d.git_blame)}</div>
     ${covHtml(d.coverage_hint)}`;
@@ -1311,8 +2158,24 @@ async function loadDetail(id){
 }
 
 ['f-status','f-file','f-mutator'].forEach(id=>
-  document.getElementById(id).addEventListener('change', renderList));
-document.getElementById('f-text').addEventListener('input', renderList);
+  document.getElementById(id).addEventListener('change', render));
+document.getElementById('f-text').addEventListener('input', render);
+
+document.getElementById('vtoggle').querySelectorAll('button').forEach(b=>
+  b.onclick=()=>{
+    VIEW = b.dataset.view;
+    document.getElementById('vtoggle').querySelectorAll('button').forEach(x=>
+      x.classList.toggle('on', x.dataset.view===VIEW));
+    document.getElementById('audit-pill').classList.remove('on');
+    render();
+  });
+document.getElementById('audit-pill').onclick=()=>{
+  VIEW = (VIEW==='audit') ? 'flat' : 'audit';
+  document.getElementById('audit-pill').classList.toggle('on', VIEW==='audit');
+  document.getElementById('vtoggle').querySelectorAll('button').forEach(x=>
+    x.classList.toggle('on', VIEW!=='audit' && x.dataset.view===VIEW));
+  render();
+};
 loadList();
 </script>
 </body>
@@ -1445,11 +2308,15 @@ def main(argv=None):
         "Conventions")
     default_ledger = os.path.join(conv_dir, "mull-ignores.toml")
     default_todo = os.path.join(conv_dir, "mull-todo.toml")
+    default_tags = os.path.join(conv_dir, "mull-function-tags.toml")
     p.add_argument("--port", type=int, default=8765)
     p.add_argument("--root", default=".")
     p.add_argument("--ledger", default=default_ledger)
     p.add_argument("--todo", default=default_todo,
                    help="path to the To-Fix worklist (mull-todo.toml)")
+    p.add_argument("--tags", default=default_tags,
+                   help="path to the function classification store "
+                        "(mull-function-tags.toml)")
     p.add_argument("--reload", action="store_true",
                    help="supervise mode: auto-restart the server when its "
                         "source (this file or mull-filter.py) changes")
@@ -1472,6 +2339,8 @@ def main(argv=None):
                      else os.path.join(Config.root, args.ledger))
     Config.todo = (args.todo if os.path.isabs(args.todo)
                    else os.path.join(Config.root, args.todo))
+    Config.tags = (args.tags if os.path.isabs(args.tags)
+                   else os.path.join(Config.root, args.tags))
     Config.report_globs = args.report_globs or ["build_mull/**/mutation-*.txt"]
 
     httpd = Server(("127.0.0.1", args.port), Handler)
