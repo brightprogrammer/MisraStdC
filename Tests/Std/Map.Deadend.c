@@ -20,6 +20,98 @@ static i32 i32_compare(const void *lhs, const void *rhs) {
 }
 
 // ---------------------------------------------------------------------------
+// Probing policy building blocks for the normal validator tests below.
+// ---------------------------------------------------------------------------
+
+static size linear_first(u64 hash, size capacity) {
+    return capacity ? (size)(hash % capacity) : 0;
+}
+
+// Stuck next-index: never advances the probe (next == previous == first).
+static size stuck_next(u64 hash, size capacity, size previous_index, size probe_count) {
+    (void)hash;
+    (void)capacity;
+    (void)probe_count;
+    return previous_index;
+}
+
+static bool load_rehash(u64 length, u64 capacity, u64 tombstones, size pending_inserts, size probe_pressure) {
+    (void)probe_pressure;
+    if ((length + pending_inserts) == 0)
+        return false;
+    if (capacity == 0)
+        return true;
+    return ((length + tombstones + pending_inserts) * 4) >= (capacity * 3);
+}
+
+static size pow2_capacity(u64 length, u64 capacity, u64 tombstones, size min_entries) {
+    (void)capacity;
+    (void)tombstones;
+    size needed       = min_entries > length ? min_entries : (size)length;
+    size new_capacity = 8;
+    if (needed == 0)
+        return 0;
+    while (((new_capacity * 3) / 4) < needed)
+        new_capacity <<= 1;
+    return new_capacity;
+}
+
+// ===========================================================================
+// NORMAL validator tests (real code does NOT abort).
+// ===========================================================================
+
+// 412 (validate_map_structural, `length + tombstones` -> `length - tombstones`).
+// A structurally valid map may hold MORE tombstones than live entries as long
+// as length + tombstones <= capacity. Real code validates cleanly.
+static bool test_validate_more_tombstones_than_live_is_valid(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
+
+    MapInsertR(&map, 1, 10);
+    MapInsertR(&map, 2, 20);
+    MapInsertR(&map, 3, 30);
+
+    GenericMap *g           = GENERIC_MAP(&map);
+    u64         real_length = g->length;
+    u64         real_tombs  = g->tombstones;
+
+    // Valid combo: more tombstones than live entries, sum within capacity.
+    g->length      = 2;
+    g->tombstones  = 5;
+    g->__magic    |= MAGIC_VALIDATED_BIT;
+
+    ValidateMap(&map);
+
+    bool result = true;
+
+    g->length     = real_length;
+    g->tombstones = real_tombs;
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// validate_map_policy : (policy->max_probe_count > 1)  (147:56 cxx_gt_to_ge).
+// A VALID budget-1 policy with a deliberately stuck next_index: real code skips
+// the stuck-probe check (1 > 1 is false) and validates cleanly. The mutant
+// (`>= 1`) enters the check and LOG_FATALs.
+static bool test_validate_policy_skips_stuck_check_at_probe_budget_one(void) {
+    MapPolicy policy = {
+        .name            = "stuck-budget-one",
+        .should_rehash   = load_rehash,
+        .next_capacity   = pow2_capacity,
+        .first_index     = linear_first,
+        .next_index      = stuck_next,
+        .max_probe_count = 1,
+    };
+
+    ValidateMapPolicy(policy);
+    return true;
+}
+
+// ---------------------------------------------------------------------------
 // Map-object validation deadends.
 // ---------------------------------------------------------------------------
 
@@ -378,7 +470,53 @@ static bool test_map_init_with_invalid_policy_fails(void) {
     return false;
 }
 
+// 408 (validate_map_structural, removed validate_map_policy(&map->policy)).
+// A validated map whose policy has been corrupted (empty name) must abort: the
+// structural validator routes the policy through validate_map_policy.
+static bool test_validate_corrupt_policy_name_fails(void) {
+    WriteFmt("Testing ValidateMap with corrupted policy name\n");
+
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
+
+    MapInsertR(&map, 1, 10);
+
+    GenericMap *g   = GENERIC_MAP(&map);
+    g->policy.name  = ""; // single broken field; everything else valid
+    g->__magic     |= MAGIC_VALIDATED_BIT;
+
+    ValidateMap(&map);    // must abort inside validate_map_policy
+
+    return false;
+}
+
+// 436 (validate_map, removed validate_map_structural(map) call).
+// A map with length > capacity is structurally corrupt and must abort.
+static bool test_validate_length_exceeds_capacity_fails(void) {
+    WriteFmt("Testing ValidateMap with length exceeding capacity\n");
+
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
+
+    MapInsertR(&map, 1, 10);          // capacity becomes 8
+
+    GenericMap *g  = GENERIC_MAP(&map);
+    g->length      = g->capacity + 1; // structurally impossible
+    g->__magic    |= MAGIC_VALIDATED_BIT;
+
+    ValidateMap(&map);                // must abort: "Map length cannot exceed capacity"
+
+    return false;
+}
+
 int main(void) {
+    TestFunction tests[] = {
+        test_validate_more_tombstones_than_live_is_valid,
+        test_validate_policy_skips_stuck_check_at_probe_budget_one,
+    };
+
     TestFunction deadend_tests[] = {
         test_validate_uninitialized_map_fails,
         test_map_init_with_invalid_policy_fails,
@@ -400,12 +538,14 @@ int main(void) {
         test_validate_map_policy_first_index_out_of_range_fails,
         test_validate_map_policy_next_index_out_of_range_fails,
         test_validate_map_policy_stuck_probe_fails,
+        test_validate_corrupt_policy_name_fails,
+        test_validate_length_exceeds_capacity_fails,
     };
 
     WriteFmt("[INFO] Starting Map.Deadend tests\n\n");
     return run_test_suite(
-        NULL,
-        0,
+        tests,
+        (int)(sizeof(tests) / sizeof(tests[0])),
         deadend_tests,
         (int)(sizeof(deadend_tests) / sizeof(deadend_tests[0])),
         "Map.Deadend"

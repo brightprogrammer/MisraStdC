@@ -21,6 +21,13 @@ static i32 i32_compare(const void *lhs, const void *rhs) {
     return (a > b) - (a < b);
 }
 
+// Degenerate hash: every key lands in the same bucket (linear-fill chain).
+static u64 const_hash(const void *data, u32 size) {
+    (void)data;
+    (void)size;
+    return 0;
+}
+
 static bool test_map_deep_copy_zstrs(void) {
     typedef Map(Zstr, Zstr) ZstrMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
@@ -280,6 +287,32 @@ static bool test_map_retain_if(void) {
     return result;
 }
 
+// clear_map : states[idx] = MAP_SLOT_EMPTY  (478:26 cxx_assign_const).
+// Clearing an occupied slot must reset it to EMPTY (0). The mutant stores 42,
+// leaving a slot that scan treats as occupied; a later lookup of key 0 matches
+// the stale zeroed slot ahead of the real entry.
+static bool test_clear_resets_slots_to_empty(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap        map   = MapInitWithValueCompare(const_hash, i32_compare, i32_compare, &alloc);
+
+    MapInsertR(&map, 0, 500);
+    MapInsertR(&map, 1, 510);
+    MapInsertR(&map, 2, 520);
+
+    MapClear(&map);
+
+    MapInsertR(&map, 0, 999);
+
+    int *v      = MapGetFirstPtr(&map, 0);
+    bool result = v && (*v == 999);
+    result      = result && (MapValueCountForKey(&map, 0) == 1);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_map_deep_copy_zstrs,
@@ -289,6 +322,7 @@ int main(void) {
         test_map_empty_true_and_false,
         test_map_must_compact_success,
         test_map_must_rehash_with_policy_success,
+        test_clear_resets_slots_to_empty,
     };
 
     WriteFmt("[INFO] Starting Map.Ops tests\n\n");

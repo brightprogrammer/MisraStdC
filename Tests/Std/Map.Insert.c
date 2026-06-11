@@ -18,6 +18,324 @@ static i32 i32_compare(const void *lhs, const void *rhs) {
     return (a > b) - (a < b);
 }
 
+// Identity hash: the hash IS the key value. Multiples-of-8 keys then alias
+// into one bucket at capacity 8 but spread across two buckets at capacity 16.
+static u64 i32_identity_hash(const void *data, u32 size) {
+    (void)size;
+    return (u64)(u32)(*(const int *)data);
+}
+
+// Identity-ish hash on the raw int value; collisions depend on key % capacity.
+static u64 id_hash(const void *data, u32 size) {
+    (void)size;
+    return (u64)(u32)(*(const int *)data);
+}
+
+// ---------------------------------------------------------------------------
+// Custom probing policies (rehash_map / reserve_map mutants).
+// ---------------------------------------------------------------------------
+
+static bool policy_should_rehash(u64 length, u64 capacity, u64 tombstones, size pending_inserts, size probe_pressure) {
+    if ((length + pending_inserts) == 0)
+        return false;
+    if (capacity == 0)
+        return true;
+    if (((length + tombstones + pending_inserts) * 4) >= (capacity * 3))
+        return true;
+    return probe_pressure > 0 && (probe_pressure * 4) >= capacity;
+}
+
+static size policy_next_capacity_doubling(u64 length, u64 capacity, u64 tombstones, size min_entries) {
+    size new_capacity = 8;
+    size needed       = min_entries > length ? min_entries : (size)length;
+    (void)tombstones;
+    (void)capacity;
+    if (needed == 0)
+        return 0;
+    while (((new_capacity * 3) / 4) < needed)
+        new_capacity <<= 1;
+    return new_capacity;
+}
+
+static size policy_next_capacity_tight(u64 length, u64 capacity, u64 tombstones, size min_entries) {
+    (void)capacity;
+    (void)tombstones;
+    return min_entries > length ? min_entries : (size)length;
+}
+
+static size policy_next_capacity_sabotage(u64 length, u64 capacity, u64 tombstones, size min_entries) {
+    (void)capacity;
+    (void)tombstones;
+    if (min_entries > 0 && min_entries < length)
+        return (size)length - 1;
+    return min_entries > length ? min_entries : (size)length;
+}
+
+static size policy_first_index_linear(u64 hash, size capacity) {
+    return capacity ? (size)(hash % capacity) : 0;
+}
+
+static size policy_next_index_linear(u64 hash, size capacity, size previous_index, size probe_count) {
+    (void)hash;
+    (void)probe_count;
+    return capacity ? ((previous_index + 1) % capacity) : 0;
+}
+
+// Stuck next_index: the probe never advances, so next == first.
+static size policy_next_index_stuck(u64 hash, size capacity, size previous_index, size probe_count) {
+    (void)hash;
+    (void)capacity;
+    (void)probe_count;
+    return previous_index;
+}
+
+// Huge next_capacity: always demands ~2^50 slots so the rehash allocation
+// genuinely fails (NULL) and rehash_map takes its restore-and-return-false
+// path WITHOUT installing the policy.
+static size policy_next_capacity_huge(u64 length, u64 capacity, u64 tombstones, size min_entries) {
+    (void)length;
+    (void)capacity;
+    (void)tombstones;
+    (void)min_entries;
+    return (size)1 << 50;
+}
+
+static MapPolicy make_tight_policy(void) {
+    MapPolicy p       = {0};
+    p.name            = "tight-linear";
+    p.should_rehash   = policy_should_rehash;
+    p.next_capacity   = policy_next_capacity_tight;
+    p.first_index     = policy_first_index_linear;
+    p.next_index      = policy_next_index_linear;
+    p.max_probe_count = 128;
+    return p;
+}
+
+static MapPolicy make_sabotage_policy(void) {
+    MapPolicy p       = {0};
+    p.name            = "sabotage-linear";
+    p.should_rehash   = policy_should_rehash;
+    p.next_capacity   = policy_next_capacity_sabotage;
+    p.first_index     = policy_first_index_linear;
+    p.next_index      = policy_next_index_linear;
+    p.max_probe_count = 128;
+    return p;
+}
+
+static MapPolicy make_small_probe_policy(void) {
+    MapPolicy p       = {0};
+    p.name            = "small-probe-linear";
+    p.should_rehash   = policy_should_rehash;
+    p.next_capacity   = policy_next_capacity_doubling;
+    p.first_index     = policy_first_index_linear;
+    p.next_index      = policy_next_index_linear;
+    p.max_probe_count = 4;
+    return p;
+}
+
+static MapPolicy make_validate_only_reject_policy(void) {
+    MapPolicy p       = {0};
+    p.name            = "stuck-probe-huge-cap";
+    p.should_rehash   = policy_should_rehash;
+    p.next_capacity   = policy_next_capacity_huge;
+    p.first_index     = policy_first_index_linear;
+    p.next_index      = policy_next_index_stuck; // next == first -> validate FATAL
+    p.max_probe_count = 4;
+    return p;
+}
+
+// ---------------------------------------------------------------------------
+// map_insert growth-path policy building blocks.
+// ---------------------------------------------------------------------------
+
+// Only grow when the table has no capacity at all. Suppresses preemptive
+// load-factor growth so the probe-budget-exhaustion recovery path is the only
+// growth mechanism.
+static bool grow_only_from_empty(u64 length, u64 capacity, u64 tombstones, size pending_inserts, size probe_pressure) {
+    (void)length;
+    (void)tombstones;
+    (void)pending_inserts;
+    (void)probe_pressure;
+    return capacity == 0;
+}
+
+// Standard doubling capacity policy (mirrors the library default).
+static size doubling_next_capacity(u64 length, u64 capacity, u64 tombstones, size min_entries) {
+    size new_capacity = 8;
+    size needed       = min_entries > length ? min_entries : (size)length;
+    (void)tombstones;
+    (void)capacity;
+    if (needed == 0)
+        return 0;
+    while (((new_capacity * 3) / 4) < needed)
+        new_capacity <<= 1;
+    return new_capacity;
+}
+
+static size linear_first(u64 hash, size capacity) {
+    return capacity ? (size)(hash % capacity) : 0;
+}
+
+static size linear_next(u64 hash, size capacity, size previous_index, size probe_count) {
+    (void)hash;
+    (void)probe_count;
+    return capacity ? ((previous_index + 1) % capacity) : 0;
+}
+
+static MapPolicy fill_then_grow_policy(void) {
+    MapPolicy policy = {
+        .name            = "fill-then-grow",
+        .should_rehash   = grow_only_from_empty,
+        .next_capacity   = doubling_next_capacity,
+        .first_index     = linear_first,
+        .next_index      = linear_next,
+        .max_probe_count = 16,
+    };
+    return policy;
+}
+
+// Power-of-two doubling capacity, load-factor 3/4. Used by the
+// map_insert_raw_entry budget-exhaustion test.
+static size pow2_capacity(u64 length, u64 capacity, u64 tombstones, size min_entries) {
+    (void)capacity;
+    (void)tombstones;
+    size needed       = min_entries > length ? min_entries : (size)length;
+    size new_capacity = 8;
+    if (needed == 0)
+        return 0;
+    while (((new_capacity * 3) / 4) < needed)
+        new_capacity <<= 1;
+    return new_capacity;
+}
+
+// Load-factor driven rehash, like the built-in default.
+static bool load_rehash(u64 length, u64 capacity, u64 tombstones, size pending_inserts, size probe_pressure) {
+    (void)probe_pressure;
+    if ((length + pending_inserts) == 0)
+        return false;
+    if (capacity == 0)
+        return true;
+    return ((length + tombstones + pending_inserts) * 4) >= (capacity * 3);
+}
+
+// ---------------------------------------------------------------------------
+// reserve_map const-42 policy building blocks.
+// ---------------------------------------------------------------------------
+
+static bool
+    policy42_should_rehash(u64 length, u64 capacity, u64 tombstones, size pending_inserts, size probe_pressure) {
+    (void)length;
+    (void)capacity;
+    (void)tombstones;
+    (void)pending_inserts;
+    (void)probe_pressure;
+    return false;
+}
+
+static size policy42_next_capacity(u64 length, u64 capacity, u64 tombstones, size min_entries) {
+    size needed = min_entries > length ? min_entries : (size)length;
+    (void)capacity;
+    (void)tombstones;
+    if (needed == 0) {
+        return 0;
+    }
+    if (needed <= 31) {
+        return 42;
+    }
+    size c = 64;
+    while (((c * 3) / 4) < needed) {
+        c <<= 1;
+    }
+    return c;
+}
+
+static size policy42_first_index(u64 hash, size capacity) {
+    return capacity ? (size)(hash % capacity) : 0;
+}
+
+static size policy42_next_index(u64 hash, size capacity, size previous_index, size probe_count) {
+    (void)hash;
+    (void)probe_count;
+    return capacity ? ((previous_index + 1) % capacity) : 0;
+}
+
+static MapPolicy make_policy42(void) {
+    MapPolicy policy = {
+        .name            = "const42",
+        .should_rehash   = policy42_should_rehash,
+        .next_capacity   = policy42_next_capacity,
+        .first_index     = policy42_first_index,
+        .next_index      = policy42_next_index,
+        .max_probe_count = 200,
+    };
+    return policy;
+}
+
+// ---------------------------------------------------------------------------
+// Toggled value_copy_init: lets the first insert succeed and a later
+// re-insert fail on demand.
+// ---------------------------------------------------------------------------
+static bool g_value_copy_should_fail = false;
+
+static bool toggled_value_copy_init(void *dst, const void *src, const Allocator *alloc) {
+    (void)alloc;
+    if (g_value_copy_should_fail)
+        return false;
+    *(int *)dst = *(const int *)src;
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Failing allocator: delegates to a real DefaultAllocator until `fail_now`
+// is flipped, after which every allocation returns NULL.
+// ---------------------------------------------------------------------------
+
+typedef struct {
+    Allocator         base;
+    DefaultAllocator *inner;
+    bool              fail_now;
+} FailAlloc;
+
+static void *fail_alloc_allocate(Allocator *self, size bytes, i8 zeroed) {
+    FailAlloc *f = (FailAlloc *)(void *)self;
+    if (f->fail_now)
+        return NULL;
+    return AllocatorAlloc(f->inner, bytes, zeroed);
+}
+
+static i8 fail_alloc_resize(Allocator *self, void *ptr, size new_size) {
+    FailAlloc *f = (FailAlloc *)(void *)self;
+    return AllocatorResize(f->inner, ptr, new_size);
+}
+
+static void *fail_alloc_remap(Allocator *self, void *ptr, size new_size) {
+    FailAlloc *f = (FailAlloc *)(void *)self;
+    if (f->fail_now)
+        return NULL;
+    return AllocatorRemap(f->inner, ptr, new_size);
+}
+
+static size fail_alloc_deallocate(Allocator *self, void *ptr) {
+    FailAlloc *f = (FailAlloc *)(void *)self;
+    AllocatorFree(f->inner, ptr);
+    return 0;
+}
+
+static FailAlloc fail_alloc_init(DefaultAllocator *inner) {
+    FailAlloc f        = {0};
+    f.base.allocate    = fail_alloc_allocate;
+    f.base.resize      = fail_alloc_resize;
+    f.base.remap       = fail_alloc_remap;
+    f.base.deallocate  = fail_alloc_deallocate;
+    f.base.alignment   = 16;
+    f.base.effort      = ALLOCATOR_EFFORT_ONCE;
+    f.base.retry_limit = 0;
+    f.base.__magic     = 0x1u; // ValidateAllocator only requires non-zero
+    f.inner            = inner;
+    f.fail_now         = false;
+    return f;
+}
+
 static bool test_map_insert_and_set(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
@@ -380,6 +698,379 @@ static bool test_map_must_family_success(void) {
     return result;
 }
 
+// ===========================================================================
+// rehash_map / reserve_map / MapCompact contract guards (from staging).
+// ===========================================================================
+
+// 508: MapRehashWithPolicy validates the new policy up front. Real code aborts
+// on the stuck-probe check before allocating; the mutant runs the rehash, the
+// 2^50-slot allocation fails, rehash_map restores and returns false without
+// installing the policy, and nothing aborts -> deadend FAILS = mutant killed.
+static bool test_rehash_rejects_invalid_policy(void) {
+    WriteFmt("Testing MapRehashWithPolicy validates the new policy up front\n");
+
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
+
+    MapInsertR(&map, 1, 10);
+    MapInsertR(&map, 2, 20);
+    MapInsertR(&map, 3, 30);
+
+    MapPolicy bad = make_validate_only_reject_policy();
+    MapRehashWithPolicy(&map, 1, bad); // real: LOG_FATAL on the stuck-probe check
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// 510: the empty-fast-path guard `(length==0 && n==0)`. Flipping `==` to `!=`
+// breaks MapCompact on a fresh/empty map.
+static bool test_compact_empty_map_succeeds(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
+
+    bool result = MapCompact(&map); // empty map: must succeed via fast path
+
+    result = result && (MapPairCount(&map) == 0);
+    MapInsertR(&map, 5, 50);
+    result = result && MapGetFirstPtr(&map, 5) && (*MapGetFirstPtr(&map, 5) == 50);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 515/516/517: the empty-reset path sets length/capacity/tombstones to 0. An
+// empty MapCompact must leave the map valid for further use.
+static bool test_compact_empty_then_insert_length(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
+
+    bool result = MapCompact(&map);
+    MapInsertR(&map, 7, 70);
+    result = result && MapGetFirstPtr(&map, 7) && (*MapGetFirstPtr(&map, 7) == 70);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+static bool test_compact_empty_then_insert_capacity(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
+
+    bool result = MapCompact(&map);
+    MapInsertR(&map, 8, 80);
+    MapInsertR(&map, 9, 90);
+    result = result && MapGetFirstPtr(&map, 8) && (*MapGetFirstPtr(&map, 8) == 80);
+    result = result && MapGetFirstPtr(&map, 9) && (*MapGetFirstPtr(&map, 9) == 90);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+static bool test_compact_empty_then_insert_tombstones(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
+
+    bool result = MapCompact(&map);
+    MapInsertR(&map, 11, 110);
+    result = result && MapGetFirstPtr(&map, 11) && (*MapGetFirstPtr(&map, 11) == 110);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 525:22: `new_capacity < required` must NOT reject a policy that returns
+// capacity exactly equal to `required`. A tight (load-factor-1.0) policy is
+// valid and must be accepted.
+static bool test_rehash_tight_capacity_accepted(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
+
+    MapInsertR(&map, 1, 10);
+    MapInsertR(&map, 2, 20);
+    MapInsertR(&map, 3, 30);
+
+    MapPolicy tight  = make_tight_policy();
+    bool      result = MapRehashWithPolicy(&map, 0, tight);
+
+    result = result && (MapPairCount(&map) == 3);
+    result = result && MapGetFirstPtr(&map, 1) && (*MapGetFirstPtr(&map, 1) == 10);
+    result = result && MapGetFirstPtr(&map, 2) && (*MapGetFirstPtr(&map, 2) == 20);
+    result = result && MapGetFirstPtr(&map, 3) && (*MapGetFirstPtr(&map, 3) == 30);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 525:27: `required = max(n, length)`. Turning max into min weakens the
+// insufficiency guard. With n < length and a policy returning a capacity in
+// [n, length), the real code must reject it (length is required).
+static bool test_rehash_rejects_insufficient_with_small_n(void) {
+    WriteFmt("Testing MapRehashWithPolicy rejects under-sized capacity for n<length\n");
+
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
+
+    for (int k = 0; k < 10; k++)
+        MapInsertR(&map, k, k * 10);
+
+    MapPolicy sab = make_sabotage_policy();
+    MapRehashWithPolicy(&map, 2, sab); // must LOG_FATAL "insufficient capacity"
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// 549: on allocation failure the restore path must set capacity = old_capacity
+// so the map stays consistent (FAILURE contract: map unchanged).
+static bool test_rehash_alloc_failure_keeps_map_usable(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator inner = DefaultAllocatorInit();
+    FailAlloc        fa    = fail_alloc_init(&inner);
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &fa.base);
+
+    for (int k = 0; k < 6; k++)
+        MapInsertR(&map, k, k * 10);
+
+    fa.fail_now = true;              // force the new-table allocation to fail
+    bool failed = !MapCompact(&map); // must return false
+    fa.fail_now = false;
+
+    bool result = failed && (MapPairCount(&map) == 6);
+    for (int k = 0; k < 6; k++)
+        result = result && MapGetFirstPtr(&map, k) && (*MapGetFirstPtr(&map, k) == k * 10);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&inner);
+    return result;
+}
+
+// Clustering fixture for the doubling-retry mutants (573, 585:14, 585:38, 586,
+// 593). Multiples-of-8 keys under identity hash + a tiny probe budget: at the
+// compacted capacity (8) they alias into one bucket and the 5th reinsert
+// exhausts the 4-probe budget; one doubling (to 16) splits them and succeeds.
+static bool run_doubling_retry_compact(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc  = DefaultAllocatorInit();
+    MapPolicy        policy = make_small_probe_policy();
+    IntIntMap        map    = MapInitWithPolicy(i32_identity_hash, i32_compare, policy, &alloc);
+
+    const int keys[] = {0, 8, 16, 24, 32, 40};
+    for (int i = 0; i < 6; i++)
+        MapInsertR(&map, keys[i], keys[i] + 1);
+
+    bool result = (MapPairCount(&map) == 6);
+
+    result = result && MapCompact(&map);
+    result = result && (MapCapacity(&map) == 16);
+
+    result = result && (MapPairCount(&map) == 6);
+    for (int i = 0; i < 6; i++)
+        result = result && MapGetFirstPtr(&map, keys[i]) && (*MapGetFirstPtr(&map, keys[i]) == keys[i] + 1);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 573: on a reinsert failure, `ok = false` then break-to-retry.
+static bool test_doubling_retry_preserves_entries(void) {
+    return run_doubling_retry_compact();
+}
+
+// 585:14: `next_cap = new_capacity * 2`. Forcing a constant <= new_capacity
+// trips the overflow guard so the retry fails instead of doubling.
+static bool test_doubling_retry_next_cap_init(void) {
+    return run_doubling_retry_compact();
+}
+
+// 585:38: `* 2` -> `/ 2` makes next_cap < new_capacity, always tripping the
+// overflow guard; the retry can never grow.
+static bool test_doubling_retry_next_cap_grows(void) {
+    return run_doubling_retry_compact();
+}
+
+// 586: `next_cap <= new_capacity` (overflow guard) -> `>` misreads a normal
+// doubling as overflow and fails the retry.
+static bool test_doubling_retry_overflow_guard(void) {
+    return run_doubling_retry_compact();
+}
+
+// 593: `new_capacity = next_cap` carries the doubled capacity into the next
+// retry. A constant breaks growth.
+static bool test_doubling_retry_capacity_propagates(void) {
+    return run_doubling_retry_compact();
+}
+
+// ===========================================================================
+// map_insert growth/recovery/tombstone contract guards (from staging).
+// ===========================================================================
+
+// Mutant 940. Under the default policy the 6th insert into a capacity-8 table
+// crosses the 3/4 load threshold and must grow.
+static bool test_map_preemptive_grow_succeeds(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc  = DefaultAllocatorInit();
+    IntIntMap        map    = MapInit(i32_hash, i32_compare, &alloc);
+    bool             result = true;
+
+    for (int k = 0; k < 6; k++)
+        result = result && MapInsertR(&map, k, k * 100 + 1);
+
+    result = result && (MapPairCount(&map) == 6);
+    for (int k = 0; k < 6; k++) {
+        int *v = MapGetFirstPtr(&map, k);
+        result = result && v && (*v == k * 100 + 1);
+    }
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Mutants 975 and 988. A non-preemptive policy with a small probe budget lets
+// the table fill completely; the next insert exhausts the budget and can only
+// succeed by taking the forced-grow recovery path.
+static bool test_map_probe_exhaustion_recovers(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc  = DefaultAllocatorInit();
+    MapPolicy        policy = fill_then_grow_policy();
+    IntIntMap        map    = MapInitWithPolicy(i32_hash, i32_compare, policy, &alloc);
+    bool             result = true;
+
+    for (int k = 0; k < 8; k++)
+        result = result && MapInsertR(&map, k, k * 100 + 3);
+
+    result = result && MapInsertR(&map, 8, 8 * 100 + 3);
+
+    result = result && (MapPairCount(&map) == 9);
+    for (int k = 0; k < 9; k++) {
+        int *v = MapGetFirstPtr(&map, k);
+        result = result && v && (*v == k * 100 + 3);
+    }
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Mutant 1008 (`tombstones -= 1` -> `+= 1` when reusing a tombstone slot).
+static bool test_map_tombstone_reuse_decrements(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
+
+    MapInsertR(&map, 7, 70);
+    MapRemoveFirst(&map, 7);
+    bool result = (MapTombstones(&map) == 1);
+
+    MapInsertR(&map, 7, 71); // reuses the tombstone slot for key 7
+    result = result && (MapTombstones(&map) == 0);
+    result = result && MapGetFirstPtr(&map, 7) && (*MapGetFirstPtr(&map, 7) == 71);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Mutants 1024 and 1025: the rollback when an insert into a tombstone slot
+// fails to copy must restore the tombstone count to its pre-insert value.
+static bool test_map_tombstone_rollback_on_copy_fail(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map = MapInitWithDeepCopy(i32_hash, i32_compare, NULL, NULL, toggled_value_copy_init, NULL, &alloc);
+
+    g_value_copy_should_fail = false;
+    bool result              = MapInsertR(&map, 5, 50);
+    MapRemoveFirst(&map, 5);
+    result = result && (MapTombstones(&map) == 1);
+
+    g_value_copy_should_fail = true;
+    bool reinserted          = MapInsertR(&map, 5, 51);
+    g_value_copy_should_fail = false;
+
+    result = result && !reinserted;
+    result = result && (MapTombstones(&map) == 1);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// ===========================================================================
+// map_insert_raw_entry / reserve_map contract guards (from staging).
+// ===========================================================================
+
+// map_insert_raw_entry : insert_idx >= capacity  (381:20 cxx_ge_to_gt).
+// During a rehash, a re-insert whose probe chain exhausts the budget returns
+// insert_idx == capacity, which must be caught (-> false) so rehash_map grows
+// and retries. The mutant lets it slip into an out-of-bounds write.
+static bool test_insert_raw_entry_grows_on_budget_exhaustion(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc  = DefaultAllocatorInit();
+    MapPolicy        policy = {
+               .name            = "tight-linear",
+               .should_rehash   = load_rehash,
+               .next_capacity   = pow2_capacity,
+               .first_index     = linear_first,
+               .next_index      = linear_next,
+               .max_probe_count = 4,
+    };
+    IntIntMap map = MapInitWithPolicy(id_hash, i32_compare, policy, &alloc);
+
+    const int keys[] = {0, 16, 32, 48, 64};
+    for (int i = 0; i < 5; i++)
+        MapInsertR(&map, keys[i], keys[i] + 1);
+
+    MapRehashWithPolicy(&map, 8, policy);
+
+    bool result = (MapPairCount(&map) == 5);
+    for (int i = 0; i < 5; i++) {
+        int *v = MapGetFirstPtr(&map, keys[i]);
+        result = result && v && (*v == keys[i] + 1);
+        result = result && MapContainsKey(&map, keys[i]);
+    }
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 619 (reserve_map, `target_capacity = policy.next_capacity(...)` -> 42).
+// reserve_map must grow the table when the requested element count exceeds the
+// current capacity.
+static bool test_reserve_grows_when_target_exceeds_capacity(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc  = DefaultAllocatorInit();
+    MapPolicy        policy = make_policy42();
+    IntIntMap        map    = MapInitWithPolicy(i32_hash, i32_compare, policy, &alloc);
+
+    MapInsertR(&map, 1, 10);
+    bool result = (MapCapacity(&map) == 42);
+
+    bool reserved = MapReserve(&map, 100);
+    result        = result && reserved;
+    result        = result && (MapCapacity(&map) >= 100);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_map_insert_and_set,
@@ -395,8 +1086,36 @@ int main(void) {
         test_map_default_aliases,
         test_map_must_family_success,
         test_map_churn_does_not_loop,
+        test_compact_empty_map_succeeds,
+        test_compact_empty_then_insert_length,
+        test_compact_empty_then_insert_capacity,
+        test_compact_empty_then_insert_tombstones,
+        test_rehash_tight_capacity_accepted,
+        test_rehash_alloc_failure_keeps_map_usable,
+        test_doubling_retry_preserves_entries,
+        test_doubling_retry_next_cap_init,
+        test_doubling_retry_next_cap_grows,
+        test_doubling_retry_overflow_guard,
+        test_doubling_retry_capacity_propagates,
+        test_map_preemptive_grow_succeeds,
+        test_map_probe_exhaustion_recovers,
+        test_map_tombstone_reuse_decrements,
+        test_map_tombstone_rollback_on_copy_fail,
+        test_insert_raw_entry_grows_on_budget_exhaustion,
+        test_reserve_grows_when_target_exceeds_capacity,
+    };
+
+    TestFunction deadend_tests[] = {
+        test_rehash_rejects_invalid_policy,
+        test_rehash_rejects_insufficient_with_small_n,
     };
 
     WriteFmt("[INFO] Starting Map.Insert tests\n\n");
-    return run_test_suite(tests, (int)(sizeof(tests) / sizeof(tests[0])), NULL, 0, "Map.Insert");
+    return run_test_suite(
+        tests,
+        (int)(sizeof(tests) / sizeof(tests[0])),
+        deadend_tests,
+        (int)(sizeof(deadend_tests) / sizeof(deadend_tests[0])),
+        "Map.Insert"
+    );
 }

@@ -28,6 +28,118 @@ static u64 const_hash(const void *data, u32 size) {
     return 0;
 }
 
+// ---------------------------------------------------------------------------
+// Probing policy building blocks for the find/cursor scan tests.
+// ---------------------------------------------------------------------------
+
+static size linear_first(u64 hash, size capacity) {
+    return capacity ? (size)(hash % capacity) : 0;
+}
+
+static size linear_next(u64 hash, size capacity, size previous_index, size probe_count) {
+    (void)hash;
+    (void)probe_count;
+    return capacity ? ((previous_index + 1) % capacity) : 0;
+}
+
+// Never auto-rehash (except when there is no storage yet). Pins the probe
+// chain layout for the duration of a test.
+static bool never_rehash(u64 length, u64 capacity, u64 tombstones, size pending_inserts, size probe_pressure) {
+    (void)length;
+    (void)tombstones;
+    (void)pending_inserts;
+    (void)probe_pressure;
+    return capacity == 0;
+}
+
+// Returns a fixed, generous capacity so a long colliding chain fits without
+// any growth-driven rehash perturbing slot positions.
+static size big_fixed_capacity(u64 length, u64 capacity, u64 tombstones, size min_entries) {
+    (void)capacity;
+    (void)tombstones;
+    size needed = min_entries > length ? min_entries : (size)length;
+    if (needed == 0)
+        return 0;
+    return needed > 256 ? needed : 256;
+}
+
+// next_capacity that returns exactly the requested minimum (clamped to the
+// current length). Lets a test rehash a map down to a precise capacity.
+static size exact_capacity(u64 length, u64 capacity, u64 tombstones, size min_entries) {
+    (void)capacity;
+    (void)tombstones;
+    size needed = min_entries > length ? min_entries : (size)length;
+    return needed;
+}
+
+// ---------------------------------------------------------------------------
+// map_find_next_index : limit = max_probe_count  (736:11 cxx_assign_const).
+// The mutant hard-codes the find_next_index probe budget to 42 while inserts
+// keep the real (larger) budget; a same-key duplicate above probe 42 is then
+// unreachable by the multi-value lookup.
+// ---------------------------------------------------------------------------
+static bool test_find_next_index_honours_full_probe_budget(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc  = DefaultAllocatorInit();
+    MapPolicy        policy = {
+               .name            = "wide-linear",
+               .should_rehash   = never_rehash,
+               .next_capacity   = big_fixed_capacity,
+               .first_index     = linear_first,
+               .next_index      = linear_next,
+               .max_probe_count = 100,
+    };
+    IntIntMap map = MapInitWithPolicy(const_hash, i32_compare, policy, &alloc);
+
+    MapReserve(&map, 200);
+
+    for (int k = 0; k < 60; k++)
+        MapInsertR(&map, k, k * 10 + 1);
+
+    MapInsertR(&map, 0, 7777);
+
+    bool result = (MapValueCountForKey(&map, 0) == 2);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// ---------------------------------------------------------------------------
+// map_value_ptr_from_cursor : cursor.__index >= capacity  (908:54 cxx_ge_to_gt).
+// The out-of-range guard rejects a cursor whose __index equals capacity. The
+// mutant lets __index == capacity through into an OOB read.
+// ---------------------------------------------------------------------------
+static bool test_value_ptr_from_cursor_rejects_index_equal_capacity(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc  = DefaultAllocatorInit();
+    MapPolicy        policy = {
+               .name            = "shrinkable",
+               .should_rehash   = never_rehash,
+               .next_capacity   = exact_capacity,
+               .first_index     = linear_first,
+               .next_index      = linear_next,
+               .max_probe_count = 32,
+    };
+    IntIntMap map = MapInitWithPolicy(const_hash, i32_compare, policy, &alloc);
+
+    MapReserve(&map, 6);
+    for (int k = 10; k <= 15; k++)
+        MapInsertR(&map, k, k);
+
+    MapValueCursor cursor = MapFindFirstForKey(&map, 15);
+    bool           ok     = MapValueCursorIsValid(cursor);
+
+    MapRemoveFirst(&map, 10);
+    MapRehashWithPolicy(&map, 5, policy);
+
+    bool result = ok && (MapValuePtrFromCursor(&map, cursor) == NULL);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 static bool test_map_contains_and_find(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
@@ -343,6 +455,8 @@ int main(void) {
         test_map_collision_chain_lookup,
         test_map_collision_contract_linear,
         test_map_collision_contract_quadratic,
+        test_find_next_index_honours_full_probe_budget,
+        test_value_ptr_from_cursor_rejects_index_equal_capacity,
     };
 
     WriteFmt("[INFO] Starting Map.Access tests\n\n");

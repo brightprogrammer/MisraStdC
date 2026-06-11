@@ -136,6 +136,78 @@ static bool remove_even_values(const void *key, const void *value, void *ctx) {
     return (*(const int *)value % 2) == 0;
 }
 
+static bool always_retain(const void *key, const void *value, void *ctx) {
+    (void)key;
+    (void)value;
+    (void)ctx;
+    return true;
+}
+
+static bool always_true_predicate(const void *key, const void *value, void *ctx) {
+    (void)key;
+    (void)value;
+    (void)ctx;
+    return true;
+}
+
+// map_remove_at_index : slot state MAP_SLOT_TOMBSTONE -> 42  (1180).
+// Removing an entry must turn its slot into a reusable tombstone; re-inserting
+// the same key reclaims it, restoring the tombstone count to zero.
+static bool test_remove_then_reinsert_reclaims_tombstone(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
+
+    MapInsertR(&map, 5, 50);
+    bool result = (MapTombstones(&map) == 0);
+
+    MapRemoveFirst(&map, 5);
+    result = result && (MapTombstones(&map) == 1);
+    result = result && !MapContainsKey(&map, 5);
+
+    MapInsertR(&map, 5, 51);
+    result     = result && (MapTombstones(&map) == 0);
+    result     = result && (MapPairCount(&map) == 1);
+    int *value = MapGetFirstPtr(&map, 5);
+    result     = result && value && (*value == 51);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// map_retain_if : idx < capacity -> idx <= capacity  (1332).
+// On a never-grown map (capacity 0, states == NULL) MapRetainIf must take zero
+// iterations and return 0; the mutant dereferences the NULL states array.
+static bool test_retain_if_on_empty_map_returns_zero(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
+
+    bool result = (MapRetainIf(&map, always_retain, NULL) == 0);
+    result      = result && (MapPairCount(&map) == 0);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// map_remove_if : idx < capacity -> idx <= capacity  (1297:23 cxx_lt_to_le).
+// On an empty map (capacity 0, states == NULL) the loop never runs and returns
+// 0; the mutant dereferences states[0] through a NULL pointer.
+static bool test_remove_if_on_empty_map_returns_zero(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
+
+    size removed = MapRemoveIf(&map, always_true_predicate, NULL);
+    bool result  = (removed == 0) && (MapPairCount(&map) == 0);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 static bool test_map_remove_if(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
@@ -341,6 +413,9 @@ int main(void) {
         test_map_collision_chain_survives_deletion,
         test_map_remove_if,
         test_map_deep_copy_deinit_on_remove,
+        test_remove_then_reinsert_reclaims_tombstone,
+        test_retain_if_on_empty_map_returns_zero,
+        test_remove_if_on_empty_map_returns_zero,
     };
 
     WriteFmt("[INFO] Starting Map.Remove tests\n\n");
