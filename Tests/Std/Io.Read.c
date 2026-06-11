@@ -4,16 +4,21 @@
 #include <Misra/Std/Container/BitVec.h>
 #include <Misra/Std/Container/Int.h>
 #include <Misra/Std/Container/Float.h>
+#include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Io.h>
+#include <Misra/Std/Io/Private.h>
+#include <Misra/Std/File.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 #include <Misra/Std/Math.h>
+#include <Misra/Sys/Dir.h>
 #include <Misra/Types.h>
 
 #include "../Util/TestRunner.h"
 
 #define FLOAT_EPSILON  1e-6
 #define DOUBLE_EPSILON 1e-12
+#define F32_EPSILON    1e-4f
 
 static bool float_equals(f32 a, f32 b) {
     return F64Abs(a - b) < FLOAT_EPSILON;
@@ -21,6 +26,28 @@ static bool float_equals(f32 a, f32 b) {
 
 static bool double_equals(f64 a, f64 b) {
     return F64Abs(a - b) < DOUBLE_EPSILON;
+}
+
+static bool f32_close(f32 a, f32 b) {
+    return F64Abs((f64)a - (f64)b) < (f64)F32_EPSILON;
+}
+
+// Write `content` (len bytes) to a fresh temp file, returning the open
+// File (positioned at 0) and stashing the path in `*out_path` so the
+// caller can FileRemove + StrDeinit it afterwards.
+static File m4_make_temp(DefaultAllocator *alloc, Str *out_path, const char *content, u64 len) {
+    File f = FileOpenTemp(out_path, alloc);
+    if (!FileIsOpen(&f))
+        return f;
+    FileWrite(&f, content, len);
+    FileSeek(&f, 0, FILE_SEEK_SET);
+    return f;
+}
+
+static void m4_cleanup(File *f, Str *path) {
+    FileClose(f);
+    FileRemove(path);
+    StrDeinit(path);
 }
 
 bool test_integer_decimal_reading(void);
@@ -970,6 +997,991 @@ bool test_float_reading(void) {
     return success;
 }
 
+// ===========================================================================
+// Mutation-hardening guards moved from Io.Mutants* staging files.
+// ===========================================================================
+
+// --- from Io.Mutants1.c (str_read_fmt brace/escape grammar) ---
+
+// Escaped "{{" must consume exactly one '{' from the input and return the
+// pointer just past it. Kills: 570 ge_to_gt/ge_to_lt (rem_p>=2 gate on the
+// "{{" branch), 571 ne_to_eq (*in != '{'), 577 sub_assign (rem_p -= 2).
+static bool test_m1_escaped_open_brace(void) {
+    Zstr in  = "{rest";
+    Zstr out = str_read_fmt(
+        in,
+        "{{",
+        (TypeSpecificIO[]) {
+            {NULL, NULL, NULL}
+    },
+        0
+    );
+    // Real: matches the literal '{', returns pointer to "rest".
+    return out == in + 1;
+}
+
+// A bare "{{" against input "{" alone: real consumes the single brace and
+// returns input+1 (end of string). A mutant that skips the escaped-brace
+// branch treats '{' as a placeholder opener and fails (unmatched / NULL).
+// Reinforces 570/571/577.
+static bool test_m1_escaped_open_brace_exact(void) {
+    Zstr in  = "{";
+    Zstr out = str_read_fmt(
+        in,
+        "{{",
+        (TypeSpecificIO[]) {
+            {NULL, NULL, NULL}
+    },
+        0
+    );
+    return out == in + 1;
+}
+
+// Escaped "}}" must consume exactly one '}'. Kills: 578 ge_to_gt/ge_to_lt
+// (rem_p>=2), 578 eq_to_ne (p[1] == '}'), 579 ne_to_eq (*in != '}'),
+// 585 sub_assign (rem_p -= 2).
+static bool test_m1_escaped_close_brace(void) {
+    Zstr in  = "}rest";
+    Zstr out = str_read_fmt(
+        in,
+        "}}",
+        (TypeSpecificIO[]) {
+            {NULL, NULL, NULL}
+    },
+        0
+    );
+    return out == in + 1;
+}
+
+static bool test_m1_escaped_close_brace_exact(void) {
+    Zstr in  = "}";
+    Zstr out = str_read_fmt(
+        in,
+        "}}",
+        (TypeSpecificIO[]) {
+            {NULL, NULL, NULL}
+    },
+        0
+    );
+    return out == in + 1;
+}
+
+// --- from Io.Mutants11.c (ZstrProcessEscape) ---
+
+// --- Line 2176: `if (*s != '\\')` cxx_ne_to_eq ---
+// A valid escape starts with '\\'. Real code skips the error branch and
+// decodes; the mutant `*s == '\\'` enters the error branch and returns 0.
+static bool test_m11_simple_escape_decodes(void) {
+    Zstr p = "\\n";
+    char c = ZstrProcessEscape(&p);
+    return c == '\n';
+}
+
+// --- Lines 2186/2189/2192/2195/2198/2201/2204/2207/2210/2213/2216:
+//     result = '<X>'; each cxx_assign_const replaces the RHS char with 42. ---
+// Assert the exact decoded byte for every single-char escape so a 42 swap
+// on any one case mismatches.
+static bool test_m11_escape_n(void) {
+    Zstr p = "\\n";
+    return ZstrProcessEscape(&p) == '\n';
+}
+static bool test_m11_escape_r(void) {
+    Zstr p = "\\r";
+    return ZstrProcessEscape(&p) == '\r';
+}
+static bool test_m11_escape_t(void) {
+    Zstr p = "\\t";
+    return ZstrProcessEscape(&p) == '\t';
+}
+static bool test_m11_escape_b(void) {
+    Zstr p = "\\b";
+    return ZstrProcessEscape(&p) == '\b';
+}
+static bool test_m11_escape_f(void) {
+    Zstr p = "\\f";
+    return ZstrProcessEscape(&p) == '\f';
+}
+static bool test_m11_escape_v(void) {
+    Zstr p = "\\v";
+    return ZstrProcessEscape(&p) == '\v';
+}
+static bool test_m11_escape_a(void) {
+    Zstr p = "\\a";
+    return ZstrProcessEscape(&p) == '\a';
+}
+static bool test_m11_escape_backslash(void) {
+    Zstr p = "\\\\";
+    return ZstrProcessEscape(&p) == '\\';
+}
+static bool test_m11_escape_dquote(void) {
+    Zstr p = "\\\"";
+    return ZstrProcessEscape(&p) == '"';
+}
+static bool test_m11_escape_squote(void) {
+    Zstr p = "\\'";
+    return ZstrProcessEscape(&p) == '\'';
+}
+// case '0' -> result = '\0'; cxx_assign_const(42) at 2216 makes it '*'.
+static bool test_m11_escape_nul(void) {
+    Zstr p = "\\0";
+    return ZstrProcessEscape(&p) == '\0';
+}
+
+// --- from Io.Mutants14.c (_read_u8) ---
+
+// ---------------------------------------------------------------------------
+// 2665:14 cxx_replace_scalar_call -- the per-char `!is_valid_number_char(...)`
+// guard that terminates the digit scan. Forcing the call truthy (-> `if(!42)`
+// == `if(false)`) makes the scan NEVER break, so it swallows the trailing
+// invalid byte too. Input "42!" then collects "42!", which fails downstream
+// validation -> no advance, value untouched. Live code breaks at '!', parses
+// "42" -> 42 and advances 2 bytes.
+// ---------------------------------------------------------------------------
+static bool test_m14_scan_stops_at_invalid_char(void) {
+    Zstr z = "42!";
+    u8   v = 0;
+    StrReadFmt(z, "{}", v);
+    // Live: v == 42 and z advanced past "42" (now points at "!").
+    return v == 42 && z[0] == '!';
+}
+
+// --- from Io.Mutants18.c (read_chars_internal) ---
+
+// 1581:24 (current[0]=='\\' -> !=), 1581:46 (current[1]=='x' -> !=),
+// 1587:28 (current[2]!='\0' -> ==), 1587:50 (current[3]!='\0' -> ==),
+// 1588:25 (hex_val=... -> 42), 1588:27 (hex_byte(..) call -> 42),
+// 1590:25 (hex_val>=0 -> <0), 1591:32 (char_to_store=(u8)hex_val -> 42).
+// Real: "\x41" decodes to 0x41 ('A') and consumes all 4 input bytes.
+// Every listed mutant either skips the hex branch (stores '\' = 0x5C) or
+// substitutes 42 ('*') for the decoded byte -- all differ from 0x41.
+static bool test_m18_hex_escape_decode(void) {
+    Zstr z   = "\\x41"; // four bytes: '\', 'x', '4', '1'
+    Zstr beg = z;
+    u8   v   = 0;
+    StrReadFmt(z, "{c}", v);
+    bool ok = (v == 0x41);     // 'A'; mutants give 0x5C ('\') or 42 ('*')
+    ok      = ok && (*z == 0); // all 4 bytes consumed; mutants leave "x41"
+    (void)beg;
+    return ok;
+}
+
+// 1590:25 (hex_val>=0 -> >0, ge_to_gt). Only distinguishable at hex_val==0.
+// Real: "\x00" decodes to byte 0x00. The >0 mutant treats 0 as a failed
+// decode and salvages the literal '\' (0x5C) instead.
+static bool test_m18_hex_escape_zero_byte(void) {
+    Zstr z = "\\x00";      // '\', 'x', '0', '0'
+    u8   v = 0xAA;         // poison so a no-write is detectable too
+    StrReadFmt(z, "{c}", v);
+    bool ok = (v == 0x00); // mutant stores 0x5C ('\')
+    ok      = ok && (*z == 0);
+    return ok;
+}
+
+// 1586:17 (i32 hex_val = -1 -> 42). Reached only when the two-hex-digit
+// guard at 1587 is false, i.e. a truncated "\x" at end-of-input. Real:
+// hex_val stays -1, salvage path stores literal '\' (0x5C). Mutant:
+// hex_val starts at 42, passes hex_val>=0, stores (u8)42 ('*').
+// Also pins 1598:31 (char_to_store=(u8)*current -> 42): real stores 0x5C,
+// the 42-mutant stores '*'.
+static bool test_m18_truncated_hex_escape(void) {
+    Zstr z = "\\x";              // '\', 'x', then NUL
+    u8   v = 0;
+    StrReadFmt(z, "{c}", v);
+    bool ok = (v == 0x5C);       // '\' salvaged; mutants store 42 ('*')
+    ok      = ok && (*z == 'x'); // only the '\' consumed
+    return ok;
+}
+
+// --- from Io.Mutants21.c (_read_r32) ---
+
+// ---------------------------------------------------------------------------
+// Big-endian path, line 3602:
+//   *v = ((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | p[3];
+// Input bytes {0x12,0x34,0x56,0x78} read big-endian -> 0x12345678.
+// Kills:
+//   3602:16 assign_const  (*v <- 42 != 0x12345678),
+//   3602:29 <<24 -> >>24  (0x12>>24 == 0 -> value loses high byte),
+//   3602:49 <<16 -> >>16  (0x34>>16 == 0 -> value loses byte),
+//   3602:69 <<8  -> >>8   (0x56>>8  == 0 -> value loses byte),
+//   3602:36 | -> &        ((0x12000000 & 0x340000) == 0 -> != 0x12345678),
+//   3602:56 | -> &        ((... & 0x5600) == 0 -> != 0x12345678),
+//   3602:75 | -> &        ((... & 0x78) == 0 -> != 0x12345678).
+// Every listed mutant yields a u32 other than 0x12345678; one exact compare
+// rejects them all.
+// ---------------------------------------------------------------------------
+static bool test_m21_read_r32_big_endian_exact(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Buf              b     = BufInit(&alloc);
+    bool             ok    = true;
+
+    const u8 bytes[4] = {0x12, 0x34, 0x56, 0x78};
+    ok                = ok && BufPushBytes(&b, bytes, 4);
+
+    BufIter it    = BufIterFromBuf(&b);
+    u32     v32   = 0;
+    bool    rd_ok = BufReadFmt(&it, "{>4r}", v32);
+    ok            = ok && rd_ok && (v32 == 0x12345678u);
+
+    BufDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// ---------------------------------------------------------------------------
+// Little-endian path, line 3605:
+//   *v = ((u32)p[3] << 24) | ((u32)p[2] << 16) | ((u32)p[1] << 8) | p[0];
+// Input bytes {0x78,0x56,0x34,0x12} read little-endian -> 0x12345678
+// (p[3]=0x12<<24, p[2]=0x34<<16, p[1]=0x56<<8, p[0]=0x78).
+// Kills:
+//   3605:16 assign_const  (*v <- 42 != 0x12345678),
+//   3605:29 <<24 -> >>24  (p[3]=0x12>>24 == 0 -> loses high byte),
+//   3605:49 <<16 -> >>16  (p[2]=0x34>>16 == 0 -> loses byte),
+//   3605:69 <<8  -> >>8   (p[1]=0x56>>8  == 0 -> loses byte),
+//   3605:36 | -> &        (disjoint byte lanes -> & == 0 -> != 0x12345678),
+//   3605:56 | -> &        (same),
+//   3605:75 | -> &        (same).
+// One exact compare rejects them all.
+// ---------------------------------------------------------------------------
+static bool test_m21_read_r32_little_endian_exact(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Buf              b     = BufInit(&alloc);
+    bool             ok    = true;
+
+    const u8 bytes[4] = {0x78, 0x56, 0x34, 0x12};
+    ok                = ok && BufPushBytes(&b, bytes, 4);
+
+    BufIter it    = BufIterFromBuf(&b);
+    u32     v32   = 0;
+    bool    rd_ok = BufReadFmt(&it, "{<4r}", v32);
+    ok            = ok && rd_ok && (v32 == 0x12345678u);
+
+    BufDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// ---------------------------------------------------------------------------
+// Cross-check: the SAME big-endian input bytes read little-endian must give the
+// byte-reversed value, and vice-versa. This pins the per-byte lane positions so
+// a shift/or mutant cannot be masked by symmetry between the two branches.
+// {0x12,0x34,0x56,0x78} read little-endian -> 0x78563412.
+// Reinforces the 3605 shift mutants from the opposite byte pattern.
+// ---------------------------------------------------------------------------
+static bool test_m21_read_r32_little_endian_reversed(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Buf              b     = BufInit(&alloc);
+    bool             ok    = true;
+
+    const u8 bytes[4] = {0x12, 0x34, 0x56, 0x78};
+    ok                = ok && BufPushBytes(&b, bytes, 4);
+
+    BufIter it    = BufIterFromBuf(&b);
+    u32     v32   = 0;
+    bool    rd_ok = BufReadFmt(&it, "{<4r}", v32);
+    ok            = ok && rd_ok && (v32 == 0x78563412u);
+
+    BufDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// ---------------------------------------------------------------------------
+// Native-endian resolution, lines 3594-3595:
+//   if (fmt_info->endian == ENDIAN_NATIVE) {                 // 3594
+//       fmt_info->endian = IS_LITTLE_ENDIAN() ? ENDIAN_LITTLE : ENDIAN_BIG; // 3595
+//   }
+// A `{^4r}` directive selects ENDIAN_NATIVE, which MUST be resolved to the
+// host's concrete endianness before the switch; otherwise the switch hits its
+// `default:` arm -> LOG_FATAL (process abort).
+//
+// Kills:
+//   3594:26 == -> !=  (native spec no longer resolves -> default -> abort),
+//   3595:26 assign_const (endian <- 42 -> not BIG/LITTLE -> default -> abort).
+//
+// A native-endian raw round-trip (write `^4r`, read `^4r`) succeeds and yields
+// the original value on real code; under either mutant the READ aborts. The
+// round-trip is host-endianness agnostic by construction.
+// ---------------------------------------------------------------------------
+static bool test_m21_read_r32_native_resolves_roundtrip(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Buf              b     = BufInit(&alloc);
+    bool             ok    = true;
+
+    ok = ok && BufWriteFmt(&b, "{^4r}", (u32)0xAABBCCDDu);
+    ok = ok && (BufLength(&b) == 4);
+
+    BufIter it    = BufIterFromBuf(&b);
+    u32     v32   = 0;
+    bool    rd_ok = BufReadFmt(&it, "{^4r}", v32);
+    ok            = ok && rd_ok && (v32 == 0xAABBCCDDu);
+
+    BufDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// --- from Io.Mutants22.c (_read_r64) ---
+
+// ---------------------------------------------------------------------------
+// Line 3632/3633: the ENDIAN_LITTLE reassembly
+//   *v = ((u64)p[7] << 56) | ((u64)p[6] << 48) | ((u64)p[5] << 40)
+//      | ((u64)p[4] << 32) | ((u64)p[3] << 24) | ((u64)p[2] << 16)
+//      | ((u64)p[1] << 8)  | (u64)p[0];
+// The LE write (_write_r64) lays the bytes out p[0]=LSB ... p[7]=MSB, so a
+// {<8r} write-then-read of 0x0102030405060708 (all eight bytes distinct and
+// non-zero) round-trips to exactly that value on real code.
+//
+// Kills every survivor on those two lines:
+//   3632:29/49/69/89/109 + 3633:29/49 cxx_lshift_to_rshift -- turning any
+//     `byte << k` into `byte >> k` zeroes/shrinks that byte's contribution
+//     (e.g. p[7]>>56 == 0), so the reconstructed value loses bits 8..63 of
+//     the corresponding byte and no longer equals 0x0102030405060708.
+//   3632:36/56/76/96/116 + 3633:36/55 cxx_or_to_and -- replacing a `|` with
+//     `&` ANDs a high partial sum against a single low byte/term, collapsing
+//     the result toward 0 (e.g. ...&p[0] keeps only bits set in 0x08), again
+//     != 0x0102030405060708.
+// A single exact-value assertion rejects all ten mutant reconstructions.
+// ---------------------------------------------------------------------------
+static bool test_m22_little_endian_read_roundtrip_u64(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Buf              b     = BufInit(&alloc);
+    bool             ok    = true;
+
+    u64 expected = 0x0102030405060708ULL;
+
+    ok = ok && BufWriteFmt(&b, "{<8r}", expected);
+    ok = ok && (BufLength(&b) == 8);
+
+    BufIter it    = BufIterFromBuf(&b);
+    u64     v64   = 0;
+    bool    rd_ok = BufReadFmt(&it, "{<8r}", v64);
+    ok            = ok && rd_ok && (v64 == expected);
+
+    BufDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// ---------------------------------------------------------------------------
+// A second little-endian value whose low byte differs from the high byte and
+// whose middle bytes carry weight, to defend the LE reassembly against any
+// "happened to match" coincidence and to pin the byte ORDER (vs the big-endian
+// arm). 0x1122334455667788 written LE, read LE, must round-trip exactly; a
+// big-endian misread would reconstruct 0x8877665544332211.
+// ---------------------------------------------------------------------------
+static bool test_m22_little_endian_read_distinct_bytes(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Buf              b     = BufInit(&alloc);
+    bool             ok    = true;
+
+    u64 expected = 0x1122334455667788ULL;
+
+    ok = ok && BufWriteFmt(&b, "{<8r}", expected);
+    ok = ok && (BufLength(&b) == 8);
+
+    BufIter it    = BufIterFromBuf(&b);
+    u64     v64   = 0;
+    bool    rd_ok = BufReadFmt(&it, "{<8r}", v64);
+    ok            = ok && rd_ok && (v64 == expected);
+
+    BufDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// ---------------------------------------------------------------------------
+// Line 3621: native-endian resolution in _read_r64
+//   if (fmt_info->endian == ENDIAN_NATIVE)
+//       fmt_info->endian = IS_LITTLE_ENDIAN() ? ENDIAN_LITTLE : ENDIAN_BIG;
+// The `^` prefix selects ENDIAN_NATIVE on the raw `r` path. Mutating the
+// assigned value to 42 (cxx_assign_const at 3621:26) leaves endian neither
+// LITTLE, BIG, nor NATIVE, so the switch below falls into the default arm ->
+// LOG_FATAL (process abort). A native-endian {^8r} raw u64 round-trip
+// succeeds and round-trips on real code; under the mutant the read aborts.
+// ---------------------------------------------------------------------------
+static bool test_m22_native_endian_read_roundtrip_u64(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Buf              b     = BufInit(&alloc);
+    bool             ok    = true;
+
+    u64 expected = 0x0102030405060708ULL;
+
+    ok = ok && BufWriteFmt(&b, "{^8r}", expected);
+    ok = ok && (BufLength(&b) == 8);
+
+    BufIter it    = BufIterFromBuf(&b);
+    u64     v64   = 0;
+    bool    rd_ok = BufReadFmt(&it, "{^8r}", v64);
+    ok            = ok && rd_ok && (v64 == expected);
+
+    BufDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// --- from Io.Mutants3.c (str_append_fmt) ---
+
+// ---------------------------------------------------------------------------
+// `}}` escape index arithmetic: `i + 1` (line 456). The cxx_add_to_sub
+// mutant turns the lookahead into `i - 1`, which underflows at i == 0 so
+// the escape branch is skipped and "}}" is treated as an unmatched brace
+// (returns false). Real code emits a single '}'.
+// ---------------------------------------------------------------------------
+static bool test_m3_double_close_brace_escape(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+
+    bool ok = StrAppendFmt(&out, "}}");
+    ok      = ok && (ZstrCompare(StrBegin(&out), "}") == 0);
+
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// --- from Io.Mutants31.c (ZstrHexDigitValue) ---
+
+// Lowercase 'a'..'f' map to 10..15. Kills 1246:19 add_to_sub
+// (10 + (c-'a') -> 10 - (c-'a')): 'b' real=11 mutant=9, 'f' real=15 mutant=5.
+static bool test_m31_hexdigit_lowercase(void) {
+    return ZstrHexDigitValue('a') == 10 && ZstrHexDigitValue('b') == 11 && ZstrHexDigitValue('f') == 15;
+}
+
+// Uppercase 'A' must return 10. Kills 1248:11 ge_to_gt / ge_to_lt
+// (c >= 'A'): with '>' or '<', 'A' falls through to the -1 sentinel.
+// Also kills 1248:23 le_to_gt (c <= 'F' -> c > 'F'): 'A' then yields -1.
+// Also kills 1249:24 sub_to_add ((c-'A') -> (c+'A')): 'A' would give 140.
+static bool test_m31_hexdigit_upper_A(void) {
+    return ZstrHexDigitValue('A') == 10;
+}
+
+// Uppercase 'F' must return 15. Kills 1248:23 le_to_lt (c <= 'F' -> c < 'F'):
+// 'F' would fall through to -1. Kills 1249:19 add_to_sub
+// (10 + (c-'A') -> 10 - (c-'A')): 'F' real=15 mutant=5.
+static bool test_m31_hexdigit_upper_F(void) {
+    return ZstrHexDigitValue('F') == 15;
+}
+
+// Sanity: digits and an invalid char, to keep the contract honest.
+static bool test_m31_hexdigit_misc(void) {
+    return ZstrHexDigitValue('0') == 0 && ZstrHexDigitValue('9') == 9 && ZstrHexDigitValue('g') == -1 &&
+           ZstrHexDigitValue('@') == -1;
+}
+
+// --- from Io.Mutants32.c (_read_ZstrAlloc / _read_r16) ---
+
+// Io.c:2884:34 cxx_assign_const AND Io.c:2884:41 cxx_replace_scalar_call
+// -- `default_fmt.max_read_len = (u32)ZstrLen(i);` taken when a
+// non-NULL fmt arrives with max_read_len == 0. Both mutants pin the
+// cap to 42, truncating a >42-char field. Real reads the full 50
+// chars; mutant stops at 42. Caller observes the truncated string.
+static bool test_m32_zstralloc_zero_maxlen_reads_full(void) {
+    DefaultAllocator alloc      = DefaultAllocatorInit();
+    Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
+
+    Zstr input = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmn"; // 50 chars, no spaces/backslashes
+
+    char     *out = NULL;
+    ZstrIOArg arg = {.value = (void *)&out, .allocator = alloc_base};
+    FmtInfo   fmt = {0}; // max_read_len == 0 -> hits the !max_read_len branch
+
+    Zstr next = _read_ZstrAlloc(input, &fmt, &arg);
+    bool ok   = (next != NULL) && out && (ZstrCompare(out, input) == 0);
+
+    if (out) {
+        zstr_deinit(&out, alloc_base);
+    }
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Io.c:2880:62 cxx_replace_scalar_call -- the NULL-fmt default
+// `.max_read_len = (u32)ZstrLen(i)`. Reached only when fmt_info is
+// NULL. The mutant pins the cap to 42, truncating the 50-char field;
+// real code reads the whole string.
+static bool test_m32_zstralloc_null_fmt_reads_full(void) {
+    DefaultAllocator alloc      = DefaultAllocatorInit();
+    Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
+
+    Zstr input = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmn"; // 50 chars
+
+    char     *out = NULL;
+    ZstrIOArg arg = {.value = (void *)&out, .allocator = alloc_base};
+
+    Zstr next = _read_ZstrAlloc(input, NULL, &arg);
+    bool ok   = (next != NULL) && out && (ZstrCompare(out, input) == 0);
+
+    if (out) {
+        zstr_deinit(&out, alloc_base);
+    }
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Io.c:3576:16 cxx_assign_const (`*v = 42`),
+// Io.c:3576:29 cxx_lshift_to_rshift (`p[0] << 8` -> `>> 8`),
+// Io.c:3576:35 cxx_or_to_and (`... | p[1]` -> `... & p[1]`),
+// Io.c:3566:26 cxx_eq_to_ne (`endian == ENDIAN_NATIVE`).
+// `{>2r}` reads big-endian: bytes 0x12,0x34 -> 0x1234. All four
+// mutants change the result:
+//   *v=42 -> 42; >>8 -> 0x0034; &p[1] -> 0x1200&0x34 == 0;
+//   eq->ne re-resolves the explicit BIG endian to host order
+//   (little -> 0x3412 on this platform).
+static bool test_m32_read_r16_big_endian(void) {
+    Zstr input = "\x12\x34";       // big-endian 0x1234
+    Zstr start = input;
+    u16  v     = 0;
+    StrReadFmt(input, "{>2r}", v); // advances `input` on success
+    return (input != start) && (v == 0x1234);
+}
+
+// Io.c:3567:26 cxx_assign_const -- the NATIVE-resolution assignment
+// `fmt_info->endian = IS_LITTLE_ENDIAN() ? LITTLE : BIG`. Reached only
+// when endian == ENDIAN_NATIVE (`{^2r}`). Real resolves to a concrete
+// host order and reads a valid value; the `= 42` mutant stores an
+// invalid endian -> the switch hits its default -> LOG_FATAL. Real
+// code succeeds and yields the host-order interpretation of 0x12,0x34.
+static bool test_m32_read_r16_native_resolves(void) {
+    Zstr input    = "\x12\x34";
+    Zstr start    = input;
+    u16  v        = 0;
+    u16  expected = IS_LITTLE_ENDIAN() ? (u16)0x3412 : (u16)0x1234;
+    StrReadFmt(input, "{^2r}", v); // real: resolves NATIVE; mutant: LOG_FATAL
+    return (input != start) && (v == expected);
+}
+
+// --- from Io.Mutants33.c ---
+
+// `{c}` on an integer renders each non-printable byte as `\xNN`. Byte 0x1A has
+// low nibble 10 (kills line 1192 `low < 10` -> `<=`, which would emit ':' for a
+// value of 10) and byte 0xE0 has high nibble 14 (kills line 1191 `'a' + (hiw -
+// 10)` -> `'a' - (hiw - 10)`, which would emit ']').
+static bool test_m33_char_hex_escape_nibbles(void) {
+    DefaultAllocator alloc  = DefaultAllocatorInit();
+    Str              output = StrInit(&alloc);
+
+    u16 v = (u16)0x1AE0; // big-endian bytes: 0x1A, 0xE0
+
+    StrAppendFmt(&output, "{c}", v);
+
+    bool ok = (ZstrCompare(StrBegin(&output), "\\x1a\\xe0") == 0);
+
+    StrDeinit(&output);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Line 2353 (cxx_eq_to_ne): `c == '+'` -> `c != '+'`. With `!=`, a leading '+'
+// (which is NOT '+' under the negated test combined with the '-' clause)
+// becomes rejected, so "+5" no longer parses as a number. Real code accepts a
+// leading '+'.
+static bool test_m33_read_leading_plus(void) {
+    i32  v = 0;
+    Zstr z = "+5";
+    StrReadFmt(z, "{}", v);
+    return v == 5;
+}
+
+// Line 3557 (cxx_assign_const): `*v = (u8)*i` replaced by `*v = 42` makes every
+// raw 1-byte read yield 42 regardless of input. Round-trip a non-42 byte.
+static bool test_m33_read_r8_value(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Buf              b     = BufInit(&alloc);
+
+    bool ok = BufAppendFmt(&b, "{<1r}", (u8)0xAB);
+
+    BufIter it  = BufIterFromBuf(&b);
+    u8      out = 0;
+    ok          = ok && BufReadFmt(&it, "{<1r}", out) && (out == 0xAB);
+
+    BufDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// --- from Io.Mutants34.c (_read_f32 validity gate) ---
+
+// ---------------------------------------------------------------------------
+// 3434:10 _read_f32 -- validity gate `if (!is_valid_numeric_string(&temp,true))`
+//   mutated to the literal value 42 (call still runs; `!42` is false so the
+//   rejection branch is skipped -> input treated as always valid).
+// Input "1f": the char-scan accepts it (hex letters pass is_valid_number_char),
+// but is_valid_numeric_string rejects it (a bare 'f' with no 0x prefix).
+// Real => reject, *v untouched (stays at its sentinel). Mutant => skips the
+// gate and feeds "1f" to StrToF64, producing a different *v / advancing past it.
+// We pin the rejection contract: the destination keeps its pre-read value.
+// ---------------------------------------------------------------------------
+static bool test_if_3434_f32_invalid_numeric_rejected(void) {
+    bool ok = true;
+
+    f32  v = 7.5f;
+    Zstr z = "1f";
+    StrReadFmt(z, "{}", v);
+    // Real rejects "1f" -> v stays 7.5. Mutant bypasses the gate.
+    ok = ok && (v == 7.5f);
+
+    return ok;
+}
+
+// --- from Io.Mutants4.c (f_read_fmt / FReadFmt) ---
+
+// ---------------------------------------------------------------------------
+// 1121 (end_pos init / FileSeek(END) call) and 1131:gt_to_le and
+// 1134:lt_to_ge.
+// Place the parse target BEYOND byte 42 of the file. Real code computes
+// file_len from the true end (well past 42) and reads the whole region,
+// so the number is found. If end_pos is forced to 42, file_len caps the
+// read at 42 bytes (all padding) and the number is never reached ->
+// value stays at init. Also, `if (file_len > 0)` swapped to `<= 0`
+// (1131 gt_to_le) skips the read for a non-empty file, and `if (got<0)`
+// swapped to `>= 0` (1134 lt_to_ge) takes the early-return error path on
+// a good read -- both leave the value unset. Asserting the value parsed
+// kills all three.
+// ---------------------------------------------------------------------------
+static bool test_m4_end_pos_sizes_full_read(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              path  = StrInit(&alloc);
+
+    // 50 leading spaces, then the number well past byte index 42.
+    char content[64];
+    for (u64 i = 0; i < 50; ++i)
+        content[i] = ' ';
+    content[50] = '9';
+    content[51] = '1';
+
+    File f  = m4_make_temp(&alloc, &path, content, 52);
+    bool ok = FileIsOpen(&f);
+
+    i32 v = -1;
+    FReadFmt(&f, "{}", v);
+    ok = ok && (v == 91);
+
+    m4_cleanup(&f, &path);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// ---------------------------------------------------------------------------
+// 1131:gt_to_ge corner / 1112-style emptiness: a zero-length file must
+// leave the destination untouched and the position at 0 (no parse, no
+// advance). Guards that the empty-buffer `if (StrLen(&buffer))` gate
+// and the file_len gate stay coherent on the empty path.
+// ---------------------------------------------------------------------------
+static bool test_m4_empty_file_no_parse(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              path  = StrInit(&alloc);
+    File             f     = m4_make_temp(&alloc, &path, "", 0);
+    bool             ok    = FileIsOpen(&f);
+
+    i32 v = 1234;
+    FReadFmt(&f, "{}", v);
+    ok = ok && (v == 1234);         // untouched
+    ok = ok && (FileTell(&f) == 0); // no advance
+
+    m4_cleanup(&f, &path);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// --- from Io.Mutants5.c (_read_f32) ---
+
+// Companion: a non-empty char-flag read overwrites the low byte, proving
+// the {c} path actually populates `temp` (and locks its value).
+static bool test_m5_char_flag_reads_ordinal(void) {
+    f32  v = 0.0f;
+    Zstr z = "A";
+    StrReadFmt(z, "{c}", v); // 'A' == 0x41 == 65
+    return f32_close(v, 65.0f);
+}
+
+// 3422:14 cxx_replace_scalar_call -- `!is_valid_number_char(...)` break.
+// Forcing the call value truthy (mutant) makes `!42` == false, so the
+// scanner never breaks on the invalid 'g' and swallows the whole "12g3"
+// token (which then fails validation, leaving `*v` untouched). Real code
+// breaks at 'g', parses the "12" prefix into 12.0.
+static bool test_m5_invalid_char_breaks_scan(void) {
+    f32  v = 0.0f;
+    Zstr z = "12g3";
+    StrReadFmt(z, "{}", v);
+    return f32_close(v, 12.0f);
+}
+
+// --- from Io.Mutants7.c (_read_Str escape branches) ---
+
+// Decoded escape value must equal the real escaped character, and reading
+// must continue past the escape to the following bytes.
+//
+// Kills (unquoted branch):
+//   2309:22 cxx_init_const       -> c forced to 42 ('*') instead of 'A'
+//   2309:29 cxx_replace_scalar   -> ZstrProcessEscape() value/side-effect lost
+//   2316:24 cxx_ge_to_lt         -> r collapses to 0 after escape, "BC" dropped
+static bool test_m7_unquoted_escape_value_and_continue(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str  s = StrInit(&alloc);
+    Zstr z = "\\x41BC"; // backslash, x, 4, 1, B, C  ->  'A', 'B', 'C'
+    StrReadFmt(z, "{}", s);
+
+    Str  expected = StrInitFromZstr("ABC", &alloc);
+    bool ok       = (StrLen(&s) == 3) && (StrCmp(&s, &expected) == 0);
+
+    StrDeinit(&expected);
+    StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// A VALID escape (decoded value != 0) must NOT take the failure path. The
+// `if (c == 0)` guard distinguishes a valid escape from a decode failure.
+//
+// Kills (unquoted branch):
+//   2310:23 cxx_eq_to_ne -> valid escape misread as failure -> Str emptied
+static bool test_m7_unquoted_escape_valid_not_failure(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str  s = StrInit(&alloc);
+    Zstr z = "\\x41"; // -> 'A'
+    StrReadFmt(z, "{}", s);
+
+    Str  expected = StrInitFromZstr("A", &alloc);
+    bool ok       = (StrLen(&s) == 1) && (StrCmp(&s, &expected) == 0);
+
+    StrDeinit(&expected);
+    StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// force-case branch on a decoded escape char: `{A}` must uppercase the
+// decoded 'a' to 'A' (not replace it with a constant).
+//
+// Kills (unquoted branch):
+//   2319:23 cxx_assign_const -> c forced to 42 ('*') instead of TO_UPPER('a')
+static bool test_m7_unquoted_escape_force_case(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str  s = StrInit(&alloc);
+    Zstr z = "\\x61";                             // -> 'a'
+    StrReadFmt(z, "{A}", s);
+
+    Str  expected = StrInitFromZstr("A", &alloc); // uppercased
+    bool ok       = (StrLen(&s) == 1) && (StrCmp(&s, &expected) == 0);
+
+    StrDeinit(&expected);
+    StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Decoded escape value inside a quoted field must equal the real escaped
+// character and reading continues to the closing quote.
+//
+// Kills (quoted branch):
+//   2270:22 cxx_init_const       -> c forced to 42 ('*') instead of 'A'
+//   2270:29 cxx_replace_scalar   -> ZstrProcessEscape() value/side-effect lost
+//   2280:24 cxx_ge_to_lt         -> r collapses to 0 after escape, "BC" dropped
+static bool test_m7_quoted_escape_value_and_continue(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str s = StrInit(&alloc);
+    // "\x41BC" inside double quotes -> decoded "ABC"
+    Zstr z = "\"\\x41BC\"";
+    StrReadFmt(z, "{s}", s);
+
+    Str  expected = StrInitFromZstr("ABC", &alloc);
+    bool ok       = (StrLen(&s) == 3) && (StrCmp(&s, &expected) == 0);
+
+    StrDeinit(&expected);
+    StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// A VALID escape inside a quoted field must not take the failure path.
+//
+// Kills (quoted branch):
+//   2271:23 cxx_eq_to_ne -> valid escape misread as failure -> Str emptied
+static bool test_m7_quoted_escape_valid_not_failure(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str  s = StrInit(&alloc);
+    Zstr z = "\"\\x41\""; // quoted -> 'A'
+    StrReadFmt(z, "{s}", s);
+
+    Str  expected = StrInitFromZstr("A", &alloc);
+    bool ok       = (StrLen(&s) == 1) && (StrCmp(&s, &expected) == 0);
+
+    StrDeinit(&expected);
+    StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// force-case branch on a decoded escape char inside a quoted field.
+//
+// Kills (quoted branch):
+//   2283:23 cxx_assign_const -> c forced to 42 ('*') instead of TO_UPPER('a')
+static bool test_m7_quoted_escape_force_case(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str  s = StrInit(&alloc);
+    Zstr z = "\"\\x61\"";                         // quoted -> 'a'
+    StrReadFmt(z, "{As}", s);
+
+    Str  expected = StrInitFromZstr("A", &alloc); // uppercased
+    bool ok       = (StrLen(&s) == 1) && (StrCmp(&s, &expected) == 0);
+
+    StrDeinit(&expected);
+    StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// --- from Io.Mutants9.c (write_char_internal escape nibbles) ---
+
+// Both nibbles in the digit branch (0..9), high nibble NON-zero so the
+// `'0' + hiw` add (L1229 col39) is distinguishable from `'0' - hiw`.
+// 0x12 -> hi=1 ('1'), lo=2 ('2').  Pins:
+//   L1228 init-const (hiw=42 -> wrong c1), rshift->lshift
+//         ((0x12<<4)&0xf == 0 -> c1='0'), and->or (1|0xf=15 -> c1='f')
+//   L1227 init-const (low=42 -> wrong c2), and->or (0x12|0xf=31 -> c2='f')
+//   L1229/1230 col28 `<`->`>=` (real hiw=1<10 digit; mutated forces the
+//         letter branch 'a'+(1-10) -> garbage), col39 add->sub.
+static bool test_m9_escape_both_digit_nibbles(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    bool             ok    = true;
+
+    Zstr b = "\x12";
+    StrAppendFmt(&out, "{c}", b);
+    ok = ok && (ZstrCompare(StrBegin(&out), "\\x12") == 0);
+
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// High-nibble digit branch with a different non-zero value, low-nibble zero.
+// 0x90 -> hi=9 ('9'), lo=0 ('0').  Reinforces L1229 col39 `'0'+hiw`
+// (add->sub gives '0'-9, a control char != '9') and the rshift mutation
+// ((0x90<<4)&0xf == 0 -> c1='0' != '9').
+static bool test_m9_escape_high_digit_nonzero(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    bool             ok    = true;
+
+    Zstr b = "\x90";
+    StrAppendFmt(&out, "{c}", b);
+    ok = ok && (ZstrCompare(StrBegin(&out), "\\x90") == 0);
+
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Both nibbles in the lowercase LETTER branch at the `<10` boundary.
+// 0xab -> hi=10 ('a'), lo=11 ('b'), spec {c} so is_caps=false.  Pins:
+//   L1229/1230 col28 `<`->`<=` : real (10<10)==false picks the letter
+//        branch ('a'); mutated (10<=10)==true picks '0'+10 == ':' != 'a'.
+//   L1229 col87 / L1230 col87 sub->add: `hiw-10` -> `hiw+10` == 20,
+//        'a'+20 == 'u' != 'a'.
+//   is_caps selection: a caps mutation here would emit 'A'/'B'.
+static bool test_m9_escape_letter_boundary_lowercase(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    bool             ok    = true;
+
+    Zstr b = "\xab";
+    StrAppendFmt(&out, "{c}", b);
+    ok = ok && (ZstrCompare(StrBegin(&out), "\\xab") == 0);
+
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Both nibbles in the lowercase LETTER branch ABOVE the boundary so the
+// `nibble - 10` offset is non-zero and the leading-letter add matters.
+// 0xcd -> hi=12 ('a'+2='c'), lo=13 ('a'+3='d'), spec {c}.  Pins:
+//   L1229 col80 `'a'+(hiw-10)` add->sub: 'a'-2 == 0x5f ('_') != 'c'.
+//   L1230 col80 add->sub on the low nibble: 'a'-3 != 'd'.
+//   col87 sub->add reinforced (hiw+10=22 -> 'a'+22='w' != 'c').
+static bool test_m9_escape_letter_above_boundary_lowercase(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    bool             ok    = true;
+
+    Zstr b = "\xcd";
+    StrAppendFmt(&out, "{c}", b);
+    ok = ok && (ZstrCompare(StrBegin(&out), "\\xcd") == 0);
+
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Uppercase LETTER branch at the `<10` boundary via the caps spec {A}.
+// 0xAB with {A} -> is_caps=true -> hi=10 ('A'), lo=11 ('B').  Pins:
+//   L1229 col68 / L1230 col68 sub->add on the caps branch:
+//        `hiw-10` -> `hiw+10` == 20, 'A'+20 == 'U' != 'A'.
+//   Confirms is_caps actually selects the 'A'-based branch (col61/80
+//        differ in case): a caps mutation would emit lowercase.
+static bool test_m9_escape_letter_boundary_uppercase(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    bool             ok    = true;
+
+    Zstr b = "\xab";
+    StrAppendFmt(&out, "{A}", b);
+    ok = ok && (ZstrCompare(StrBegin(&out), "\\xAB") == 0);
+
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Uppercase LETTER branch above the boundary so `nibble - 10` is non-zero.
+// 0xCD with {A} -> hi=12 ('A'+2='C'), lo=13 ('A'+3='D').  Pins:
+//   L1229 col61 `'A'+(hiw-10)` add->sub: 'A'-2 == 0x3f ('?') != 'C'.
+//   L1230 col61 add->sub on the low nibble: 'A'-3 != 'D'.
+static bool test_m9_escape_letter_above_boundary_uppercase(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    bool             ok    = true;
+
+    Zstr b = "\xcd";
+    StrAppendFmt(&out, "{A}", b);
+    ok = ok && (ZstrCompare(StrBegin(&out), "\\xCD") == 0);
+
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Mixed nibbles: high in the digit branch, low in the letter branch (and
+// vice-versa) to ensure the two ternaries are independently exercised in a
+// single byte and that the low-nibble `>>`/`&` isolation is correct.
+// 0x1b -> hi=1 ('1'), lo=11 ('b') with {c};
+// 0xb1 -> hi=11 ('b'), lo=1 ('1') with {c}.
+static bool test_m9_escape_mixed_nibbles(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    bool             ok    = true;
+
+    Zstr lo_letter = "\x1b";
+    StrAppendFmt(&out, "{c}", lo_letter);
+    ok = ok && (ZstrCompare(StrBegin(&out), "\\x1b") == 0);
+    StrClear(&out);
+
+    Zstr hi_letter = "\xb1";
+    StrAppendFmt(&out, "{c}", hi_letter);
+    ok = ok && (ZstrCompare(StrBegin(&out), "\\xb1") == 0);
+
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting format reader tests\n\n");
 
@@ -987,7 +1999,64 @@ int main(void) {
         test_string_case_conversion_reading,
         test_bitvec_reading,
         test_int_reading,
-        test_float_reading
+        test_float_reading,
+        test_m1_escaped_open_brace,
+        test_m1_escaped_open_brace_exact,
+        test_m1_escaped_close_brace,
+        test_m1_escaped_close_brace_exact,
+        test_m11_simple_escape_decodes,
+        test_m11_escape_n,
+        test_m11_escape_r,
+        test_m11_escape_t,
+        test_m11_escape_b,
+        test_m11_escape_f,
+        test_m11_escape_v,
+        test_m11_escape_a,
+        test_m11_escape_backslash,
+        test_m11_escape_dquote,
+        test_m11_escape_squote,
+        test_m11_escape_nul,
+        test_m14_scan_stops_at_invalid_char,
+        test_m18_hex_escape_decode,
+        test_m18_hex_escape_zero_byte,
+        test_m18_truncated_hex_escape,
+        test_m21_read_r32_big_endian_exact,
+        test_m21_read_r32_little_endian_exact,
+        test_m21_read_r32_little_endian_reversed,
+        test_m21_read_r32_native_resolves_roundtrip,
+        test_m22_little_endian_read_roundtrip_u64,
+        test_m22_little_endian_read_distinct_bytes,
+        test_m22_native_endian_read_roundtrip_u64,
+        test_m3_double_close_brace_escape,
+        test_m31_hexdigit_lowercase,
+        test_m31_hexdigit_upper_A,
+        test_m31_hexdigit_upper_F,
+        test_m31_hexdigit_misc,
+        test_m32_zstralloc_zero_maxlen_reads_full,
+        test_m32_zstralloc_null_fmt_reads_full,
+        test_m32_read_r16_big_endian,
+        test_m32_read_r16_native_resolves,
+        test_m33_char_hex_escape_nibbles,
+        test_m33_read_leading_plus,
+        test_m33_read_r8_value,
+        test_if_3434_f32_invalid_numeric_rejected,
+        test_m4_end_pos_sizes_full_read,
+        test_m4_empty_file_no_parse,
+        test_m5_char_flag_reads_ordinal,
+        test_m5_invalid_char_breaks_scan,
+        test_m7_unquoted_escape_value_and_continue,
+        test_m7_unquoted_escape_valid_not_failure,
+        test_m7_unquoted_escape_force_case,
+        test_m7_quoted_escape_value_and_continue,
+        test_m7_quoted_escape_valid_not_failure,
+        test_m7_quoted_escape_force_case,
+        test_m9_escape_both_digit_nibbles,
+        test_m9_escape_high_digit_nonzero,
+        test_m9_escape_letter_boundary_lowercase,
+        test_m9_escape_letter_above_boundary_lowercase,
+        test_m9_escape_letter_boundary_uppercase,
+        test_m9_escape_letter_above_boundary_uppercase,
+        test_m9_escape_mixed_nibbles
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);
