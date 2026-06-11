@@ -41,6 +41,43 @@ static bool list_matches(GenericList *list, const int *expected, size count) {
     return true;
 }
 
+// A controllable deep-copy hook: every call is counted, and the call whose
+// index equals `s_copy_fail_at` returns false (simulating a copy that fails
+// partway through a multi-element insert). This drives `insert_into_list`
+// into its failure path so the rollback logic in `push_arr_list` /
+// `merge_list` is actually exercised -- the DefaultAllocator never fails an
+// allocation, so a failing copy hook is the only way to reach those branches.
+static u64 s_copy_calls   = 0;
+static u64 s_copy_fail_at = UINT64_MAX;
+
+static bool failing_copy_init(void *dst, const void *src, const Allocator *alloc) {
+    (void)alloc;
+    u64 n = s_copy_calls++;
+    if (n == s_copy_fail_at) {
+        return false;
+    }
+    *(int *)dst = *(const int *)src;
+    return true;
+}
+
+static void plain_copy_deinit(void *data, const Allocator *alloc) {
+    (void)alloc;
+    *(int *)data = 0;
+}
+
+static bool list_holds(GenericList *list, const int *expected, size count) {
+    if (ListLen(list) != count) {
+        return false;
+    }
+    for (size i = 0; i < count; i++) {
+        int *value_ptr = item_ptr_at_list(list, sizeof(int), i);
+        if (!value_ptr || (*value_ptr != expected[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool test_list_insert_and_push_aliases(void) {
     WriteFmt("Testing List insert and push aliases\n");
 
@@ -250,6 +287,73 @@ static bool test_list_merge_edge_cases(void) {
     return result;
 }
 
+// list_insert_range_r (the body of ListPushArrR) must actually append the
+// source range. cxx_replace_scalar_call at 586 replaces the push_arr_list call
+// with the constant 42 (truthy) AND skips the call, so the return value still
+// reads as success while no nodes are inserted. We assert both the length grew
+// and the values landed.
+static bool test_push_arr_r_actually_inserts(void) {
+    WriteFmt("Testing ListPushArrR actually appends the source range\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    typedef List(int) IntList;
+    IntList list  = ListInit(&alloc);
+    int     arr[] = {7, 8, 9};
+
+    bool ok     = ListPushArrR(&list, arr, 3);
+    bool result = ok && (ListLen(&list) == 3);
+    result      = result && (ListAt(&list, 0) == 7);
+    result      = result && (ListAt(&list, 1) == 8);
+    result      = result && (ListAt(&list, 2) == 9);
+
+    ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// push_arr_list rollback contract: when a multi-element push fails partway
+// through, every node inserted so far must be removed so the list returns to
+// its exact pre-call length and contents, and the call returns false.
+//
+// Kills, on a list pre-loaded with {1,2,3} pushing {7,8,9} that fails on the
+// 2nd array element (one node already linked):
+//   281:16 cxx_assign_const  old_length=42 -> guard 4>42 false -> no rollback
+//                            -> stale partial node left, ListLen==4 not 3.
+//   287:30 cxx_gt_to_le      length>old swapped to < -> rollback skipped ->
+//                            stale partial node, ListLen==4 not 3.
+//   288:17 cxx_remove_void_call rollback call deleted -> stale node, len 4.
+//   288:83 cxx_sub_to_add    count = length+old (=7) start=3 -> remove_range
+//                            start+count>length -> LOG_FATAL aborts the run.
+static bool test_push_arr_failed_rolls_back(void) {
+    WriteFmt("Testing push_arr rollback restores pre-call length\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    typedef List(int) IntList;
+    IntList list = ListInitWithDeepCopy(failing_copy_init, plain_copy_deinit, &alloc);
+
+    s_copy_calls   = 0;
+    s_copy_fail_at = UINT64_MAX;
+    ListPushBackR(&list, 1);
+    ListPushBackR(&list, 2);
+    ListPushBackR(&list, 3);
+
+    // Arm: the second element of the upcoming array push fails to copy.
+    s_copy_fail_at = s_copy_calls + 1;
+
+    int  src[3]   = {7, 8, 9};
+    bool returned = ListPushArrR(&list, src, 3);
+
+    bool result = (returned == false);
+    result      = result && list_holds(GENERIC_LIST(&list), (const int[]) {1, 2, 3}, 3);
+
+    s_copy_fail_at = UINT64_MAX;
+    ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_list_insert_and_push_aliases,
@@ -259,6 +363,8 @@ int main(void) {
         test_list_merge_l_preserves_source_hooks_for_reuse,
         test_list_merge_variants,
         test_list_merge_edge_cases,
+        test_push_arr_r_actually_inserts,
+        test_push_arr_failed_rolls_back,
     };
 
     WriteFmt("[INFO] Starting List.Insert tests\n\n");

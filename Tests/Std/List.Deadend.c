@@ -1,5 +1,6 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/List.h>
+#include <Misra/Std/Container/List/Private.h>
 #include <Misra/Std/Log.h>
 
 #include "../Util/TestRunner.h"
@@ -13,6 +14,14 @@ static DefaultAllocator *get_test_alloc(void) {
     }
     return &s_alloc;
 }
+
+// Build 0,10,20,...,70 (8 nodes, indices 0..7).
+#define FILL_EIGHT(list_ptr)                                                                                           \
+    do {                                                                                                               \
+        for (int fill_i = 0; fill_i < 8; fill_i++) {                                                                   \
+            ListPushBackR((list_ptr), fill_i * 10);                                                                    \
+        }                                                                                                              \
+    } while (0)
 
 static i32 compare_ints(const void *lhs, const void *rhs) {
     int a = *(const int *)lhs;
@@ -314,8 +323,24 @@ static bool test_list_sort_without_compare_fails(void) {
     return false;
 }
 
+// Deadend: get_node_for_list_iteration must abort when target_idx == length
+// (out of bounds). Real code's `target_idx >= length` check fires; a `>` mutant
+// would let the out-of-bounds index through.
+static bool test_iteration_target_at_length_fails(void) {
+    WriteFmt("Testing get_node_for_list_iteration target == length\n");
+
+    List(int) list = ListInit(get_test_alloc());
+    FILL_EIGHT(&list);
+
+    GenericList *g = GENERIC_LIST(&list);
+    (void)get_node_for_list_iteration(g, NULL, 0, ListLen(&list));
+
+    return false;
+}
+
 int main(void) {
     TestFunction deadend_tests[] = {
+        test_iteration_target_at_length_fails,
         test_validate_corrupt_empty_list_fails,
         test_validate_null_list_fails,
         test_validate_invalid_magic_fails,
