@@ -171,8 +171,17 @@ for comp in "${COMPONENTS[@]}"; do
     # Mutators + includePaths come from MULL_CONFIG at COMPILE time; the runner
     # only discovers the embedded mutants. mull-runner exits nonzero when any
     # mutant survives -- expected, so don't let it trip `set -e`.
+    #
+    # --timeout bounds the unmutated WARMUP run; the per-mutant timeout is then
+    # max(baseline*10, --minimum-timeout). Large suites under the debug
+    # allocator (Float/Int/Io) blow past mull's ~3s default and the warmup is
+    # reported "Timedout", yielding an EMPTY report that silently corrupts the
+    # true-survivor intersection. Keep these generous. Override via env.
     set +e
-    "$MULL_RUNNER" --workers "$(nproc)" "$bin" 2>&1 | tee "$report"
+    "$MULL_RUNNER" --workers "$(nproc)" \
+      --timeout "${MULL_TIMEOUT:-120000}" \
+      --minimum-timeout "${MULL_MIN_TIMEOUT:-60000}" \
+      "$bin" 2>&1 | tee "$report"
     set -e
 
     score=$(grep -oiE 'mutation score: *[0-9]+' "$report" | grep -oE '[0-9]+' | tail -1 || true)
