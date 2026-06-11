@@ -174,13 +174,18 @@ for comp in "${COMPONENTS[@]}"; do
     #
     # --timeout bounds the unmutated WARMUP run; the per-mutant timeout is then
     # max(baseline*10, --minimum-timeout). Large suites under the debug
-    # allocator (Float/Int/Io) blow past mull's ~3s default and the warmup is
-    # reported "Timedout", yielding an EMPTY report that silently corrupts the
-    # true-survivor intersection. Keep these generous. Override via env.
+    # allocator (Float/Int/Io) blow past mull's ~3s warmup default, and a
+    # timed-out warmup yields an EMPTY report that silently corrupts the
+    # true-survivor intersection -- so keep --timeout generous (it only gates
+    # the single warmup run). Conversely, --minimum-timeout must stay LOW:
+    # bignum mutants can spin near-infinitely, and a high floor makes each one
+    # burn the full floor before being timeout-killed, so a big suite (Int.Math
+    # ~1500 mutants) never finishes. Let baseline*10 govern; 8s is just a floor
+    # for suites whose baseline is tiny. Override via env.
     set +e
     "$MULL_RUNNER" --workers "$(nproc)" \
       --timeout "${MULL_TIMEOUT:-120000}" \
-      --minimum-timeout "${MULL_MIN_TIMEOUT:-60000}" \
+      --minimum-timeout "${MULL_MIN_TIMEOUT:-8000}" \
       "$bin" 2>&1 | tee "$report"
     set -e
 
