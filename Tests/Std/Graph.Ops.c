@@ -333,6 +333,261 @@ static bool test_graph_stale_node_handle_after_commit_deadend(void) {
     return false;
 }
 
+// Mutant 258:272:cxx_add_assign_to_sub_assign -- the `idx += 1` advance in
+// graph_remove_marked_outgoing_edges. With `idx -= 1` the unsigned index
+// underflows after the first kept edge, so the loop exits before reaching a
+// later edge that points at a marked node. That marked node then still has an
+// incoming edge when the commit's release loop runs, tripping the
+// "marked node retained incident edges" fatal. On real code commit succeeds
+// and leaves the live edge intact, so this is a NORMAL test asserting the
+// caller-observable post-commit graph shape.
+static bool test_graph_commit_keeps_live_edge_before_removing_marked_edge(void) {
+    WriteFmt("Testing commit keeps a live out-edge ordered before a marked-target edge\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit(&alloc);
+
+    GraphNodeId a = GraphAddNodeR(&graph, 10);
+    GraphNodeId b = GraphAddNodeR(&graph, 20);
+    GraphNodeId c = GraphAddNodeR(&graph, 30);
+
+    // a.out = [c, b] -- the kept edge (a->c) comes first, the edge to the
+    // marked node (a->b) comes second, so the loop must advance past the kept
+    // edge to reach and drop a->b.
+    GraphAddEdge(&graph, a, c);
+    GraphAddEdge(&graph, a, b);
+
+    GraphMarkNodeForDeletion(GraphGetNode(&graph, b));
+
+    u64 committed = GraphCommitChanges(&graph);
+
+    bool result = (committed == 1);
+    result      = result && !GraphContainsNode(&graph, b);
+    result      = result && GraphContainsNode(&graph, a);
+    result      = result && GraphContainsNode(&graph, c);
+    result      = result && GraphHasEdge(&graph, a, c);
+    result      = result && (GraphOutDegree(&graph, a) == 1);
+    result      = result && (GraphEdgeCount(&graph) == 1);
+    result      = result && (GraphNeighborAt(&graph, a, 0) == c);
+    result      = result && (GraphNodeCount(&graph) == 2);
+
+    GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Clear with a pre-existing free slot must reset that slot's visit_count to 0;
+// a corrupted (non-zero) free-slot visit_count is rejected by the next
+// validation. Mutant: clear_graph sets the free-slot visit_count to a constant
+// (42), so the next valid op aborts. Real code keeps it at 0 and the op
+// succeeds.
+static bool test_graph_clear_resets_free_slot_visit_count(void) {
+    WriteFmt("Testing GraphClear resets free-slot visit_count\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit(&alloc);
+
+    GraphNodeId a = GraphAddNodeR(&graph, 10);
+    GraphNodeId b = GraphAddNodeR(&graph, 20);
+
+    // Delete b so its slot is free at the time GraphClear walks it.
+    bool result = GraphMarkNodeForDeletion(GraphGetNode(&graph, b));
+    result      = result && (GraphCommitChanges(&graph) == 1);
+    result      = result && !GraphContainsNode(&graph, b);
+    (void)a;
+
+    GraphClear(&graph);
+
+    // A valid op after clear runs ValidateGraph; on the mutant the pre-free
+    // slot carries a bogus visit_count and validation aborts here.
+    GraphNodeId c = GraphAddNodeR(&graph, 30);
+    result        = result && GraphContainsNode(&graph, c);
+    result        = result && (GraphNodeCount(&graph) == 1);
+
+    GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Clear must empty free_indices before repopulating it for every slot; if the
+// old entries are retained, the (live + free) == slot accounting breaks and the
+// next validation aborts. Mutant: clear_graph drops the clear_vec on
+// free_indices. Setup needs a non-empty free_indices at clear time (one prior
+// deletion).
+static bool test_graph_clear_empties_free_indices(void) {
+    WriteFmt("Testing GraphClear empties free_indices before repopulating\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit(&alloc);
+
+    GraphNodeId a = GraphAddNodeR(&graph, 10);
+    GraphNodeId b = GraphAddNodeR(&graph, 20);
+    (void)a;
+
+    // One deletion leaves a single entry in free_indices going into clear.
+    bool result = GraphMarkNodeForDeletion(GraphGetNode(&graph, b));
+    result      = result && (GraphCommitChanges(&graph) == 1);
+
+    GraphClear(&graph);
+
+    // Valid op runs ValidateGraph; on the mutant free_indices is over-long and
+    // slot accounting is inconsistent, so validation aborts before this runs.
+    GraphNodeId c = GraphAddNodeR(&graph, 30);
+    result        = result && GraphContainsNode(&graph, c);
+    result        = result && (GraphNodeCount(&graph) == 1);
+
+    GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// NORMAL: a commit that runs while a previously-freed (free-list) slot still
+// exists must succeed and return the right count. The pass-2 loop in
+// graph_commit_changes guards each slot with `occupied && !marked`; if the
+// occupied half is forced true (mutant at 929), the loop processes the free
+// slot and graph_validate_node_id aborts on "free slot". Real code skips it.
+static bool test_commit_with_free_slot_present_succeeds(void) {
+    WriteFmt("Testing commit succeeds while a free-list slot is present\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit(&alloc);
+
+    GraphNodeId a = GraphAddNodeR(&graph, 10);
+    GraphNodeId b = GraphAddNodeR(&graph, 20);
+    GraphNodeId c = GraphAddNodeR(&graph, 30);
+
+    GraphAddEdge(&graph, a, c);
+
+    // First commit frees b's slot (free-list entry, generation bumped).
+    bool result  = GraphMarkNodeForDeletion(GraphGetNode(&graph, b));
+    u64  removed = GraphCommitChanges(&graph);
+    result       = result && (removed == 1);
+    result       = result && !GraphContainsNode(&graph, b);
+
+    // Second commit: a free slot (b's) is present. The marked/unmarked passes
+    // iterate every slot; the free slot must be skipped, not validated.
+    result  = result && GraphMarkNodeForDeletion(GraphGetNode(&graph, a));
+    removed = GraphCommitChanges(&graph);
+
+    result = result && (removed == 1);
+    result = result && !GraphContainsNode(&graph, a);
+    result = result && GraphContainsNode(&graph, c);
+    result = result && (GraphNodeCount(&graph) == 1);
+    result = result && (GraphEdgeCount(&graph) == 0);
+    result = result && (GraphInDegree(&graph, c) == 0);
+
+    GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// DEADEND: graph_edge_marked_for_removal validates `from` (mutant at 878
+// removes it). A stale `from` with a valid `to` must abort. Without the
+// validation graph_find_pending_edge_removal_index just returns "not found".
+static bool test_edge_marked_stale_from_deadend(void) {
+    WriteFmt("Testing GraphEdgeMarkedForRemoval rejects a stale from id (should abort)\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit(&alloc);
+
+    GraphNodeId a = GraphAddNodeR(&graph, 10);
+    GraphNodeId b = GraphAddNodeR(&graph, 20);
+
+    (void)GraphMarkNodeForDeletion(GraphGetNode(&graph, a));
+    (void)GraphCommitChanges(&graph);
+    (void)GraphAddNodeR(&graph, 99); // reuse a's slot, a is now stale
+
+    (void)GraphEdgeMarkedForRemoval(&graph, a, b);
+
+    GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// DEADEND: graph_edge_marked_for_removal validates `to` (mutant at 879). A
+// valid `from` with a stale `to` must abort.
+static bool test_edge_marked_stale_to_deadend(void) {
+    WriteFmt("Testing GraphEdgeMarkedForRemoval rejects a stale to id (should abort)\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit(&alloc);
+
+    GraphNodeId a = GraphAddNodeR(&graph, 10);
+    GraphNodeId b = GraphAddNodeR(&graph, 20);
+
+    (void)GraphMarkNodeForDeletion(GraphGetNode(&graph, b));
+    (void)GraphCommitChanges(&graph);
+    (void)GraphAddNodeR(&graph, 99); // reuse b's slot, b is now stale
+
+    (void)GraphEdgeMarkedForRemoval(&graph, a, b);
+
+    GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// DEADEND: graph_unmark_edge_for_removal validates `from` (mutant at 888). A
+// stale `from` with a valid `to` must abort. Without it
+// graph_find_pending_edge_removal_index returns SIZE_MAX and the call returns
+// false rather than aborting.
+static bool test_unmark_edge_stale_from_deadend(void) {
+    WriteFmt("Testing GraphUnmarkEdgeForRemoval rejects a stale from id (should abort)\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit(&alloc);
+
+    GraphNodeId a = GraphAddNodeR(&graph, 10);
+    GraphNodeId b = GraphAddNodeR(&graph, 20);
+
+    (void)GraphMarkNodeForDeletion(GraphGetNode(&graph, a));
+    (void)GraphCommitChanges(&graph);
+    (void)GraphAddNodeR(&graph, 99); // reuse a's slot, a is now stale
+
+    (void)GraphUnmarkEdgeForRemoval(&graph, a, b);
+
+    GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// DEADEND: graph_unmark_edge_for_removal validates `to` (mutant at 889). A
+// valid `from` with a stale `to` must abort.
+static bool test_unmark_edge_stale_to_deadend(void) {
+    WriteFmt("Testing GraphUnmarkEdgeForRemoval rejects a stale to id (should abort)\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit(&alloc);
+
+    GraphNodeId a = GraphAddNodeR(&graph, 10);
+    GraphNodeId b = GraphAddNodeR(&graph, 20);
+
+    (void)GraphMarkNodeForDeletion(GraphGetNode(&graph, b));
+    (void)GraphCommitChanges(&graph);
+    (void)GraphAddNodeR(&graph, 99); // reuse b's slot, b is now stale
+
+    (void)GraphUnmarkEdgeForRemoval(&graph, a, b);
+
+    GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_graph_node_visit_scratch_state,
@@ -344,9 +599,17 @@ int main(void) {
         test_graph_self_loop_edge_removal,
         test_graph_edge_removal_and_node_deletion_overlap,
         test_graph_external_indexed_state_requires_reset_on_reuse,
+        test_graph_commit_keeps_live_edge_before_removing_marked_edge,
+        test_graph_clear_resets_free_slot_visit_count,
+        test_graph_clear_empties_free_indices,
+        test_commit_with_free_slot_present_succeeds,
     };
     TestFunction deadend_tests[] = {
         test_graph_stale_node_handle_after_commit_deadend,
+        test_edge_marked_stale_from_deadend,
+        test_edge_marked_stale_to_deadend,
+        test_unmark_edge_stale_from_deadend,
+        test_unmark_edge_stale_to_deadend,
     };
 
     WriteFmt("[INFO] Starting Graph.Ops tests\n\n");

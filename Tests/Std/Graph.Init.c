@@ -181,12 +181,33 @@ static bool test_graph_init_optional_allocator(void) {
     return result;
 }
 
+// GraphReserve must actually reserve storage. Mutant: reserve_graph's success
+// expression is replaced so the underlying reserve_vec calls never run, yet the
+// op reports success; capacity then never grows. Real code grows slot capacity
+// to at least the requested count.
+static bool test_graph_reserve_grows_capacity(void) {
+    WriteFmt("Testing GraphReserve actually grows slot capacity\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit(&alloc);
+
+    bool result = GraphReserve(&graph, 64);
+    result      = result && (VecCapacity(&graph.slots) >= 64);
+
+    GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_graph_reserve_clear,
         test_graph_node_deep_copy,
         test_graph_node_owned_str_rvalue,
         test_graph_init_optional_allocator,
+        test_graph_reserve_grows_capacity,
     };
 
     WriteFmt("[INFO] Starting Graph.Init tests\n\n");
