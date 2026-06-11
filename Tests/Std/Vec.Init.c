@@ -40,6 +40,18 @@ bool test_vec_init_optional_allocator(void);
 bool test_vec_init_stack(void);
 bool test_vec_init_clone(void);
 
+// ---- deinit_vec mutation-hardening (Vec.Mutants5) -----------------------
+bool test_deinit_runs_deinit_once_per_element(void);
+
+// Shared counter for the deinit_vec copy_deinit-callback test.
+static size g_deinit_calls;
+
+static void counting_deinit(void *copy, const Allocator *a) {
+    (void)copy;
+    (void)a;
+    g_deinit_calls++;
+}
+
 // Test basic vector initialization
 bool test_vec_init_basic(void) {
     WriteFmt("Testing VecInit\n");
@@ -49,8 +61,9 @@ bool test_vec_init_basic(void) {
     IntVec vec = VecInit(&alloc);
 
     // Check initial state
-    bool result = (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL &&
-                   VecAllocator(&vec)->alignment == 1 && VecCopyInit(&vec) == NULL && VecCopyDeinit(&vec) == NULL);
+    bool result =
+        (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL && VecAllocator(&vec)->alignment == 1 &&
+         VecCopyInit(&vec) == NULL && VecCopyDeinit(&vec) == NULL);
 
     // Clean up
     VecDeinit(&vec);
@@ -60,10 +73,9 @@ bool test_vec_init_basic(void) {
     TestVec test_vec = VecInit(&alloc);
 
     // Check initial state
-    result = result &&
-             (VecLen(&test_vec) == 0 && VecCapacity(&test_vec) == 0 && VecBegin(&test_vec) == NULL &&
-              VecAllocator(&test_vec)->alignment == 1 && VecCopyInit(&test_vec) == NULL &&
-              VecCopyDeinit(&test_vec) == NULL);
+    result = result && (VecLen(&test_vec) == 0 && VecCapacity(&test_vec) == 0 && VecBegin(&test_vec) == NULL &&
+                        VecAllocator(&test_vec)->alignment == 1 && VecCopyInit(&test_vec) == NULL &&
+                        VecCopyDeinit(&test_vec) == NULL);
 
     // Clean up
     VecDeinit(&test_vec);
@@ -83,8 +95,9 @@ bool test_vec_init_aligned(void) {
     IntVec vec = VecInit(&aligned4);
 
     // Check initial state
-    bool result = (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL &&
-                   VecAllocator(&vec)->alignment == 4 && VecCopyInit(&vec) == NULL && VecCopyDeinit(&vec) == NULL);
+    bool result =
+        (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL && VecAllocator(&vec)->alignment == 4 &&
+         VecCopyInit(&vec) == NULL && VecCopyDeinit(&vec) == NULL);
 
     // Clean up
     VecDeinit(&vec);
@@ -94,10 +107,9 @@ bool test_vec_init_aligned(void) {
     TestVec test_vec = VecInit(&aligned16);
 
     // Check initial state
-    result = result &&
-             (VecLen(&test_vec) == 0 && VecCapacity(&test_vec) == 0 && VecBegin(&test_vec) == NULL &&
-              VecAllocator(&test_vec)->alignment == 16 && VecCopyInit(&test_vec) == NULL &&
-              VecCopyDeinit(&test_vec) == NULL);
+    result = result && (VecLen(&test_vec) == 0 && VecCapacity(&test_vec) == 0 && VecBegin(&test_vec) == NULL &&
+                        VecAllocator(&test_vec)->alignment == 16 && VecCopyInit(&test_vec) == NULL &&
+                        VecCopyDeinit(&test_vec) == NULL);
 
     // Clean up
     VecDeinit(&test_vec);
@@ -117,8 +129,8 @@ bool test_vec_init_with_deep_copy(void) {
 
     // Check initial state
     bool result =
-        (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL &&
-         VecAllocator(&vec)->alignment == 1 && VecCopyInit(&vec) == (GenericCopyInit)TestItemCopyInit &&
+        (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL && VecAllocator(&vec)->alignment == 1 &&
+         VecCopyInit(&vec) == (GenericCopyInit)TestItemCopyInit &&
          VecCopyDeinit(&vec) == (GenericCopyDeinit)TestItemDeinit);
 
     // Clean up
@@ -139,8 +151,8 @@ bool test_vec_init_aligned_with_deep_copy(void) {
 
     // Check initial state
     bool result =
-        (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL &&
-         VecAllocator(&vec)->alignment == 8 && VecCopyInit(&vec) == (GenericCopyInit)TestItemCopyInit &&
+        (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL && VecAllocator(&vec)->alignment == 8 &&
+         VecCopyInit(&vec) == (GenericCopyInit)TestItemCopyInit &&
          VecCopyDeinit(&vec) == (GenericCopyDeinit)TestItemDeinit);
 
     // Clean up
@@ -216,8 +228,7 @@ bool test_vec_init_stack(void) {
     // matching StrInitStack.
     VecInitStack(int, vec, 10) {
         // Stack-init: NULL allocator distinguishes from heap-init.
-        if (VecLen(&vec) != 0 || VecCapacity(&vec) != 10 || VecBegin(&vec) == NULL ||
-            VecAllocator(&vec) != NULL) {
+        if (VecLen(&vec) != 0 || VecCapacity(&vec) != 10 || VecBegin(&vec) == NULL || VecAllocator(&vec) != NULL) {
             result = false;
         }
 
@@ -319,6 +330,31 @@ bool test_vec_init_clone(void) {
     return result;
 }
 
+// deinit_vec, copy_deinit loop: the destructor fires exactly once per live
+// element before storage is freed.
+bool test_deinit_runs_deinit_once_per_element(void) {
+    WriteFmt("Testing VecDeinit invokes copy_deinit once per element\n");
+
+    DefaultAllocator local = DefaultAllocatorInit();
+
+    typedef Vec(int) IntVec;
+    IntVec vec      = VecInit(&local);
+    vec.copy_deinit = (GenericCopyDeinit)counting_deinit;
+
+    int values[] = {10, 20, 30};
+    for (int i = 0; i < 3; i++) {
+        VecPushBackR(&vec, values[i]);
+    }
+
+    g_deinit_calls = 0;
+    VecDeinit(&vec);
+
+    bool result = (g_deinit_calls == 3);
+
+    DefaultAllocatorDeinit(&local);
+    return result;
+}
+
 // Main function that runs all tests
 int main(void) {
     WriteFmt("[INFO] Starting Vec.Init tests\n\n");
@@ -333,7 +369,9 @@ int main(void) {
         test_vec_init_aligned_with_deep_copy,
         test_vec_init_optional_allocator,
         test_vec_init_stack,
-        test_vec_init_clone
+        test_vec_init_clone,
+        // deinit_vec mutation-hardening (Vec.Mutants5)
+        test_deinit_runs_deinit_once_per_element
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);

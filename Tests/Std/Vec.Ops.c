@@ -11,6 +11,9 @@ bool test_vec_swap_items(void);
 bool test_vec_reverse(void);
 bool test_vec_sort(void);
 
+// ---- swap_vec upper-bound deadend (Vec.Mutants4) ------------------------
+bool test_swap_idx_equal_length_aborts(void);
+
 // Comparison function for sorting integers in ascending order
 int compare_ints_asc(const void *a, const void *b) {
     int val_a = *(const int *)a;
@@ -153,6 +156,25 @@ bool test_vec_sort(void) {
     return result;
 }
 
+// swap_vec @ 476:37 cxx_ge_to_gt (`idx2 >= vec->length` -> `idx2 > vec->length`):
+// index equal to length (the sentinel slot, out of bounds) wrongly passes. Real
+// code LOG_FATALs on idx2 == length.
+bool test_swap_idx_equal_length_aborts(void) {
+    WriteFmt("Testing swap rejects idx == length\n");
+
+    typedef Vec(u32) U32Vec;
+    U32Vec vec = VecInit(&alloc);
+    for (u32 i = 0; i < 3; i++) {
+        VecPushBackR(&vec, i);
+    }
+
+    VecSwapItems(&vec, 0, 3); // idx2 == length -> must abort
+
+    // Unreachable on real code.
+    VecDeinit(&vec);
+    return false;
+}
+
 // Main function that runs all tests
 int main(void) {
     alloc = DefaultAllocatorInit();
@@ -161,10 +183,13 @@ int main(void) {
     // Array of test functions
     TestFunction tests[] = {test_vec_swap_items, test_vec_reverse, test_vec_sort};
 
-    int total_tests = sizeof(tests) / sizeof(tests[0]);
+    TestFunction deadend_tests[] = {test_swap_idx_equal_length_aborts};
+
+    int total_tests   = sizeof(tests) / sizeof(tests[0]);
+    int deadend_count = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
 
     // Run all tests using the centralized test driver
-    int rc = run_test_suite(tests, total_tests, NULL, 0, "Vec.Ops");
+    int rc = run_test_suite(tests, total_tests, deadend_tests, deadend_count, "Vec.Ops");
     DefaultAllocatorDeinit(&alloc);
     return rc;
 }

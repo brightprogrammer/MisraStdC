@@ -15,6 +15,10 @@ bool test_vec_size_len(void);
 bool test_vec_aligned_offset_at(void);
 bool test_vec_empty_find_contains(void);
 
+// ---- vec_aligned_size / vec_const_ptr_at mutation-hardening (Vec.Mutants6) -
+bool test_aligned_stride_roundtrip(void);
+bool test_clone_reads_distinct_offsets(void);
+
 static i32 compare_ints(const void *lhs, const void *rhs) {
     int a = *(const int *)lhs;
     int b = *(const int *)rhs;
@@ -288,6 +292,66 @@ bool test_vec_empty_find_contains(void) {
     return result;
 }
 
+// vec_aligned_size @ 25:36 (alignment > 1 -> alignment <= 1): for an
+// allocator with alignment 16 the element stride must be ALIGN_UP_POW2(4,16)
+// == 16, not the un-aligned 4. Writes (which go through the .c stride) then
+// diverge from the alignment-aware reads (header VecAt stride), corrupting
+// values.
+bool test_aligned_stride_roundtrip(void) {
+    WriteFmt("Testing aligned element stride round-trips values\n");
+
+    HeapAllocator alloc = HeapAllocatorInitAligned(16);
+
+    typedef Vec(u32) U32Vec;
+    U32Vec vec = VecInit(&alloc);
+
+    u32 values[] = {111, 222, 333, 444};
+    for (int i = 0; i < 4; i++) {
+        VecPushBackR(&vec, values[i]);
+    }
+
+    // Real: store and load both use stride 16, values match. Mutant: stores
+    // use stride 4 while VecAt loads use stride 16, so values diverge.
+    bool result = (VecLen(&vec) == 4);
+    for (int i = 0; i < 4; i++) {
+        result = result && (VecAt(&vec, i) == values[i]);
+    }
+
+    VecDeinit(&vec);
+    HeapAllocatorDeinit(&alloc);
+    return result;
+}
+
+// vec_const_ptr_at @ 42:34 (vec_aligned_offset_at(...) call replaced by a
+// const): clone_vec reads each source element through this helper. A
+// constant offset makes every read land on the same (wrong) element, so a
+// clone of distinct values produces duplicated/incorrect data.
+bool test_clone_reads_distinct_offsets(void) {
+    WriteFmt("Testing clone reads each source element at its own offset\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    typedef Vec(u32) U32Vec;
+    U32Vec src      = VecInit(&alloc);
+    u32    values[] = {10, 20, 30, 40};
+    for (int i = 0; i < 4; i++) {
+        VecPushBackR(&src, values[i]);
+    }
+
+    U32Vec dst = VecInit(&alloc);
+    VecInitClone(&dst, &src);
+
+    // Real: dst == {10,20,30,40}. Mutant (constant offset): every source read
+    // hits the same element, e.g. dst == {10,10,10,10}.
+    bool result = (VecLen(&dst) == 4) && (VecAt(&dst, 0) == 10) && (VecAt(&dst, 1) == 20) && (VecAt(&dst, 2) == 30) &&
+                  (VecAt(&dst, 3) == 40);
+
+    VecDeinit(&src);
+    VecDeinit(&dst);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 // Main function that runs all tests
 int main(void) {
     WriteFmt("[INFO] Starting Vec.Access tests\n\n");
@@ -300,7 +364,10 @@ int main(void) {
         test_vec_begin_end,
         test_vec_size_len,
         test_vec_aligned_offset_at,
-        test_vec_empty_find_contains
+        test_vec_empty_find_contains,
+        // vec_aligned_size / vec_const_ptr_at mutation-hardening (Vec.Mutants6)
+        test_aligned_stride_roundtrip,
+        test_clone_reads_distinct_offsets
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);

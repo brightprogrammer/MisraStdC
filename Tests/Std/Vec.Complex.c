@@ -893,6 +893,138 @@ bool test_lvalue_zero_on_take_array_ops(void) {
     return result;
 }
 
+// ===========================================================================
+// clone_vec (deep-copy) mutation-hardening suite (from Vec.Mutants6)
+// ===========================================================================
+
+// clone_vec @ 201:21 (==0 -> !=0): a non-empty src must be fully cloned.
+bool test_clone_copies_first_element(void) {
+    WriteFmt("Testing clone copies a non-empty source\n");
+
+    DefaultAllocator local = DefaultAllocatorInit();
+
+    typedef Vec(int) IntVec;
+    IntVec src      = VecInit(&local);
+    int    values[] = {1, 2, 3};
+    for (int i = 0; i < 3; i++) {
+        VecPushBackR(&src, values[i]);
+    }
+
+    IntVec dst = VecInit(&local);
+    VecInitClone(&dst, &src);
+
+    // Under the mutant src->length != 0 returns true immediately and dst is
+    // left empty (length 0).
+    bool result = (VecLen(&dst) == 3) && (VecAt(&dst, 0) == 1) && (VecAt(&dst, 1) == 2) && (VecAt(&dst, 2) == 3);
+
+    VecDeinit(&src);
+    VecDeinit(&dst);
+    DefaultAllocatorDeinit(&local);
+    return result;
+}
+
+// clone_vec @ 209:15 (copy loop init 0 -> const 42).
+bool test_clone_includes_index_zero(void) {
+    WriteFmt("Testing clone copy loop starts at index zero\n");
+
+    DefaultAllocator local = DefaultAllocatorInit();
+
+    typedef Vec(int) IntVec;
+    IntVec src      = VecInit(&local);
+    int    values[] = {1, 2, 3};
+    for (int i = 0; i < 3; i++) {
+        VecPushBackR(&src, values[i]);
+    }
+
+    IntVec dst = VecInit(&local);
+    VecInitClone(&dst, &src);
+
+    // Real: dst has all 3 elements starting at index 0. Mutant (init 42):
+    // 42 < 3 is false, loop skipped, dst length 0.
+    bool result = (VecLen(&dst) == 3) && (VecAt(&dst, 0) == 1);
+
+    VecDeinit(&src);
+    VecDeinit(&dst);
+    DefaultAllocatorDeinit(&local);
+    return result;
+}
+
+// clone_vec @ 209:24 (i < length -> i >= length).
+bool test_clone_loop_runs_for_nonempty(void) {
+    WriteFmt("Testing clone copy loop condition\n");
+
+    DefaultAllocator local = DefaultAllocatorInit();
+
+    typedef Vec(int) IntVec;
+    IntVec src      = VecInit(&local);
+    int    values[] = {1, 2, 3};
+    for (int i = 0; i < 3; i++) {
+        VecPushBackR(&src, values[i]);
+    }
+
+    IntVec dst = VecInit(&local);
+    VecInitClone(&dst, &src);
+
+    // Mutant (i >= length): 0 >= 3 is false, loop never runs, dst empty.
+    bool result = (VecLen(&dst) == 3);
+
+    VecDeinit(&src);
+    VecDeinit(&dst);
+    DefaultAllocatorDeinit(&local);
+    return result;
+}
+
+// clone_vec @ 209:40 (i++ -> i--).
+bool test_clone_visits_every_element(void) {
+    WriteFmt("Testing clone visits every source element\n");
+
+    DefaultAllocator local = DefaultAllocatorInit();
+
+    typedef Vec(int) IntVec;
+    IntVec src      = VecInit(&local);
+    int    values[] = {1, 2, 3};
+    for (int i = 0; i < 3; i++) {
+        VecPushBackR(&src, values[i]);
+    }
+
+    IntVec dst = VecInit(&local);
+    VecInitClone(&dst, &src);
+
+    // Real: dst length 3, all values present. Mutant (i--): dst length 1.
+    bool result = (VecLen(&dst) == 3) && (VecAt(&dst, 0) == 1) && (VecAt(&dst, 1) == 2) && (VecAt(&dst, 2) == 3);
+
+    VecDeinit(&src);
+    VecDeinit(&dst);
+    DefaultAllocatorDeinit(&local);
+    return result;
+}
+
+// clone_vec @ 210:14 (insert_range_into_vec(...) call replaced by 0).
+bool test_clone_insert_populates_dst(void) {
+    WriteFmt("Testing clone appends each element to dst\n");
+
+    DefaultAllocator local = DefaultAllocatorInit();
+
+    typedef Vec(int) IntVec;
+    IntVec src      = VecInit(&local);
+    int    values[] = {1, 2, 3};
+    for (int i = 0; i < 3; i++) {
+        VecPushBackR(&src, values[i]);
+    }
+
+    IntVec dst    = VecInit(&local);
+    bool   cloned = VecInitClone(&dst, &src);
+
+    // Real: cloned true, dst length 3. Mutant: insert expression is 0 so the
+    // clone returns false with dst empty.
+    bool result = cloned && (VecLen(&dst) == 3);
+
+    VecDeinit(&src);
+    VecDeinit(&dst);
+    DefaultAllocatorDeinit(&local);
+    return result;
+}
+
 // Main function that runs all tests
 int main(void) {
     alloc = DefaultAllocatorInit();
@@ -913,7 +1045,13 @@ int main(void) {
         test_lvalue_zero_on_take_fast_insert,
         test_lvalue_zero_on_take_pushfront,
         test_lvalue_zero_on_take_merge,
-        test_lvalue_zero_on_take_array_ops
+        test_lvalue_zero_on_take_array_ops,
+        // clone_vec (deep-copy) mutation-hardening (Vec.Mutants6)
+        test_clone_copies_first_element,
+        test_clone_includes_index_zero,
+        test_clone_loop_runs_for_nonempty,
+        test_clone_visits_every_element,
+        test_clone_insert_populates_dst
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);

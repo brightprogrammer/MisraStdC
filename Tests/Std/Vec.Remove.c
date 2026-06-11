@@ -24,8 +24,91 @@ bool test_rvalue_delete_range_operations(void);
 bool test_lvalue_fast_delete_range_operations(void);
 bool test_rvalue_fast_delete_range_operations(void);
 
+// ---- fast_remove_range_vec mutation-hardening prototypes (Vec.Mutants3) --
+bool test_fast_remove_whole_vector_succeeds(void);
+bool test_fast_remove_copies_out_removed_data(void);
+bool test_fast_remove_copies_out_removed_data_stride(void);
+bool test_fast_remove_deinits_every_removed_element(void);
+bool test_fast_remove_deinit_runs_at_least_once(void);
+bool test_fast_remove_deinit_not_run_on_survivor(void);
+bool test_fast_remove_deinit_runs_for_each(void);
+bool test_fast_remove_deinit_walks_each_element(void);
+bool test_fast_remove_zeroes_vacated_tail_sub(void);
+bool test_fast_remove_zeroes_vacated_tail_stride(void);
+bool test_fast_remove_zeroes_vacated_tail_call(void);
+
+// ---- remove_range_vec mutation-hardening prototypes (Vec.Mutants4) -------
+bool test_remove_deinit_init_zero(void);
+bool test_remove_deinit_runs_at_all(void);
+bool test_remove_deinit_no_overrun(void);
+bool test_remove_deinit_all_three(void);
+bool test_remove_deinit_advances_cursor(void);
+bool test_remove_compaction_len_first_term(void);
+bool test_remove_compaction_len_second_term(void);
+bool test_remove_compaction_stride(void);
+bool test_remove_tail_clear_dest(void);
+bool test_remove_tail_clear_len(void);
+bool test_remove_tail_clear_stride(void);
+
 // Test VecPopBack function
 static DefaultAllocator alloc;
+
+// ---- Shared copy_deinit instrumentation (fast_remove_range_vec, Mutants3) -
+static size g_deinit_count;
+static int  g_deinit_vals[32];
+static size g_deinit_nvals;
+
+static void counting_deinit(void *copy, const Allocator *al) {
+    (void)al;
+    g_deinit_count++;
+    if (g_deinit_nvals < 32) {
+        g_deinit_vals[g_deinit_nvals++] = *(int *)copy;
+    }
+}
+
+static void reset_deinit_state(void) {
+    g_deinit_count = 0;
+    g_deinit_nvals = 0;
+    for (size i = 0; i < 32; i++) {
+        g_deinit_vals[i] = 0;
+    }
+}
+
+// ---- Deinit-tracking element fixture (remove_range_vec, Mutants4) --------
+typedef struct {
+    int id;
+} Elem;
+
+#define LEDGER_N 64
+static int g_freed[LEDGER_N];
+
+static void elem_deinit(void *copy, const Allocator *a) {
+    (void)a;
+    Elem *e = (Elem *)copy;
+    if (e->id >= 0 && e->id < LEDGER_N) {
+        g_freed[e->id]++;
+    }
+}
+
+static void reset_ledger(void) {
+    for (int i = 0; i < LEDGER_N; i++) {
+        g_freed[i] = 0;
+    }
+}
+
+typedef Vec(Elem) ElemVec;
+
+// Build a deinit-tracking vec holding elements with ids 0..n-1. copy_init is
+// left NULL so PushBack just MemCopies the struct; copy_deinit fires on
+// removal (removed_data == NULL path).
+static ElemVec make_elem_vec(int n) {
+    ElemVec vec = VecInitWithDeepCopyT(vec, NULL, elem_deinit, &alloc);
+    for (int i = 0; i < n; i++) {
+        Elem e = {.id = i};
+        VecPushBack(&vec, e);
+    }
+    return vec;
+}
 
 bool test_vec_pop_back(void) {
     WriteFmtLn("Testing VecPopBack");
@@ -822,6 +905,472 @@ bool test_rvalue_fast_delete_range_operations(void) {
     return result;
 }
 
+// ===========================================================================
+// fast_remove_range_vec mutation-hardening suite (from Vec.Mutants3)
+// ===========================================================================
+
+// 413:23 cxx_gt_to_ge -- removing the entire vector (start 0, count length) is
+// documented-valid; under the mutant it LOG_FATALs.
+bool test_fast_remove_whole_vector_succeeds(void) {
+    WriteFmtLn("Testing fast remove of whole vector (413:23)");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit(&alloc);
+
+    int values[] = {10, 20, 30};
+    for (int i = 0; i < 3; i++) {
+        VecPushBack(&vec, values[i]);
+    }
+
+    // start + count == length: valid, removes everything.
+    VecDeleteRangeFast(&vec, 0, 3);
+
+    bool result = (VecLen(&vec) == 0);
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// 418:72 cxx_mul_to_div -- removed-data copy size `count * stride` -> `count /
+// stride` copies (almost) nothing into the caller's buffer.
+bool test_fast_remove_copies_out_removed_data(void) {
+    WriteFmtLn("Testing fast remove populates removed_data (418:72)");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit(&alloc);
+
+    int values[] = {10, 20, 30, 40};
+    for (int i = 0; i < 4; i++) {
+        VecPushBack(&vec, values[i]);
+    }
+
+    int out[2] = {-1, -1};
+    VecRemoveRangeFast(&vec, out, 0, 2);
+
+    bool result = (out[0] == 10) && (out[1] == 20);
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// 418:74 cxx_replace_scalar_call -- the `vec_aligned_size(...)` stride in the
+// removed-data copy is replaced by a constant (0), so 0 bytes are copied.
+bool test_fast_remove_copies_out_removed_data_stride(void) {
+    WriteFmtLn("Testing fast remove removed_data byte count (418:74)");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit(&alloc);
+
+    int values[] = {11, 22, 33, 44};
+    for (int i = 0; i < 4; i++) {
+        VecPushBack(&vec, values[i]);
+    }
+
+    int out[2] = {-1, -1};
+    VecRemoveRangeFast(&vec, out, 0, 2);
+
+    bool result = (out[0] == 11) && (out[1] == 22);
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// 422:23 cxx_init_const -- copy_deinit loop initializer `s = 0` -> `s = 42`.
+bool test_fast_remove_deinits_every_removed_element(void) {
+    WriteFmtLn("Testing fast remove deinits every removed element (422:23)");
+
+    reset_deinit_state();
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInitWithDeepCopy(NULL, counting_deinit, &alloc);
+
+    int values[] = {10, 20, 30};
+    for (int i = 0; i < 3; i++) {
+        VecPushBack(&vec, values[i]);
+    }
+
+    // NULL out-ptr -> copy_deinit invoked on each removed element.
+    VecDeleteRangeFast(&vec, 0, 3);
+
+    bool result = (g_deinit_count == 3);
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// 422:32 cxx_lt_to_ge -- loop guard `s < count` -> `s >= count`.
+bool test_fast_remove_deinit_runs_at_least_once(void) {
+    WriteFmtLn("Testing fast remove deinit loop runs (422:32 ge)");
+
+    reset_deinit_state();
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInitWithDeepCopy(NULL, counting_deinit, &alloc);
+
+    int values[] = {10, 20, 30};
+    for (int i = 0; i < 3; i++) {
+        VecPushBack(&vec, values[i]);
+    }
+
+    VecDeleteRangeFast(&vec, 0, 3);
+
+    bool result = (g_deinit_count == 3);
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// 422:32 cxx_lt_to_le -- loop guard `s < count` -> `s <= count` runs one extra
+// iteration. Remove 2 of 4: real code deinits exactly 2.
+bool test_fast_remove_deinit_not_run_on_survivor(void) {
+    WriteFmtLn("Testing fast remove deinit count is exact (422:32 le)");
+
+    reset_deinit_state();
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInitWithDeepCopy(NULL, counting_deinit, &alloc);
+
+    int values[] = {10, 20, 30, 40};
+    for (int i = 0; i < 4; i++) {
+        VecPushBack(&vec, values[i]);
+    }
+
+    VecDeleteRangeFast(&vec, 0, 2);
+
+    bool result = (g_deinit_count == 2);
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// 422:42 cxx_post_inc_to_post_dec -- `s++` -> `s--`.
+bool test_fast_remove_deinit_runs_for_each(void) {
+    WriteFmtLn("Testing fast remove deinit runs once per element (422:42)");
+
+    reset_deinit_state();
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInitWithDeepCopy(NULL, counting_deinit, &alloc);
+
+    int values[] = {10, 20, 30};
+    for (int i = 0; i < 3; i++) {
+        VecPushBack(&vec, values[i]);
+    }
+
+    VecDeleteRangeFast(&vec, 0, 3);
+
+    bool result = (g_deinit_count == 3);
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// 424:29 cxx_replace_scalar_call -- cursor advance `vec_data += stride` has
+// stride replaced by a constant (0). Assert the handler sees the distinct
+// removed elements in order.
+bool test_fast_remove_deinit_walks_each_element(void) {
+    WriteFmtLn("Testing fast remove deinit walks each element (424:29)");
+
+    reset_deinit_state();
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInitWithDeepCopy(NULL, counting_deinit, &alloc);
+
+    int values[] = {10, 20, 30};
+    for (int i = 0; i < 3; i++) {
+        VecPushBack(&vec, values[i]);
+    }
+
+    VecDeleteRangeFast(&vec, 0, 3);
+
+    bool result =
+        (g_deinit_nvals == 3) && (g_deinit_vals[0] == 10) && (g_deinit_vals[1] == 20) && (g_deinit_vals[2] == 30);
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// 449:40 cxx_sub_to_add -- tail-zeroing MemSet targets `length - count` ->
+// `length + count`.
+bool test_fast_remove_zeroes_vacated_tail_sub(void) {
+    WriteFmtLn("Testing fast remove zeroes vacated tail (449:40)");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit(&alloc);
+
+    int values[] = {1, 2, 3, 4, 5};
+    for (int i = 0; i < 5; i++) {
+        VecPushBack(&vec, values[i]);
+    }
+
+    VecDeleteRangeFast(&vec, 0, 2);
+
+    // Length is now 3; the raw slot at index 4 was part of the vacated tail
+    // and must read back zero.
+    bool result = (VecLen(&vec) == 3) && (*VecPtrAt(&vec, 4) == 0);
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// 449:70 cxx_mul_to_div -- tail-zeroing MemSet size `count * stride` ->
+// `count / stride`.
+bool test_fast_remove_zeroes_vacated_tail_stride(void) {
+    WriteFmtLn("Testing fast remove tail-zero byte count (449:70)");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit(&alloc);
+
+    int values[] = {1, 2, 3, 4, 5};
+    for (int i = 0; i < 5; i++) {
+        VecPushBack(&vec, values[i]);
+    }
+
+    VecDeleteRangeFast(&vec, 0, 2);
+
+    bool result = (VecLen(&vec) == 3) && (*VecPtrAt(&vec, 4) == 0);
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// 449:72 cxx_replace_scalar_call -- the `vec_aligned_size(...)` stride in the
+// tail-zeroing MemSet size is replaced by the constant 42.
+bool test_fast_remove_zeroes_vacated_tail_call(void) {
+    WriteFmtLn("Testing fast remove tail-zero stride call (449:72)");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit(&alloc);
+
+    const int N = 100000;
+    for (int i = 0; i < N; i++) {
+        VecPushBackR(&vec, i);
+    }
+
+    // Remove a large window: the vacated-tail MemSet writes count*stride bytes
+    // from vec_ptr_at(length-count); forcing the stride to 42 runs the write
+    // ~42*count bytes (several MB) past the buffer end, far beyond the mapping.
+    const u64 K = 80000;
+    VecDeleteRangeFast(&vec, 0, K);
+
+    bool result = (VecLen(&vec) == (u64)N - K);
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// ===========================================================================
+// remove_range_vec mutation-hardening suite (from Vec.Mutants4)
+// ===========================================================================
+
+// 380:23 cxx_init_const  (`size s = 0` -> `s = 42`): the deinit loop never
+// runs, so removed elements are dropped without releasing their resources.
+bool test_remove_deinit_init_zero(void) {
+    WriteFmt("Testing remove copy_deinit loop starts at zero\n");
+
+    reset_ledger();
+    ElemVec vec = make_elem_vec(5);           // ids 0..4
+
+    VecRemoveRange(&vec, (Elem *)NULL, 0, 2); // remove ids {0,1}
+
+    bool result = (g_freed[0] == 1 && g_freed[1] == 1);
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// 380:32 cxx_lt_to_ge (`s < count` -> `s >= count`): false on entry, loop
+// body never runs.
+bool test_remove_deinit_runs_at_all(void) {
+    WriteFmt("Testing remove copy_deinit loop runs\n");
+
+    reset_ledger();
+    ElemVec vec = make_elem_vec(5);           // ids 0..4
+
+    VecRemoveRange(&vec, (Elem *)NULL, 0, 2); // remove ids {0,1}
+
+    bool result = (g_freed[0] == 1 && g_freed[1] == 1);
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// 380:32 cxx_lt_to_le (`s < count` -> `s <= count`): one extra iteration
+// deinitializes a SURVIVING element.
+bool test_remove_deinit_no_overrun(void) {
+    WriteFmt("Testing remove copy_deinit does not overrun window\n");
+
+    reset_ledger();
+    ElemVec vec = make_elem_vec(5);           // ids 0..4
+
+    VecRemoveRange(&vec, (Elem *)NULL, 0, 2); // remove ids {0,1}; id 2 survives
+
+    // Survivor id 2 must be untouched by the removal.
+    bool result = (g_freed[2] == 0 && g_freed[0] == 1 && g_freed[1] == 1);
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// 380:42 cxx_post_inc_to_post_dec (`s++` -> `s--`).
+bool test_remove_deinit_all_three(void) {
+    WriteFmt("Testing remove copy_deinit covers every removed element\n");
+
+    reset_ledger();
+    ElemVec vec = make_elem_vec(5);           // ids 0..4
+
+    VecRemoveRange(&vec, (Elem *)NULL, 0, 3); // remove ids {0,1,2}
+
+    bool result = (g_freed[0] == 1 && g_freed[1] == 1 && g_freed[2] == 1);
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// 382:29 cxx_replace_scalar_call (cursor stride replaced by constant 0).
+bool test_remove_deinit_advances_cursor(void) {
+    WriteFmt("Testing remove copy_deinit advances per element\n");
+
+    reset_ledger();
+    ElemVec vec = make_elem_vec(5);           // ids 0..4
+
+    VecRemoveRange(&vec, (Elem *)NULL, 1, 3); // remove ids {1,2,3}
+
+    bool result = (g_freed[1] == 1 && g_freed[2] == 1 && g_freed[3] == 1);
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// 395:22 cxx_sub_to_add (`length - start - count` -> `length + start - count`).
+bool test_remove_compaction_len_first_term(void) {
+    WriteFmt("Testing remove compaction length (first term, large start)\n");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit(&alloc);
+
+    const int N = 40002;
+    for (int i = 0; i < N; i++) {
+        VecPushBackR(&vec, i);
+    }
+
+    // start large, count small: real move = N - start - 2; mutant move adds
+    // 2*start ~= 40000 elements (~160 KB) of over-read/over-write past the end.
+    VecDeleteRange(&vec, 20000, 2);
+
+    bool result = (VecLen(&vec) == (u64)(N - 2)) && (VecAt(&vec, 0) == 0) && (VecAt(&vec, 19999) == 19999) &&
+                  (VecAt(&vec, 20000) == 20002);
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// 395:30 cxx_sub_to_add (`length - start - count` -> `length - start + count`).
+bool test_remove_compaction_len_second_term(void) {
+    WriteFmt("Testing remove compaction length (second term, large count)\n");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit(&alloc);
+
+    const int N = 40000;
+    for (int i = 0; i < N; i++) {
+        VecPushBackR(&vec, i);
+    }
+
+    // start 0, count large: real move = N - K; mutant move = N + K, adding
+    // 2*K ~= 40000 elements (~160 KB) of over-read/over-write past the end.
+    const u64 K = 20000;
+    VecDeleteRange(&vec, 0, K);
+
+    bool result = (VecLen(&vec) == (u64)N - K) && (VecAt(&vec, 0) == (int)K) && (VecAt(&vec, 19999) == (int)(N - 1));
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// 395:41 cxx_replace_scalar_call (compaction MemMove stride replaced by 42).
+bool test_remove_compaction_stride(void) {
+    WriteFmt("Testing remove compaction stride (large over-move)\n");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit(&alloc);
+
+    const int N = 40000;
+    for (int i = 0; i < N; i++) {
+        VecPushBackR(&vec, i);
+    }
+
+    VecDeleteRange(&vec, 1, 2); // real move ~ (N-3)*4 bytes; mutant ~ (N-3)*42 (~1.5 MB)
+
+    bool result = (VecLen(&vec) == (u64)(N - 2)) && (VecAt(&vec, 0) == 0) && (VecAt(&vec, 1) == 3) &&
+                  (VecAt(&vec, (u64)(N - 3)) == (int)(N - 1));
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// 397:41 cxx_sub_to_add (tail-clear `vec->length - count` -> `length + count`).
+bool test_remove_tail_clear_dest(void) {
+    WriteFmt("Testing remove tail-clear destination\n");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit(&alloc);
+    for (int i = 0; i < 10; i++) {
+        VecPushBackR(&vec, i);  // [0..9]
+    }
+
+    VecDeleteRange(&vec, 3, 2); // length becomes 8
+
+    // Dead slot 9 (previously a duplicate of 9) must be zeroed.
+    bool result = (VecLen(&vec) == 8 && *VecPtrAt(&vec, 9) == 0);
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// 397:72 cxx_mul_to_div (`count * stride` -> `count / stride`).
+bool test_remove_tail_clear_len(void) {
+    WriteFmt("Testing remove tail-clear length\n");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit(&alloc);
+    for (int i = 0; i < 10; i++) {
+        VecPushBackR(&vec, i);  // [0..9]
+    }
+
+    VecDeleteRange(&vec, 3, 2); // length becomes 8
+
+    // Dead slot 9 must be zeroed, not left as a stale duplicate.
+    bool result = (VecLen(&vec) == 8 && *VecPtrAt(&vec, 9) == 0);
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// 397:74 cxx_replace_scalar_call (tail-clear stride replaced by constant 42).
+bool test_remove_tail_clear_stride(void) {
+    WriteFmt("Testing remove tail-clear stride (large over-write)\n");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit(&alloc);
+
+    const int N = 40000;
+    for (int i = 0; i < N; i++) {
+        VecPushBackR(&vec, i);
+    }
+
+    // Remove a large window: the tail-clear MemSet targets [length-count,
+    // length) and, with the stride forced to 42, writes ~42*count bytes (~1.2 MB)
+    // from vec_ptr_at(length-count), running well past the end of the buffer.
+    const u64 K = 30000;
+    VecDeleteRange(&vec, 0, K); // length becomes N-K
+
+    bool result = (VecLen(&vec) == (u64)N - K) && (VecAt(&vec, 0) == (int)K);
+
+    VecDeinit(&vec);
+    return result;
+}
+
 // Main function that runs all tests
 int main(void) {
     // Array of normal test functions
@@ -840,12 +1389,36 @@ int main(void) {
         test_lvalue_delete_range_operations,
         test_rvalue_delete_range_operations,
         test_lvalue_fast_delete_range_operations,
-        test_rvalue_fast_delete_range_operations
+        test_rvalue_fast_delete_range_operations,
+        // fast_remove_range_vec mutation-hardening (Vec.Mutants3)
+        test_fast_remove_whole_vector_succeeds,
+        test_fast_remove_copies_out_removed_data,
+        test_fast_remove_copies_out_removed_data_stride,
+        test_fast_remove_deinits_every_removed_element,
+        test_fast_remove_deinit_runs_at_least_once,
+        test_fast_remove_deinit_not_run_on_survivor,
+        test_fast_remove_deinit_runs_for_each,
+        test_fast_remove_deinit_walks_each_element,
+        test_fast_remove_zeroes_vacated_tail_sub,
+        test_fast_remove_zeroes_vacated_tail_stride,
+        test_fast_remove_zeroes_vacated_tail_call,
+        // remove_range_vec mutation-hardening (Vec.Mutants4)
+        test_remove_deinit_init_zero,
+        test_remove_deinit_runs_at_all,
+        test_remove_deinit_no_overrun,
+        test_remove_deinit_all_three,
+        test_remove_deinit_advances_cursor,
+        test_remove_compaction_len_first_term,
+        test_remove_compaction_len_second_term,
+        test_remove_compaction_stride,
+        test_remove_tail_clear_dest,
+        test_remove_tail_clear_len,
+        test_remove_tail_clear_stride
     };
 
     int normal_count = sizeof(normal_tests) / sizeof(normal_tests[0]);
 
-    alloc    = DefaultAllocatorInit();
+    alloc  = DefaultAllocatorInit();
     int rc = run_test_suite(normal_tests, normal_count, NULL, 0, "Vec.Remove");
     DefaultAllocatorDeinit(&alloc);
     return rc;
