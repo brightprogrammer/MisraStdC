@@ -10,6 +10,8 @@ bool test_int_init(void);
 bool test_int_clear(void);
 bool test_int_clone(void);
 bool test_int_clone_inherits_allocator_config(void);
+bool test_m27_normalize_trims_via_add(void);
+bool test_fe_96_u64_bits_construct(void);
 
 bool test_int_init(void) {
     WriteFmt("Testing IntInit\n");
@@ -99,6 +101,58 @@ bool test_int_clone_inherits_allocator_config(void) {
     return result;
 }
 
+
+// Kills cxx_replace_scalar_call on int_normalize's resize length
+//   line 219:  BitVecResize(INT_BITS(value), int_significant_bits(value));
+// int_normalize runs at the tail of int_add, so the sum's bit length is the
+// significant-bit count of the result. IntAdd(255, 1) == 256 == 0b100000000,
+// whose only significant bit is bit 8 -> IntBitLength == 9.
+//   - replacing int_significant_bits(value) with a scalar makes int_normalize
+//     resize to a wrong, fixed length, so the value and its IntBitLength stop
+//     matching 256 / 9 (e.g. scalar 0 -> resize to 0 bits -> value 0).
+// Real code yields 256 with bit length 9; the mutant diverges on both checks.
+bool test_m27_normalize_trims_via_add(void) {
+    WriteFmt("Testing int_normalize resize length via IntAdd(255,1)\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Int a   = IntFrom(255, &alloc.base);
+    Int b   = IntFrom(1, &alloc.base);
+    Int sum = IntInit(&alloc.base);
+
+    IntAdd(&sum, &a, &b);
+
+    bool result = (IntToU64(&sum) == 256);
+    result      = result && (IntBitLength(&sum) == 9);
+
+    IntDeinit(&a);
+    IntDeinit(&b);
+    IntDeinit(&sum);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 96: int_u64_bits counts the set bits of a u64 via `bits++`. The
+// faithful mutation `bits--` underflows the counter to a near-2^64 value,
+// so int_try_from_u64 asks BitVecTryFromInteger for an impossible bit
+// count and fails; IntFrom then yields an empty Int. Real code sizes 255
+// to 8 bits. Observe the bit length and value of a freshly constructed
+// integer.
+bool test_fe_96_u64_bits_construct(void) {
+    WriteFmt("Testing int_u64_bits construction width\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Int v255 = IntFrom(255, &alloc.base);
+
+    bool result = IntBitLength(&v255) == 8;
+    result      = result && (IntToU64(&v255) == 255);
+
+    IntDeinit(&v255);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting Int.Type tests\n\n");
 
@@ -107,6 +161,8 @@ int main(void) {
         test_int_clear,
         test_int_clone,
         test_int_clone_inherits_allocator_config,
+        test_m27_normalize_trims_via_add,
+        test_fe_96_u64_bits_construct,
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);

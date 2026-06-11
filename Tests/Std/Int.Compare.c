@@ -6,12 +6,17 @@
 
 #include "../Util/TestRunner.h"
 
-bool test_int_compare(void);
-bool test_int_compare_wrappers(void);
-bool test_int_compare_generic(void);
-bool test_int_hash_determinism(void);
-bool test_int_hash_distinguishes(void);
-bool test_int_hash_as_map_key(void);
+bool        test_int_compare(void);
+bool        test_int_compare_wrappers(void);
+bool        test_int_compare_generic(void);
+bool        test_int_hash_determinism(void);
+bool        test_int_hash_distinguishes(void);
+bool        test_int_hash_as_map_key(void);
+bool        test_m24_compare_u64_64bit_equal(void);
+bool        test_m24_compare_u64_below(void);
+bool        test_m27_is_one_of_one(void);
+static bool test_m28_compare_i64_zero_is_equal(void);
+static bool test_m28_compare_i64_null_lhs_deadend(void);
 
 bool test_int_compare(void) {
     WriteFmt("Testing IntCompare\n");
@@ -181,6 +186,111 @@ bool test_int_hash_as_map_key(void) {
     return result;
 }
 
+
+// ---------------------------------------------------------------------------
+// int_compare_u64 wide-value guard.
+// `if (IntBitLength(lhs) > 64) return 1;` short-circuits only values that do
+// not fit in u64. A value of exactly 64 significant bits (2^63) DOES fit, so
+// the comparison must fall through to the exact u64 compare.
+//
+// Kills L975:27 cxx_gt_to_ge: `> 64` -> `>= 64` makes a 64-bit lhs report 1
+// (greater) unconditionally. IntCompare(2^63, 2^63) is 0 in real code and 1
+// under the mutant.
+// ---------------------------------------------------------------------------
+bool test_m24_compare_u64_64bit_equal(void) {
+    WriteFmt("Testing IntCompare(2^63, 2^63) == 0\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Int lhs = IntFrom(0x8000000000000000u, &alloc.base);
+
+    bool fail = (IntBitLength(&lhs) != 64); // sanity: exactly 64 bits.
+    fail      = fail || (IntCompare(&lhs, 0x8000000000000000u) != 0);
+
+    IntDeinit(&lhs);
+    DefaultAllocatorDeinit(&alloc);
+    return !fail;
+}
+
+// A small value below rhs must compare -1, pinning the post-fallthrough
+// `lhs_value < rhs` branch alongside the wide-value guard.
+bool test_m24_compare_u64_below(void) {
+    WriteFmt("Testing IntCompare(7, 9) == -1\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Int lhs = IntFrom(7u, &alloc.base);
+
+    bool fail = (IntCompare(&lhs, 9u) != -1);
+
+    IntDeinit(&lhs);
+    DefaultAllocatorDeinit(&alloc);
+    return !fail;
+}
+
+// Kills cxx_replace_scalar_call on int_is_one's bit read
+//   line 229:  return IntBitLength(value) == 1 && BitVecGet(INT_BITS(value), 0);
+// For value 1, IntBitLength == 1 and bit 0 is set, so real code returns true.
+//   - replacing BitVecGet(INT_BITS(value), 0) with a falsey scalar makes the
+//     conjunction false even for 1 -> IntIsOne(1) returns false.
+// Real code returns true; the mutant returns false -> distinguishable.
+bool test_m27_is_one_of_one(void) {
+    WriteFmt("Testing IntIsOne(1) returns true\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Int one = IntFrom(1, &alloc.base);
+
+    bool result = (IntIsOne(&one) == true);
+
+    IntDeinit(&one);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+///
+/// int_compare_i64: the `rhs < 0` guard must use strict `<`, not `<=`.
+/// With `<=`, an rhs of exactly 0 would short-circuit to "lhs is greater"
+/// (return 1) instead of delegating to int_compare_u64. For lhs == 0 the
+/// true comparison against 0 is "equal" (0). This single vector
+/// distinguishes the `<` vs `<=` mutant: real returns 0, mutant returns 1.
+///
+static bool test_m28_compare_i64_zero_is_equal(void) {
+    WriteFmt("Testing int_compare_i64 zero equality (lt-vs-le guard)\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Int zero = IntInit(&alloc.base);
+
+    int  cmp    = int_compare_i64(&zero, (i64)0);
+    bool result = (cmp == 0);
+
+    /* A non-zero lhs vs rhs 0 must still report greater (positive). */
+    Int five = IntFrom((u64)5u, &alloc.base);
+    result   = result && (int_compare_i64(&five, (i64)0) > 0);
+
+    IntDeinit(&five);
+    IntDeinit(&zero);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+///
+/// Deadend: int_compare_i64 must validate `lhs` before use. We feed a NULL
+/// lhs with a NEGATIVE rhs so that the only thing standing between the call
+/// and a clean (non-crashing) early `return 1` is the ValidateInt(lhs)
+/// guard. Real code aborts in ValidateInt; with the validator removed the
+/// rhs<0 branch returns 1 without dereferencing NULL -- no abort -- which
+/// is exactly what this deadend detects.
+///
+static bool test_m28_compare_i64_null_lhs_deadend(void) {
+    WriteFmt("Testing int_compare_i64 NULL lhs validation\n");
+
+    (void)int_compare_i64(NULL, (i64)-5);
+
+    return false;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting Int.Compare tests\n\n");
 
@@ -191,8 +301,17 @@ int main(void) {
         test_int_hash_determinism,
         test_int_hash_distinguishes,
         test_int_hash_as_map_key,
+        test_m24_compare_u64_64bit_equal,
+        test_m24_compare_u64_below,
+        test_m27_is_one_of_one,
+        test_m28_compare_i64_zero_is_equal,
     };
 
-    int total_tests = sizeof(tests) / sizeof(tests[0]);
-    return run_test_suite(tests, total_tests, NULL, 0, "Int.Compare");
+    TestFunction deadend_tests[] = {
+        test_m28_compare_i64_null_lhs_deadend,
+    };
+
+    int total_tests         = sizeof(tests) / sizeof(tests[0]);
+    int total_deadend_tests = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
+    return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "Int.Compare");
 }
