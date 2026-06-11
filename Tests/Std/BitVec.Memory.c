@@ -20,6 +20,15 @@ bool test_bitvec_memory_stress_test(void);
 bool test_bitvec_memory_null_failures(void);
 bool test_bitvec_swap_null_failures(void);
 bool test_bitvec_clone_null_failures(void);
+bool test_resize_regrow_clears_stale_tail_bits(void);
+bool test_reserve_zero_returns_true(void);
+bool test_resize_null_aborts(void);
+bool test_reserve_null_aborts(void);
+bool test_shrink_large_preserves_bits(void);
+bool test_shrink_large_stays_valid(void);
+bool test_swap_large_into_other_stays_valid(void);
+bool test_swap_invalid_second_arg_aborts(void);
+bool test_tryclone_invalid_source_aborts(void);
 
 // Test BitVecShrinkToFit function
 bool test_bitvec_shrink_to_fit(void) {
@@ -467,6 +476,222 @@ bool test_bitvec_clone_null_failures(void) {
     return false;
 }
 
+// Resize grow must clean the stale high bits of the old partial tail byte
+// so a later resize-grow reads zeros, not garbage. Push a full byte of 1s,
+// shrink the length below the byte boundary (leaving bits 5..7 set in the
+// backing byte), then grow back. Bits 5..7 must read false.
+//
+// Kills: 124:28 gt_to_le (mask guard skipped for length>0),
+//        125:17 init_const (last_bit_offset := 42 -> 0xFF mask, no clear),
+//        126:33 ne_to_eq (mask skipped when offset != 0),
+//        128:52 lshift_to_rshift ((1u >> off) - 1 -> 0xFF mask, no clear).
+bool test_resize_regrow_clears_stale_tail_bits(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing resize-grow clears stale tail bits\n");
+
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
+
+    // Fill a full byte with ones so bits 5,6,7 are set in the backing byte.
+    for (int i = 0; i < 8; i++) {
+        BitVecPush(&bv, true);
+    }
+
+    // Shrink length below the byte boundary -- the high bits stay set in
+    // the backing byte but are now past the logical length.
+    BitVecResize(&bv, 5);
+
+    // Grow back to 8. The grow path must mask off the stale 5..7 bits.
+    BitVecResize(&bv, 8);
+
+    bool result = (BitVecLen(&bv) == 8);
+    result      = result && (BitVecGet(&bv, 5) == false);
+    result      = result && (BitVecGet(&bv, 6) == false);
+    result      = result && (BitVecGet(&bv, 7) == false);
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// BitVecReserve(bv, 0) is a no-op that must report success. The early
+// `n <= capacity` return is what makes the zero-request succeed without
+// touching the allocator.
+//
+// Kills: 140:11 le_to_lt (n < capacity drops the n == 0 == capacity case
+//        into a zero-size realloc that fails).
+bool test_reserve_zero_returns_true(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecReserve with zero capacity returns true\n");
+
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
+
+    bool result = (BitVecReserve(&bv, 0) == true);
+    result      = result && (BitVecLen(&bv) == 0);
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// BitVecResize must validate its argument. A NULL handle has to abort,
+// not be silently accepted.
+//
+// Kills: 107:5 remove_void_call (ValidateBitVec dropped).
+bool test_resize_null_aborts(void) {
+    WriteFmt("Testing BitVecResize NULL handle aborts\n");
+
+    BitVecResize(NULL, 5);
+
+    return false; // Should never reach here
+}
+
+// BitVecReserve must validate its argument. A NULL handle has to abort.
+//
+// Kills: 139:5 remove_void_call (ValidateBitVec dropped).
+bool test_reserve_null_aborts(void) {
+    WriteFmt("Testing BitVecReserve NULL handle aborts\n");
+
+    BitVecReserve(NULL, 5);
+
+    return false; // Should never reach here
+}
+
+// BitVecShrinkToFit on a large bitvector must take the realloc path
+// (new_byte_size != byte_size) without losing data. Kills the
+// `new_byte_size = 42` (line 176) and `byte_size = 42` (line 195)
+// mutants: under those the backing buffer is truncated / mis-sized and
+// the high bits are corrupted or the next validate aborts.
+bool test_shrink_large_preserves_bits(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecShrinkToFit preserves bits on a large vector\n");
+
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
+
+    // 400 bits => doubling growth yields capacity 512, byte_size 64,
+    // while the data only needs BYTES_FOR_BITS(400) == 50 bytes. So the
+    // shrink takes the realloc path (50 != 64) and capacity (512) > length.
+    for (int i = 0; i < 400; i++) {
+        BitVecPush(&bv, i % 2 == 0);
+    }
+
+    BitVecShrinkToFit(&bv);
+
+    bool result = (BitVecLen(&bv) == 400);
+
+    // Every bit, including the high bits in the last byte, must survive.
+    for (int i = 0; i < 400 && result; i++) {
+        result = result && (BitVecGet(&bv, (u64)i) == (i % 2 == 0));
+    }
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// After shrinking a large bitvector, a follow-up operation that runs the
+// structural validator must not abort. Kills the `byte_size = 42`
+// mutant (line 195): with capacity 400 and byte_size 42, the validator
+// sees 42*8 == 336 < 400 and aborts spuriously.
+bool test_shrink_large_stays_valid(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecShrinkToFit keeps the vector structurally valid\n");
+
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
+
+    for (int i = 0; i < 400; i++) {
+        BitVecPush(&bv, i % 3 == 0);
+    }
+
+    BitVecShrinkToFit(&bv);
+
+    // ShrinkToFit marks the vector dirty, so the next access runs the
+    // structural validator. On real code this returns the bit; under the
+    // mutant it aborts.
+    bool result = (BitVecGet(&bv, 399) == (399 % 3 == 0));
+    result      = result && (BitVecCountOnes(&bv) == BitVecCountOnes(&bv));
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Swapping a large bitvector into another must leave the destination
+// structurally valid (byte_size big enough for its new capacity). Kills
+// the `bv1->byte_size = 42` mutant (line 216): after the swap bv1 holds
+// the large capacity but byte_size 42, so the next validate aborts.
+bool test_swap_large_into_other_stays_valid(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecSwap keeps a swapped-in large vector valid\n");
+
+    BitVec small = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec large = BitVecInit(ALLOCATOR_OF(&alloc));
+
+    BitVecPush(&small, true);
+    BitVecPush(&small, false);
+
+    // Large enough that 42*8 == 336 < capacity once swapped in.
+    for (int i = 0; i < 400; i++) {
+        BitVecPush(&large, i % 2 == 0);
+    }
+
+    // After this, `small` holds the 400-bit data and the large capacity.
+    BitVecSwap(&small, &large);
+
+    // Swap marks both dirty; the next access on `small` runs the
+    // structural validator. Real code passes; the mutant aborts.
+    bool result = (BitVecLen(&small) == 400);
+    result      = result && (BitVecGet(&small, 399) == (399 % 2 == 0));
+    result      = result && (BitVecGet(&small, 0) == true);
+
+    BitVecDeinit(&small);
+    BitVecDeinit(&large);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// DEADEND: BitVecSwap must validate its second argument. Kills the
+// removal of `ValidateBitVec(bv2)` (line 201): with a zeroed (bad-magic)
+// second argument, real code aborts at the validate site; the mutant
+// skips validation and swaps garbage, returning normally.
+bool test_swap_invalid_second_arg_aborts(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecSwap aborts on an invalid second argument\n");
+
+    BitVec good = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVecPush(&good, true);
+
+    BitVec bad = {0}; // magic 0 => invalid bitvec
+
+    // Should abort inside ValidateBitVec(bv2).
+    BitVecSwap(&good, &bad);
+
+    return false; // Should never reach here
+}
+
+// DEADEND: BitVecTryClone must validate its source. Kills the removal of
+// `ValidateBitVec(bv)` (line 223): with a zeroed (bad-magic) source,
+// real code aborts; the mutant skips validation and (since the bogus
+// length is 0) returns true.
+bool test_tryclone_invalid_source_aborts(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecTryClone aborts on an invalid source\n");
+
+    BitVec out = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bad = {0}; // magic 0 => invalid bitvec
+
+    // Should abort inside ValidateBitVec(bv).
+    BitVecTryClone(&out, &bad);
+
+    return false; // Should never reach here
+}
+
 // Main function that runs all tests
 int main(void) {
     WriteFmt("[INFO] Starting BitVec.Memory tests\n\n");
@@ -482,14 +707,23 @@ int main(void) {
         test_bitvec_reserve_edge_cases,
         test_bitvec_swap_edge_cases,
         test_bitvec_clone_edge_cases,
-        test_bitvec_memory_stress_test
+        test_bitvec_memory_stress_test,
+        test_resize_regrow_clears_stale_tail_bits,
+        test_reserve_zero_returns_true,
+        test_shrink_large_preserves_bits,
+        test_shrink_large_stays_valid,
+        test_swap_large_into_other_stays_valid
     };
 
     // Array of deadend test functions
     TestFunction deadend_tests[] = {
         test_bitvec_memory_null_failures,
         test_bitvec_swap_null_failures,
-        test_bitvec_clone_null_failures
+        test_bitvec_clone_null_failures,
+        test_resize_null_aborts,
+        test_reserve_null_aborts,
+        test_swap_invalid_second_arg_aborts,
+        test_tryclone_invalid_source_aborts
     };
 
     int total_tests         = sizeof(tests) / sizeof(tests[0]);

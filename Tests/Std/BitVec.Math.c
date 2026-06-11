@@ -46,6 +46,31 @@ bool test_bitvec_alignment_score_null_bv1(void);
 bool test_bitvec_alignment_score_null_bv2(void);
 bool test_bitvec_best_alignment_null_bv1(void);
 bool test_bitvec_best_alignment_null_bv2(void);
+bool test_jaccard_guard_fires_only_when_both_empty(void);
+bool test_jaccard_bv1_shorter_no_abort(void);
+bool test_jaccard_bv2_shorter_no_abort(void);
+bool test_jaccard_equal_length_uses_bv2_bits(void);
+bool test_edit_distance_col0_base_case(void);
+bool test_edit_distance_deletion_term(void);
+bool test_edit_distance_empty_to_len_base_row(void);
+bool test_edit_distance_base_row_fully_filled(void);
+bool test_edit_distance_insertion_term(void);
+bool test_jaccard_rejects_bad_second_operand(void);
+bool test_correlation_bv1_shorter_no_oob(void);
+bool test_correlation_bv2_shorter_no_oob(void);
+bool test_entropy_unbalanced_value_m8(void);
+bool test_best_alignment_all_mismatch_offset(void);
+bool test_best_alignment_offset(void);
+bool test_best_alignment_empty_overlap_ignored(void);
+bool test_best_alignment_first_tie_wins(void);
+bool test_best_alignment_picks_max_not_min(void);
+bool test_best_alignment_uses_real_score(void);
+
+// Helper: push a 0/1 character string of bits into bv.
+static void push_bits(BitVec *bv, const char *bits) {
+    for (const char *p = bits; *p != '\0'; p++)
+        BitVecPush(bv, *p == '1');
+}
 
 // Test BitVecHammingDistance basic functionality
 bool test_bitvec_hamming_distance_basic(void) {
@@ -935,6 +960,610 @@ bool test_bitvec_best_alignment_null_bv2(void) {
 }
 
 // Main function that runs all tests
+// Kills 1427:21 and 1427:41 cxx_eq_to_ne -- the early `return 1.0` guard
+// `bv1->length == 0 && bv2->length == 0`. Flipping either `==` to `!=` makes
+// the guard fire for an empty-vs-non-empty pair, returning 1.0 instead of the
+// true Jaccard of 0.0 for two disjoint single-bit vectors.
+bool test_jaccard_guard_fires_only_when_both_empty(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecJaccardSimilarity guard only fires when both empty\n");
+
+    BitVec empty = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec one   = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVecPush(&one, true);
+
+    bool result = true;
+
+    // empty vs {1}: intersection 0, union 1 -> Jaccard 0.0 (kills 1427:41).
+    double s1 = BitVecJaccardSimilarity(&empty, &one);
+    result    = result && (F64Abs(s1 - 0.0) < 0.001);
+
+    // {1} vs empty: same -> 0.0 (kills 1427:21).
+    double s2 = BitVecJaccardSimilarity(&one, &empty);
+    result    = result && (F64Abs(s2 - 0.0) < 0.001);
+
+    BitVecDeinit(&empty);
+    BitVecDeinit(&one);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Kills 1439:24 cxx_lt_to_le -- `(i < bv1->length)` guarding BitVecGet(bv1, i).
+// With `<=`, when bv1 is the shorter vector the loop calls BitVecGet(bv1,
+// bv1->length) which LOG_FATALs. A valid differing-length Jaccard must NOT
+// abort and must return the correct 1.0.
+bool test_jaccard_bv1_shorter_no_abort(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecJaccardSimilarity with bv1 shorter than bv2\n");
+
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
+
+    // bv1 = {1}, bv2 = {1, 0}. Intersection 1 (pos 0), union 1 -> 1.0.
+    BitVecPush(&bv1, true);
+    BitVecPush(&bv2, true);
+    BitVecPush(&bv2, false);
+
+    double s      = BitVecJaccardSimilarity(&bv1, &bv2);
+    bool   result = (F64Abs(s - 1.0) < 0.001);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Kills 1440:24 cxx_lt_to_le -- `(i < bv2->length)` guarding BitVecGet(bv2, i).
+// With `<=`, when bv2 is the shorter vector the loop calls BitVecGet(bv2,
+// bv2->length) which LOG_FATALs. A valid differing-length Jaccard must NOT
+// abort and must return the correct 1.0.
+bool test_jaccard_bv2_shorter_no_abort(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecJaccardSimilarity with bv2 shorter than bv1\n");
+
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
+
+    // bv1 = {1, 0}, bv2 = {1}. Intersection 1 (pos 0), union 1 -> 1.0.
+    BitVecPush(&bv1, true);
+    BitVecPush(&bv1, false);
+    BitVecPush(&bv2, true);
+
+    double s      = BitVecJaccardSimilarity(&bv1, &bv2);
+    bool   result = (F64Abs(s - 1.0) < 0.001);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Kills 1440:24 cxx_lt_to_ge -- `(i < bv2->length)` flipped to `(i >=
+// bv2->length)`. In the valid region (i < len) the ternary then yields false
+// instead of BitVecGet(bv2, i), so bv2's set bits vanish from the union. For
+// an all-zero bv1 vs an all-one bv2 of equal length the real Jaccard is 0.0
+// (union = count of bv2 ones); the mutant sees union 0 and returns 1.0.
+bool test_jaccard_equal_length_uses_bv2_bits(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecJaccardSimilarity reads bv2 bits in valid region\n");
+
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
+
+    // bv1 = {0, 0}, bv2 = {1, 1}. Intersection 0, union 2 -> 0.0.
+    BitVecPush(&bv1, false);
+    BitVecPush(&bv1, false);
+    BitVecPush(&bv2, true);
+    BitVecPush(&bv2, true);
+
+    double s      = BitVecJaccardSimilarity(&bv1, &bv2);
+    bool   result = (F64Abs(s - 0.0) < 0.001);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Kills 1525:21 cxx_assign_const -- `curr_row[0] = i` (column-0 base case of
+// the edit-distance DP: deleting the i-bit bv1 prefix down to empty costs i)
+// replaced with `curr_row[0] = 42`. For bv1 = {0,1}, bv2 = {1} the true
+// distance is 1; the corrupted column-0 base forces the mutant to 2.
+bool test_edit_distance_col0_base_case(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecEditDistance column-0 base case\n");
+
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
+
+    BitVecPush(&bv1, false);
+    BitVecPush(&bv1, true);
+    BitVecPush(&bv2, true);
+
+    u64  dist   = BitVecEditDistance(&bv1, &bv2);
+    bool result = (dist == 1);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Kills 1530:17 cxx_init_const -- `u64 deletion = prev_row[j] + 1` (the
+// deletion candidate of the edit-distance recurrence) replaced with
+// `deletion = 42`. For bv1 = {0,1}, bv2 = {0} the deletion path is the unique
+// minimizer: true distance is 1, the mutant yields 2.
+bool test_edit_distance_deletion_term(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecEditDistance deletion term\n");
+
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
+
+    BitVecPush(&bv1, false);
+    BitVecPush(&bv1, true);
+    BitVecPush(&bv2, false);
+
+    u64  dist   = BitVecEditDistance(&bv1, &bv2);
+    bool result = (dist == 1);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Kills 1520:23 cxx_le_to_lt -- the base-case row loop `for (j = 0; j <= len2;
+// j++) prev_row[j] = j` becoming `j < len2` leaves prev_row[len2] uninitialised.
+// With an EMPTY bv1 the i-loop never runs and the result is exactly
+// prev_row[len2], whose correct value is len2 (turning empty into a len2 prefix
+// takes len2 insertions). The mutant returns whatever garbage the scratch row
+// held. A throwaway distance over longer vectors first stamps large stale
+// values into the recycled scratch buffer so the missing init is observable
+// (garbage != len2) rather than a coincidental zero.
+bool test_edit_distance_empty_to_len_base_row(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecEditDistance empty->len base row fill\n");
+
+    // Stamp large values into the scratch arena: a 6-vs-6 edit distance fills
+    // (len2+1)-wide rows with values up to ~6, then frees them for reuse.
+    // warm_b length == target bv2 length (5) so the freed scratch rows are the
+    // exact size the empty->5 distance will recycle, guaranteeing the stale
+    // (large) values land in prev_row[len2].
+    BitVec warm_a = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec warm_b = BitVecInit(ALLOCATOR_OF(&alloc));
+    for (int i = 0; i < 5; i++) {
+        BitVecPush(&warm_a, (i % 2) == 0);
+        BitVecPush(&warm_b, (i % 3) == 0);
+    }
+    (void)BitVecEditDistance(&warm_a, &warm_b);
+    BitVecDeinit(&warm_a);
+    BitVecDeinit(&warm_b);
+
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc)); // empty
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
+    for (int i = 0; i < 5; i++) {
+        BitVecPush(&bv2, true);
+    }
+
+    u64  dist   = BitVecEditDistance(&bv1, &bv2);
+    bool result = (dist == 5);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Kills 1520:33 cxx_post_inc_to_post_dec -- the base-row loop counter `j++`
+// becoming `j--` underflows after the j==0 write, so the loop exits having set
+// only prev_row[0]; prev_row[1..len2] stay uninitialised. Same caller-
+// observable handle as above: empty->len must be exactly len. The warm-up
+// pre-soils the scratch so the unfilled cells are not coincidentally correct.
+bool test_edit_distance_base_row_fully_filled(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecEditDistance base row counter advances forward\n");
+
+    // warm_b length == target bv2 length (4): freed scratch rows match the size
+    // the empty->4 distance recycles, so the unfilled prev_row[len2] holds a
+    // stale large value rather than a coincidental 4.
+    BitVec warm_a = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec warm_b = BitVecInit(ALLOCATOR_OF(&alloc));
+    for (int i = 0; i < 4; i++) {
+        BitVecPush(&warm_a, (i % 2) == 1);
+        BitVecPush(&warm_b, (i % 2) == 0);
+    }
+    (void)BitVecEditDistance(&warm_a, &warm_b);
+    BitVecDeinit(&warm_a);
+    BitVecDeinit(&warm_b);
+
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc)); // empty
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
+    for (int i = 0; i < 4; i++) {
+        BitVecPush(&bv2, false);
+    }
+
+    u64  dist   = BitVecEditDistance(&bv1, &bv2);
+    bool result = (dist == 4);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Kills 1531:43 cxx_sub_to_add -- the insertion candidate `curr_row[j - 1] + 1`
+// becoming `curr_row[j + 1] + 1` reads the wrong (not-yet-computed / past-end)
+// cell. For bv1 = {1} and bv2 = {1,1,1} the answer is reached purely by
+// insertions: turn the single matching bit into three takes two insertions
+// (distance 2). The real left-neighbour recurrence yields 2; the right-
+// neighbour misread propagates a wrong (larger) candidate and changes it.
+bool test_edit_distance_insertion_term(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecEditDistance insertion term\n");
+
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
+
+    BitVecPush(&bv1, true);
+    BitVecPush(&bv2, true);
+    BitVecPush(&bv2, true);
+    BitVecPush(&bv2, true);
+
+    u64  dist   = BitVecEditDistance(&bv1, &bv2);
+    bool result = (dist == 2);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Deadend: kills 1425:5 cxx_remove_void_call -- ValidateBitVec(bv2) in
+// BitVecJaccardSimilarity. bv1 is a valid empty vector and bv2 is bad-magic
+// with length 0, so the early `bv1->length == 0 && bv2->length == 0` guard
+// returns 1.0 before line 1433's BitVecDotProduct would re-validate bv2. Only
+// the dropped validate keeps real code aborting on the bad-magic bv2.
+bool test_jaccard_rejects_bad_second_operand(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecJaccardSimilarity rejects bad second operand\n");
+
+    BitVec empty = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bad   = {0};
+
+    BitVecJaccardSimilarity(&empty, &bad);
+
+    BitVecDeinit(&empty);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// BitVecCorrelation: the read of bv1 is guarded by `i < bv1->length`. If that
+// guard were `i <= bv1->length` (lt_to_le, line 1574) then for a bv1 shorter
+// than bv2 the loop would read BitVecGet(bv1, bv1->length), which is out of
+// bounds and aborts. On real code the call returns a finite correlation in
+// [-1, 1] without aborting.
+bool test_correlation_bv1_shorter_no_oob(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecCorrelation with bv1 shorter than bv2 (no OOB)\n");
+
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
+    bool   result = true;
+
+    // bv1 length 2, bv2 length 4 -> bv1 is the shorter operand.
+    BitVecPush(&bv1, true);
+    BitVecPush(&bv1, false);
+
+    BitVecPush(&bv2, true);
+    BitVecPush(&bv2, false);
+    BitVecPush(&bv2, true);
+    BitVecPush(&bv2, false);
+
+    double correlation = BitVecCorrelation(&bv1, &bv2);
+    result             = result && (correlation >= -1.0 && correlation <= 1.0);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Mirror of the above for the bv2 read guard `i < bv2->length` (lt_to_le, line
+// 1575). With bv2 the shorter operand the mutated guard reads
+// BitVecGet(bv2, bv2->length) and aborts; real code returns a finite value.
+bool test_correlation_bv2_shorter_no_oob(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecCorrelation with bv2 shorter than bv1 (no OOB)\n");
+
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
+    bool   result = true;
+
+    // bv1 length 4, bv2 length 2 -> bv2 is the shorter operand.
+    BitVecPush(&bv1, true);
+    BitVecPush(&bv1, false);
+    BitVecPush(&bv1, true);
+    BitVecPush(&bv1, false);
+
+    BitVecPush(&bv2, true);
+    BitVecPush(&bv2, false);
+
+    double correlation = BitVecCorrelation(&bv1, &bv2);
+    result             = result && (correlation >= -1.0 && correlation <= 1.0);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// BitVecEntropy uses `-(p1*log2(p1) + p0*log2(p0))`. The existing entropy tests
+// use a balanced vector (p1 == p0 == 0.5), where multiplying vs dividing by
+// log2(0.5) == -1 are indistinguishable. An UNBALANCED vector (3 ones, 1 zero)
+// gives p1=0.75, p0=0.25 and a Shannon entropy of ~0.81128. The mul_to_div
+// mutation on the second term (line 1606) instead yields ~0.43628.
+bool test_entropy_unbalanced_value_m8(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecEntropy on an unbalanced (3 ones, 1 zero) vector\n");
+
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
+    bool   result = true;
+
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, false);
+
+    double entropy = BitVecEntropy(&bv);
+    // True value 0.811278; mutant value 0.436278 is well outside this band.
+    result = result && (F64Abs(entropy - 0.811278) < 0.01);
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// BitVecBestAlignment slides bv2 across bv1 and returns the offset of the
+// highest-scoring overlap. With bv1 = 0000 and bv2 = 11 every real overlap is a
+// mismatch, so the best (least-negative) score belongs to offset 3, which has a
+// single overlapping mismatch (score -1) versus -2 for the fuller overlaps. The
+// real result is therefore offset 3. This single observable value kills the
+// whole family of survivors:
+//   - eq_to_ne on the empty-input guards (1631) -> would early-return 0
+//   - init_const best_score=42 (1636)          -> no score beats 42 -> 0
+//   - le_to_gt on the offset loop (1638)        -> loop never runs -> 0
+//   - post_inc_to_post_dec on offset (1638)     -> only offset 0 tried -> 0
+//   - init_const overlap=42 (1640)              -> phantom offset 4 wins -> 4
+//   - init_const inner index i=42 (1642)        -> inner loop never runs -> 0
+bool test_best_alignment_all_mismatch_offset(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecBestAlignment all-mismatch best offset == 3\n");
+
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
+    bool   result = true;
+
+    // bv1 = 0 0 0 0
+    BitVecPush(&bv1, false);
+    BitVecPush(&bv1, false);
+    BitVecPush(&bv1, false);
+    BitVecPush(&bv1, false);
+
+    // bv2 = 1 1
+    BitVecPush(&bv2, true);
+    BitVecPush(&bv2, true);
+
+    u64 best_offset = BitVecBestAlignment(&bv1, &bv2);
+    result          = result && (best_offset == 3);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// sqrt_f64 via BitVecCosineSimilarity: `u.d = x;` (31:cxx_assign_const ->
+// `u.d = 42`) makes the root always sqrt(42), so cosine of two identical
+// vectors stops being 1.0. Caller-observable similarity value.
+static bool test_cosine_similarity_identical_is_one(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecCosineSimilarity of identical vectors == 1.0\n");
+
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
+    bool   result = true;
+
+    // Four set bits each: dot=4, |a|=|b|=sqrt(4)=2, cosine = 4/(2*2) = 1.0.
+    // With sqrt forced to sqrt(42), cosine collapses to 4/42 ~= 0.095.
+    for (u64 i = 0; i < 4; i++) {
+        BitVecPush(&bv1, true);
+        BitVecPush(&bv2, true);
+    }
+
+    double similarity = BitVecCosineSimilarity(&bv1, &bv2);
+    result            = result && (F64Abs(similarity - 1.0) < 0.001);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// log2_f64 via BitVecEntropy: `y = (m-1.0) / (m+1.0)` (61:cxx_div_to_mul)
+// and `y2 = y * y;` (62:cxx_init_const -> `y2 = 42`) both corrupt the
+// mantissa series, yielding a wrong log2 and hence a wrong entropy for an
+// unbalanced distribution (mantissa != 1.0). Caller-observable value.
+static bool test_entropy_unbalanced_value_m12(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecEntropy of a 3:1 distribution\n");
+
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
+    bool   result = true;
+
+    // 3 ones, 1 zero -> p1=0.75, p0=0.25.
+    // entropy = -(0.75*log2(0.75) + 0.25*log2(0.25)) ~= 0.8112782517.
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, false);
+
+    double entropy = BitVecEntropy(&bv);
+    result         = result && (F64Abs(entropy - 0.8112782517394319) < 0.001);
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Kills 63:cxx_mul_to_div -- the mantissa series term `y2 * (...)` becoming
+// `y2 / (...)` corrupts log2(x) for any x whose mantissa is not 1.0. A
+// balanced (p=0.5) vector hits y=0 and hides the bug, so use an unbalanced
+// 1-of-4 vector: Shannon entropy is 0.8112781245, which the real series
+// reproduces to sub-0.001 but the mutant misses by ~0.045.
+static bool test_entropy_unbalanced_value_m13(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec bv     = BitVecInit(base);
+    bool   result = true;
+
+    // 1000 -> one 1, three 0s : p1 = 0.25, p0 = 0.75.
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, false);
+    BitVecPush(&bv, false);
+    BitVecPush(&bv, false);
+
+    double entropy = BitVecEntropy(&bv);
+    result         = result && (F64Abs(entropy - 0.8112781245) < 0.001);
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Real algorithm slides bv2 across bv1 scoring +1 per matching bit and -1 per
+// mismatch, returning the offset of the maximum score (first on a tie).
+//
+// bv1 = 1011, bv2 = 11:
+//   off0: 10 vs 11 -> 0   off1: 01 vs 11 -> 0
+//   off2: 11 vs 11 -> +2  off3: 1  vs 1  -> +1
+// Unique max is offset 2. Kills 1642:27 (lt_to_ge collapses the inner loop so
+// nothing is ever scored -> returns 0) and 1642:73 (post_inc->post_dec scores
+// only the first overlap bit, making offset 0 the earliest +1 -> returns 0).
+bool test_best_alignment_offset(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
+    push_bits(&bv1, "1011");
+    push_bits(&bv2, "11");
+
+    bool result = (BitVecBestAlignment(&bv1, &bv2) == 2);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// The empty-overlap offset (offset == bv1->length, score 0, overlap 0) must be
+// ignored. bv1 = 11, bv2 = 000:
+//   off0: 11 vs 00 -> -2   off1: 1 vs 0 -> -1   off2: overlap 0, score 0
+// Real keeps the best real overlap -> offset 1. Mutant 1651:21 (overlap>0 ->
+// overlap>=0) lets the zero-overlap offset 2 win with its bogus score 0.
+bool test_best_alignment_empty_overlap_ignored(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
+    push_bits(&bv1, "11");
+    push_bits(&bv2, "000");
+
+    bool result = (BitVecBestAlignment(&bv1, &bv2) == 1);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Tie-break: first offset achieving the max score wins. bv1 = 1010, bv2 = 10:
+//   off0: 10 vs 10 -> +2   off2: 10 vs 10 -> +2 (tie)
+// Real (>) keeps offset 0; mutant 1651:34 (gt_to_ge) keeps the last tie -> 2.
+bool test_best_alignment_first_tie_wins(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
+    push_bits(&bv1, "1010");
+    push_bits(&bv2, "10");
+
+    bool result = (BitVecBestAlignment(&bv1, &bv2) == 0);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Picks the maximum, not the minimum. bv1 = 0011, bv2 = 11:
+//   off0: 00 vs 11 -> -2   off1: 01 vs 11 -> 0
+//   off2: 11 vs 11 -> +2   off3: 1 vs 1 -> +1
+// Real returns offset 2 (max). Mutant 1651:34 (gt_to_le) never improves on the
+// INT32_MIN seed so best_offset is stuck at 0.
+bool test_best_alignment_picks_max_not_min(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
+    push_bits(&bv1, "0011");
+    push_bits(&bv2, "11");
+
+    bool result = (BitVecBestAlignment(&bv1, &bv2) == 2);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// best_score must track the real score. Same bv1 = 0011, bv2 = 11 (max at
+// offset 2). Mutant 1652:25 (assign_const) sets best_score = 42 on the very
+// first overlap (offset 0), so no later, genuinely-better offset can beat it
+// and best_offset is frozen at 0.
+bool test_best_alignment_uses_real_score(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
+    push_bits(&bv1, "0011");
+    push_bits(&bv2, "11");
+
+    bool result = (BitVecBestAlignment(&bv1, &bv2) == 2);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting BitVec.Math tests\n\n");
 
@@ -958,7 +1587,28 @@ int main(void) {
         test_bitvec_alignment_score_edge_cases,
         test_bitvec_best_alignment_basic,
         test_bitvec_best_alignment_edge_cases,
-        test_bitvec_math_stress_tests
+        test_bitvec_math_stress_tests,
+        test_jaccard_guard_fires_only_when_both_empty,
+        test_jaccard_bv1_shorter_no_abort,
+        test_jaccard_bv2_shorter_no_abort,
+        test_jaccard_equal_length_uses_bv2_bits,
+        test_edit_distance_col0_base_case,
+        test_edit_distance_deletion_term,
+        test_edit_distance_empty_to_len_base_row,
+        test_edit_distance_base_row_fully_filled,
+        test_edit_distance_insertion_term,
+        test_correlation_bv1_shorter_no_oob,
+        test_correlation_bv2_shorter_no_oob,
+        test_entropy_unbalanced_value_m8,
+        test_best_alignment_all_mismatch_offset,
+        test_cosine_similarity_identical_is_one,
+        test_entropy_unbalanced_value_m12,
+        test_entropy_unbalanced_value_m13,
+        test_best_alignment_offset,
+        test_best_alignment_empty_overlap_ignored,
+        test_best_alignment_first_tie_wins,
+        test_best_alignment_picks_max_not_min,
+        test_best_alignment_uses_real_score
     };
 
     // Array of deadend test functions
@@ -979,7 +1629,8 @@ int main(void) {
         test_bitvec_alignment_score_null_bv1,
         test_bitvec_alignment_score_null_bv2,
         test_bitvec_best_alignment_null_bv1,
-        test_bitvec_best_alignment_null_bv2
+        test_bitvec_best_alignment_null_bv2,
+        test_jaccard_rejects_bad_second_operand
     };
 
     int total_tests         = sizeof(tests) / sizeof(tests[0]);

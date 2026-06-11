@@ -13,6 +13,7 @@ bool test_bitvec_run_lengths_null_bv(void);
 bool test_bitvec_run_lengths_null_runs(void);
 bool test_bitvec_run_lengths_null_values(void);
 bool test_bitvec_run_lengths_zero_max_runs(void);
+bool test_run_lengths_vec_null_bv_aborts(void);
 
 // Deadend tests for BitVecRunLengths
 
@@ -111,6 +112,20 @@ bool test_bitvec_foreach_invalid_usage(void) {
     return false;
 }
 
+// 1373:5 cxx_remove_void_call -- bitvec_run_lengths_vec drops
+// `ValidateBitVec(bv)`. NULL bitvector must abort via the validator before the
+// `bv->length` read.
+bool test_run_lengths_vec_null_bv_aborts(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    WriteFmt("Testing BitVecRunLengths (vec) with NULL bitvector\n");
+
+    BitVecRuns runs = VecInitT(runs, base);
+    BitVecRunLengths(NULL, &runs);
+    return true; // Should never reach here.
+}
+
 // Main function that runs all deadend tests
 int main(void) {
     WriteFmt("[INFO] Starting BitVec.Foreach.Deadend tests\n\n");
@@ -121,7 +136,8 @@ int main(void) {
         test_bitvec_run_lengths_null_bv,
         test_bitvec_run_lengths_null_runs,
         test_bitvec_run_lengths_null_values,
-        test_bitvec_run_lengths_zero_max_runs
+        test_bitvec_run_lengths_zero_max_runs,
+        test_run_lengths_vec_null_bv_aborts
     };
 
     int total_deadend_tests = sizeof(deadend_tests) / sizeof(deadend_tests[0]);

@@ -35,6 +35,15 @@ bool test_bitvec_subset_null_failures(void);
 bool test_bitvec_range_null_failures(void);
 bool test_bitvec_range_bounds_failures(void);
 bool test_bitvec_sorted_null_failures(void);
+bool test_equals_rejects_bad_second_operand(void);
+bool test_equals_range_rejects_bad_second_operand(void);
+bool test_subset_skips_high_positions(void);
+bool test_subset_bv1_short_no_abort(void);
+bool test_subset_bv2_short_no_abort(void);
+bool test_disjoint_scans_all_positions(void);
+bool test_subset_null_bv2_aborts(void);
+bool test_disjoint_null_bv1_aborts(void);
+bool test_disjoint_null_bv2_aborts(void);
 
 // Test BitVecEquals function
 bool test_bitvec_equals(void) {
@@ -1099,6 +1108,633 @@ bool test_bitvec_compare_callback(void) {
 }
 
 // Main function that runs all tests
+// Kills BitVec.c:598:5 cxx_remove_void_call -- ValidateBitVec(bv2) in
+// BitVecEquals. bv1 is non-empty so a length-mismatch short-circuits to
+// `return false` before BitVecEqualsRange would re-validate bv2; only the
+// dropped validate keeps real code aborting on the bad-magic bv2.
+bool test_equals_rejects_bad_second_operand(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecEquals rejects bad second operand\n");
+
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bad = {0};
+
+    BitVecPush(&bv1, true);
+
+    BitVecEquals(&bv1, &bad);
+
+    BitVecDeinit(&bv1);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// Kills BitVec.c:609:5 cxx_remove_void_call -- ValidateBitVec(bv2) in
+// BitVecEqualsRange. len == 0 keeps the range checks and the compare loop from
+// re-touching bv2; only the dropped validate keeps real code aborting.
+bool test_equals_range_rejects_bad_second_operand(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecEqualsRange rejects bad second operand\n");
+
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bad = {0};
+
+    BitVecEqualsRange(&bv1, 0, &bad, 0, 0);
+
+    BitVecDeinit(&bv1);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// Kills 641:cxx_xor_assign_to_or_assign -- the live-byte mix `hash ^= byte`
+// becoming `hash |= byte` is lossy: 0x00 and 0x01 then accumulate to the
+// same value. The contract: two same-length bitvecs differing in a single
+// bit must hash differently.
+static bool test_hash_xor_byte_distinguishes(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec a = BitVecInit(base); // byte 0x00
+    BitVec b = BitVecInit(base); // byte 0x01
+
+    // a: 8 zero bits -> byte 0x00.
+    for (int i = 0; i < 8; i++)
+        BitVecPush(&a, false);
+    // b: bit 0 set, rest clear -> byte 0x01 (same length 8).
+    BitVecPush(&b, true);
+    for (int i = 0; i < 7; i++)
+        BitVecPush(&b, false);
+
+    bool result = (bitvec_hash(&a, 0) != bitvec_hash(&b, 0));
+
+    BitVecDeinit(&a);
+    BitVecDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Kills 645:cxx_mul_to_div -- the FNV step `hash *= prime` in the length
+// tail-mix becoming `hash /= prime` repeatedly divides by a huge constant and
+// collapses the accumulator toward zero, so distinct inputs alias. The
+// contract: two same-length bitvecs differing in content must hash
+// differently.
+static bool test_hash_length_mix_mul_distinguishes(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec a = BitVecInit(base); // 10101010
+    BitVec b = BitVecInit(base); // 01010101
+
+    for (int i = 0; i < 8; i++) {
+        BitVecPush(&a, (i % 2) == 0);
+        BitVecPush(&b, (i % 2) == 1);
+    }
+
+    bool result = (bitvec_hash(&a, 0) != bitvec_hash(&b, 0));
+
+    BitVecDeinit(&a);
+    BitVecDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Kills 640:cxx_post_inc_to_post_dec -- the live-byte loop counter `i++`
+// becoming `i--` underflows to a huge value after one pass, so only byte 0 is
+// folded into the hash and every later byte is dropped. The contract: two
+// 16-bit bitvecs that share their first byte but differ in the second must
+// hash differently.
+static bool test_hash_all_bytes_folded(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec a = BitVecInit(base); // byte0 = 0xFF, byte1 = 0x00
+    BitVec b = BitVecInit(base); // byte0 = 0xFF, byte1 = 0xFF
+
+    // a: first 8 bits set, next 8 clear.
+    for (int i = 0; i < 8; i++)
+        BitVecPush(&a, true);
+    for (int i = 0; i < 8; i++)
+        BitVecPush(&a, false);
+    // b: all 16 bits set.
+    for (int i = 0; i < 16; i++)
+        BitVecPush(&b, true);
+
+    bool result = (bitvec_hash(&a, 0) != bitvec_hash(&b, 0));
+
+    BitVecDeinit(&a);
+    BitVecDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Kills 635:cxx_remove_void_call -- ValidateBitVec(bv) in bitvec_hash. Real
+// code aborts on a NULL bitvec; the mutant skips the guard and dereferences.
+static bool test_hash_null_aborts(void) {
+    bitvec_hash(NULL, 0); // must abort
+    return false;
+}
+
+// Kills 656:cxx_remove_void_call -- ValidateBitVec(bv1) in BitVecCompare.
+static bool test_compare_null_lhs_aborts(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec bv = BitVecInit(base);
+    BitVecPush(&bv, true);
+
+    BitVecCompare(NULL, &bv); // must abort
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// Kills 657:cxx_remove_void_call -- ValidateBitVec(bv2) in BitVecCompare.
+static bool test_compare_null_rhs_aborts(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec bv = BitVecInit(base);
+    BitVecPush(&bv, true);
+
+    BitVecCompare(&bv, NULL); // must abort
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// Kills 678:cxx_remove_void_call -- ValidateBitVec(bv1) in BitVecCompareRange.
+static bool test_compare_range_null_lhs_aborts(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec bv = BitVecInit(base);
+    BitVecPush(&bv, true);
+
+    BitVecCompareRange(NULL, 0, &bv, 0, 1); // must abort
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// Kills 679:cxx_remove_void_call -- ValidateBitVec(bv2) in BitVecCompareRange.
+static bool test_compare_range_null_rhs_aborts(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec bv = BitVecInit(base);
+    BitVecPush(&bv, true);
+
+    BitVecCompareRange(&bv, 0, NULL, 0, 1); // must abort
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// Kills 703:cxx_remove_void_call -- ValidateBitVec(bv1) in
+// BitVecNumericalCompare.
+static bool test_numerical_compare_null_lhs_aborts(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec bv = BitVecInit(base);
+    BitVecPush(&bv, true);
+
+    BitVecNumericalCompare(NULL, &bv); // must abort
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// BitVecNumericalCompare walks from the true max length down. Replacing the
+// loop bound / iterator init with the constant 42 (init_const at 710:9 and
+// 712:14) would stop the walk before reaching a differing bit that lives at
+// a high index, masking a real ordering. Use a 50-bit operand whose only set
+// bit is at index 49.
+static bool test_numerical_high_bit_not_truncated(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec bv1 = BitVecInit(base);
+    BitVec bv2 = BitVecInit(base);
+
+    for (u64 i = 0; i < 50; i++) {
+        BitVecPush(&bv1, i == 49);
+        BitVecPush(&bv2, false);
+    }
+
+    // bv1 has its most-significant magnitude bit set, bv2 is all zero.
+    bool result = (BitVecNumericalCompare(&bv1, &bv2) > 0);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// BitVecSignedCompare: the both-empty fast path (745). Flipping the first
+// "== 0" to "!= 0" (eq_to_ne at 745:21) makes a non-empty bv1 with empty bv2
+// take the early "return 0" branch, hiding that a negative value is less than
+// zero.
+static bool test_signed_neg_vs_empty(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec neg   = BitVecInit(base);
+    BitVec empty = BitVecInit(base);
+
+    BitVecPush(&neg, true); // single bit set -> MSB set -> negative
+
+    bool result = (BitVecSignedCompare(&neg, &empty) < 0);
+
+    BitVecDeinit(&neg);
+    BitVecDeinit(&empty);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// BitVecSignedCompare: flipping the second "== 0" to "!= 0" (eq_to_ne at
+// 745:41) makes empty bv1 with non-empty bv2 wrongly take the early return.
+// Empty (non-negative zero) must compare greater than a negative.
+static bool test_signed_empty_vs_neg(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec empty = BitVecInit(base);
+    BitVec neg   = BitVecInit(base);
+
+    BitVecPush(&neg, true); // negative
+
+    bool result = (BitVecSignedCompare(&empty, &neg) > 0);
+
+    BitVecDeinit(&empty);
+    BitVecDeinit(&neg);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// BitVecSignedCompare sign extraction for bv1 (751). gt_to_le turns
+// "length > 0" into "length <= 0", so a non-empty negative bv1 is read as
+// non-negative, inverting the ordering against a non-negative bv2.
+static bool test_signed_sign1_le_mutant(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec neg = BitVecInit(base);
+    BitVec pos = BitVecInit(base);
+
+    BitVecPush(&neg, true);  // length 1, MSB set -> negative
+    BitVecPush(&pos, false); // length 1, MSB clear -> non-negative (zero)
+
+    // negative < zero
+    bool result = (BitVecSignedCompare(&neg, &pos) < 0);
+
+    BitVecDeinit(&neg);
+    BitVecDeinit(&pos);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// BitVecSignedCompare sign extraction for bv1 (751). gt_to_ge turns
+// "length > 0" into "length >= 0": for an empty bv1 it forces the
+// BitVecGet(bv1, length - 1) branch with index UINT64_MAX, which aborts.
+// On real code empty (zero) compares greater than a negative without aborting.
+static bool test_signed_sign1_ge_no_abort(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec empty = BitVecInit(base);
+    BitVec neg   = BitVecInit(base);
+
+    BitVecPush(&neg, true); // negative
+
+    bool result = (BitVecSignedCompare(&empty, &neg) > 0);
+
+    BitVecDeinit(&empty);
+    BitVecDeinit(&neg);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// BitVecSignedCompare sign extraction for bv2 (752). gt_to_ge turns
+// "length > 0" into "length >= 0": for an empty bv2 it forces the
+// BitVecGet(bv2, length - 1) branch with index UINT64_MAX, which aborts.
+// On real code a negative bv1 compares less than empty (zero) without aborting.
+static bool test_signed_sign2_ge_no_abort(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec neg   = BitVecInit(base);
+    BitVec empty = BitVecInit(base);
+
+    BitVecPush(&neg, true); // negative
+
+    bool result = (BitVecSignedCompare(&neg, &empty) < 0);
+
+    BitVecDeinit(&neg);
+    BitVecDeinit(&empty);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// BitVecSignedCompare negation of two negatives (764). assign_const replaces
+// "result = -result" with "result = 42", so two equal negatives stop
+// comparing equal.
+static bool test_signed_two_equal_negatives(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec a = BitVecInit(base);
+    BitVec b = BitVecInit(base);
+
+    // [1,1]: MSB (index 1) set -> both negative, identical magnitude.
+    BitVecPush(&a, true);
+    BitVecPush(&a, true);
+    BitVecPush(&b, true);
+    BitVecPush(&b, true);
+
+    bool result = (BitVecSignedCompare(&a, &b) == 0);
+
+    BitVecDeinit(&a);
+    BitVecDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// BitVecSignedCompare negation of two negatives (764). minus_to_noop turns
+// "result = -result" into "result = result", dropping the magnitude->value
+// flip. For two negatives the larger magnitude is the smaller value, so the
+// sign of the answer must be inverted relative to the unsigned compare.
+static bool test_signed_two_negatives_magnitude_flip(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec a = BitVecInit(base);
+    BitVec b = BitVecInit(base);
+
+    // a = [1,1]: index1 (MSB) set -> negative, magnitude 3.
+    BitVecPush(&a, true);
+    BitVecPush(&a, true);
+    // b = [0,1]: index1 (MSB) set -> negative, magnitude 2.
+    BitVecPush(&b, false);
+    BitVecPush(&b, true);
+
+    // a has the larger magnitude, so a is the more-negative -> a < b.
+    bool result = (BitVecSignedCompare(&a, &b) < 0);
+
+    BitVecDeinit(&a);
+    BitVecDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Deadend: BitVecNumericalCompare validates bv2 (704). Removing that
+// validation lets a NULL bv2 reach bv2->length and crash instead of the
+// controlled abort.
+static bool test_numerical_null_bv2(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec bv = BitVecInit(base);
+    BitVecPush(&bv, true);
+
+    BitVecNumericalCompare(&bv, NULL); // must abort
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// Deadend: BitVecSignedCompare validates bv1 (742). Removing it lets a NULL
+// bv1 reach bv1->length.
+static bool test_signed_null_bv1(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec bv = BitVecInit(base);
+    BitVecPush(&bv, true);
+
+    BitVecSignedCompare(NULL, &bv); // must abort
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// Deadend: BitVecSignedCompare validates bv2 (743). Removing it lets a NULL
+// bv2 reach bv2->length.
+static bool test_signed_null_bv2(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec bv = BitVecInit(base);
+    BitVecPush(&bv, true);
+
+    BitVecSignedCompare(&bv, NULL); // must abort
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// Deadend: BitVecIsSubset validates bv1 (771). Removing it lets a NULL bv1
+// reach bv1->length.
+static bool test_subset_null_bv1(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec bv = BitVecInit(base);
+    BitVecPush(&bv, true);
+
+    BitVecIsSubset(NULL, &bv); // must abort
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// 777:init_const -- max_len forced to 42 must not stop the subset scan
+// short of a high-index disagreement. bv1 has a lone 1 at position 45
+// that bv2 lacks, so the relation is false; a scan that quits at 42
+// would miss it and wrongly report a subset.
+bool test_subset_skips_high_positions(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    WriteFmt("Testing BitVecIsSubset scans past index 42\n");
+
+    BitVec bv1 = BitVecInit(base);
+    BitVec bv2 = BitVecInit(base);
+
+    for (u64 i = 0; i < 50; i++) {
+        BitVecPush(&bv1, i == 45);
+        BitVecPush(&bv2, false);
+    }
+
+    // bv1's 1-bit at 45 has no counterpart in bv2 -> not a subset.
+    bool result = (BitVecIsSubset(&bv1, &bv2) == false);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 780:lt_to_le -- the bv1 in-range guard `i < bv1->length` becoming
+// `i <= bv1->length` makes a valid subset query call BitVecGet at the
+// out-of-range index bv1->length once bv2 is the longer vector, which
+// aborts. Real code returns cleanly.
+bool test_subset_bv1_short_no_abort(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    WriteFmt("Testing BitVecIsSubset with shorter bv1 stays in bounds\n");
+
+    BitVec bv1 = BitVecInit(base); // length 2
+    BitVec bv2 = BitVecInit(base); // length 5
+
+    BitVecPush(&bv1, true);
+    BitVecPush(&bv1, false);
+
+    BitVecPush(&bv2, true);
+    BitVecPush(&bv2, false);
+    BitVecPush(&bv2, false);
+    BitVecPush(&bv2, false);
+    BitVecPush(&bv2, false);
+
+    // bv1's only 1 (pos 0) is set in bv2 -> subset is true.
+    bool result = (BitVecIsSubset(&bv1, &bv2) == true);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 781:lt_to_le -- the bv2 in-range guard `i < bv2->length` becoming
+// `i <= bv2->length` makes a valid subset query call BitVecGet at the
+// out-of-range index bv2->length once bv1 is the longer vector, which
+// aborts. Real code returns cleanly.
+bool test_subset_bv2_short_no_abort(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    WriteFmt("Testing BitVecIsSubset with shorter bv2 stays in bounds\n");
+
+    BitVec bv1 = BitVecInit(base); // length 5
+    BitVec bv2 = BitVecInit(base); // length 2
+
+    BitVecPush(&bv1, true);
+    BitVecPush(&bv1, false);
+    BitVecPush(&bv1, false);
+    BitVecPush(&bv1, false);
+    BitVecPush(&bv1, false);
+
+    BitVecPush(&bv2, true);
+    BitVecPush(&bv2, false);
+
+    // bv1's only 1 (pos 0) is set in bv2 -> subset is true.
+    bool result = (BitVecIsSubset(&bv1, &bv2) == true);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 801:post_inc_to_post_dec -- the disjoint scan counter going from i++
+// to i-- collapses the loop to a single iteration (i wraps after pos 0).
+// Two vectors that overlap only at position 1 are therefore wrongly
+// reported disjoint. Real code finds the overlap and returns false.
+bool test_disjoint_scans_all_positions(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    WriteFmt("Testing BitVecDisjoint scans beyond position 0\n");
+
+    BitVec bv1 = BitVecInit(base);
+    BitVec bv2 = BitVecInit(base);
+
+    // Both: 0 1 1 -- no shared 1 at position 0, shared 1s at 1 and 2.
+    BitVecPush(&bv1, false);
+    BitVecPush(&bv1, true);
+    BitVecPush(&bv1, true);
+
+    BitVecPush(&bv2, false);
+    BitVecPush(&bv2, true);
+    BitVecPush(&bv2, true);
+
+    // They share 1-bits, so they are NOT disjoint.
+    bool result = (BitVecDisjoint(&bv1, &bv2) == false);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 772:remove_void_call -- dropping ValidateBitVec(bv2) in BitVecIsSubset
+// lets a NULL bv2 slip past the validator (real code aborts cleanly).
+bool test_subset_null_bv2_aborts(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    WriteFmt("Testing BitVecIsSubset rejects NULL bv2\n");
+
+    BitVec bv1 = BitVecInit(base);
+    BitVecPush(&bv1, true);
+
+    // Should abort on the NULL second argument.
+    BitVecIsSubset(&bv1, NULL);
+
+    BitVecDeinit(&bv1);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// 796:remove_void_call -- dropping ValidateBitVec(bv1) in BitVecDisjoint
+// lets a NULL bv1 slip past the validator (real code aborts cleanly).
+bool test_disjoint_null_bv1_aborts(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    WriteFmt("Testing BitVecDisjoint rejects NULL bv1\n");
+
+    BitVec bv2 = BitVecInit(base);
+    BitVecPush(&bv2, true);
+
+    // Should abort on the NULL first argument.
+    BitVecDisjoint(NULL, &bv2);
+
+    BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// 797:remove_void_call -- dropping ValidateBitVec(bv2) in BitVecDisjoint
+// lets a NULL bv2 slip past the validator (real code aborts cleanly).
+bool test_disjoint_null_bv2_aborts(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    WriteFmt("Testing BitVecDisjoint rejects NULL bv2\n");
+
+    BitVec bv1 = BitVecInit(base);
+    BitVecPush(&bv1, true);
+
+    // Should abort on the NULL second argument.
+    BitVecDisjoint(&bv1, NULL);
+
+    BitVecDeinit(&bv1);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting BitVec.Compare tests\n\n");
 
@@ -1125,7 +1761,22 @@ int main(void) {
         test_bitvec_set_operations_edge_cases,
         test_bitvec_comprehensive_comparison,
         test_bitvec_large_scale_comparison,
-        test_bitvec_compare_callback
+        test_bitvec_compare_callback,
+        test_hash_xor_byte_distinguishes,
+        test_hash_length_mix_mul_distinguishes,
+        test_hash_all_bytes_folded,
+        test_numerical_high_bit_not_truncated,
+        test_signed_neg_vs_empty,
+        test_signed_empty_vs_neg,
+        test_signed_sign1_le_mutant,
+        test_signed_sign1_ge_no_abort,
+        test_signed_sign2_ge_no_abort,
+        test_signed_two_equal_negatives,
+        test_signed_two_negatives_magnitude_flip,
+        test_subset_skips_high_positions,
+        test_subset_bv1_short_no_abort,
+        test_subset_bv2_short_no_abort,
+        test_disjoint_scans_all_positions
     };
 
     // Array of deadend test functions
@@ -1134,7 +1785,22 @@ int main(void) {
         test_bitvec_subset_null_failures,
         test_bitvec_range_null_failures,
         test_bitvec_range_bounds_failures,
-        test_bitvec_sorted_null_failures
+        test_bitvec_sorted_null_failures,
+        test_equals_rejects_bad_second_operand,
+        test_equals_range_rejects_bad_second_operand,
+        test_hash_null_aborts,
+        test_compare_null_lhs_aborts,
+        test_compare_null_rhs_aborts,
+        test_compare_range_null_lhs_aborts,
+        test_compare_range_null_rhs_aborts,
+        test_numerical_compare_null_lhs_aborts,
+        test_numerical_null_bv2,
+        test_signed_null_bv1,
+        test_signed_null_bv2,
+        test_subset_null_bv1,
+        test_subset_null_bv2_aborts,
+        test_disjoint_null_bv1_aborts,
+        test_disjoint_null_bv2_aborts
     };
 
     int total_tests         = sizeof(tests) / sizeof(tests[0]);

@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 
@@ -6,6 +7,12 @@
 
 // Include test utilities
 #include "../Util/TestRunner.h"
+
+// Helper: append the bits of a 0/1 ASCII string to a BitVec.
+static void push_bits(BitVec *bv, const char *bits) {
+    for (const char *c = bits; *c != '\0'; c++)
+        BitVecPush(bv, *c == '1');
+}
 
 // Function prototypes
 bool test_bitvec_basic_pattern_functions(void);
@@ -52,6 +59,12 @@ bool test_bitvec_prefix_match_null_source(void);
 bool test_bitvec_prefix_match_null_patterns(void);
 bool test_bitvec_suffix_match_null_source(void);
 bool test_bitvec_suffix_match_null_patterns(void);
+bool test_find_last_pattern_exact_length_match(void);
+bool test_find_all_pattern_vec_exact_length_match(void);
+bool test_ends_with_equal_length(void);
+bool test_count_pattern_equal_length(void);
+bool test_rfind_pattern_equal_length(void);
+bool test_regex_match_str_nonmatch_returns_false(void);
 
 // Test basic pattern matching functions
 bool test_bitvec_basic_pattern_functions(void) {
@@ -1024,19 +1037,615 @@ bool test_bitvec_suffix_match_basic(void) {
 }
 
 // Main function that runs all tests
+// 1269:49 cxx_gt_to_ge -- BitVecFindLastPattern guard `pattern->length >
+// bv->length`. Flipping `>` to `>=` rejects a pattern whose length EQUALS the
+// bitvector length (a valid exact-length match), wrongly returning SIZE_MAX
+// instead of 0.
+bool test_find_last_pattern_exact_length_match(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec source  = BitVecInit(base);
+    BitVec pattern = BitVecInit(base);
+    bool   result  = true;
+
+    // Source and pattern are both 1011, same length.
+    BitVecPush(&source, true);
+    BitVecPush(&source, false);
+    BitVecPush(&source, true);
+    BitVecPush(&source, true);
+
+    BitVecPush(&pattern, true);
+    BitVecPush(&pattern, false);
+    BitVecPush(&pattern, true);
+    BitVecPush(&pattern, true);
+
+    // Exact-length match must be found at index 0.
+    u64 index = BitVecFindLastPattern(&source, &pattern);
+    result    = result && (index == 0);
+
+    BitVecDeinit(&source);
+    BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 1316:49 cxx_gt_to_ge -- bitvec_find_all_pattern_vec guard `pattern->length >
+// bv->length`. Flipping `>` to `>=` makes the exact-length case bail early with
+// an EMPTY result vec instead of recording the single match at index 0.
+bool test_find_all_pattern_vec_exact_length_match(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec source  = BitVecInit(base);
+    BitVec pattern = BitVecInit(base);
+    bool   result  = true;
+
+    // Source and pattern are both 110, same length.
+    BitVecPush(&source, true);
+    BitVecPush(&source, true);
+    BitVecPush(&source, false);
+
+    BitVecPush(&pattern, true);
+    BitVecPush(&pattern, true);
+    BitVecPush(&pattern, false);
+
+    BitVecMatchIndices matches = VecInitT(matches, base);
+    result                     = result && BitVecFindAllPattern(&source, &pattern, &matches);
+    // Exact-length match: exactly one hit, at index 0.
+    result = result && (VecLen(&matches) == 1);
+    if (result) {
+        result = result && (VecAt(&matches, 0) == 0);
+    }
+
+    VecDeinit(&matches);
+    BitVecDeinit(&source);
+    BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// A suffix exactly as long as the vector still matches when equal. Mutant
+// 1675:24 (gt_to_ge) rejects equal-length suffixes -> returns false.
+bool test_ends_with_equal_length(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    BitVec source = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec suffix = BitVecInit(ALLOCATOR_OF(&alloc));
+    push_bits(&source, "101");
+    push_bits(&suffix, "101");
+
+    bool result = BitVecEndsWith(&source, &suffix);
+
+    BitVecDeinit(&source);
+    BitVecDeinit(&suffix);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// A pattern exactly as long as the source counts as one match when equal.
+// Mutant 1707:49 (gt_to_ge) returns 0 for the equal-length case.
+bool test_count_pattern_equal_length(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    BitVec source  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
+    push_bits(&source, "101");
+    push_bits(&pattern, "101");
+
+    bool result = (BitVecCountPattern(&source, &pattern) == 1);
+
+    BitVecDeinit(&source);
+    BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// A pattern exactly as long as the source is found at index 0 when searching
+// from the last index. Mutant 1725:49 (gt_to_ge) returns SIZE_MAX instead.
+bool test_rfind_pattern_equal_length(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    BitVec source  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
+    push_bits(&source, "101");
+    push_bits(&pattern, "101");
+
+    bool result = (BitVecRFindPattern(&source, &pattern, 2) == 0);
+
+    BitVecDeinit(&source);
+    BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 1729:33 cxx_ge_to_lt -- the ternary picks the search-window lower bound.
+// Flipping `start + 1 >= pattern->length` to `<` collapses the window to the
+// full [0, start] range. With the only match at index 0 and a start whose
+// real (narrow) window excludes it, real returns SIZE_MAX but the widened
+// mutant returns 0.
+static bool test_rfind_window_widen_cond_ge_to_lt(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecRFindPattern window-condition (ge_to_lt)\n");
+
+    BitVec source  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
+    bool   result  = true;
+
+    push_bits(&source, "101000000"); // "101" only at index 0
+    push_bits(&pattern, "101");
+
+    // Narrow window for start=8 is [6,8], which has no match.
+    u64 pos = BitVecRFindPattern(&source, &pattern, 8);
+    result  = result && (pos == SIZE_MAX);
+
+    BitVecDeinit(&source);
+    BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 1729:29 cxx_add_to_sub -- mutates the FIRST `start + 1` (inside the ternary
+// CONDITION) to `start - 1`. Differs from real only when pattern->length ==
+// start: real keeps search_end = start + 1 - len = 1, mutant drops to 0 and
+// scans index 0. With the only match at index 0, real returns SIZE_MAX, mutant
+// returns 0.
+static bool test_rfind_window_cond_add_to_sub(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecRFindPattern window-condition (add_to_sub)\n");
+
+    BitVec source  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
+    bool   result  = true;
+
+    push_bits(&source, "101111"); // "10" only at index 0
+    push_bits(&pattern, "10");    // len 2 == start
+
+    // Real window for start=2 is [1,2]; no match there.
+    u64 pos = BitVecRFindPattern(&source, &pattern, 2);
+    result  = result && (pos == SIZE_MAX);
+
+    BitVecDeinit(&source);
+    BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 1729:61 cxx_add_to_sub -- mutates the SECOND `start + 1` (the VALUE
+// start + 1 - len) to start - 1 - len, dropping search_end by 2 and so
+// extending the window two positions lower. With the only match at index 1 and
+// a start whose real window [start-2, start] excludes it but the widened
+// mutant window [start-4, start] includes it, real returns SIZE_MAX, mutant 1.
+static bool test_rfind_window_value_add_to_sub(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecRFindPattern window-value (add_to_sub)\n");
+
+    BitVec source  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
+    bool   result  = true;
+
+    push_bits(&source, "010100000"); // "101" only at index 1
+    push_bits(&pattern, "101");
+
+    // Real window for start=4 is [2,4]; no match there.
+    u64 pos = BitVecRFindPattern(&source, &pattern, 4);
+    result  = result && (pos == SIZE_MAX);
+
+    BitVecDeinit(&source);
+    BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 1731:24 cxx_add_to_sub -- the loop seed `i = start + 1` mutated to
+// `start - 1` skips the two highest candidate positions (start and start-1).
+// With the match sitting exactly at `start`, real returns start but the
+// mutant never inspects it and returns SIZE_MAX.
+static bool test_rfind_loop_start_add_to_sub(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecRFindPattern loop-seed (add_to_sub)\n");
+
+    BitVec source  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
+    bool   result  = true;
+
+    push_bits(&source, "101101101"); // "101" at 0, 3, 6
+    push_bits(&pattern, "101");
+
+    // start=6 lands exactly on a match.
+    u64 pos = BitVecRFindPattern(&source, &pattern, 6);
+    result  = result && (pos == 6);
+
+    BitVecDeinit(&source);
+    BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 1731:31 cxx_gt_to_ge -- the loop guard `i > search_end` mutated to
+// `i >= search_end` runs one extra iteration, inspecting pos = search_end - 1,
+// one position below the intended window. With the only match at that extra
+// position, real returns SIZE_MAX but the mutant reports it.
+static bool test_rfind_loop_cond_gt_to_ge(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecRFindPattern loop-guard (gt_to_ge)\n");
+
+    BitVec source  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
+    bool   result  = true;
+
+    push_bits(&source, "101000000"); // "101" only at index 0
+    push_bits(&pattern, "101");
+
+    // start=3: search_end=1, window [1,3] has no match; the extra mutant
+    // iteration would reach index 0.
+    u64 pos = BitVecRFindPattern(&source, &pattern, 3);
+    result  = result && (pos == SIZE_MAX);
+
+    BitVecDeinit(&source);
+    BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 1771:14 cxx_init_const -- `bool found = false;` mutated so `found` starts
+// truthy. When the inner search finds nothing, real breaks on `!found` and
+// returns 0; the mutant skips the break with match_pos still SIZE_MAX and
+// drives BitVecRemoveRange(bv, SIZE_MAX, ...), which aborts. Real returns 0
+// with the vector untouched.
+static bool test_replaceall_found_flag_init(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecReplaceAll found-flag init\n");
+
+    BitVec source      = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec old_pattern = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec new_pattern = BitVecInit(ALLOCATOR_OF(&alloc));
+    bool   result      = true;
+
+    push_bits(&source, "0000");     // no "111" anywhere
+    push_bits(&old_pattern, "111"); // length fits the vector (3 <= 4)
+    push_bits(&new_pattern, "0");
+
+    u64 replacements = BitVecReplaceAll(&source, &old_pattern, &new_pattern);
+    result           = result && (replacements == 0);
+    result           = result && (BitVecLen(&source) == 4);
+    result           = result && (BitVecGet(&source, 0) == false);
+    result           = result && (BitVecGet(&source, 3) == false);
+
+    BitVecDeinit(&source);
+    BitVecDeinit(&old_pattern);
+    BitVecDeinit(&new_pattern);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 1775:78 cxx_post_inc_to_post_dec -- the forward scan `i++` mutated to `i--`
+// turns the search into a backward walk from search_pos that underflows past
+// 0 and stops immediately. With the only match strictly after search_pos, real
+// finds and replaces it (1 replacement, length shrinks) while the mutant finds
+// nothing (0 replacements, length unchanged).
+static bool test_replaceall_forward_scan_direction(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecReplaceAll forward-scan direction\n");
+
+    BitVec source      = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec old_pattern = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec new_pattern = BitVecInit(ALLOCATOR_OF(&alloc));
+    bool   result      = true;
+
+    push_bits(&source, "00110"); // "110" only at index 2
+    push_bits(&old_pattern, "110");
+    push_bits(&new_pattern, "01");
+
+    u64 replacements = BitVecReplaceAll(&source, &old_pattern, &new_pattern);
+    result           = result && (replacements == 1);
+    result           = result && (BitVecLen(&source) == 4); // 5 - 3 + 2
+
+    BitVecDeinit(&source);
+    BitVecDeinit(&old_pattern);
+    BitVecDeinit(&new_pattern);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Kills 1776:cxx_replace_scalar_call -- replacing BitVecContainsAt's result
+// with a truthy constant makes ReplaceAll "find" the absent pattern and
+// mutate the source. The contract: an absent old_pattern yields 0
+// replacements and leaves the source untouched.
+static bool test_replace_all_absent_no_change(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec source = BitVecInit(base);
+    BitVec old    = BitVecInit(base);
+    BitVec neww   = BitVecInit(base);
+    bool   result = true;
+
+    // source: 0000 (no occurrence of "11")
+    for (int i = 0; i < 4; i++)
+        BitVecPush(&source, false);
+
+    // old: 11 (absent), new: 1
+    BitVecPush(&old, true);
+    BitVecPush(&old, true);
+    BitVecPush(&neww, true);
+
+    u64 n  = BitVecReplaceAll(&source, &old, &neww);
+    result = result && (n == 0);
+    result = result && (BitVecLen(&source) == 4);
+    for (u64 i = 0; i < 4; i++)
+        result = result && (BitVecGet(&source, i) == false);
+
+    BitVecDeinit(&source);
+    BitVecDeinit(&old);
+    BitVecDeinit(&neww);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Kills 1790:cxx_replace_scalar_call -- replacing BitVecGet(new_pattern, i)
+// with a truthy constant inserts all-ones for the new pattern. The contract:
+// the inserted bits reproduce new_pattern exactly, so a leading 0 in
+// new_pattern must appear as 0 in the result.
+static bool test_replace_all_inserts_new_bits(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec source = BitVecInit(base);
+    BitVec old    = BitVecInit(base);
+    BitVec neww   = BitVecInit(base);
+    bool   result = true;
+
+    // source: 110110110
+    for (int i = 0; i < 3; i++) {
+        BitVecPush(&source, true);
+        BitVecPush(&source, true);
+        BitVecPush(&source, false);
+    }
+
+    // old: 110, new: 01  (each 110 -> 01, result 010101)
+    BitVecPush(&old, true);
+    BitVecPush(&old, true);
+    BitVecPush(&old, false);
+    BitVecPush(&neww, false);
+    BitVecPush(&neww, true);
+
+    u64 n  = BitVecReplaceAll(&source, &old, &neww);
+    result = result && (n == 3);
+    result = result && (BitVecLen(&source) == 6);
+    // result 010101: position 0 must be 0 (false), position 1 must be 1.
+    result = result && (BitVecGet(&source, 0) == false);
+    result = result && (BitVecGet(&source, 1) == true);
+
+    BitVecDeinit(&source);
+    BitVecDeinit(&old);
+    BitVecDeinit(&neww);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Kills 1811:cxx_init_const (i=0 -> 42), 1811:cxx_lt_to_ge (loop never runs),
+// 1811:cxx_post_inc_to_post_dec (only position 0 examined), and
+// 1813:cxx_replace_scalar_call (wildcard test forced truthy so no position is
+// checked). All four make Matches stop comparing and return true. The
+// contract: a non-wildcard mismatch at a position past 0 must return false.
+static bool test_matches_mismatch_returns_false(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec source   = BitVecInit(base);
+    BitVec pattern  = BitVecInit(base);
+    BitVec wildcard = BitVecInit(base);
+    bool   result   = true;
+
+    // source: 1010, pattern: 1111, wildcard: 0000 (no wildcards).
+    // Position 0 matches (1 vs 1); position 1 mismatches (0 vs 1) -> false.
+    BitVecPush(&source, true);
+    BitVecPush(&source, false);
+    BitVecPush(&source, true);
+    BitVecPush(&source, false);
+
+    for (int i = 0; i < 4; i++)
+        BitVecPush(&pattern, true);
+    for (int i = 0; i < 4; i++)
+        BitVecPush(&wildcard, false);
+
+    result = result && (BitVecMatches(&source, &pattern, &wildcard) == false);
+
+    // Sanity: an all-wildcard mask must still match (proves we did not just
+    // wire the function to always return false).
+    BitVec wild_all = BitVecInit(base);
+    for (int i = 0; i < 4; i++)
+        BitVecPush(&wild_all, true);
+    result = result && (BitVecMatches(&source, &pattern, &wild_all) == true);
+
+    BitVecDeinit(&wild_all);
+    BitVecDeinit(&source);
+    BitVecDeinit(&pattern);
+    BitVecDeinit(&wildcard);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Kills 1827:cxx_gt_to_ge -- (pattern->length > bv->length) becoming >=
+// rejects an equal-length exact match. The contract: a pattern equal in
+// length to the source and matching with 0 errors returns index 0.
+static bool test_fuzzy_equal_length_match(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec source  = BitVecInit(base);
+    BitVec pattern = BitVecInit(base);
+    bool   result  = true;
+
+    // source: 111, pattern: 111 (same length, exact match).
+    for (int i = 0; i < 3; i++) {
+        BitVecPush(&source, true);
+        BitVecPush(&pattern, true);
+    }
+
+    result = result && (BitVecFuzzyMatch(&source, &pattern, 0) == 0);
+
+    BitVecDeinit(&source);
+    BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Kills 1831:cxx_sub_to_add (loop bound bv->length - pattern->length flipped
+// to +, walking off the end), 1836:cxx_gt_to_ge and 1836:cxx_gt_to_le (the
+// error-budget break flipped, so the wrong window is accepted). The
+// contract: with one error allowed, the earliest window within budget is at
+// index 4 -- not index 0 (which has 2 errors).
+static bool test_fuzzy_match_position(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec source  = BitVecInit(base);
+    BitVec pattern = BitVecInit(base);
+    bool   result  = true;
+
+    // source: 00000111 (8 bits), pattern: 111.
+    for (int i = 0; i < 5; i++)
+        BitVecPush(&source, false);
+    for (int i = 0; i < 3; i++)
+        BitVecPush(&source, true);
+
+    BitVecPush(&pattern, true);
+    BitVecPush(&pattern, true);
+    BitVecPush(&pattern, true);
+
+    // Window [4,6] = 011 -> 1 error <= 1 (first acceptable window).
+    // Window [0,2] = 000 -> 3 errors; window [5,7] = 111 -> 0 errors.
+    result = result && (BitVecFuzzyMatch(&source, &pattern, 1) == 4);
+    // Exact match still found at index 5 when no errors are allowed.
+    result = result && (BitVecFuzzyMatch(&source, &pattern, 0) == 5);
+
+    BitVecDeinit(&source);
+    BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Kills 1831:37 cxx_sub_to_add -- the window loop bound `i <= bv->length -
+// pattern->length` flipped to `+` walks i past the last valid window. The
+// existing position test returns early at a found window and never reaches the
+// over-run, so it cannot see the mutation. Here NO window is within budget, so
+// the real loop runs to its last valid i (length-patternlen) and returns
+// SIZE_MAX; the mutant keeps advancing and indexes BitVecGet(bv, i + j) with
+// i + j >= length, tripping its bounds LOG_FATAL. A large all-zero source vs a
+// 1-pattern with 0 errors guarantees no match and a deterministic over-run.
+static bool test_fuzzy_no_match_completes_loop(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec source  = BitVecInit(base);
+    BitVec pattern = BitVecInit(base);
+
+    // source: 4096 zero bits; pattern: a single 1. No window ever matches with
+    // zero errors, so the loop must traverse every valid i and report SIZE_MAX.
+    for (int i = 0; i < 4096; i++)
+        BitVecPush(&source, false);
+    BitVecPush(&pattern, true);
+
+    bool result = (BitVecFuzzyMatch(&source, &pattern, 0) == SIZE_MAX);
+
+    BitVecDeinit(&source);
+    BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// bitvec_regex_match_str: `bool result = false;` (1877:cxx_init_const ->
+// `result = 42` == true) makes a non-matching pattern wrongly return true.
+// Caller-observable: a pattern that is NOT a substring of the 0/1 rendering
+// must return false.
+bool test_regex_match_str_nonmatch_returns_false(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing bitvec_regex_match_str returns false on non-match\n");
+
+    BitVec source = BitVecInit(ALLOCATOR_OF(&alloc));
+    bool   result = true;
+
+    // Source rendering: 101010
+    BitVecPush(&source, true);
+    BitVecPush(&source, false);
+    BitVecPush(&source, true);
+    BitVecPush(&source, false);
+    BitVecPush(&source, true);
+    BitVecPush(&source, false);
+
+    // "111" never appears in "101010" -> must be false.
+    Str pat_no = StrInitFromZstr("111", &alloc);
+    result     = result && !BitVecRegexMatch(&source, &pat_no);
+
+    // Sanity: a genuine substring still matches (guards against a trivially
+    // always-false implementation).
+    Str pat_yes = StrInitFromZstr("010", &alloc);
+    result      = result && BitVecRegexMatch(&source, &pat_yes);
+
+    StrDeinit(&pat_no);
+    StrDeinit(&pat_yes);
+    BitVecDeinit(&source);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting BitVec.Pattern.Simple tests\n\n");
 
     // Array of test functions
     TestFunction tests[] = {
-        test_bitvec_basic_pattern_functions, test_bitvec_find_pattern,           test_bitvec_find_last_pattern,
-        test_bitvec_find_all_pattern,        test_bitvec_find_all_pattern_vec,   test_bitvec_pattern_edge_cases,
-        test_bitvec_pattern_stress_tests,    test_bitvec_starts_with_basic,      test_bitvec_starts_with_edge_cases,
-        test_bitvec_ends_with_basic,         test_bitvec_ends_with_edge_cases,   test_bitvec_contains_basic,
-        test_bitvec_contains_at_basic,       test_bitvec_contains_at_edge_cases, test_bitvec_count_pattern_basic,
-        test_bitvec_rfind_pattern_basic,     test_bitvec_replace_basic,          test_bitvec_replace_all_basic,
-        test_bitvec_matches_basic,           test_bitvec_fuzzy_match_basic,      test_bitvec_regex_match_basic,
-        test_bitvec_prefix_match_basic,      test_bitvec_suffix_match_basic
+        test_bitvec_basic_pattern_functions,
+        test_bitvec_find_pattern,
+        test_bitvec_find_last_pattern,
+        test_bitvec_find_all_pattern,
+        test_bitvec_find_all_pattern_vec,
+        test_bitvec_pattern_edge_cases,
+        test_bitvec_pattern_stress_tests,
+        test_bitvec_starts_with_basic,
+        test_bitvec_starts_with_edge_cases,
+        test_bitvec_ends_with_basic,
+        test_bitvec_ends_with_edge_cases,
+        test_bitvec_contains_basic,
+        test_bitvec_contains_at_basic,
+        test_bitvec_contains_at_edge_cases,
+        test_bitvec_count_pattern_basic,
+        test_bitvec_rfind_pattern_basic,
+        test_bitvec_replace_basic,
+        test_bitvec_replace_all_basic,
+        test_bitvec_matches_basic,
+        test_bitvec_fuzzy_match_basic,
+        test_bitvec_regex_match_basic,
+        test_bitvec_prefix_match_basic,
+        test_bitvec_suffix_match_basic,
+        test_find_last_pattern_exact_length_match,
+        test_find_all_pattern_vec_exact_length_match,
+        test_ends_with_equal_length,
+        test_count_pattern_equal_length,
+        test_rfind_pattern_equal_length,
+        test_rfind_window_widen_cond_ge_to_lt,
+        test_rfind_window_cond_add_to_sub,
+        test_rfind_window_value_add_to_sub,
+        test_rfind_loop_start_add_to_sub,
+        test_rfind_loop_cond_gt_to_ge,
+        test_replaceall_found_flag_init,
+        test_replaceall_forward_scan_direction,
+        test_replace_all_absent_no_change,
+        test_replace_all_inserts_new_bits,
+        test_matches_mismatch_returns_false,
+        test_fuzzy_equal_length_match,
+        test_fuzzy_match_position,
+        test_fuzzy_no_match_completes_loop,
+        test_regex_match_str_nonmatch_returns_false
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);

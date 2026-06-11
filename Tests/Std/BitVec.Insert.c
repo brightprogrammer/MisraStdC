@@ -18,6 +18,11 @@ bool test_bitvec_insert_pattern_edge_cases(void);
 bool test_bitvec_insert_null_failures(void);
 bool test_bitvec_insert_invalid_range_failures(void);
 bool test_bitvec_insert_pattern_null_failures(void);
+bool test_insert_range_shifts_existing_bits(void);
+bool test_insert_multiple_shifts_existing_bits(void);
+bool test_insert_null_aborts(void);
+bool test_insert_multiple_null_bv_aborts(void);
+bool test_insert_multiple_null_other_aborts(void);
 
 // Test BitVecPush function
 bool test_bitvec_push(void) {
@@ -339,6 +344,118 @@ bool test_bitvec_insert_pattern_null_failures(void) {
     return false;
 }
 
+// 354:9 remove_void_call -- BitVecInsertRange must shift the existing tail bits
+// up by `count` positions. If the shift Set is dropped, the bits after the
+// inserted region keep stale values.
+bool test_insert_range_shifts_existing_bits(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecInsertRange shifts existing tail bits\n");
+
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
+
+    // Original: [1, 0, 1, 1]
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, false);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, true);
+
+    // Insert 2 false bits at index 1 -> [1, 0, 0, 0, 1, 1]
+    BitVecInsertRange(&bv, 1, 2, false);
+
+    bool result = (BitVecLen(&bv) == 6);
+    result      = result && (BitVecGet(&bv, 0) == true);
+    result      = result && (BitVecGet(&bv, 1) == false); // inserted
+    result      = result && (BitVecGet(&bv, 2) == false); // inserted
+    result      = result && (BitVecGet(&bv, 3) == false); // shifted orig[1]
+    result      = result && (BitVecGet(&bv, 4) == true);  // shifted orig[2]
+    result      = result && (BitVecGet(&bv, 5) == true);  // shifted orig[3]
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 382:9 remove_void_call -- BitVecInsertMultiple must shift the existing tail
+// bits up by other->length. Dropping the shift Set leaves the tail stale.
+bool test_insert_multiple_shifts_existing_bits(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecInsertMultiple shifts existing tail bits\n");
+
+    BitVec bv    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec other = BitVecInit(ALLOCATOR_OF(&alloc));
+
+    // bv: [1, 0, 1]
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, false);
+    BitVecPush(&bv, true);
+
+    // other: [1, 1]
+    BitVecPush(&other, true);
+    BitVecPush(&other, true);
+
+    // Insert other at index 1 -> [1, 1, 1, 0, 1]
+    BitVecInsertMultiple(&bv, 1, &other);
+
+    bool result = (BitVecLen(&bv) == 5);
+    result      = result && (BitVecGet(&bv, 0) == true);  // orig[0]
+    result      = result && (BitVecGet(&bv, 1) == true);  // other[0]
+    result      = result && (BitVecGet(&bv, 2) == true);  // other[1]
+    result      = result && (BitVecGet(&bv, 3) == false); // shifted orig[1]
+    result      = result && (BitVecGet(&bv, 4) == true);  // shifted orig[2]
+
+    BitVecDeinit(&bv);
+    BitVecDeinit(&other);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 320:5 remove_void_call -- BitVecInsert must validate its bitvec argument.
+// With validation removed, a NULL bitvec is accepted instead of aborting.
+bool test_insert_null_aborts(void) {
+    WriteFmt("Testing BitVecInsert NULL validation\n");
+
+    BitVecInsert(NULL, 0, true);
+
+    // If we reach here, validation did not abort.
+    return false;
+}
+
+// 365:5 remove_void_call -- BitVecInsertMultiple must validate `bv`.
+bool test_insert_multiple_null_bv_aborts(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecInsertMultiple NULL bv validation\n");
+
+    BitVec other = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVecPush(&other, true);
+
+    BitVecInsertMultiple(NULL, 0, &other);
+
+    // If we reach here, validation did not abort.
+    BitVecDeinit(&other);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// 366:5 remove_void_call -- BitVecInsertMultiple must validate `other`.
+bool test_insert_multiple_null_other_aborts(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecInsertMultiple NULL other validation\n");
+
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVecPush(&bv, true);
+
+    BitVecInsertMultiple(&bv, 0, NULL);
+
+    // If we reach here, validation did not abort.
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
 // Main function that runs all tests
 int main(void) {
     WriteFmt("[INFO] Starting BitVec.Insert tests\n\n");
@@ -352,14 +469,19 @@ int main(void) {
         test_bitvec_insert_pattern,
         test_bitvec_insert_range_edge_cases,
         test_bitvec_insert_multiple_edge_cases,
-        test_bitvec_insert_pattern_edge_cases
+        test_bitvec_insert_pattern_edge_cases,
+        test_insert_range_shifts_existing_bits,
+        test_insert_multiple_shifts_existing_bits
     };
 
     // Array of deadend test functions
     TestFunction deadend_tests[] = {
         test_bitvec_insert_null_failures,
         test_bitvec_insert_invalid_range_failures,
-        test_bitvec_insert_pattern_null_failures
+        test_bitvec_insert_pattern_null_failures,
+        test_insert_null_aborts,
+        test_insert_multiple_null_bv_aborts,
+        test_insert_multiple_null_other_aborts
     };
 
     int total_tests         = sizeof(tests) / sizeof(tests[0]);

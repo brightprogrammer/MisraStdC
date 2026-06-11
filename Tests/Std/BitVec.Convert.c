@@ -30,6 +30,9 @@ bool test_bitvec_from_string_null_failures(void);
 bool test_bitvec_bytes_null_failures(void);
 bool test_bitvec_bytes_bounds_failures(void);
 bool test_bitvec_integer_bounds_failures(void);
+bool test_tobytes_no_overrun_read_on_non_byte_aligned(void);
+bool test_tobytes_truncation_does_not_write_past_max_len(void);
+bool test_tobytes_zeroed_bitvec_aborts(void);
 
 // Test BitVecToStr function
 bool test_bitvec_to_string(void) {
@@ -787,6 +790,107 @@ bool test_bitvec_bytes_null_failures(void) {
 }
 
 // Main function that runs all tests
+// Kills 1037:cxx_assign_const (bits := 42 instead of 64 on the >64 cap).
+// A 100-bit request is capped to exactly 64 bits.
+static bool test_try_from_integer_caps_at_64(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    BitVec bv;
+    bool   ok = BitVecTryFromInteger(&bv, 0xFFu, 100, ALLOCATOR_OF(&alloc));
+
+    bool result = ok && (BitVecLen(&bv) == 64);
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Kills 957:23 (cxx_lt_to_le on `i < bv->length`).
+//
+// The pack loop guard is `i < bv->length && i / 8 < bytes_to_copy`.
+// Flipping the first clause to `<=` lets `i` reach `bv->length` whenever
+// the byte guard still admits it -- which happens for any length that is
+// not a multiple of 8 (e.g. 4 bits: 4/8 == 0 < bytes_to_copy == 1). At
+// i == length the loop body calls BitVecGet(bv, length), which aborts
+// (idx >= length). Real code packs the 4-bit vector into one byte and
+// returns cleanly; the mutant gains an abort. A valid op must not abort,
+// so this is a NORMAL test.
+bool test_tobytes_no_overrun_read_on_non_byte_aligned(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecToBytes 4-bit pack does not over-read\n");
+
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
+    // 4-bit pattern 1011 -> LSB-first packing: bits 0,2,3 set -> 0x0D.
+    BitVecPush(&bv, true);  // bit 0
+    BitVecPush(&bv, false); // bit 1
+    BitVecPush(&bv, true);  // bit 2
+    BitVecPush(&bv, true);  // bit 3
+
+    u8  bytes[1] = {0};
+    u64 written  = BitVecToBytes(&bv, bytes, sizeof(bytes));
+
+    bool result = (written == 1) && (bytes[0] == 0x0D);
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+
+    return result;
+}
+
+// Kills 957:45 (cxx_lt_to_le on `i / 8 < bytes_to_copy`).
+//
+// With max_len smaller than the bytes the bitvec would fill, bytes_to_copy
+// is the truncated min. The byte guard `i / 8 < bytes_to_copy` keeps the
+// loop strictly inside the truncated region. Relaxing it to `<=` lets the
+// loop run into byte index == bytes_to_copy, i.e. one byte PAST max_len,
+// OR-ing bits into memory the caller did not authorise. We hand a 2-byte
+// buffer with a sentinel in byte[1] but pass max_len == 1: real code only
+// touches byte[0] and leaves the sentinel intact; the mutant corrupts
+// byte[1]. Caller-observable byte beyond max_len => NORMAL test.
+bool test_tobytes_truncation_does_not_write_past_max_len(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecToBytes truncation respects max_len\n");
+
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
+    // 16 bits; ensure byte 1 has at least one set bit (bit 8 -> byte1 bit0).
+    for (u64 i = 0; i < 16; i++) {
+        BitVecPush(&bv, i == 8); // only bit 8 set
+    }
+
+    u8  bytes[2] = {0x00, 0xEE}; // sentinel in the byte beyond max_len
+    u64 written  = BitVecToBytes(&bv, bytes, 1);
+
+    // Real: one byte written, byte[1] untouched. 0xEE | 0x01 == 0xEF would
+    // be the mutant's corruption, so a preserved 0xEE proves the guard.
+    bool result = (written == 1) && (bytes[1] == 0xEE);
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+
+    return result;
+}
+
+// Kills 940:5 (cxx_remove_void_call on `ValidateBitVec(bv)`).
+//
+// BitVecToBytes opens with ValidateBitVec(bv), which aborts on a NULL or
+// uninitialised/corrupt bitvec (bad magic). We feed a zeroed BitVec: real
+// code aborts on the magic check; the mutant (validation removed) instead
+// reads bv->length == 0 and returns 0 cleanly -- NO abort. An invalid op
+// must abort, so removing the validator is a contract loss => DEADEND.
+bool test_tobytes_zeroed_bitvec_aborts(void) {
+    WriteFmt("Testing BitVecToBytes aborts on an invalid (zeroed) bitvec\n");
+
+    BitVec bv = {0}; // bad magic -> ValidateBitVec must abort
+    u8     bytes[4];
+
+    // Real code aborts here; mutant returns 0 and we fall through.
+    BitVecToBytes(&bv, bytes, sizeof(bytes));
+
+    return false;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting BitVec.Convert tests\n\n");
 
@@ -807,7 +911,10 @@ int main(void) {
         test_bitvec_round_trip_conversions,
         test_bitvec_conversion_bounds_checking,
         test_bitvec_conversion_comprehensive,
-        test_bitvec_large_scale_conversions
+        test_bitvec_large_scale_conversions,
+        test_try_from_integer_caps_at_64,
+        test_tobytes_no_overrun_read_on_non_byte_aligned,
+        test_tobytes_truncation_does_not_write_past_max_len
     };
 
     // Array of deadend test functions
@@ -816,7 +923,8 @@ int main(void) {
         test_bitvec_from_string_null_failures,
         test_bitvec_bytes_null_failures,
         test_bitvec_bytes_bounds_failures,
-        test_bitvec_integer_bounds_failures
+        test_bitvec_integer_bounds_failures,
+        test_tobytes_zeroed_bitvec_aborts
     };
 
     int total_tests         = sizeof(tests) / sizeof(tests[0]);

@@ -17,6 +17,10 @@ bool test_bitvec_and_result_null_failures(void);
 bool test_bitvec_or_operand_null_failures(void);
 bool test_bitvec_xor_second_operand_null_failures(void);
 bool test_bitvec_not_null_failures(void);
+bool test_and_rejects_bad_second_operand(void);
+bool test_and_rejects_bad_third_operand(void);
+bool test_or_rejects_bad_second_operand(void);
+bool test_xor_rejects_bad_third_operand(void);
 
 // Deadend tests
 bool test_bitvec_bitwise_null_failures(void) {
@@ -141,6 +145,87 @@ bool test_bitvec_not_null_failures(void) {
     return false;
 }
 
+// Kills BitVec.c:534:5 cxx_remove_void_call -- ValidateBitVec(b) in BitVecAnd.
+// result + a valid and empty, b is bad-magic; min_len would be 0 so the loop
+// never re-validates b. Only the dropped validate keeps real code aborting.
+bool test_and_rejects_bad_third_operand(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecAnd rejects bad third operand\n");
+
+    BitVec result = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec a      = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bad    = {0};
+
+    BitVecAnd(&result, &a, &bad);
+
+    BitVecDeinit(&result);
+    BitVecDeinit(&a);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// Kills BitVec.c:533:5 cxx_remove_void_call -- ValidateBitVec(a) in BitVecAnd.
+bool test_and_rejects_bad_second_operand(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecAnd rejects bad second operand\n");
+
+    BitVec result = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec b      = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bad    = {0};
+
+    BitVecAnd(&result, &bad, &b);
+
+    BitVecDeinit(&result);
+    BitVecDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// Kills BitVec.c:550:5 cxx_remove_void_call -- ValidateBitVec(a) in BitVecOr.
+bool test_or_rejects_bad_second_operand(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecOr rejects bad second operand\n");
+
+    BitVec result = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec b      = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bad    = {0};
+
+    BitVecOr(&result, &bad, &b);
+
+    BitVecDeinit(&result);
+    BitVecDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// Kills BitVec.c:568:5 cxx_remove_void_call -- ValidateBitVec(b) in BitVecXor.
+bool test_xor_rejects_bad_third_operand(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecXor rejects bad third operand\n");
+
+    BitVec result = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec a      = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bad    = {0};
+
+    BitVecXor(&result, &a, &bad);
+
+    BitVecDeinit(&result);
+    BitVecDeinit(&a);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// Kills 1135:cxx_remove_void_call. BitVecRotateRight's first statement is the
+// function-level ValidateBitVec; a NULL handle must abort.
+static bool test_rotate_right_null_aborts(void) {
+    BitVecRotateRight((BitVec *)NULL, 1);
+    return false;
+}
+
 // Main function that runs all deadend tests
 int main(void) {
     WriteFmt("[INFO] Starting BitVec.BitWise.Deadend tests\n\n");
@@ -155,7 +240,12 @@ int main(void) {
         test_bitvec_and_result_null_failures,
         test_bitvec_or_operand_null_failures,
         test_bitvec_xor_second_operand_null_failures,
-        test_bitvec_not_null_failures
+        test_bitvec_not_null_failures,
+        test_and_rejects_bad_third_operand,
+        test_and_rejects_bad_second_operand,
+        test_or_rejects_bad_second_operand,
+        test_xor_rejects_bad_third_operand,
+        test_rotate_right_null_aborts
     };
 
     int total_deadend_tests = sizeof(deadend_tests) / sizeof(deadend_tests[0]);

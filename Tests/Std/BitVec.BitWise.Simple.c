@@ -27,6 +27,8 @@ bool test_bitvec_rotate_comprehensive(void);
 bool test_bitvec_bitwise_identity_operations(void);
 bool test_bitvec_bitwise_commutative_properties(void);
 bool test_bitvec_bitwise_large_patterns(void);
+bool test_or_widens_without_reading_past_shorter_operand(void);
+bool test_xor_widens_without_reading_past_shorter_operand(void);
 
 // Test BitVecAnd function
 bool test_bitvec_and(void) {
@@ -954,6 +956,133 @@ bool test_bitvec_bitwise_large_patterns(void) {
 
 
 
+// Kills BitVec.c:559:24 cxx_lt_to_le -- `i < a->length` -> `i <= a->length`.
+// With b longer than a, the widening loop must treat the out-of-range a-bits
+// as false, not index a at i == a->length.
+bool test_or_widens_without_reading_past_shorter_operand(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecOr widens past shorter operand a\n");
+
+    BitVec a      = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec b      = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec result = BitVecInit(ALLOCATOR_OF(&alloc));
+
+    // a = 10 (len 2)
+    BitVecPush(&a, true);
+    BitVecPush(&a, false);
+
+    // b = 0110 (len 4, strictly longer than a)
+    BitVecPush(&b, false);
+    BitVecPush(&b, true);
+    BitVecPush(&b, true);
+    BitVecPush(&b, false);
+
+    BitVecOr(&result, &a, &b);
+
+    // Expected OR (a padded with zeros): 1110
+    bool ok = (BitVecLen(&result) == 4);
+    ok      = ok && (BitVecGet(&result, 0) == true);
+    ok      = ok && (BitVecGet(&result, 1) == true);
+    ok      = ok && (BitVecGet(&result, 2) == true);
+    ok      = ok && (BitVecGet(&result, 3) == false);
+
+    BitVecDeinit(&a);
+    BitVecDeinit(&b);
+    BitVecDeinit(&result);
+    DefaultAllocatorDeinit(&alloc);
+
+    return ok;
+}
+
+// Kills BitVec.c:576:24 cxx_lt_to_le -- `i < a->length` -> `i <= a->length`
+// in BitVecXor's widening loop.
+bool test_xor_widens_without_reading_past_shorter_operand(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecXor widens past shorter operand a\n");
+
+    BitVec a      = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec b      = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec result = BitVecInit(ALLOCATOR_OF(&alloc));
+
+    // a = 10 (len 2)
+    BitVecPush(&a, true);
+    BitVecPush(&a, false);
+
+    // b = 0110 (len 4, strictly longer than a)
+    BitVecPush(&b, false);
+    BitVecPush(&b, true);
+    BitVecPush(&b, true);
+    BitVecPush(&b, false);
+
+    BitVecXor(&result, &a, &b);
+
+    // Expected XOR (a padded with zeros): 1110
+    bool ok = (BitVecLen(&result) == 4);
+    ok      = ok && (BitVecGet(&result, 0) == true);
+    ok      = ok && (BitVecGet(&result, 1) == true);
+    ok      = ok && (BitVecGet(&result, 2) == true);
+    ok      = ok && (BitVecGet(&result, 3) == false);
+
+    BitVecDeinit(&a);
+    BitVecDeinit(&b);
+    BitVecDeinit(&result);
+    DefaultAllocatorDeinit(&alloc);
+
+    return ok;
+}
+
+// Kills 1093:cxx_ge_to_gt. Shifting right by exactly `length` shifts every
+// bit out: the real ge-guard routes to BitVecClear (length -> 0), whereas a
+// gt-guard leaves the length intact (only zeroing the bits).
+static bool test_shift_right_by_length_clears_length(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
+    for (int i = 0; i < 8; i++) {
+        BitVecPush(&bv, true);
+    }
+
+    BitVecShiftRight(&bv, 8);
+
+    bool result = (BitVecLen(&bv) == 0);
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Kills 1099:cxx_init_const and 1099:cxx_replace_scalar_call (the shifted-in
+// bit forced to a constant true). Pattern bits 0..3 = 1, bits 4..7 = 0;
+// shifting right by 2 maps new bit[i] = old bit[i+2], giving exactly two set
+// bits at indices 0 and 1.
+static bool test_shift_right_carries_source_bits(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVecPush(&bv, true);  // bit 0
+    BitVecPush(&bv, true);  // bit 1
+    BitVecPush(&bv, true);  // bit 2
+    BitVecPush(&bv, true);  // bit 3
+    BitVecPush(&bv, false); // bit 4
+    BitVecPush(&bv, false); // bit 5
+    BitVecPush(&bv, false); // bit 6
+    BitVecPush(&bv, false); // bit 7
+
+    BitVecShiftRight(&bv, 2);
+
+    bool result = (BitVecCountOnes(&bv) == 2);
+    result      = result && (BitVecGet(&bv, 0) == true);
+    result      = result && (BitVecGet(&bv, 1) == true);
+    result      = result && (BitVecGet(&bv, 2) == false);
+    result      = result && (BitVecGet(&bv, 7) == false);
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 // Main function that runs all tests
 int main(void) {
     WriteFmt("[INFO] Starting BitVec.BitWise tests\n\n");
@@ -978,7 +1107,11 @@ int main(void) {
         test_bitvec_rotate_comprehensive,
         test_bitvec_bitwise_identity_operations,
         test_bitvec_bitwise_commutative_properties,
-        test_bitvec_bitwise_large_patterns
+        test_bitvec_bitwise_large_patterns,
+        test_or_widens_without_reading_past_shorter_operand,
+        test_xor_widens_without_reading_past_shorter_operand,
+        test_shift_right_by_length_clears_length,
+        test_shift_right_carries_source_bits
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);

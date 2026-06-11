@@ -22,6 +22,13 @@ bool test_bitvec_remove_all_edge_cases(void);
 bool test_bitvec_remove_null_failures(void);
 bool test_bitvec_remove_range_null_failures(void);
 bool test_bitvec_remove_invalid_range_failures(void);
+bool test_remove_range_clamps_oversized_count(void);
+bool test_remove_range_clamp_gap_count(void);
+bool test_remove_range_shifts_tail_down(void);
+bool test_remove_null_aborts(void);
+bool test_remove_at_length_aborts(void);
+bool test_remove_first_null_aborts(void);
+bool test_clear_null_aborts(void);
 
 // Test BitVecPop function
 bool test_bitvec_pop(void) {
@@ -504,6 +511,148 @@ bool test_bitvec_remove_range_bounds_failures(void) {
     return false;
 }
 
+// 452:28 / 453:15 / 453:28 -- BitVecRemoveRange must clamp an oversized count to
+// the number of bits actually remaining from idx. A wrong threshold or wrong
+// clamp value over-removes (final length wrong / underflow).
+bool test_remove_range_clamps_oversized_count(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecRemoveRange clamps oversized count\n");
+
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
+
+    // Length 10, all true.
+    for (int i = 0; i < 10; i++) {
+        BitVecPush(&bv, true);
+    }
+
+    // Remove starting at idx 2 with a count far larger than what remains.
+    // Only 8 bits remain (indices 2..9), so result length must be 2.
+    BitVecRemoveRange(&bv, 2, 100);
+
+    bool result = (BitVecLen(&bv) == 2);
+    result      = result && (BitVecGet(&bv, 0) == true);
+    result      = result && (BitVecGet(&bv, 1) == true);
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 452:28 cxx_sub_to_add -- the clamp condition `count > bv->length - idx`
+// becoming `count > bv->length + idx`. The existing oversized-count test uses
+// count=100 which trips both forms, so it cannot see the mutation. This picks a
+// count strictly inside the gap (length-idx < count <= length+idx): length=10,
+// idx=2 -> real clamps when count>8, mutant only when count>12. With count=10
+// the real code clamps to 8 (result length 2), the mutant skips the clamp and
+// resizes to length-count = 0. Caller-observable surviving length.
+bool test_remove_range_clamp_gap_count(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecRemoveRange clamp gap count\n");
+
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
+
+    // Length 10, all true.
+    for (int i = 0; i < 10; i++) {
+        BitVecPush(&bv, true);
+    }
+
+    // idx=2, count=10: 8 bits remain from idx 2, so the result must be length 2.
+    BitVecRemoveRange(&bv, 2, 10);
+
+    bool result = (BitVecLen(&bv) == 2);
+    result      = result && (BitVecGet(&bv, 0) == true);
+    result      = result && (BitVecGet(&bv, 1) == true);
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 456:14 init_const / 458:9 remove_void_call -- BitVecRemoveRange must shift the
+// tail (bits after the removed region) down by `count`. A bad loop start or a
+// dropped Set leaves the surviving bits in the wrong positions.
+bool test_remove_range_shifts_tail_down(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecRemoveRange shifts tail down\n");
+
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
+
+    // Pattern: indices 0..9 = [1,0,1,0,0,1,0,1,1,0]
+    bool pattern[] = {true, false, true, false, false, true, false, true, true, false};
+    for (int i = 0; i < 10; i++) {
+        BitVecPush(&bv, pattern[i]);
+    }
+
+    // Remove 3 bits starting at index 2 -> removes indices 2,3,4.
+    // Survivors: [1,0] ++ [1,0,1,1,0] = [1,0,1,0,1,1,0], length 7.
+    BitVecRemoveRange(&bv, 2, 3);
+
+    bool result = (BitVecLen(&bv) == 7);
+    result      = result && (BitVecGet(&bv, 0) == true);  // orig[0]
+    result      = result && (BitVecGet(&bv, 1) == false); // orig[1]
+    result      = result && (BitVecGet(&bv, 2) == true);  // orig[5]
+    result      = result && (BitVecGet(&bv, 3) == false); // orig[6]
+    result      = result && (BitVecGet(&bv, 4) == true);  // orig[7]
+    result      = result && (BitVecGet(&bv, 5) == true);  // orig[8]
+    result      = result && (BitVecGet(&bv, 6) == false); // orig[9]
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 424:5 remove_void_call -- BitVecRemove must validate its bitvec argument.
+bool test_remove_null_aborts(void) {
+    WriteFmt("Testing BitVecRemove NULL validation\n");
+
+    BitVecRemove(NULL, 0);
+
+    // If we reach here, validation did not abort.
+    return false;
+}
+
+// 425:13 ge_to_gt -- BitVecRemove must reject idx == length (out of range).
+// With >= relaxed to >, removing at idx == length is wrongly accepted.
+bool test_remove_at_length_aborts(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    WriteFmt("Testing BitVecRemove rejects idx == length\n");
+
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, false);
+    BitVecPush(&bv, true);
+
+    // length is 3; idx 3 is out of range and must abort.
+    BitVecRemove(&bv, 3);
+
+    // If we reach here, validation did not abort.
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
+// 465:5 remove_void_call -- BitVecRemoveFirst must validate its bitvec argument.
+bool test_remove_first_null_aborts(void) {
+    WriteFmt("Testing BitVecRemoveFirst NULL validation\n");
+
+    BitVecRemoveFirst(NULL, true);
+
+    // If we reach here, validation did not abort.
+    return false;
+}
+
+// Kills 99:cxx_remove_void_call. BitVecClear's first statement is the
+// function-level ValidateBitVec; a NULL handle must abort. Removing the
+// validator would let the NULL deref slip silently.
+bool test_clear_null_aborts(void) {
+    BitVecClear((BitVec *)NULL);
+    return false;
+}
+
 // Main function that runs all tests
 int main(void) {
     WriteFmt("[INFO] Starting BitVec.Remove tests\n\n");
@@ -520,7 +669,10 @@ int main(void) {
         test_bitvec_remove_single_edge_cases,
         test_bitvec_remove_range_edge_cases,
         test_bitvec_remove_first_last_edge_cases,
-        test_bitvec_remove_all_edge_cases
+        test_bitvec_remove_all_edge_cases,
+        test_remove_range_clamps_oversized_count,
+        test_remove_range_clamp_gap_count,
+        test_remove_range_shifts_tail_down
     };
 
     // Array of deadend test functions
@@ -530,7 +682,11 @@ int main(void) {
         test_bitvec_remove_invalid_range_failures,
         test_bitvec_pop_bounds_failures,
         test_bitvec_remove_bounds_failures,
-        test_bitvec_remove_range_bounds_failures
+        test_bitvec_remove_range_bounds_failures,
+        test_remove_null_aborts,
+        test_remove_at_length_aborts,
+        test_remove_first_null_aborts,
+        test_clear_null_aborts
     };
 
     int total_tests         = sizeof(tests) / sizeof(tests[0]);
