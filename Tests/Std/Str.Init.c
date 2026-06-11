@@ -1,6 +1,7 @@
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Std/Allocator/Default.h>
+#include <Misra/Std/Allocator/Debug.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Types.h>
 
@@ -267,6 +268,76 @@ bool test_str_deinit(void) {
     return true;
 }
 
+// ===========================================================================
+// Mutation-survivor guards relocated from the Str.Mutants* staging suites.
+// Each pins a caller-observable outcome of an init / deinit path.
+// ===========================================================================
+
+// str_deinit -- 161:5 cxx_remove_void_call deletes StrDeinit((Str*)copy),
+// the per-element teardown invoked by VecDeinit over a Strs. Removing it
+// leaks every split element's heap buffer. Observed via the DebugAllocator
+// live-allocation count returning to its pre-split baseline (Str.Mutants4).
+static bool test_str_deinit_releases_split_elements(void) {
+    DebugAllocator dbg = DebugAllocatorInit();
+
+    // Each piece is long enough to force its own heap buffer.
+    Str  s      = StrInitFromZstr("alphaaa,betaaaa,gammaaa,deltaaa", &dbg);
+    size before = DebugAllocatorLiveCount(&dbg);
+
+    Strs parts = StrSplit(&s, ",");
+    // Sanity: the split really produced multiple heap-backed elements,
+    // otherwise the leak would be unobservable.
+    bool produced = VecLen(&parts) == 4 && DebugAllocatorLiveCount(&dbg) > before;
+
+    VecDeinit(&parts); // invokes str_deinit per element on real code.
+    size after = DebugAllocatorLiveCount(&dbg);
+
+    // Real code: every element buffer (+ backing array) freed -> back to
+    // baseline. Mutant: element buffers leak -> after > before.
+    bool pass = produced && after == before;
+
+    StrDeinit(&s);
+    DebugAllocatorDeinit(&dbg);
+    return pass;
+}
+
+// StrDeinit @ 156:5 (remove deinit_vec). Removing the only side effect turns
+// StrDeinit into a no-op, leaking the heap buffer. Observed via the
+// DebugAllocator's live-allocation count: 0 after a real StrDeinit, non-zero
+// under the mutant (Str.Mutants7).
+static bool test_deinit_frees_buffer(void) {
+    WriteFmt("Testing StrDeinit releases the backing allocation\n");
+    DebugAllocator dbg  = DebugAllocatorInit();
+    Allocator     *adbg = ALLOCATOR_OF(&dbg);
+
+    Str s = StrInitFromZstr("hello world", adbg);
+    StrDeinit(&s);
+
+    bool result = (DebugAllocatorLiveCount(&dbg) == 0);
+    if (!result) {
+        WriteFmt("    FAIL: Expected 0 live allocations after StrDeinit\n");
+    }
+
+    DebugAllocatorDeinit(&dbg);
+    return result;
+}
+
+// str_init_copy 135:5 cxx_remove_void_call -- removes ValidateStr(src).
+// Corrupt `src`, keep `dst` an unrelated valid handle (Str.Mutants8).
+static bool test_init_copy_validates_src(void) {
+    WriteFmt("Testing str_init_copy validates src (135:5)\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str src     = StrInitFromZstr("source", &alloc);
+    src.__magic = 0;
+
+    Str dst = StrInit(&alloc);
+    (void)StrInitCopy(&dst, &src); // ValidateStr(src) must abort on real code
+
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
 // Main function that runs all tests
 int main(void) {
     WriteFmt("[INFO] Starting Str.Init tests\n\n");
@@ -283,11 +354,18 @@ int main(void) {
         test_str_init_stack,
         test_str_init_copy,
         test_str_clone_inherits_allocator_config,
-        test_str_deinit
+        test_str_deinit,
+        // str_deinit / StrDeinit (Str.Mutants4, Str.Mutants7)
+        test_str_deinit_releases_split_elements,
+        test_deinit_frees_buffer
     };
 
-    int total_tests = sizeof(tests) / sizeof(tests[0]);
+    // Array of deadend test functions (relocated from Str.Mutants8)
+    TestFunction deadend_tests[] = {test_init_copy_validates_src};
+
+    int total_tests         = sizeof(tests) / sizeof(tests[0]);
+    int total_deadend_tests = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
 
     // Run all tests using the centralized test driver
-    return run_test_suite(tests, total_tests, NULL, 0, "Str.Init");
+    return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "Str.Init");
 }
