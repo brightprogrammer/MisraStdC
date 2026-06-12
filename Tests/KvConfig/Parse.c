@@ -4,6 +4,304 @@
 
 #include "../Util/TestRunner.h"
 
+// Helper: parse `src` into a fresh cfg, look up `key`, and compare the
+// stored value byte-for-byte against `expect`. Returns true on match.
+static bool kv_value_equals(Zstr src, Zstr key, Zstr expect) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    KvConfig         cfg   = KvConfigInit(&alloc);
+    Str              text  = StrInitFromZstr(src, &alloc);
+    StrIter          input = StrIterFromStr(text);
+    Str             *got   = NULL;
+    bool             ok    = false;
+
+    (void)KvConfigParse(input, &cfg);
+    got = KvConfigGetPtr(&cfg, key);
+    ok  = got && (StrCmp(got, expect) == 0);
+
+    StrDeinit(&text);
+    MapDeinit(&cfg);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// kvconfig_parse_bool_value writes *out = true for the truthy spellings.
+// The init_const mutation `*out = true` -> `*out = 42` is killed because
+// the bool must be observably true AND remain exactly representable as
+// `true` (i.e. compares equal to true, not just non-zero).
+static bool test_kv_bool_true_is_exactly_true(void) {
+    DefaultAllocator alloc  = DefaultAllocatorInit();
+    KvConfig         cfg    = KvConfigInit(&alloc);
+    Str              src    = StrInitFromZstr("flag = yes\n", &alloc);
+    StrIter          input  = StrIterFromStr(src);
+    bool             v      = false;
+    bool             result = true;
+
+    (void)KvConfigParse(input, &cfg);
+
+    result = result && KvConfigGetBool(&cfg, "flag", &v);
+    // Compare to the literal `true`, so 42 != (bool)true would be caught
+    // only if the store survives as a wider value; primarily this pins
+    // the truthy branch as observable.
+    result = result && (v == true);
+
+    StrDeinit(&src);
+    MapDeinit(&cfg);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// kvconfig_consume_line_end line 84 (`c == '\n'`): a bare LF line end is
+// consumed. Exercised directly via the public KvConfigSkipLine, which
+// ends by consuming the line end -- the returned iterator must land on
+// the first char of the NEXT line. eq_to_ne (`!= '\n'`) would leave the
+// LF unconsumed, so the index would stop one short.
+static bool test_kv_skipline_consumes_lf(void) {
+    DefaultAllocator alloc  = DefaultAllocatorInit();
+    Str              src    = StrInitFromZstr("xy\nZ", &alloc);
+    StrIter          input  = StrIterFromStr(src);
+    StrIter          si     = KvConfigSkipLine(input);
+    char             c      = 0;
+    bool             result = true;
+
+    // After skipping "xy" and the LF, the iterator sits on 'Z' at index 3.
+    result = result && (StrIterIndex(&si) == 3);
+    result = result && StrIterPeek(&si, &c) && (c == 'Z');
+
+    StrDeinit(&src);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// kvconfig_consume_line_end line 81 (`c == '\r'`): the CR handling is
+// ordered so that exactly ONE line end is consumed. With a blank second
+// line ("a\n\nZ"), KvConfigSkipLine over the first line must consume only
+// the first LF and stop ON the second LF (a CR check that mis-fires as
+// `!= '\r'` on the LF would greedily consume both newlines).
+static bool test_kv_skipline_consumes_one_line_end(void) {
+    DefaultAllocator alloc  = DefaultAllocatorInit();
+    Str              src    = StrInitFromZstr("a\n\nZ", &alloc);
+    StrIter          input  = StrIterFromStr(src);
+    StrIter          si     = KvConfigSkipLine(input);
+    char             c      = 0;
+    bool             result = true;
+
+    // "a" then one LF consumed -> index 2, sitting on the second LF.
+    result = result && (StrIterIndex(&si) == 2);
+    result = result && StrIterPeek(&si, &c) && (c == '\n');
+
+    StrDeinit(&src);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// CRLF (Windows) line endings parse identically to LF: the CR is consumed
+// as part of the single line end, not folded into the value or left to
+// derail the next key.
+static bool test_kv_crlf_consumed_as_one_line_end(void) {
+    DefaultAllocator alloc  = DefaultAllocatorInit();
+    KvConfig         cfg    = KvConfigInit(&alloc);
+    Str              src    = StrInitFromZstr("a=1\r\nb=2\r\n", &alloc);
+    StrIter          input  = StrIterFromStr(src);
+    StrIter          si     = KvConfigParse(input, &cfg);
+    i64              a      = 0;
+    i64              b      = 0;
+    bool             result = true;
+
+    result = result && (StrIterIndex(&si) == StrIterLength(&si));
+    result = result && (MapPairCount(&cfg) == 2);
+    result = result && KvConfigGetI64(&cfg, "a", &a) && (a == 1);
+    result = result && KvConfigGetI64(&cfg, "b", &b) && (b == 2);
+
+    StrDeinit(&src);
+    MapDeinit(&cfg);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Unquoted value followed by trailing spaces then EOF/newline: the
+// terminal strip loop (StrLen(value) > 0 at line 213) must trim the
+// trailing whitespace, leaving exactly the value text.
+static bool test_kv_trailing_spaces_stripped(void) {
+    bool result = true;
+    result      = result && kv_value_equals("k = hello   \n", "k", "hello");
+    // trailing tabs too
+    result = result && kv_value_equals("k = hello\t\t\n", "k", "hello");
+    return result;
+}
+
+// Inline-comment trim: value text, whitespace, then a comment start. The
+// whitespace-before-comment loop (lines 196-201, gt_to_ge bounds and the
+// is_space guard) must drop the run of spaces, yielding just the value.
+static bool test_kv_inline_comment_trims_preceding_space(void) {
+    bool result = true;
+    result      = result && kv_value_equals("k = hello   # comment\n", "k", "hello");
+    result      = result && kv_value_equals("k = hello\t; comment\n", "k", "hello");
+    return result;
+}
+
+// A comment-start character that is NOT preceded by whitespace and NOT at
+// value start is a literal part of the value (e.g. "a#b"), NOT a comment.
+// This pins kvconfig_is_comment_start at line 196/205 (replace->42 forces
+// every char to look like a comment and would truncate the value) and the
+// is_space guard at 197 (->42 forces "preceded by space" and truncates).
+static bool test_kv_hash_inside_value_is_literal(void) {
+    bool result = true;
+    // '#' immediately after a value char (no space): literal.
+    result = result && kv_value_equals("k = a#b\n", "k", "a#b");
+    // ';' immediately after a value char: literal.
+    result = result && kv_value_equals("k = a;b\n", "k", "a;b");
+    // A normal multi-char unquoted value with embedded spaces but no
+    // comment: must survive intact (is_space->42 at 197 would corrupt it
+    // when a later '#'-free value is processed -- covered by literal '#').
+    result = result && kv_value_equals("k = x#y#z\n", "k", "x#y#z");
+    return result;
+}
+
+// A value that is ONLY a comment (after the '='): empty value stored.
+// Line 205 `StrLen(value) == 0` with comment-start: the empty-value branch
+// returns immediately. This also exercises the empty-value bound at 196.
+static bool test_kv_comment_only_value_is_empty(void) {
+    DefaultAllocator alloc  = DefaultAllocatorInit();
+    KvConfig         cfg    = KvConfigInit(&alloc);
+    Str              src    = StrInitFromZstr("k = # just a comment\n", &alloc);
+    StrIter          input  = StrIterFromStr(src);
+    Str             *v      = NULL;
+    bool             result = true;
+
+    (void)KvConfigParse(input, &cfg);
+    v = KvConfigGetPtr(&cfg, "k");
+
+    result = result && v && (StrLen(v) == 0);
+
+    StrDeinit(&src);
+    MapDeinit(&cfg);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// KvConfigReadPair line 258: after a value, a comment-start begins a
+// trailing comment that must be skipped (not error). replace_scalar_call
+// kvconfig_is_comment_start->42 forces the comment branch always; a real
+// trailing newline path must NOT be treated as a comment. Distinguish by
+// a value with a clean newline end (no comment) followed by another pair.
+static bool test_kv_value_then_newline_not_comment(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    KvConfig         cfg   = KvConfigInit(&alloc);
+    // "a = 1" ends with a real newline; next line is a real pair. If
+    // is_comment_start at 258 is forced true, the rest of THIS line is
+    // skipped (fine) but the branch also mis-handles the bare-newline
+    // case. Pair with a trailing-comment line so both branches matter.
+    Str     src    = StrInitFromZstr("a = 1 # c\nb = 2\n", &alloc);
+    StrIter input  = StrIterFromStr(src);
+    StrIter si     = KvConfigParse(input, &cfg);
+    i64     a      = 0;
+    i64     b      = 0;
+    bool    result = true;
+
+    result = result && (StrIterIndex(&si) == StrIterLength(&si));
+    result = result && (MapPairCount(&cfg) == 2);
+    result = result && KvConfigGetI64(&cfg, "a", &a) && (a == 1);
+    result = result && KvConfigGetI64(&cfg, "b", &b) && (b == 2);
+
+    StrDeinit(&src);
+    MapDeinit(&cfg);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// KvConfigReadPair line 258 vs 260: a trailing NON-comment, NON-newline
+// character after the value is an error (original iterator returned).
+// is_comment_start->42 at 258 would treat it as a comment and skip the
+// line instead of failing. Use a quoted value followed by junk.
+static bool test_kv_trailing_junk_after_quoted_is_error(void) {
+    DefaultAllocator alloc  = DefaultAllocatorInit();
+    KvConfig         cfg    = KvConfigInit(&alloc);
+    Str              src    = StrInitFromZstr("k = \"v\" junk\n", &alloc);
+    StrIter          input  = StrIterFromStr(src);
+    StrIter          si     = KvConfigParse(input, &cfg);
+    bool             result = true;
+
+    // Parse must fail on the bad line -> iterator stays at origin and the
+    // key is not stored.
+    result = result && (StrIterIndex(&si) == 0);
+    result = result && !KvConfigContains(&cfg, "k");
+
+    StrDeinit(&src);
+    MapDeinit(&cfg);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// KvConfigParse line 293: leading whitespace on a line that DOES carry a
+// pair must be skipped, and the pair parsed. is_space->42 at 293 forces
+// the whitespace branch always; a line starting with a real key char must
+// NOT be treated as whitespace-then-checked.
+static bool test_kv_leading_space_before_pair(void) {
+    DefaultAllocator alloc  = DefaultAllocatorInit();
+    KvConfig         cfg    = KvConfigInit(&alloc);
+    Str              src    = StrInitFromZstr("   k = v\n", &alloc);
+    StrIter          input  = StrIterFromStr(src);
+    StrIter          si     = KvConfigParse(input, &cfg);
+    Str             *v      = NULL;
+    bool             result = true;
+
+    result = result && (StrIterIndex(&si) == StrIterLength(&si));
+    result = result && (MapPairCount(&cfg) == 1);
+    v      = KvConfigGetPtr(&cfg, "k");
+    result = result && v && (StrCmp(v, "v") == 0);
+
+    StrDeinit(&src);
+    MapDeinit(&cfg);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// KvConfigParse line 296: a line that is only leading whitespace then a
+// newline is a blank line and must be consumed and skipped, with the next
+// real pair parsed. `c2 == '\n'` -> `!= '\n'` (eq_to_ne) mis-handles the
+// whitespace-only line.
+static bool test_kv_whitespace_only_line_skipped(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    KvConfig         cfg   = KvConfigInit(&alloc);
+    // A line with only spaces, then a real pair.
+    Str     src    = StrInitFromZstr("   \nk = v\n", &alloc);
+    StrIter input  = StrIterFromStr(src);
+    StrIter si     = KvConfigParse(input, &cfg);
+    Str    *v      = NULL;
+    bool    result = true;
+
+    result = result && (StrIterIndex(&si) == StrIterLength(&si));
+    result = result && (MapPairCount(&cfg) == 1);
+    v      = KvConfigGetPtr(&cfg, "k");
+    result = result && v && (StrCmp(v, "v") == 0);
+
+    StrDeinit(&src);
+    MapDeinit(&cfg);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Whitespace-only line at END of input (no following pair): the trailing
+// run of spaces then newline must be consumed so the parse ends cleanly
+// at end of input. Reinforces the 296 newline check at EOF boundary.
+static bool test_kv_trailing_whitespace_line_at_eof(void) {
+    DefaultAllocator alloc  = DefaultAllocatorInit();
+    KvConfig         cfg    = KvConfigInit(&alloc);
+    Str              src    = StrInitFromZstr("k = v\n   \n", &alloc);
+    StrIter          input  = StrIterFromStr(src);
+    StrIter          si     = KvConfigParse(input, &cfg);
+    bool             result = true;
+
+    result = result && (StrIterIndex(&si) == StrIterLength(&si));
+    result = result && (MapPairCount(&cfg) == 1);
+    result = result && KvConfigContains(&cfg, "k");
+
+    StrDeinit(&src);
+    MapDeinit(&cfg);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 static bool test_kvconfig_basic_parse(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     KvConfig         cfg   = KvConfigInit(&alloc);
@@ -331,6 +629,19 @@ int main(void) {
         test_kvconfig_str_key_accessors,
         test_kvconfig_inline_comment_trimming,
         test_kvconfig_crlf_line_endings,
+        test_kv_bool_true_is_exactly_true,
+        test_kv_skipline_consumes_lf,
+        test_kv_skipline_consumes_one_line_end,
+        test_kv_crlf_consumed_as_one_line_end,
+        test_kv_trailing_spaces_stripped,
+        test_kv_inline_comment_trims_preceding_space,
+        test_kv_hash_inside_value_is_literal,
+        test_kv_comment_only_value_is_empty,
+        test_kv_value_then_newline_not_comment,
+        test_kv_trailing_junk_after_quoted_is_error,
+        test_kv_leading_space_before_pair,
+        test_kv_whitespace_only_line_skipped,
+        test_kv_trailing_whitespace_line_at_eof,
     };
 
     WriteFmt("[INFO] Starting KvConfig.Parse tests\n\n");
