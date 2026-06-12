@@ -242,6 +242,7 @@ allocator_tests = [
     # Page and Heap are foundation.
     ['Allocator.Page', 'Std/Allocator.Page.c'],
     ['Allocator.Heap', 'Std/Allocator.Heap.c'],
+    ['Allocator.Dispatch', 'Std/Allocator.Dispatch.c'],
 ]
 if opt_alloc_arena
     allocator_tests += [['Allocator.Arena', 'Std/Allocator.Arena.c']]
