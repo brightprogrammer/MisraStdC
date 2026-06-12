@@ -222,6 +222,125 @@ bool test_iter_next_prev(void) {
     return !IterPrev(&it);
 }
 
+// --- iter_peek_index: reverse past-start sentinel handling (34:17, 35:13) ---
+// From the reverse sentinel (pos == (size)-1, cur == -1) a peek of +1 must
+// resolve to index 0. If `dir == -1` is mutated to `!=`, or `cur = -1`
+// becomes `cur = 42`, the computed base is wrong and the peek fails.
+bool test_it_peek_from_reverse_sentinel(void) {
+    const u8 buf[3] = {10, 20, 30};
+    BufIter  it     = from_rev(buf, 3);
+    // Step past the start so pos becomes the (size)-1 sentinel.
+    IterMove(&it, 3);
+    if (IterIndex(&it) != (size)-1) {
+        return false;
+    }
+    u8 v = 0;
+    // cur == -1, n == 1 -> target index 0 (value 10).
+    if (!IterPeekAt(&it, 1, &v) || v != 10) {
+        return false;
+    }
+    // cur == -1, n == 3 -> target index 2 (value 30).
+    return IterPeekAt(&it, 3, &v) && v == 30;
+}
+
+// --- iter_peek_index: reverse non-sentinel uses real pos (34:34) ---
+// A reverse iter NOT at the sentinel (pos == 2) must peek from pos, not -1.
+// Mutating `pos == (size)-1` to `!=` forces the `cur = -1` branch here.
+bool test_it_peek_reverse_nonsentinel_uses_pos(void) {
+    const u8 buf[3] = {10, 20, 30};
+    BufIter  it     = from_rev(buf, 3);
+    if (IterIndex(&it) != 2) {
+        return false;
+    }
+    u8 v = 0;
+    // cur == 2, n == 0 -> index 2 (value 30).
+    if (!IterPeekAt(&it, 0, &v) || v != 30) {
+        return false;
+    }
+    // cur == 2, n == -2 -> index 0 (value 10).
+    return IterPeekAt(&it, -2, &v) && v == 10;
+}
+
+// --- iter_try_move: reverse move out of the sentinel (48:17, 49:13) ---
+// From the sentinel (cur == -1), moving by n == -1 (delta +1) lands on
+// index 0. Mutating `dir == -1` to `!=`, or `cur = -1` to `cur = 42`,
+// makes the base wrong and the move is rejected.
+bool test_it_move_out_of_reverse_sentinel(void) {
+    const u8 buf[3] = {10, 20, 30};
+    BufIter  it     = from_rev(buf, 3);
+    IterMove(&it, 3); // -> sentinel
+    if (IterIndex(&it) != (size)-1) {
+        return false;
+    }
+    // cur == -1, n == -1 -> new_pos 0.
+    if (!IterMove(&it, -1) || IterIndex(&it) != 0) {
+        return false;
+    }
+    u8 v = 0;
+    return IterRead(&it, &v) && v == 10;
+}
+
+// --- iter_try_move reverse upper bound is length-1 (64:37) ---
+// Moving to exactly new_pos == length-1 must succeed. `>` mutated to `>=`
+// would reject the top valid position.
+bool test_it_move_reverse_to_max_position(void) {
+    const u8 buf[3] = {10, 20, 30};
+    BufIter  it     = from_rev(buf, 3);
+    IterMove(&it, 3); // -> sentinel (cur == -1)
+    // cur == -1, n == -3 -> delta +3 -> new_pos 2 == length-1 (top valid pos).
+    if (!IterMove(&it, -3) || IterIndex(&it) != 2) {
+        return false;
+    }
+    u8 v = 0;
+    return IterRead(&it, &v) && v == 30;
+}
+
+// --- iter_try_move reverse rejects new_pos == length (64:55) ---
+// The reverse upper bound is length-1, so landing on new_pos == length must
+// be rejected. `length - 1` mutated to `length + 1` would wrongly accept it.
+bool test_it_move_reverse_rejects_length(void) {
+    const u8 buf[3] = {10, 20, 30};
+    BufIter  it     = from_rev(buf, 3); // pos == 2
+    size     before = IterIndex(&it);
+    // cur == 2, n == -1 -> delta +1 -> new_pos 3 == length: out of range.
+    if (IterMove(&it, -1)) {
+        return false;
+    }
+    return IterIndex(&it) == before;
+}
+
+// --- iter_try_move reverse new_pos == 0 is a real index, not sentinel (67:28) ---
+// Landing on new_pos == 0 must store pos 0, not the (size)-1 sentinel.
+// `new_pos < 0` mutated to `<= 0` would store the sentinel instead.
+bool test_it_move_reverse_to_index_zero(void) {
+    const u8 buf[3] = {10, 20, 30};
+    BufIter  it     = from_rev(buf, 3);
+    IterMove(&it, 3); // -> sentinel
+    // cur == -1, n == -1 -> new_pos 0: a real index, not the sentinel.
+    if (!IterMove(&it, -1) || IterIndex(&it) != 0) {
+        return false;
+    }
+    // Sentinel would read as exhausted; index 0 still has one element.
+    return IterRemainingLength(&it) == 1;
+}
+
+// --- validate_iter accepts valid forward / reverse iters (80:17, 80:33) ---
+// A structurally valid iter must not abort. Mutating either `!=` to `==`
+// makes the validator abort on a valid iter (dir == -1 or dir == 1).
+bool test_it_validate_accepts_forward(void) {
+    const u8 buf[2] = {1, 2};
+    BufIter  it     = BufIterFromMemory(buf, 2);
+    ValidateIter(&it);
+    return true;
+}
+
+bool test_it_validate_accepts_reverse(void) {
+    const u8 buf[2] = {1, 2};
+    BufIter  it     = from_rev(buf, 2);
+    ValidateIter(&it);
+    return true;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting Iter tests\n\n");
     TestFunction tests[] = {
@@ -240,6 +359,14 @@ int main(void) {
         test_iter_move_reverse_to_past_start,
         test_iter_move_reverse_overflow,
         test_iter_next_prev,
+        test_it_peek_from_reverse_sentinel,
+        test_it_peek_reverse_nonsentinel_uses_pos,
+        test_it_move_out_of_reverse_sentinel,
+        test_it_move_reverse_to_max_position,
+        test_it_move_reverse_rejects_length,
+        test_it_move_reverse_to_index_zero,
+        test_it_validate_accepts_forward,
+        test_it_validate_accepts_reverse,
     };
     int total = sizeof(tests) / sizeof(tests[0]);
     return run_test_suite(tests, total, NULL, 0, "Iter");

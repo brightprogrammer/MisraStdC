@@ -50,6 +50,25 @@ bool deadend_must_prev_underflow(void) {
     return true;
 }
 
+// --- deadend: validate_iter aborts on a bad direction (80:17, 80:33) ---
+// dir == 0 is structurally invalid; the validator must abort. Mutating
+// either `!=` to `==` makes the abort condition false, so the abort is
+// skipped and this deadend test fails.
+bool deadend_it_validate_bad_dir(void) {
+    const u8 buf[2] = {1, 2};
+    BufIter  it     = {.data = buf, .length = 2, .pos = 0, .alignment = 1, .dir = 0};
+    ValidateIter(&it);
+    return true;
+}
+
+// --- deadend: validate_iter aborts on zero alignment ---
+bool deadend_it_validate_zero_alignment(void) {
+    const u8 buf[2] = {1, 2};
+    BufIter  it     = {.data = buf, .length = 2, .pos = 0, .alignment = 0, .dir = 1};
+    ValidateIter(&it);
+    return true;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting Iter.Deadend tests\n\n");
     TestFunction tests[] = {
@@ -58,6 +77,8 @@ int main(void) {
         deadend_must_move_overflow,
         deadend_must_next_eof,
         deadend_must_prev_underflow,
+        deadend_it_validate_bad_dir,
+        deadend_it_validate_zero_alignment,
     };
     int total = sizeof(tests) / sizeof(tests[0]);
     return run_test_suite(NULL, 0, tests, total, "Iter.Deadend");
