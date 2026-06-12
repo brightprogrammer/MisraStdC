@@ -101,6 +101,8 @@ procmaps_tests = [
 
 symresolve_tests = [
     ['SymbolResolver', 'Std/SymbolResolver.c'],
+    ['SymbolResolver.Internal', 'Std/SymbolResolver.Internal.c'],
+    ['SymbolResolver.BestEffort', 'Std/SymbolResolver.BestEffort.c'],
 ]
 
 backtrace_tests = [
