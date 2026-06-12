@@ -49,6 +49,10 @@ bool test_truncated_unicode_escape_rejected(void);
 bool test_unknown_keys_of_every_type_skipped(void);
 bool test_malformed_object_rejected(void);
 bool test_negative_number_exact_values(void);
+bool test_js_float_reads_integer_valued_number(void);
+bool test_js_float_reads_zero_valued_integer(void);
+bool test_js_null_clears_flag_on_non_null(void);
+bool test_js_null_sets_flag_on_null(void);
 
 // Test 1: Empty object reading
 bool test_empty_object_reading(void) {
@@ -1116,6 +1120,122 @@ bool test_negative_number_exact_values(void) {
     return success;
 }
 
+// JReadFloat on an INTEGER-valued JSON number must promote num.i to the
+// exact f64 value. The non-float branch does `*val = (f64)num.i;`; a
+// value-substitution mutant turning that into `*val = 42` would hand back
+// 42.0 for any integer. Parse "7" and pin *val == 7.0 (and advance).
+bool test_js_float_reads_integer_valued_number(void) {
+    WriteFmtLn("Testing JReadFloat promotes an integer-valued number exactly");
+
+    DefaultAllocator alloc   = DefaultAllocatorInit();
+    bool             success = true;
+
+    Str     j   = StrInitFromZstr("7", &alloc);
+    StrIter si  = StrIterFromStr(j);
+    f64     val = 0.0;
+    StrIter out = JReadFloat(si, &val);
+
+    // Must advance (token consumed) and yield exactly 7.0 -- not 42.0.
+    if (StrIterIndex(&out) == StrIterIndex(&si)) {
+        WriteFmtLn("[DEBUG] JReadFloat did not advance on integer '7'");
+        success = false;
+    }
+    if (val != 7.0) {
+        WriteFmtLn("[DEBUG] JReadFloat integer-promotion wrong: expected 7.0, got {}", val);
+        success = false;
+    }
+
+    StrDeinit(&j);
+    DefaultAllocatorDeinit(&alloc);
+    return success;
+}
+
+// Second integer-promotion witness with a different value, so the mutant
+// cannot coincide with the literal. 13 -> 13.0, never 42.0.
+bool test_js_float_reads_zero_valued_integer(void) {
+    WriteFmtLn("Testing JReadFloat promotes a second integer value exactly");
+
+    DefaultAllocator alloc   = DefaultAllocatorInit();
+    bool             success = true;
+
+    Str     j   = StrInitFromZstr("13", &alloc);
+    StrIter si  = StrIterFromStr(j);
+    f64     val = 0.0;
+    StrIter out = JReadFloat(si, &val);
+
+    if (StrIterIndex(&out) == StrIterIndex(&si)) {
+        WriteFmtLn("[DEBUG] JReadFloat did not advance on integer '13'");
+        success = false;
+    }
+    if (val != 13.0) {
+        WriteFmtLn("[DEBUG] JReadFloat integer-promotion wrong: expected 13.0, got {}", val);
+        success = false;
+    }
+
+    StrDeinit(&j);
+    DefaultAllocatorDeinit(&alloc);
+    return success;
+}
+
+// JReadNull writes `*is_null = false;` unconditionally before the match,
+// so a NON-null token leaves *is_null == false. A value-substitution
+// mutant turning that into `*is_null = 42` (truthy) would report a
+// non-null value as null. Feed "null2" (a 'n...' token that is NOT
+// exactly "null"): the reader fails (iterator rewinds) but *is_null must
+// remain false -- assert it is NOT truthy.
+bool test_js_null_clears_flag_on_non_null(void) {
+    WriteFmtLn("Testing JReadNull clears is_null on a non-null token");
+
+    DefaultAllocator alloc   = DefaultAllocatorInit();
+    bool             success = true;
+
+    // 'n' lead-in but not "null": ZstrCompareN fails -> *is_null stays the
+    // value the unconditional clear set it to, which must be false.
+    Str     j       = StrInitFromZstr("nuII", &alloc);
+    StrIter si      = StrIterFromStr(j);
+    bool    is_null = true; // poison: must be overwritten to false
+    StrIter out     = JReadNull(si, &is_null);
+
+    // Malformed -> iterator rewinds (no advance).
+    if (StrIterIndex(&out) != StrIterIndex(&si)) {
+        WriteFmtLn("[DEBUG] JReadNull advanced on malformed 'nuII'");
+        success = false;
+    }
+    // The unconditional clear must have run: a truthy mutant fails here.
+    if (is_null != false) {
+        WriteFmtLn("[DEBUG] JReadNull left is_null truthy on non-null input: {}", is_null);
+        success = false;
+    }
+
+    StrDeinit(&j);
+    DefaultAllocatorDeinit(&alloc);
+    return success;
+}
+
+// Positive control: a real "null" token sets *is_null = true and advances
+// four bytes. Pins the success branch alongside the clear above so a
+// mutant cannot satisfy one test by sabotaging the other.
+bool test_js_null_sets_flag_on_null(void) {
+    WriteFmtLn("Testing JReadNull sets is_null on a real null token");
+
+    DefaultAllocator alloc   = DefaultAllocatorInit();
+    bool             success = true;
+
+    Str     j       = StrInitFromZstr("null", &alloc);
+    StrIter si      = StrIterFromStr(j);
+    bool    is_null = false;
+    StrIter out     = JReadNull(si, &is_null);
+
+    if (!(is_null == true && StrIterIndex(&out) == 4)) {
+        WriteFmtLn("[DEBUG] JReadNull 'null' value/advance wrong: n={}, idx={}", is_null, StrIterIndex(&out));
+        success = false;
+    }
+
+    StrDeinit(&j);
+    DefaultAllocatorDeinit(&alloc);
+    return success;
+}
+
 // Main function that runs all edge case reading tests
 int main(void) {
     // Array of test functions
@@ -1138,7 +1258,11 @@ int main(void) {
         test_truncated_unicode_escape_rejected,
         test_unknown_keys_of_every_type_skipped,
         test_malformed_object_rejected,
-        test_negative_number_exact_values
+        test_negative_number_exact_values,
+        test_js_float_reads_integer_valued_number,
+        test_js_float_reads_zero_valued_integer,
+        test_js_null_clears_flag_on_non_null,
+        test_js_null_sets_flag_on_null
     };
 
     int test_count = sizeof(tests) / sizeof(tests[0]);
