@@ -40,51 +40,74 @@ io_tests = [
     ['Io.Write', 'Std/Io.Write.c'],
     ['Io.Read', 'Std/Io.Read.c'],
     ['Io.UserTypes', 'Std/Io.UserTypes.c'],
+    ['Io.Leak', 'Std/Io.Leak.c'],
+    ['Io.Blind', 'Std/Io.Blind.c'],
 ]
 
 file_tests = [
     ['File', 'Std/File.c'],
+    ['File.Mut', 'Std/File.Mut.c'],
+    ['File.Blind', 'Std/File.Blind.c'],
 ]
 
 argparse_tests = [
     ['ArgParse', 'Std/ArgParse.c'],
+    ['ArgParse.Leak', 'Std/ArgParse.Leak.c'],
+    ['ArgParse.Mut', 'Std/ArgParse.Mut.c'],
+    ['ArgParse.Blind', 'Std/ArgParse.Blind.c'],
 ]
 
 socket_tests = [
     ['Socket', 'Std/Socket.c'],
+    ['Socket.Mut', 'Std/Socket.Mut.c'],
+    ['Socket.Blind', 'Std/Socket.Blind.c'],
 ]
 
 http_tests = [
     ['Http', 'Std/Http.c'],
+    ['Http.Leak', 'Std/Http.Leak.c'],
 ]
 
 elf_tests = [
     ['Elf', 'Std/Elf.c'],
+    ['Elf.Mut', 'Std/Elf.Mut.c'],
+    ['Elf.Blind', 'Std/Elf.Blind.c'],
 ]
 
 dwarf_tests = [
     ['Dwarf', 'Std/Dwarf.c'],
+    ['Dwarf.Mut', 'Std/Dwarf.Mut.c'],
+    ['Dwarf.Blind', 'Std/Dwarf.Blind.c'],
 ]
 
 pe_tests = [
     ['Pe', 'Std/Pe.c'],
+    ['Pe.Mut', 'Std/Pe.Mut.c'],
+    ['Pe.Blind', 'Std/Pe.Blind.c'],
 ]
 
 pdb_tests = [
     ['Pdb', 'Std/Pdb.c'],
+    ['Pdb.Mut', 'Std/Pdb.Mut.c'],
+    ['Pdb.Blind', 'Std/Pdb.Blind.c'],
 ]
 
 pdb_cache_tests = [
     ['PdbCache', 'Std/PdbCache.c'],
     ['PdbCache.Internal', 'Std/PdbCache.Internal.c'],
+    ['PdbCache.Mut', 'Std/PdbCache.Mut.c'],
 ]
 
 macho_tests = [
     ['MachO', 'Std/MachO.c'],
+    ['MachO.Mut', 'Std/MachO.Mut.c'],
+    ['MachO.Blind', 'Std/MachO.Blind.c'],
 ]
 
 dns_tests = [
     ['Dns', 'Std/Dns.c'],
+    ['Dns.Leak', 'Std/Dns.Leak.c'],
+    ['Dns.Blind', 'Std/Dns.Blind.c'],
 ]
 
 sys_dns_tests = [
@@ -93,21 +116,28 @@ sys_dns_tests = [
     ['SysDns.Resolv', 'Std/SysDns.Resolv.c'],
     ['SysDns.Wire', 'Std/SysDns.Wire.c'],
     ['SysDns.Api', 'Std/SysDns.Api.c'],
+    ['SysDns.Mut', 'Std/SysDns.Mut.c'],
+    ['SysDns.Blind', 'Std/SysDns.Blind.c'],
 ]
 
 macho_cache_tests = [
     ['MachoCache', 'Std/MachoCache.c'],
+    ['MachoCache.Mut', 'Std/MachoCache.Mut.c'],
+    ['MachoCache.Blind', 'Std/MachoCache.Blind.c'],
 ]
 
 procmaps_tests = [
     ['ProcMaps', 'Std/ProcMaps.c'],
     ['ProcMaps.Parse', 'Std/ProcMaps.Parse.c'],
+    ['ProcMaps.Mut', 'Std/ProcMaps.Mut.c'],
+    ['ProcMaps.Blind', 'Std/ProcMaps.Blind.c'],
 ]
 
 symresolve_tests = [
     ['SymbolResolver', 'Std/SymbolResolver.c'],
     ['SymbolResolver.Internal', 'Std/SymbolResolver.Internal.c'],
     ['SymbolResolver.BestEffort', 'Std/SymbolResolver.BestEffort.c'],
+    ['SymbolResolver.Mut', 'Std/SymbolResolver.Mut.c'],
 ]
 
 backtrace_tests = [
@@ -120,10 +150,14 @@ page_protect_tests = [
 
 alloc_debug_tests = [
     ['AllocDebug', 'Std/AllocDebug.c'],
+    ['AllocDebug.Leak', 'Std/AllocDebug.Leak.c'],
+    ['AllocDebug.Blind', 'Std/AllocDebug.Blind.c'],
 ]
 
 iter_tests = [
     ['Iter', 'Std/Iter.c'],
+    ['Iter.Mut', 'Std/Iter.Mut.c'],
+    ['Iter.Blind', 'Std/Iter.Blind.c'],
 ]
 
 iter_deadend_tests = [
@@ -144,6 +178,8 @@ str_tests = [
     ['Str.Convert', 'Std/Str.Convert.c'],
     ['Str.Foreach', 'Std/Str.Foreach.c'],
     ['Str.Ops', 'Std/Str.Ops.c'],
+    ['Str.Mut', 'Std/Str.Mut.c'],
+    ['Str.Blind', 'Std/Str.Blind.c'],
 ]
 
 vec_tests = [
@@ -156,6 +192,8 @@ vec_tests = [
     ['Vec.Foreach', 'Std/Vec.Foreach.c'],
     ['Vec.Ops', 'Std/Vec.Ops.c'],
     ['Vec.Complex', 'Std/Vec.Complex.c'],
+    ['Vec.Mut', 'Std/Vec.Mut.c'],
+    ['Vec.Blind', 'Std/Vec.Blind.c'],
 ]
 
 graph_tests = [
@@ -165,10 +203,15 @@ graph_tests = [
     ['Graph.Insert', 'Std/Graph.Insert.c'],
     ['Graph.Foreach', 'Std/Graph.Foreach.c'],
     ['Graph.Ops', 'Std/Graph.Ops.c'],
+    ['Graph.Leak', 'Std/Graph.Leak.c'],
+    ['Graph.Mut', 'Std/Graph.Mut.c'],
+    ['Graph.Blind', 'Std/Graph.Blind.c'],
 ]
 
 list_tests = [
     ['List.Type', 'Std/List.Type.c'],
+    ['List.Mut', 'Std/List.Mut.c'],
+    ['List.Blind', 'Std/List.Blind.c'],
     ['List.Init', 'Std/List.Init.c'],
     ['List.Access', 'Std/List.Access.c'],
     ['List.Insert', 'Std/List.Insert.c'],
@@ -187,6 +230,8 @@ map_tests = [
     ['Map.Foreach', 'Std/Map.Foreach.c'],
     ['Map.Ops', 'Std/Map.Ops.c'],
     ['Map.Deadend', 'Std/Map.Deadend.c'],
+    ['Map.Mut', 'Std/Map.Mut.c'],
+    ['Map.Blind', 'Std/Map.Blind.c'],
 ]
 
 bitvec_tests = [
@@ -202,6 +247,9 @@ bitvec_tests = [
     ['BitVec.Pattern.Simple', 'Std/BitVec.Pattern.Simple.c'],
     ['BitVec.Math', 'Std/BitVec.Math.c'],
     ['BitVec.Foreach.Simple', 'Std/BitVec.Foreach.Simple.c'],
+    ['BitVec.Leak', 'Std/BitVec.Leak.c'],
+    ['BitVec.Mut', 'Std/BitVec.Mut.c'],
+    ['BitVec.Blind', 'Std/BitVec.Blind.c'],
 ]
 
 int_tests = [
@@ -210,6 +258,8 @@ int_tests = [
     ['Int.Compare', 'Std/Int.Compare.c'],
     ['Int.Convert', 'Std/Int.Convert.c'],
     ['Int.Math', 'Std/Int.Math.c'],
+    ['Int.Leak', 'Std/Int.Leak.c'],
+    ['Int.Blind', 'Std/Int.Blind.c'],
 ]
 
 float_tests = [
@@ -218,6 +268,8 @@ float_tests = [
     ['Float.Compare', 'Std/Float.Compare.c'],
     ['Float.Convert', 'Std/Float.Convert.c'],
     ['Float.Math', 'Std/Float.Math.c'],
+    ['Float.Leak', 'Std/Float.Leak.c'],
+    ['Float.Blind', 'Std/Float.Blind.c'],
 ]
 
 bitvec_deadend_tests = [
@@ -240,10 +292,15 @@ json_tests = [
     ['Json.Write.EdgeCases', 'Json/Write.EdgeCases.c'],
     ['Json.RoundTrip', 'Json/RoundTrip.c'],
 #['Json.RW', 'Json/RW.c'],
+    ['Json.Leak', 'Json/Leak.c'],
+    ['Json.Mut', 'Json/Mut.c'],
+    ['Json.Blind', 'Json/Blind.c'],
 ]
 
 kvconfig_tests = [
     ['KvConfig.Parse', 'KvConfig/Parse.c'],
+    ['KvConfig.Leak', 'KvConfig/Leak.c'],
+    ['KvConfig.Blind', 'KvConfig/Blind.c'],
 ]
 
 allocator_tests = [

@@ -164,7 +164,7 @@ Zstr http_request_parse_zstr(HttpRequest *req, Zstr in) {
             return in;
         }
 
-        if (!VecPushBackR(&req->headers, hh)) {
+        if (!VecPushBackL(&req->headers, hh)) {
             HttpHeaderDeinit(&hh);
             LOG_ERROR("failed to push header");
             return in;

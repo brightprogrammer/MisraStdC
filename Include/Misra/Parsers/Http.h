@@ -235,7 +235,8 @@ typedef struct HttpRequest {
 ///
 /// SUCCESS : Returns an `HttpRequest` with `method` set to
 ///           `HTTP_REQUEST_METHOD_UNKNOWN`, empty `url`, and an empty
-///           `headers` Vec wired for deep-copy element ownership.
+///           `headers` Vec that takes ownership of inserted headers by
+///           move (freed per-element by `HttpRequestDeinit`).
 /// FAILURE : Macro cannot fail (pure literal expansion).
 ///
 /// TAGS: Http, Request, Init
@@ -246,7 +247,7 @@ typedef struct HttpRequest {
     ((HttpRequest) {.allocator = ALLOCATOR_OF(alloc_ptr),                                                              \
                     .method    = HTTP_REQUEST_METHOD_UNKNOWN,                                                          \
                     .url       = StrInit_1(alloc_ptr),                                                                 \
-                    .headers   = VecInitWithDeepCopy_3(http_header_init_copy, http_header_deinit, alloc_ptr)})
+                    .headers   = VecInitWithDeepCopy_3(NULL, http_header_deinit, alloc_ptr)})
 
 ///
 /// Parse an HTTP/1.1 request out of `in` into `req`. `req` must already
@@ -298,7 +299,8 @@ typedef struct HttpResponse {
 ///
 /// SUCCESS : Returns an `HttpResponse` with `content_type` and
 ///           `status_code` set to their invalid sentinels, an empty
-///           `headers` Vec wired for deep-copy element ownership, and
+///           `headers` Vec that takes ownership of inserted headers by
+///           move (freed per-element by `HttpResponseDeinit`), and
 ///           an empty `body`.
 /// FAILURE : Macro cannot fail (pure literal expansion).
 ///
@@ -310,7 +312,7 @@ typedef struct HttpResponse {
     ((HttpResponse) {.allocator    = ALLOCATOR_OF(alloc_ptr),                                                          \
                      .content_type = HTTP_CONTENT_TYPE_INVALID,                                                        \
                      .status_code  = HTTP_RESPONSE_CODE_INVALID,                                                       \
-                     .headers      = VecInitWithDeepCopy_3(http_header_init_copy, http_header_deinit, alloc_ptr),      \
+                     .headers      = VecInitWithDeepCopy_3(NULL, http_header_deinit, alloc_ptr),                        \
                      .body         = StrInit_1(alloc_ptr)})
 
 ///

@@ -702,6 +702,51 @@ static bool test_pc_resolve_at_module_base_boundary(void) {
     return result;
 }
 
+// Line 155 (rva64 > 0xFFFFFFFFu -> >=): the RVA-fits-in-u32 guard. A
+// function placed at the maximum representable RVA (0xFFFFFFFF) must
+// resolve when ip - module_base == 0xFFFFFFFF exactly:
+//   - `>`  : 0xFFFFFFFF > 0xFFFFFFFF is false -> rva = 0xFFFFFFFF ->
+//            resolves the function at that RVA -> returns true.
+//   - `>=` : 0xFFFFFFFF >= 0xFFFFFFFF is true -> returns false (the max
+//            RVA is wrongly rejected).
+// We assert the resolve at rva64 == 0xFFFFFFFF SUCCEEDS (real `>`).
+static bool test_pc_resolve_max_rva_boundary(void) {
+    DebugAllocator dbg  = DebugAllocatorInit();
+    Allocator     *base = ALLOCATOR_OF(&dbg);
+
+    char pe_path[1024];
+    char pdb_path[1024];
+    tmp_path_join(pe_path, sizeof(pe_path), "misra_pcm_maxrva.exe");
+    tmp_path_join(pdb_path, sizeof(pdb_path), "misra_pcm_maxrva.pdb");
+
+    build_pe_blob(pdb_path);
+    // Section VA 0x1000, function at RVA 0xFFFFFFFF (the u32 max). The
+    // PDB writer encodes offset = func_rva - sec_va; PdbResolveRva
+    // reconstructs rva = sec_va + offset = 0xFFFFFFFF.
+    build_pdb_blob_va("winmax", 0x1000, 0xFFFFFFFFu, true);
+    bool wrote = write_file(pe_path, pe_blob, sizeof(pe_blob)) && write_file(pdb_path, pdb_blob, sizeof(pdb_blob));
+
+    bool result = false;
+    if (wrote) {
+        PdbCache  cache = PdbCacheInit(base);
+        const u64 mbase = 0x140000000ull;
+        u32       off   = 0;
+
+        // ip - module_base == 0xFFFFFFFF exactly -> rva64 == 0xFFFFFFFF.
+        Zstr name = NULL;
+        bool ok   = PdbCacheResolve(&cache, (Zstr)pe_path, mbase, mbase + 0xFFFFFFFFull, &name, &off);
+
+        result = ok && name && ZstrCompare(name, "winmax") == 0 && off == 0;
+
+        PdbCacheDeinit(&cache);
+    }
+
+    FileRemove((Zstr)pe_path);
+    FileRemove((Zstr)pdb_path);
+    DebugAllocatorDeinit(&dbg);
+    return result;
+}
+
 // =============================================================================
 // pdb_cache_resolve_str
 // =============================================================================
@@ -762,6 +807,7 @@ int main(void) {
         test_pc_deinit_frees_all_entries,
         test_pc_resolve_correct_symbol,
         test_pc_resolve_at_module_base_boundary,
+        test_pc_resolve_max_rva_boundary,
         test_pc_resolve_str_matches_zstr,
     };
 

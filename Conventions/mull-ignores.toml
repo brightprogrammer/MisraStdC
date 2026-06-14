@@ -39,3 +39,1180 @@ rationale = "Probe order is strategy per MULL-DISCOVERY-CONVENTIONS; a linearize
 author = "ws5-agent"
 created = "2026-06-10"
 region_hash = "sha256:706a54b4d317092625f3944e23c8a3e391bac8887ff09c966cadf60d8606b151"
+
+[[ignore]]
+id = "MAP-D8E0AE"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [15, 15]
+mutator = "cxx_add_to_sub"
+bucket = "B"
+rationale = "probing mechanism is a performance decision, the correct test for this case would be to make sure for same mutation elements get inserted and are retrievable"
+author = "triage-ui"
+created = "2026-06-10"
+region_hash = "sha256:000d0c4c5f52bc0a76dc0ba99295272a2c350942ec53defd7df281411684e1c5"
+
+[[ignore]]
+id = "MAP-31DD7A"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [35, 35]
+mutator = "cxx_init_const"
+bucket = "B"
+rationale = "new size computation mechanism is a performance decision, the correct test for this case would be to make sure for same mutation elements get inserted and are retrievable"
+author = "triage-ui"
+created = "2026-06-10"
+region_hash = "sha256:00e9a2229bc6327c1903895cef017b9452def0772366ee5f14f0bc0e85d06d2c"
+
+[[ignore]]
+id = "MAP-1E29F2"
+file = "Source/Misra/Std/Container/Map.c"
+function = "default_next_capacity"
+mutator = "cxx_gt_to_ge"
+bucket = "B"
+rationale = "new size computation is a performance decision, the correct test for this case would be to make sure for same mutation elements get inserted and are retrievable"
+author = "triage-ui"
+created = "2026-06-10"
+region_hash = "sha256:c60c6bcde7dd20548e5a6d69d9738b2aa5c57b5c61ebc3eed17b975a7e977dd8"
+
+[[ignore]]
+id = "MAP-001"
+file = "Source/Misra/Std/Container/Map.c"
+function = "default_next_capacity"
+mutator = "cxx_mul_to_div"
+bucket = "B"
+rationale = "new size computation is a performance decision, the correct test for this case would be to make sure for same mutation elements get inserted and are retrievable"
+author = "triage-ui"
+created = "2026-06-10"
+region_hash = "sha256:c60c6bcde7dd20548e5a6d69d9738b2aa5c57b5c61ebc3eed17b975a7e977dd8"
+
+[[ignore]]
+id = "MAP-002"
+file = "Source/Misra/Std/Container/Map.c"
+function = "default_next_capacity"
+mutator = "cxx_lt_to_le"
+bucket = "B"
+rationale = "new size computation is a performance decision, the correct test for this case would be to make sure for same mutation elements get inserted and are retrievable"
+author = "triage-ui"
+created = "2026-06-10"
+region_hash = "sha256:c60c6bcde7dd20548e5a6d69d9738b2aa5c57b5c61ebc3eed17b975a7e977dd8"
+
+[[ignore]]
+id = "MAP-4E9056"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [927, 927]
+mutator = "cxx_init_const"
+bucket = "C"
+rationale = "changing inited value from 0 to 42 is just like having insert_idx being used uninitalized. the correct hehavior is to just write to it instead of reading and using it, which the code path already seems to be doing"
+author = "triage-ui"
+created = "2026-06-10"
+region_hash = "sha256:a664962467d877cc1a651260c95eafdbf562f9d09bcb741cd27701a93e9f793a"
+
+[[ignore]]
+id = "MAP-F17CF5"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [928, 928]
+mutator = "cxx_init_const"
+bucket = "C"
+rationale = "code path decides the probe pressure, changing this to anything is irrelevant"
+author = "triage-ui"
+created = "2026-06-10"
+region_hash = "sha256:0fc4922ed3e240f2e1ebba785324cbc5beda5e3d47adb314144d561dd3db0bb9"
+
+[[ignore]]
+id = "MAP-0A98EF"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [144, 144]
+mutator = "cxx_init_const"
+bucket = "B"
+rationale = "changing hash does is just testing decision"
+author = "triage-ui"
+created = "2026-06-10"
+region_hash = "sha256:ac97f7e42d72e654950ec5f15aae18b7b5d65ac23e41145f02a598ac0af378d9"
+
+[[ignore]]
+id = "MAP-8D3AAA"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [145, 145]
+mutator = "cxx_init_const"
+bucket = "C"
+rationale = "discarded the computed index completely, no checks ahead, not noticebale"
+author = "triage-ui"
+created = "2026-06-10"
+region_hash = "sha256:c9a361c8a136dbb4e47f6c447409a58cc265235dd879a01b51c7719fd3551aa9"
+
+[[ignore]]
+id = "MAP-A43D57"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [934, 934]
+mutator = "cxx_replace_scalar_call"
+bucket = "B"
+rationale = "Line 934 is the rehash_map call in the capacity==0 branch. cxx_replace_scalar_call replaces the bool call result with 0, so `!rehash_map(...)` becomes `!0`==true and map_insert returns false. A first insert into a freshly-initialized (capacity 0) map would fail even though it should succeed. The call is also skipped so no allocation occurs. Caller-observable: insert returns false on a valid first insert."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:7b87edbe5e7742275cc4887a61fbd60bc771f3b74f88ba6408ed2b0458e43715"
+
+[[ignore]]
+id = "MAP-93E25F"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [948, 948]
+mutator = "cxx_add_to_sub"
+bucket = "C"
+rationale = "Line 948 passes n=map->length+1 as the grow target to rehash_map. Mutated to map->length-1. When inserting into a map whose entries were all removed (length 0, tombstones>0 at small capacity, e.g. insert 5 then remove all 5 at capacity 8), should_rehash returns true via the (length+tombstones+pending)*4>=capacity*3 path. Then length-1 == 0-1 underflows to UINT64_MAX. next_capacity sees needed=max(UINT64_MAX,0)=UINT64_MAX > max_needed and returns 0, so rehash_map (line 525-526) hits LOG_FATAL 'insufficient capacity'. A valid insert crashes."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:84adb73e765a90153ab05f8a8619c7263fa17cf1f7c699f4f7ce675ed27702a6"
+
+[[ignore]]
+id = "MAP-872C58"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [959, 959]
+mutator = "cxx_lt_to_le"
+bucket = "B"
+rationale = "Loop bound `attempt < 32` -> `attempt <= 32`, giving 33 instead of 32 grow attempts. The loop body always breaks via line 975 the moment map_scan_slots finds a slot; a successful insert never depends on reaching the cap. `<=32` only grants one EXTRA recovery attempt, so it can never turn a successful insert into a failure - at worst it delays the LOG_FATAL at line 1004 that only fires after 32 consecutive forced doublings (each at least doubling capacity, making it effectively unreachable). The 32 value is an implementation-chosen safety cap; the documented contract (insert succeeds when a slot exists) is unchanged."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:ab7e0aa504420a845a9349f5140560c29c15db2f1d3c14757ac2f9ca8ec507bb"
+
+[[ignore]]
+id = "MAP-003"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [959, 959]
+mutator = "cxx_post_inc_to_post_dec"
+bucket = "B"
+rationale = "`attempt++` -> `attempt--`. The loop exit is data-driven (break at line 975 once a slot is found), not counter-driven: every reachable insert breaks on iteration 0 or after a few genuine grows, so the counter direction is unobservable. The counter only serves as the 32-attempt safety cap; decrementing it disables that cap, changing the failure mode of an UNREACHABLE pathological case (each of 32 doublings failing to find a slot) from LOG_FATAL to a hang. No reachable input distinguishes it, and no successful insert is turned into a failure or a wrong value. The cap is an implementation-chosen bound."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:ab7e0aa504420a845a9349f5140560c29c15db2f1d3c14757ac2f9ca8ec507bb"
+
+[[ignore]]
+id = "MAP-B108F2"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [960, 960]
+mutator = "cxx_assign_const"
+bucket = "C"
+rationale = "`insert_idx = 0` at the top of the loop is a dead store: the immediately-following map_scan_slots call is passed &insert_idx (non-NULL) and unconditionally writes *insert_idx in every path - the capacity==0 early-return writes 0 (line 290), and the main path writes at lines 338-344. So the initial value of insert_idx is overwritten before any read. Any constant produces identical observable behaviour."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:46619729c6d316448374a1b19e541ebfea69e08c36c224a0858e5f0671f52ffa"
+
+[[ignore]]
+id = "MAP-EEF9E0"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [961, 961]
+mutator = "cxx_assign_const"
+bucket = "C"
+rationale = "`probe_pressure = 0` is a dead store: map_scan_slots is passed &probe_pressure (non-NULL) and unconditionally writes *probe_pressure in every path - 0 in the capacity==0 early return (line 293) and `pressure` at line 346-347. The initial value is overwritten before any read, so any constant is observationally identical."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:35dc089a651663865c5edec741a1e2918fd60c4d533e3d6ac97c95db04012a6e"
+
+[[ignore]]
+id = "MAP-F8FFCD"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [985, 985]
+mutator = "cxx_lt_to_le"
+bucket = "C"
+rationale = "`forced_n < length+1` -> `forced_n <= length+1`. The two predicates differ only at forced_n == length+1. In that single case the original (<) is false so forced_n is left unchanged at length+1, while the mutant (<=) is true and assigns forced_n = length+1 - the same value. For forced_n < length+1 both are true and both assign length+1; for forced_n > length+1 both are false and leave forced_n unchanged. Identical result for every input."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:58d1eb1599fb4d420e85a643556d3f8c5be6d0ffe8422897867c73b7aa5d70b5"
+
+[[ignore]]
+id = "MAP-004"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [985, 985]
+mutator = "cxx_add_to_sub"
+bucket = "C"
+rationale = "`forced_n < map->length + 1` threshold -> `map->length - 1`. forced_n is set on line 984 to capacity+1, and the load invariant gives length <= capacity, so capacity+1 >= length+1 > length-1: the guard `forced_n < <threshold>` is false for BOTH length+1 and length-1. The clamp assignment at line 986 therefore never executes, making the threshold value dead. (984 is unmutated here, so forced_n=capacity+1 always.) Identical observable behaviour."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:58d1eb1599fb4d420e85a643556d3f8c5be6d0ffe8422897867c73b7aa5d70b5"
+
+[[ignore]]
+id = "MAP-6AAFE3"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [986, 986]
+mutator = "cxx_assign_const"
+bucket = "C"
+rationale = "Line 986 (`forced_n = map->length + 1`) is the clamp body, guarded by line 985 `forced_n < length+1`. With forced_n=capacity+1 (line 984 unmutated) and the load invariant length<=capacity, capacity+1 >= length+1, so the guard is always false and line 986 never executes. Replacing its RHS with any constant is dead code - no input reaches it."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:bc9dc27add25685c9195865cd996fd6350cffa89d34f336eda8e372f722b535b"
+
+[[ignore]]
+id = "MAP-005"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [986, 986]
+mutator = "cxx_add_to_sub"
+bucket = "C"
+rationale = "Same dead-code path as 986:22. The clamp assignment on line 986 is unreachable because its guard (line 985, `capacity+1 < length+1`) is always false given length<=capacity. Changing `map->length + 1` to `map->length - 1` inside an unexecuted statement cannot affect observable behaviour."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:bc9dc27add25685c9195865cd996fd6350cffa89d34f336eda8e372f722b535b"
+
+[[ignore]]
+id = "MAP-EB58A7"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [525, 525]
+mutator = "cxx_gt_to_ge"
+bucket = "C"
+rationale = "The expression (n > map->length ? n : (size)map->length) computes max(n,length). Changing > to >= only alters the chosen branch at n==length, where both branches yield the identical value (n==length). For n>length and n<length the selected value is unchanged. Therefore the computed 'required' value is identical for ALL inputs; no input distinguishes the mutant."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:a807a81cc8d68ab9841da0eebab581efa8efd865d511ea44160c5faa90488de4"
+
+[[ignore]]
+id = "MAP-F1BBD1"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [586, 586]
+mutator = "cxx_le_to_lt"
+bucket = "C"
+rationale = "next_cap == new_capacity*2 (mod 2^64). The original 'next_cap <= new_capacity' differs from 'next_cap < new_capacity' only when next_cap == new_capacity, i.e. 2*new_capacity == new_capacity, which holds only for new_capacity==0. On this code path new_capacity is always >= 8 (policy next_capacity returns >=8, then strictly doubled), so the equality case is unreachable and <= vs < select the identical branch for every reachable input. Overflow wrap (next_cap < new_capacity) is handled identically by both."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:ca57fd64719d33c6e191cd40e732591df4a70fc51459b9d2872ed1b2f05f2095"
+
+[[ignore]]
+id = "MAP-B9B969"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [280, 280]
+mutator = "cxx_init_const"
+bucket = "C"
+rationale = "idx is unconditionally reassigned at line 303 (first_index) before its first use at line 316, on the only reachable path (capacity>0). The init value 0 is never observed. Identical behaviour for all inputs."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:de647c0eb3e124ab88d60a7faa94d4e3be59483605fc0945f73f2f7ea4f16aa7"
+
+[[ignore]]
+id = "MAP-7A9B9A"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [281, 281]
+mutator = "cxx_init_const"
+bucket = "C"
+rationale = "pressure is reassigned (pressure = probe_count+1) on every loop iteration at line 314, and limit>=1 is enforced at 299 so the loop runs at least once before line 347 reads pressure. The init value is never observed."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:50b9ec9e3ce345f6708bb3a24cc3e0194aeaf787cc3393934f29fc1e82e51005"
+
+[[ignore]]
+id = "MAP-A3D84F"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [287, 287]
+mutator = "cxx_assign_const"
+bucket = "C"
+rationale = "This is inside the !map->capacity early-return branch (lines 285-296). All three call sites guarantee capacity>0: map_find_index returns before calling scan when !capacity (line 642); map_insert rehashes to capacity>0 before scanning (line 933); map_insert_raw_entry is reached only from rehash with new_capacity>0 and from map_set_only with an existing index (<capacity). The branch is dead, and the line already assigns 0. No input reaches or distinguishes it."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:095b5cd23146dbc5399590b15be66eff59c0eece2b6a6f1d1c111a2e7659c9b9"
+
+[[ignore]]
+id = "MAP-520B61"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [290, 290]
+mutator = "cxx_assign_const"
+bucket = "C"
+rationale = "Same dead !map->capacity branch as 287 (all callers guarantee capacity>0). Unreachable; assigns 0 already. No distinguishing input."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:396fef9fc7274571bc5a8034e3a43913b626ef54bec39b1a863cdbd7bc0004d3"
+
+[[ignore]]
+id = "MAP-878813"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [293, 293]
+mutator = "cxx_assign_const"
+bucket = "C"
+rationale = "Same dead !map->capacity branch as 287/290. Unreachable; probe_pressure is also a discarded output. No distinguishing input."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:c648e69c7b4dd0297b712109e4d03bce9162bf37f968e38619d2d7d96b68d38d"
+
+[[ignore]]
+id = "MAP-2E483C"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [314, 314]
+mutator = "cxx_assign_const"
+bucket = "C"
+rationale = "pressure (= probe_count+1) feeds only *probe_pressure (line 347), which is consumed solely at the insert call site (962) and passed to should_rehash whose return is (void)-discarded (line 982); default_should_rehash is pure and the forced rehash afterwards is unconditional. Replacing pressure with 42 has no observable effect on map state or results."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:4d5dfcd7edfd6104ea107b3e4f3c9b4044d7dcb797ded19944f783ccbd33f391"
+
+[[ignore]]
+id = "MAP-006"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [314, 314]
+mutator = "cxx_add_to_sub"
+bucket = "C"
+rationale = "probe_count+1 -> probe_count-1 only changes pressure, which flows to the discarded probe_pressure output (same proof as 314:18). No observable effect."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:4d5dfcd7edfd6104ea107b3e4f3c9b4044d7dcb797ded19944f783ccbd33f391"
+
+[[ignore]]
+id = "MAP-1515DF"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [339, 339]
+mutator = "cxx_lt_to_le"
+bucket = "C"
+rationale = "candidate_empty < capacity -> <=. candidate_empty is either a real index (<capacity) or exactly capacity. When candidate_empty<capacity both operators behave identically. When candidate_empty==capacity, the mutated branch computes (first_tombstone<capacity ? first_tombstone : candidate_empty=capacity), which equals first_tombstone in both sub-cases (if first_tombstone==capacity the ternary yields capacity == first_tombstone) -- identical to the else branch (*insert_idx = first_tombstone). So the result is identical for every input."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:3524e776d1dbc52c7b7c239216540cad0740932298dfbd69706557d873d66fd3"
+
+[[ignore]]
+id = "MAP-36F4D9"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [347, 347]
+mutator = "cxx_assign_const"
+bucket = "C"
+rationale = "*probe_pressure = pressure replaced by 42. probe_pressure is consumed only at the insert site and fed to a (void)-discarded should_rehash call; the subsequent rehash is unconditional. No observable effect of the written value."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:1aeeeb07479fb8b930ca89c6d9ecd0c1431c92115865013073d1f36aece0c7af"
+
+[[ignore]]
+id = "MAP-2F7BFC"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [724, 724]
+mutator = "cxx_init_const"
+bucket = "C"
+rationale = "idx is unconditionally reassigned at line 738 (first_index) before first use at 749, on the only reachable path (after the !capacity / previous_index>=capacity early return at 732). The init value 0 is never observed."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:de647c0eb3e124ab88d60a7faa94d4e3be59483605fc0945f73f2f7ea4f16aa7"
+
+[[ignore]]
+id = "MAP-31C137"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [732, 732]
+mutator = "cxx_ge_to_gt"
+bucket = "C"
+rationale = "previous_index >= capacity -> >. Only differs at previous_index==capacity. In that case the mutated code skips the early return and enters the loop, but idx is always validated <capacity (map_validate_policy_index), so idx==previous_index(==capacity) is never true, previous_seen stays false, the match guard at 757 (which requires previous_seen) never fires, and the function returns capacity at 764 -- identical to the early return. For previous_index>capacity and previous_index<capacity both operators behave identically. Equivalent for all inputs."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:782a23f5043e5758e511da61e80465962e9862e7fc701f8a27cc0a8613adb8a0"
+
+[[ignore]]
+id = "MAP-BA56FE"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [750, 750]
+mutator = "cxx_assign_const"
+bucket = "C"
+rationale = "previous_seen (bool) = true replaced by constant 42. Assigning 42 to a _Bool converts to 1, and previous_seen is read only in boolean context at line 757 (&& previous_seen &&). So previous_seen is true exactly when it would be normally. Identical behaviour for all inputs."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:2ae09f7e3afb81773bc5f1da91c0c075fbc1c05678c703fcd0c6dfbf869d044f"
+
+[[ignore]]
+id = "MAP-4D352B"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [366, 366]
+mutator = "cxx_init_const"
+bucket = "C"
+rationale = "insert_idx = map->capacity is overwritten by map_scan_slots (called at 368 with &insert_idx) before being read at 381: scan_slots always writes *insert_idx on the reachable path (line 340/342), and even the (here-unreachable) capacity==0 branch writes it. The init value is never observed."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:584c639e5cb876ad8572ffb01d49028c487fbb281298924ff5045658dfa3d011"
+
+[[ignore]]
+id = "MAP-F9DB09"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [637, 637]
+mutator = "cxx_init_const"
+bucket = "C"
+rationale = "Line 637 `size found_idx = 0;`. cxx_init_const makes it `found_idx = 42`. The value is never observable: when capacity==0 the function returns the literal 0 at line 643 (not found_idx). When capacity>0, map_scan_slots is called with &found_idx as first_match_idx, and scan_slots UNCONDITIONALLY writes `*first_match_idx = first_match` at line 334-336 before returning (first_match is either a found index or capacity). So found_idx is overwritten on every path that reads it. No input can distinguish init 0 from 42 -- equivalent."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:7991a4c3d2f4c3efc1605751f74508053ad6bd0c42ea3dae22b6199dae629d43"
+
+[[ignore]]
+id = "STR-EDC1FE"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [1021, 1021]
+mutator = "cxx_lt_to_le"
+bucket = "C"
+rationale = "pos<length -> pos<=length. The only extra iteration is at pos==length, which reads data[length], the always-allocated null terminator (data[len]=0). IS_SPACE(0) is false, so the loop stops at the same pos without advancing past length. Final pos identical for all inputs; no OOB (only the terminator is read)."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:6f552cc80a2db3211d094091aba0d5e90c709ec75f724bde13e45f7ff9a1e83b"
+
+[[ignore]]
+id = "STR-E90AF1"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [1024, 1024]
+mutator = "cxx_ge_to_gt"
+bucket = "C"
+rationale = "pos>=length -> pos>length. After the bounded leading-space loop pos<=length, so this only differs when pos==length (all-space or empty input). In that case the >gt branch skips the early 'Empty string' return, but with pos==length: length-pos<3 (no nan/inf), data[pos]=terminator (not sign), no digit can be read, so have_digits stays false and the function returns false via 'No valid digits' without ever writing *value. Return value (false) and *value (untouched) are identical for all inputs; only the log message text differs, which is not caller-observable."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:c0d99d482ad9472537a714e0cde480371228b8f8e541cdbd600b299a80ab1433"
+
+[[ignore]]
+id = "STR-B0F9E8"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [1076, 1076]
+mutator = "cxx_lt_to_le"
+bucket = "C"
+rationale = "Integer-digit loop pos<length -> pos<=length. Extra iteration only at pos==length, reading data[length]=null terminator; IS_DIGIT(0) is false so the loop stops at the same pos. No accumulation change, no OOB. Observable result identical for all inputs."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:e0686e4b03e7d8a68a8cbcfc9c6a135cd55557ea7eea0e30614e4af3d45ed4bf"
+
+[[ignore]]
+id = "STR-3BF0D9"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [1082, 1082]
+mutator = "cxx_lt_to_le"
+bucket = "C"
+rationale = "Fractional-point check pos<length -> pos<=length. Only differs at pos==length, where data[length]=terminator (0) is read; 0=='.' is false so the && short-circuits to no fractional part. Same as original (which short-circuits before reading). Reads only the allocated terminator; behavior identical."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:e3cb649c422091e35ed404dbd925b6fbfd75451ae5a1735794b442eff3803c11"
+
+[[ignore]]
+id = "STR-AEF920"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [1086, 1086]
+mutator = "cxx_lt_to_le"
+bucket = "C"
+rationale = "Fractional-digit loop pos<length -> pos<=length. Extra iteration only at pos==length reads data[length]=terminator; IS_DIGIT(0) false stops the loop at the same pos. No accumulation or OOB change; identical observable result."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:e0686e4b03e7d8a68a8cbcfc9c6a135cd55557ea7eea0e30614e4af3d45ed4bf"
+
+[[ignore]]
+id = "STR-CDD6F7"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [1094, 1094]
+mutator = "cxx_lt_to_le"
+bucket = "C"
+rationale = "Exponent-introducer guard pos<length -> pos<=length. Only differs at pos==length, where data[length]=terminator(0) is read; 0=='e' and 0=='E' both false, so && yields no exponent block. Same as original; only the allocated terminator is read."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:39a2daef350616be4117cd62811bb7a720242a7cb7f0e3c5a731652bda12d759"
+
+[[ignore]]
+id = "STR-974FFD"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [1098, 1098]
+mutator = "cxx_lt_to_le"
+bucket = "C"
+rationale = "Exponent-sign presence check pos<length -> pos<=length. Only differs at pos==length, where data[length]=terminator(0) is read; 0=='-' and 0=='+' both false so pos is unchanged. The subsequent exp-digit loop then finds nothing either way. Identical observable behavior; only the terminator is read."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:48cc8632a25f296632f4f3919408e34e4c7a53c7d748d017e32e8c57834ffd8f"
+
+[[ignore]]
+id = "STR-C203F1"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [1113, 1113]
+mutator = "cxx_lt_to_le"
+bucket = "C"
+rationale = "Exponent-digit loop pos<length -> pos<=length. Extra iteration only at pos==length reads data[length]=terminator; IS_DIGIT(0) false stops the loop at the same pos. No change to exponent or have_exp_digits; identical observable result."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:e0686e4b03e7d8a68a8cbcfc9c6a135cd55557ea7eea0e30614e4af3d45ed4bf"
+
+[[ignore]]
+id = "STR-F943CF"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [1114, 1114]
+mutator = "cxx_lt_to_le"
+bucket = "C"
+rationale = "Exponent cap exponent<1024 -> exponent<=1024. Differs only when exponent==1024: original stops accumulating; mutant does one more accumulation (1024*10+digit, well within i32, no UB) then the next iteration exceeds the cap and stops. Either way the running exponent is >=1024. pow10_f64 of any exponent>=1024 saturates the f64 to +Inf (10^1024 > DBL_MAX), and for negative exponents to 0; result*Inf=Inf and result*0=0 regardless of whether the cap was 1024 or ~10240. The final *value is identical for all inputs."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:5323a48d1f465fc87c60a169ea51097cf03009d1860f43780c91dce53b676216"
+
+[[ignore]]
+id = "STR-EA6363"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [1131, 1131]
+mutator = "cxx_lt_to_le"
+bucket = "C"
+rationale = "Trailing-space loop pos<length -> pos<=length. Extra iteration only at pos==length reads data[length]=terminator; IS_SPACE(0) false stops at the same pos. No OOB (only terminator read); identical final pos and observable result."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:6f552cc80a2db3211d094091aba0d5e90c709ec75f724bde13e45f7ff9a1e83b"
+
+[[ignore]]
+id = "STR-8DAB90"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [883, 883]
+mutator = "cxx_ge_to_gt"
+bucket = "C"
+rationale = "`if (pos >= str->length)` becomes `pos > str->length`. After the whitespace loop pos is at most length, so pos>length is never true; the only changed case is pos==length (input empty after trimming). Original returns false here (\"Empty string\"). Mutant skips this early return but then: the base-0 prefix block needs pos+2<=length (false), the digit loop `while pos<length` does not run, the trailing-ws loop does not run, and have_digits stays false, so line 940 returns false (\"No valid digits\"). *value is never written on either path. For every input the boolean return is identical (false) and *value is untouched; only the LOG_ERROR text differs, which is not part of the bool/value contract callers observe."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:c0d99d482ad9472537a714e0cde480371228b8f8e541cdbd600b299a80ab1433"
+
+[[ignore]]
+id = "STR-79D3B7"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [891, 891]
+mutator = "cxx_le_to_lt"
+bucket = "C"
+rationale = "C-prefix detection `if (pos + 2 <= str->length && str->data[pos]=='0')` becomes `pos + 2 < str->length`. The two conditions differ only when length == pos+2, i.e. exactly two characters remain (\"0X\" with nothing after). In that boundary case: if the second char is a valid prefix (x/b/o), original consumes both, leaving no digits, so have_digits=false -> returns false; the mutant skips prefix detection, parses '0' as a digit then the prefix letter as a non-digit -> returns false too. If the second char is not a valid prefix (e.g. \"00\"), original's prefix branch leaves base=10 and parses normally, exactly as the mutant does. In all longer inputs (length>=pos+3) both branches are true and behave identically. No input distinguishes return value or *value."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:bb9f9e9899ca92571a22aee511166d9b371c2ab7da88fda8d0c76446b2387d53"
+
+[[ignore]]
+id = "STR-B55832"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [685, 685]
+mutator = "cxx_lt_to_le"
+bucket = "C"
+rationale = "Line 685 'if (value < 0)' is inside the isinf_f64(value) branch, so value is exactly +inf or -inf, never 0. For -inf both value<0 and value<=0 are true; for +inf both are false (+inf is not <=0). The boundary value 0 that would distinguish < from <= is impossible here, so behaviour is identical for all reachable inputs."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:15cffc3086e6c4cf2ec804c0d0f1c038b599c35ca8caa624762ce0c4bde16070"
+
+[[ignore]]
+id = "MAP-E88697"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [298, 298]
+mutator = "cxx_assign_const"
+bucket = "B"
+rationale = "limit = max_probe_count is replaced by the constant (42). This only changes the probe budget. The SAME function (map_scan_slots) is used for both insert (962) and find_index (647), so insert placement and find use the identical reduced budget and stay self-consistent: any key insert can place within 42 probes, find finds within 42 probes; budget exhaustion just triggers the existing rehash-and-retry path. find_next_index (separate limit, unmutated) only ever scans more, so no value is lost. The only observable effect is the rehash/capacity growth schedule, which is implementation-chosen."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:247e9007906217b8e46c902ce8a88c8318e4492077cc50c4dca5f0e030f542af"
+
+[[ignore]]
+id = "STR-36069A"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [525, 525]
+mutator = "cxx_gt_to_ge"
+bucket = "C"
+rationale = "`pos + 2 > length` becomes `pos + 2 >= length`. The two differ only when pos+2 == length, i.e. the candidate prefix occupies exactly the remaining bytes with zero trailing digits. When the prefix matches, original returns pos+2 and the digit loop spans [length,length) (empty) -> have_digits false -> StrToU64 false. Mutated returns pos and the digit loop reads '0' (valid) then the prefix char; every real prefix char is not a valid digit in its own base (base2 'b'=11 not<2, base8 'o'=24 not<8, base16 'x'=33 not<16) -> invalid digit -> StrToU64 false. When the prefix does not match, both return pos (identical). So for every input the StrToU64 boolean/value result is identical; no input distinguishes the mutant."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:85dcf7aa826e48ca360f3cb7228986b911359f44b149238929abf0a69349077b"
+
+[[ignore]]
+id = "MAP-F34B02"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [322, 322]
+mutator = "cxx_eq_to_ne"
+bucket = "B"
+rationale = "first_tombstone == capacity -> != flips the 'record first tombstone' guard. first_tombstone starts at capacity, so the != guard is false the first time and (since first_tombstone is then never updated) stays capacity forever: tombstone slots are never recorded for reuse. Effect is purely that inserts prefer fresh empty slots instead of reusing tombstones; when no empty exists in budget, insert_idx becomes capacity -> existing rehash path grows the table. find/insert correctness and length accounting are preserved; only the tombstone-reuse optimization (a strategy choice) changes."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:ba6fb00cfb13c7a4e089140643e292f1cd52464c3cdd2af869deaad4bef64cb4"
+
+[[ignore]]
+id = "STR-11EA04"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [961, 961]
+mutator = "cxx_lt_to_le"
+bucket = "C"
+rationale = "`pos < length` becomes `pos <= length` in the leading-space loop. The only extra behavior is one iteration at pos==length reading data[length]. Str's contract (Init.h:25) guarantees data[length]=='\\0', and IS_SPACE('\\0') is false, so that iteration always stops the loop with pos==length -- identical to the original. For every valid Str the loop terminates at the same pos, so output is identical. No valid input distinguishes the mutant."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:6f552cc80a2db3211d094091aba0d5e90c709ec75f724bde13e45f7ff9a1e83b"
+
+[[ignore]]
+id = "STR-F9E46B"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [964, 964]
+mutator = "cxx_ge_to_gt"
+bucket = "C"
+rationale = "`if (pos >= length)` becomes `if (pos > length)` after the space skip. The two differ only at pos==length, which is reachable only for empty or all-whitespace input. Original reports 'Empty string' and returns false. Mutated proceeds: data[pos]==data[length]=='\\0' (in-bounds per Str contract) is neither '-' nor '+', so no sign; temp_str.length = length-pos = 0; StrToU64 on a zero-length string returns false (its own empty check). Both paths return false for all such inputs, and the boolean return is the only observable. No input distinguishes the mutant."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:c0d99d482ad9472537a714e0cde480371228b8f8e541cdbd600b299a80ab1433"
+
+[[ignore]]
+id = "STR-992F8E"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [169, 169]
+mutator = "cxx_init_const"
+bucket = "B"
+rationale = "Changes the FNV-1a offset basis (1469598103934665603ULL) to another constant. The hash stays a pure deterministic function of the byte view, so equal Strs still hash equal and the Map's compare-on-collision resolves all real equality. Only the implementation-chosen hash value differs."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:8a7a318e6cf5419114b99816c097c015d86384173c23497bc42854134385d1f1"
+
+[[ignore]]
+id = "STR-3C3931"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [982, 982]
+mutator = "cxx_sub_to_add"
+bucket = "C"
+rationale = "`temp_str.capacity = str->length - pos` becomes `str->length + pos`. capacity is only ever read by validate_vec_structural's `length > capacity` check. temp_str.length = length-pos and the new capacity = length+pos; since pos>=0, length-pos <= length+pos always, so the invariant check always passes (as with the original). StrToU64 reads only length and data, never capacity, so the parse result is identical for every input. No input distinguishes the mutant."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:88712069590bdde7c50a185b1b5a3181ade7d868be8f532fc90f7dae99c00d59"
+
+[[ignore]]
+id = "STR-3C8ADD"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [175, 175]
+mutator = "cxx_assign_const"
+bucket = "B"
+rationale = "Replaces the for-init idx=0 with another constant start index. The hash remains a deterministic function of the string (it just folds a suffix, or the basis when const>=len). Equal Strs still produce equal hashes, and Map equality is decided by key_compare, so correctness is preserved; only the chosen hash value changes."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:4f4802e96d6ef5f43c605cd955d517fef7f6d8a79cf99f0e91037732af257e08"
+
+[[ignore]]
+id = "STR-3A45E1"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [170, 170]
+mutator = "cxx_init_const"
+bucket = "C"
+rationale = "idx is initialized at declaration (line 170) but immediately reassigned to 0 by the for-init at line 175 (for (idx = 0; ...)). The declaration initializer is dead; no input can observe it. Equivalent."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:de647c0eb3e124ab88d60a7faa94d4e3be59483605fc0945f73f2f7ea4f16aa7"
+
+[[ignore]]
+id = "STR-001"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [175, 175]
+mutator = "cxx_lt_to_ge"
+bucket = "B"
+rationale = "idx < StrLen becomes idx >= StrLen. With idx starting at 0 and len>0, 0>=len is false so the loop never runs and every string hashes to the basis constant; empty string already hashed to the basis. The hash is still deterministic and consistent (equal keys -> equal hash), so the Map stays correct via key_compare. Degenerate but valid hash -> strategy."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:4f4802e96d6ef5f43c605cd955d517fef7f6d8a79cf99f0e91037732af257e08"
+
+[[ignore]]
+id = "STR-5A03D3"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [63, 63]
+mutator = "cxx_ge_to_gt"
+bucket = "C"
+rationale = "x >= two53 becomes x > two53. Branch behavior differs only at x == 2^53 exactly. Original returns x. Mutated falls through, x>=0 so returns (f64)(i64)(x+0.5); at magnitude 2^53 the f64 cannot represent 0.5 so x+0.5 == x == 2^53, (i64) of it is 9007199254740992, cast back equals x. Identical result for the only distinguishing input; all other inputs unchanged. Equivalent."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:242ff66c51494c57e0408a1536a25213e6ce8f95c403d919c9a836a0b02e8fd6"
+
+[[ignore]]
+id = "STR-002"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [175, 175]
+mutator = "cxx_lt_to_le"
+bucket = "B"
+rationale = "idx < StrLen becomes idx <= StrLen, folding one extra byte (the index at len, the NUL terminator). Still a deterministic function of the Str contents; equal Strs hash equally and Map equality is resolved by key_compare. Only the implementation-chosen hash value changes."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:4f4802e96d6ef5f43c605cd955d517fef7f6d8a79cf99f0e91037732af257e08"
+
+[[ignore]]
+id = "STR-003"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [63, 63]
+mutator = "cxx_le_to_lt"
+bucket = "C"
+rationale = "x <= -two53 becomes x < -two53. Differs only at x == -2^53 exactly. Original returns x; mutated falls through, x<0 so returns (f64)(i64)(x-0.5); at magnitude 2^53 the 0.5 is unrepresentable so x-0.5 == x == -2^53, (i64) is -9007199254740992, cast back equals x. Identical for the sole distinguishing input; all others unchanged. Equivalent."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:242ff66c51494c57e0408a1536a25213e6ce8f95c403d919c9a836a0b02e8fd6"
+
+[[ignore]]
+id = "STR-004"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [175, 175]
+mutator = "cxx_post_inc_to_post_dec"
+bucket = "B"
+rationale = "idx++ becomes idx--. idx is unsigned (size): starts 0, body runs once for byte 0, then idx-- wraps to SIZE_MAX, and SIZE_MAX < StrLen is false so the loop stops. Result is a deterministic hash of only the first byte. Still consistent (equal Strs -> equal hash); Map equality decided by key_compare. Strategy/degenerate-but-valid hash."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:4f4802e96d6ef5f43c605cd955d517fef7f6d8a79cf99f0e91037732af257e08"
+
+[[ignore]]
+id = "STR-01DECA"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [66, 66]
+mutator = "cxx_ge_to_gt"
+bucket = "C"
+rationale = "x >= 0.0 becomes x > 0.0, differing only at x == 0.0. Original: x>=0 -> (f64)(i64)(0.0+0.5) = (i64)0.5 = 0. Mutated: x>0 false -> (f64)(i64)(0.0-0.5) = (i64)(-0.5) = 0 (truncation toward zero). Both yield 0.0. All other inputs take the same branch. Equivalent."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:fba92296ca4a37b5282f168b59ba7b700755397c546e641d061a93024681d551"
+
+[[ignore]]
+id = "STR-0A2154"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [186, 186]
+mutator = "cxx_init_const"
+bucket = "C"
+rationale = "min is declared-initialized at line 186 then unconditionally reassigned at line 192 (min = StrLen(a) < StrLen(b) ? ...). The declaration initializer is dead; no input observes it. Equivalent."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:53cc2a87c7c0d549ea8f8076c4704af1e230fcc2c890313ff9a6154d96e806cd"
+
+[[ignore]]
+id = "STR-E79C47"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [176, 176]
+mutator = "cxx_xor_assign_to_or_assign"
+bucket = "B"
+rationale = "hash ^= byte becomes hash |= byte. The mix is altered but the result is still a deterministic, repeatable function of the byte sequence, so equal Strs hash equally. Map uses key_compare for authoritative equality, so correctness holds; only the chosen hash value differs."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:c0ca0804c8abca10b04495087d75ac39b8fe9b0a604dcfbbb46bc4504c75dbe4"
+
+[[ignore]]
+id = "STR-CAA8DB"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [187, 187]
+mutator = "cxx_init_const"
+bucket = "C"
+rationale = "cmp is declared-initialized at line 187 then unconditionally reassigned at line 193 (cmp = MemCompare(...)). The declaration initializer is dead. Equivalent."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:98841314f754d1c23a89f683f3a59a9f6c15a0f64d8c87119197d2872e43e609"
+
+[[ignore]]
+id = "STR-9C1D92"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [177, 177]
+mutator = "cxx_mul_assign_to_div_assign"
+bucket = "B"
+rationale = "hash *= prime becomes hash /= prime. Still a fully deterministic per-byte fold; equal Strs yield equal hashes. The Map resolves real equality through key_compare, so the table remains correct regardless of the multiplier-vs-divisor choice. Implementation-chosen hash value only."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:41991395a705601d3146a35fc36d1ade032c159c5e7d9140a0bf968c4f73439a"
+
+[[ignore]]
+id = "STR-0DDBFF"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [192, 192]
+mutator = "cxx_lt_to_le"
+bucket = "C"
+rationale = "min = (lenA < lenB) ? lenA : lenB becomes (lenA <= lenB) ? lenA : lenB. For lenA<lenB both yield lenA; for lenA>lenB both yield lenB; for lenA==lenB original yields lenB and mutant yields lenA but the two values are equal. So min is identical for every input, hence MemCompare and the final result are unchanged. Equivalent."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:ff52da4a4e8211d69b09bac43d45de68059b361706fa861da9c4c97bd7e040ea"
+
+[[ignore]]
+id = "VEC-AD44AB"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [239, 239]
+mutator = "cxx_ge_to_gt"
+bucket = "B"
+rationale = "The reserve trigger `length+count >= capacity` vs `> capacity` only differs at length+count == capacity. reserve_vec always allocates aligned_size*(n+1) bytes (capacity+1 physical slots) so when length+count == capacity there are exactly length+count+1 slots available — enough for the length+count data slots plus the sentinel at index length+count. Both branches therefore keep all writes in-bounds; data correctness is identical. The only difference is the resulting capacity value (mutant may keep a smaller, possibly non-pow2 capacity while original rounds up via reserve_pow2). Capacity is an implementation-chosen value, not a documented contract output."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:a12c6507a270d1322949cc096e93f71240bd303f68b194dd3b2a632b8c2bdb5a"
+
+[[ignore]]
+id = "STR-2F6958"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [298, 298]
+mutator = "cxx_le_to_lt"
+bucket = "C"
+rationale = "Loop bound `prev <= end` -> `prev < end`. prev only equals end after consuming a trailing separator. At prev==end the body does: ZstrFindSubstringN(\"\",key,keylen) returns NULL for any non-empty key (needle_len>haystack_len=0), then else-branch evaluates ZstrCompareN(end,key,end-prev=0) which with n=0 returns 0 (i==n short-circuit) -> guard false -> nothing pushed, then break. So the prev==end iteration is always a no-op that pushes nothing. Dropping it (`<`) yields identical Strs for all inputs."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:0ff1b523f7118bb383e63031390af51dfb745fa8d1d4f004845b4c1201a60fd7"
+
+[[ignore]]
+id = "VEC-1B27DA"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [525, 525]
+mutator = "cxx_le_to_lt"
+bucket = "B"
+rationale = "`<=` -> `<` differs only at new_size==vec->capacity. Since length<=capacity==new_size, the shrink predicate (new_size<vec->length) is unreachable, so no element is dropped/leaked. The only effect is the boundary case routes through the else branch which calls reserve_pow2_vec(capacity) — this may enlarge capacity to the next power of two but length is still set to new_size and existing data is preserved by realloc. Only the implementation-chosen capacity differs; documented contract (length==new_size, data intact, capacity>=new_size) still holds."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:7c2a65a474863e5a93a82e60c1ce0c58da906ff3fb921c2f797965aa27cdc6d4"
+
+[[ignore]]
+id = "STR-C203D6"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [558, 558]
+mutator = "cxx_remove_void_call"
+bucket = "C"
+rationale = "Removes ValidateStr(str). Between it and the next use there is only a config NULL-default and is_valid_base(config->base) (neither dereferences str). The subsequent StrClear(str) -> clear_vec -> ValidateVec(str) re-validates: NULL/corrupt str still LOG_FATALs there, and for a valid str the removed ValidateStr only consumed the memo bit (clear_vec consumes it instead). Observable behavior identical for all inputs."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:06a02af519a9ae67e8e020987d529659b2805f3ade824ce9fb960a311c4809b8"
+
+[[ignore]]
+id = "VEC-47C720"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [146, 146]
+mutator = "cxx_lt_to_le"
+bucket = "B"
+rationale = "`n2 < n` -> `n2 <= n` runs one extra doubling when n2==n (e.g. n=4 yields n2=8 instead of 4). The result still satisfies capacity>=n (8>=4); it only over-reserves to the next power of two. reserve_pow2_vec is internal-only (clone_vec, insert_range_into_vec, insert_range_fast_into_vec, resize_vec) and every caller needs only capacity>=requested, never an exact capacity. Documented contract holds; only the implementation-chosen capacity value differs."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:3f70fff0ea4715ce1fe75c0da5f6a6ba296c491d557e148787425ccde03454cf"
+
+[[ignore]]
+id = "STR-6EB8A9"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [623, 623]
+mutator = "cxx_remove_void_call"
+bucket = "C"
+rationale = "Removes ValidateStr(str). The lines before the str use (config default, is_valid_base, sign/abs computation) never dereference str; the call then reaches StrFromU64(str, ...) whose own ValidateStr/StrClear re-validates str. NULL/corrupt str still aborts there; valid str behaves identically (the removed validate only consumed the memo bit). Observable behavior identical."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:06a02af519a9ae67e8e020987d529659b2805f3ade824ce9fb960a311c4809b8"
+
+[[ignore]]
+id = "STR-BED58C"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [629, 629]
+mutator = "cxx_replace_scalar_call"
+bucket = "C"
+rationale = "Replaces is_valid_base(config->base) with a constant. Forcing false makes valid-base conversions return NULL (caught by existing tests), so the survivor is force-true. With force-true, StrFromI64 skips its own rejection but then calls StrFromU64(str, abs, config); StrFromU64's unmutated is_valid_base(config->base) rejects the same invalid base and returns NULL, so `if(!StrFromU64(...)) return NULL` still fires. Net result for every base is identical to the intact code (invalid->NULL, valid->proceed)."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:7b165b7ba1e259b54dee9680dc3242f79e97d2415e71698bf8ba56c3753097aa"
+
+[[ignore]]
+id = "STR-138403"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [155, 155]
+mutator = "cxx_remove_void_call"
+bucket = "C"
+rationale = "Removes ValidateStr(copy). The next statement deinit_vec(GENERIC_VEC(copy), sizeof(char)) calls ValidateVec(vec) as its first action, re-validating copy (GENERIC_VEC(NULL)==NULL so a NULL copy still LOG_FATALs there). Valid copy: removed validate only consumed the memo bit, which deinit_vec's ValidateVec consumes instead. Identical observable behavior."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:d21cb8ee9b71ef66934449c594798513c0c151348c09958ba551ee0405075d21"
+
+[[ignore]]
+id = "STR-C5640B"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [208, 208]
+mutator = "cxx_remove_void_call"
+bucket = "C"
+rationale = "Removes ValidateStr(s). The function immediately calls str_compare(s, other) which begins with ValidateStr(a) (a==s). So s is re-validated downstream before any use; NULL/corrupt s still aborts there and valid s is unaffected. Identical observable behavior."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:ea4eb234a54dd665c78a32c527d2b55322ba5625bf04c8db30ea16594be11c72"
+
+[[ignore]]
+id = "STR-41AFF7"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [209, 209]
+mutator = "cxx_remove_void_call"
+bucket = "C"
+rationale = "Removes ValidateStr(other). str_compare(s, other) then runs ValidateStr(b) (b==other) before any dereference, re-validating other. NULL/corrupt other still aborts in str_compare; valid other unaffected. Identical observable behavior."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:093850bdbcf32bbde36423459dcc1ab8ef1590db05afdc4eebcfe3d48d277eb9"
+
+[[ignore]]
+id = "STR-285518"
+file = "Source/Misra/Std/Container/Str.c"
+lines = [79, 79]
+mutator = "cxx_ge_to_gt"
+bucket = "C"
+rationale = "if(exp>=0) -> if(exp>0). The only routing change is exp==0. Original: takes the >=0 branch, while(exp-- > 0) tests 0>0 false, no multiply, returns r=1.0. Mutant: takes else branch, while(exp++ < 0) tests 0<0 false, no multiply, returns r=1.0. For exp>0 both take the first branch; for exp<0 both take the else. Output is identical for every integer exp, so no input can distinguish the mutation."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:5b8a4dc12a116b3b648784ab53c24fb8aac739c97c05ce38b4bcc9a85f82de8b"
+
+[[ignore]]
+id = "VEC-2B8CD8"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [316, 316]
+mutator = "cxx_lt_to_le"
+bucket = "C"
+rationale = "idx<vec->length becomes idx<=vec->length. idx is bounded by idx<=length (296). The only new case is idx==length: the block then computes displaced=length-idx=0, the clamp 0>count is false, and MemMove copies aligned_size*0=0 bytes (no-op) from a valid in-capacity pointer; displaced stays 0 so the rollback path is unaffected. Identical observable behaviour for all inputs."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:38cb6c91e7dced4cbbd478af51c2721e531e3eecd6876e72533febd4d14dd024"
+
+[[ignore]]
+id = "VEC-EDD9A3"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [318, 318]
+mutator = "cxx_gt_to_ge"
+bucket = "C"
+rationale = "Clamp if(displaced>count) displaced=count becomes >=. The only added case is displaced==count, where the assignment sets displaced to count — a value it already holds. No state changes, identical for all inputs."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:4601bcba460c79f0f55bafdc46aecacc162d9715e30e551c83210a4f5a227535"
+
+[[ignore]]
+id = "VEC-C2D68F"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [245, 245]
+mutator = "cxx_lt_to_le"
+bucket = "C"
+rationale = "Guard `idx < vec->length` around the shift-right MemMove. When idx == vec->length (append), original skips the move; mutant `idx <= length` executes MemMove with size (length-idx)*aligned_size = 0, which is a no-op (MemMove of 0 bytes does not dereference). For idx < length both behave identically. So for all inputs observable behaviour is unchanged."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:38cb6c91e7dced4cbbd478af51c2721e531e3eecd6876e72533febd4d14dd024"
+
+[[ignore]]
+id = "VEC-F4149A"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [262, 262]
+mutator = "cxx_lt_to_le"
+bucket = "C"
+rationale = "`idx < length` -> `idx <= length` makes the shift-back block also run when idx==length. There the MemMove size (length-idx)*aligned_size is 0 (no-op) and memset268 zeroes [length, length+count) — a region that memset261 (count*aligned_size) just zeroed identically. So the extra block only re-zeroes already-zero bytes and performs a 0-byte move. For idx<length both versions behave identically. No input distinguishes the two."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:38cb6c91e7dced4cbbd478af51c2721e531e3eecd6876e72533febd4d14dd024"
+
+[[ignore]]
+id = "VEC-9C83DB"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [410, 410]
+mutator = "cxx_gt_to_ge"
+bucket = "C"
+rationale = "Line 410 is the overflow guard `count > (size)-1 - start`. gt->ge adds the case start+count == SIZE_MAX. That input does NOT overflow, so under gt it passes to line 413: `start+count > length` becomes `SIZE_MAX > length`, which is always true (length can never reach SIZE_MAX bytes), so it aborts at 413. Under ge it aborts at 410. Both versions LOG_FATAL for the only distinguishing input and behave identically (no branch taken) for every non-aborting input. No input yields a different caller-observable outcome."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:18b53d4356e5d3b4f8bfcfbd4a65d2486891a9fbf97b6d335739e1e0c8abce8e"
+
+[[ignore]]
+id = "VEC-92A647"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [427, 427]
+mutator = "cxx_mul_to_div"
+bucket = "C"
+rationale = "Line 427 zeroes the discarded gap [start,start+count) in the no-removed-data/no-copy_deinit branch. This region is ENTIRELY re-written afterward: line 442 overwrites [start, start+elements_to_move) with swapped-in tail data, and line 449 zeroes [length-count, length). Proof for the remainder: elements_to_move = min(count, available) with available = length-start-count. When elements_to_move==count the whole gap is covered by 442. Otherwise elements_to_move==available and the uncovered tail [start+available, start+count) satisfies start+available == length-count, so it is a subset of 449's region [length-count, length) (since start+count <= length). Thus every byte 427 touches is overwritten regardless of how many bytes it zeroes; mul->div is unobservable."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:8767a2b32e0e35f8e4e1c4243497fbd6e7a732db921bd61b5a7c5170d8ecf1e4"
+
+[[ignore]]
+id = "VEC-540826"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [437, 437]
+mutator = "cxx_gt_to_ge"
+bucket = "C"
+rationale = "Line 437: `if (elements_to_move > available_elements) elements_to_move = available_elements;` with elements_to_move initialized to count. gt->ge only changes behavior when count == available_elements: gt leaves elements_to_move==count, ge assigns available_elements (==count). The assigned value equals the kept value, so elements_to_move is identical in both versions for all inputs."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:b4d70a7468f8f94785a860b22e9451d0b112a8a87374a1220e1e47c433fdd061"
+
+[[ignore]]
+id = "VEC-ED78CA"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [441, 441]
+mutator = "cxx_gt_to_ge"
+bucket = "C"
+rationale = "Line 441: `if (elements_to_move > 0)`. elements_to_move is unsigned size, so >=0 is always true; the only new case versus >0 is elements_to_move==0, which makes the MemMove size `0 * aligned == 0`. MemMove early-returns on n==0 (Memory.c:49) before any pointer dereference, so the source ptr at vec_ptr_at(vec,length,...) is never read. The 0-byte move is a no-op identical to skipping it. No input distinguishes."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:cdee7ac31376ca1c6785e46f349eee0198e68474657868c8aca1f60b2e47dd35"
+
+[[ignore]]
+id = "VEC-B03E13"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [365, 365]
+mutator = "cxx_gt_to_ge"
+bucket = "C"
+rationale = "`count > (size)-1 - start` -> `>=`. The only newly-triggering input is count == (size)-1 - start, i.e. start+count == SIZE_MAX. For any real vec, vec->length < SIZE_MAX (it indexes a live buffer), so the very next check at line 368 `start+count > vec->length` is true and LOG_FATALs anyway. Both original and mutant abort on that input; for all other inputs the comparison result is identical. Observably equivalent (both abort)."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:18b53d4356e5d3b4f8bfcfbd4a65d2486891a9fbf97b6d335739e1e0c8abce8e"
+
+[[ignore]]
+id = "VEC-8F8397"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [385, 385]
+mutator = "cxx_mul_to_div"
+bucket = "C"
+rationale = "This MemSet zeros `[start, start+count)` in the no-deinit/no-removed_data path. Every byte it writes is subsequently overwritten: the compaction MemMove at line 392 writes `[start, length-count)`, and line 397 zeros `[length-count, length)`; since start+count <= length, the union [start, length-count) U [length-count, length) covers all of [start, start+count). So no byte's final caller-visible value depends on line 385's count. count*stride vs count/stride only changes intermediate bytes that are unconditionally rewritten -> identical observable behaviour for all inputs."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:8767a2b32e0e35f8e4e1c4243497fbd6e7a732db921bd61b5a7c5170d8ecf1e4"
+
+[[ignore]]
+id = "VEC-E23545"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [178, 178]
+mutator = "cxx_ne_to_eq"
+bucket = "C"
+rationale = "`aligned_size != 0` -> `aligned_size == 0`. aligned_size = vec_aligned_size = item_size or ALIGN_UP(item_size,align); item_size=sizeof(T)>=1, so aligned_size>=1 ALWAYS. Thus the original guard's left operand is always true and the right `(length+1) > MAX/aligned_size` is always evaluated; the mutant makes it always false, so the overflow LOG_FATAL is skipped. But the overflow it guards (aligned_size*(length+1) wrapping) is unreachable: the vec already holds `length` elements in an existing buffer of capacity*aligned_size bytes, so length*aligned_size <= SIZE_MAX, and (length+1)*aligned_size cannot wrap for any realizable allocation. Original never fatals here either -> identical observable behaviour."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:87668d01f4582e158daa56bc94ee2b293f224f11b033c3ec13f37d668195bc7b"
+
+[[ignore]]
+id = "VEC-001"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [178, 178]
+mutator = "cxx_add_to_sub"
+bucket = "C"
+rationale = "`(vec->length + 1)` -> `(vec->length - 1)` appears ONLY in the overflow-guard comparison at 178; the realloc at 181 has its own independent `(vec->length + 1)` and is not affected. The guard is unreachable for realizable inputs (existing buffer proves no overflow), so changing its threshold from length+1 to length-1 never changes whether it fires (it never fires). Observably equivalent."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:87668d01f4582e158daa56bc94ee2b293f224f11b033c3ec13f37d668195bc7b"
+
+[[ignore]]
+id = "VEC-002"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [178, 178]
+mutator = "cxx_gt_to_ge"
+bucket = "C"
+rationale = "`>` -> `>=` in the overflow guard only differs at the boundary (length+1) == MAX/aligned_size, i.e. when (length+1)*aligned_size is essentially SIZE_MAX. That requires a buffer spanning ~all of address space, which is unrealizable since the vec's current buffer already exists. For every realizable input both forms yield false, so no LOG_FATAL difference -> equivalent."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:87668d01f4582e158daa56bc94ee2b293f224f11b033c3ec13f37d668195bc7b"
+
+[[ignore]]
+id = "VEC-003"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [178, 178]
+mutator = "cxx_div_to_mul"
+bucket = "C"
+rationale = "`(size)-1 / aligned_size` -> `(size)-1 * aligned_size`. Since aligned_size>=1, SIZE_MAX*aligned_size mod 2^64 = SIZE_MAX-(aligned_size-1), a value near SIZE_MAX. The guard becomes `(length+1) > ~SIZE_MAX`, which is never true for any realizable length (length+1 << SIZE_MAX because the buffer exists). Original guard also never fires for realizable inputs. The only difference would be at the address-space boundary, which is unreachable -> equivalent."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:87668d01f4582e158daa56bc94ee2b293f224f11b033c3ec13f37d668195bc7b"
+
+[[ignore]]
+id = "VEC-CAA157"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [66, 66]
+mutator = "cxx_mul_to_div"
+bucket = "C"
+rationale = "Line 66 runs only in the no-copy_deinit branch and merely scrubs the buffer to zero immediately before AllocatorFree (line 69) and the full header zero (line 75). Changing the byte count to aligned_size/(capacity+1) only shrinks the scrub region; the memory is freed right after and no API path can read freed bytes, and AllocatorFree does not validate buffer contents. Division yields a smaller-or-equal count, so no overflow/overwrite. Observably identical for all inputs."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:b4312f9221dbc2b05c210ae9aba5ff8eccbdd05f1dac0a28e08bbb88868f6fdc"
+
+[[ignore]]
+id = "VEC-004"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [66, 66]
+mutator = "cxx_add_to_sub"
+bucket = "C"
+rationale = "capacity+1 -> capacity-1 in the same pre-free scrub. data!=NULL implies capacity>=1 (every allocation goes through reserve_vec setting capacity=n>=1; reduce_space's length==0 path nulls data with capacity=0), so capacity-1>=0 and there is no unsigned underflow/overwrite. The scrub region only shrinks, and the buffer is freed + header zeroed immediately after, so no caller can observe the difference."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:b4312f9221dbc2b05c210ae9aba5ff8eccbdd05f1dac0a28e08bbb88868f6fdc"
+
+[[ignore]]
+id = "VEC-88EE44"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [526, 526]
+mutator = "cxx_lt_to_le"
+bucket = "C"
+rationale = "`new_size < vec->length` -> `new_size <= vec->length` adds the boundary new_size==vec->length. There it calls remove_range_vec(vec, NULL, item_size, new_size, vec->length-new_size) with count = length-length = 0. remove_range_vec with count==0 is a total no-op: the copy_deinit loop runs 0 times, both MemMove/MemSet sizes are 0, and length -= 0. Then length=new_size (==old length). Observably identical for every input."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:66ca53f60b203d62bafe354f142d43662db214b725ae4b892e1f91c096a035f4"
+
+[[ignore]]
+id = "VEC-7CDD07"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [104, 104]
+mutator = "cxx_gt_to_ge"
+bucket = "C"
+rationale = "`n > vec->capacity` -> `n >= vec->capacity` only adds the boundary n==capacity. There old_capacity==n, so the realloc requests aligned_size*(n+1) — the same byte count it already holds (contents preserved by realloc), and the MemSet zeroes aligned_size*(n+1-old_capacity)=aligned_size*1 bytes at offset old_capacity*aligned_size, i.e. exactly the sentinel slot which is already zero by invariant. capacity is set to n (unchanged), length unchanged, data contents unchanged. For every normal input the observable result is identical (only a redundant same-size realloc, whose return is non-NULL for any real allocation that already exists)."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:9759c044af3e8d2155145913b69c265b4213f1cf8618877180e66d3c4d3eed80"
+
+[[ignore]]
+id = "VEC-495543"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [142, 142]
+mutator = "cxx_gt_to_ge"
+bucket = "C"
+rationale = "`n > (1<<63)` -> `n >= (1<<63)` differs only at n==2^63. Original does NOT early-return there: the doubling loop reaches n2==2^63 exactly and stops (no infinite spin), then calls reserve_vec(2^63). On any real 64-bit system reserve_vec(2^63) cannot allocate ~8 EB; the allocator returns NULL so reserve_vec returns false. The mutant returns false immediately. Both paths return false for n==2^63 — identical observable return value; only a LOG_ERROR side-effect differs, which no caller observes."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:9750fbb2dca95d7af80eab49d2b0f948e49dd303777326f5d1e80cdc582527a4"
+
+[[ignore]]
+id = "VEC-F7A7E0"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [25, 25]
+mutator = "cxx_gt_to_ge"
+bucket = "C"
+rationale = "`alignment > 1` -> `alignment >= 1` only changes the alignment==1 case from returning item_size to ALIGN_UP_POW2(item_size, 1). But ALIGN_UP_POW2's own macro guard is `(alignment)>1 ? ... : (value)`, so ALIGN_UP_POW2(item_size,1)==item_size. Identical result for alignment==1; unchanged for all other alignments. Equivalent for every input."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:3117ec9fbb519a27765c8a0875e806174175f8efbfa920b5990b447bb15c682d"
+
+[[ignore]]
+id = "VEC-3B95B9"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [569, 569]
+mutator = "cxx_and_to_or"
+bucket = "C"
+rationale = "`!(v->__magic & MAGIC_VALIDATED_BIT)` -> `!(v->__magic | MAGIC_VALIDATED_BIT)`. ORing in bit 1<<63 is always non-zero, so `!(...)` is always false: the early return never fires and validate_vec_structural always runs (then the bit is cleared as before). For any vec that is actually valid, the structural invariants always hold, so running them redundantly produces no FATAL and no state change beyond clearing the memoization bit (which the original also clears when it does run). Within the library all structural mutations go through MARK_DIRTY, so no legitimate input reaches validate while structurally invalid yet memoized-clean. Observably identical (only extra read-only work)."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:7f8c7260a1002af223d1ab8d209681637d331963854c8cb717c48efee34de0d9"
+
+[[ignore]]
+id = "MAP-896F4B"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [560, 560]
+mutator = "cxx_init_const"
+bucket = "C"
+rationale = "Equivalent: cxx_init_const rewrites bool ok=true to ok=42; assigning 42 to _Bool normalises to 1 (true), and ok is only ever reassigned false on failure, so the initialiser value is byte-identical to true."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:2089eb4821aae3137df8c829354215c86874efca0800f7b9044685052f3d788d"
+
+[[ignore]]
+id = "MAP-622CD2"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [279, 279]
+mutator = "cxx_init_const"
+bucket = "C"
+rationale = "Dead store: candidate_empty is reinitialised/overwritten on every reachable path before any read; the sentinel only matters on a probe-exhausted no-empty-no-tombstone path the real code cannot reach with a functioning insert. No input distinguishes it."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:b5c564c6daf5a57dbad5afdc59fa7ee33e115efd9c95b6d67f21da8411dfa867"
+
+[[ignore]]
+id = "MAP-C2DD06"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [342, 342]
+mutator = "cxx_assign_const"
+bucket = "C"
+rationale = "Dead store: *insert_idx sentinel is overwritten by map_scan_slots before any read; reaching a capacity where the constant 42 matters requires a state the real code never reaches. No caller-observable difference."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:37015021abbfd3b13c3a3cccf87639163bdf647ea49d13655a2f91fff335c637"
+
+[[ignore]]
+id = "MAP-431874"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [740, 740]
+mutator = "cxx_lt_to_le"
+bucket = "C"
+rationale = "Equivalent under same-policy insert/find: the extra probe at probe_count==limit can only matter if an occupied same-key slot sits exactly at the budget edge, which insert never creates (it grows first); no input distinguishes it."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:751cca79b4e8aaab67c3d3bdac2e5abc85aa92786be13d82157f431fb8505a8f"
+
+[[ignore]]
+id = "MAP-38FC0C"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [305, 305]
+mutator = "cxx_lt_to_le"
+bucket = "C"
+rationale = "Equivalent: divergence needs exactly limit occupied colliding slots plus one placed past the budget, but real insert grows the table instead of placing past budget, so the divergent state is unreachable while the real path stays functional."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:751cca79b4e8aaab67c3d3bdac2e5abc85aa92786be13d82157f431fb8505a8f"
+
+[[ignore]]
+id = "MAP-65A5BF"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [908, 908]
+mutator = "cxx_ge_to_gt"
+bucket = "B"
+rationale = "Memory-safety only: distinguishing requires observing a one-past-the-end states[capacity] read, which is UB not a deterministic value in pure C -- catchable only under ASAN/DebugAllocator. Deferred per the existing one-past-end policy."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:3db6e86232a18a572ba90e6c980f2148c3f24ad8026ff340052c3455bf4b92f0"
+
+[[ignore]]
+id = "MAP-45206B"
+file = "Source/Misra/Std/Container/Map.c"
+lines = [1003, 1003]
+mutator = "cxx_ge_to_gt"
+bucket = "B"
+rationale = "Probe-exhaustion LOG_FATAL: not deadend-testable with a const_hash cluster because growing the table always eventually fits it, so the 32-attempt fatal never fires on real code; reaching it is a guard-page/DebugAllocator concern. Deferred."
+author = "proposals"
+created = "2026-06-10"
+region_hash = "sha256:45347d80bd9591148a85a92c3a3b661d83d43cd343f7153ec3cebd18fcbd51aa"
