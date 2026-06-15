@@ -9,30 +9,22 @@
 #include "Type.h"
 
 ///
-/// Compute the aligned byte offset of element `idx` from the start of the
-/// vector data buffer. The vector applies per-element alignment internally so
-/// that arbitrarily-typed payloads are correctly aligned.
-///
-/// Stride is taken from `allocator->alignment` when an allocator is
-/// present; for stack-init vecs (NULL allocator -- see
-/// `VecInitStack` / `StrInitStack`) the stride collapses to
-/// `sizeof(VEC_DATATYPE(v))` because the macro backs storage with an
-/// `_Alignas(T) char[]`, giving every slot T's natural alignment
-/// without padding.
+/// Compute the byte offset of element `idx` from the start of the vector data
+/// buffer. The per-element stride is `sizeof(VEC_DATATYPE(v))`, a compile-time
+/// constant. Because `sizeof(T)` is always a multiple of `_Alignof(T)`,
+/// contiguous elements stay naturally aligned without any padding. The
+/// allocator governs only the alignment of the buffer base, never the stride.
 ///
 /// v[in]   : Vector to query.
 /// idx[in] : Element index.
 ///
-/// TAGS: Vec, Access, Alignment
+/// TAGS: Vec, Access, Offset
 ///
-#define VecAlignedOffsetAt(v, idx)                                                                                     \
-    ((idx) * (((v)->allocator && (v)->allocator->alignment > 1) ?                                                      \
-                  ALIGN_UP_POW2(sizeof(VEC_DATATYPE(v)), (v)->allocator->alignment) :                                  \
-                  sizeof(VEC_DATATYPE(v))))
+#define VecAlignedOffsetAt(v, idx) ((idx) * sizeof(VEC_DATATYPE(v)))
 
 ///
 /// Element at `idx` accessed by value. Use this rather than indexing `data`
-/// directly so element alignment is respected.
+/// directly so the canonical element stride is used.
 ///
 /// v[in]   : Vector to query.
 /// idx[in] : Index in [0, length).
@@ -43,7 +35,7 @@
 
 ///
 /// Pointer to the element at `idx`. Use this rather than indexing `data`
-/// directly so element alignment is respected.
+/// directly so the canonical element stride is used.
 ///
 /// v[in]   : Vector to query.
 /// idx[in] : Index in [0, length).
@@ -92,9 +84,7 @@
 #define VecEnd(v) ((VEC_DATATYPE(v) *)((char *)(v)->data + VecAlignedOffsetAt((v), (v)->length)))
 
 ///
-/// Total used storage in bytes (aligned element size times length). Use this
-/// rather than `sizeof(element) * length` because vector elements may be
-/// padded for alignment.
+/// Total used storage in bytes (`sizeof(element)` times length).
 ///
 /// v[in] : Vector to query.
 ///

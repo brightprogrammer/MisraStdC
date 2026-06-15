@@ -199,7 +199,8 @@ bool test_vec_size_len(void) {
     // Clean up
     VecDeinit(&vec);
 
-    // Test with a vector with alignment > 1
+    // Same self-consistency on a higher-alignment allocator: the stride is
+    // still `sizeof(int)`, so VecSize and VecAlignedOffsetAt agree.
     typedef Vec(int) AlignedIntVec;
     AlignedIntVec aligned_vec = VecInit(&aligned8);
 
@@ -207,7 +208,7 @@ bool test_vec_size_len(void) {
     VecPushBackR(&aligned_vec, 10);
     VecPushBackR(&aligned_vec, 20);
 
-    // Check size and length with alignment
+    // Check size and length
     size aligned_vec_size  = VecSize(&aligned_vec);
     size aligned_vec_len   = VecLen(&aligned_vec);
     size aligned_offset_at = VecAlignedOffsetAt(&aligned_vec, VecLen(&aligned_vec));
@@ -241,17 +242,15 @@ bool test_vec_aligned_offset_at(void) {
     // Clean up
     VecDeinit(&vec);
 
-    // Create a vector with 8-byte alignment
+    // The element stride is `sizeof(T)` regardless of the allocator's base
+    // alignment: the allocator governs only the buffer base, never the stride.
     typedef Vec(int) AlignedIntVec;
     AlignedIntVec aligned_vec = VecInit(&aligned8);
 
-    // For 8-byte alignment, each int (4 bytes) should be padded to 8 bytes
-    size aligned_size = ALIGN_UP(sizeof(int), 8);
-
-    // Check offsets with alignment
+    // Stride stays `sizeof(int)` even on an 8-byte-aligned allocator.
     result = result && (VecAlignedOffsetAt(&aligned_vec, 0) == 0);
-    result = result && (VecAlignedOffsetAt(&aligned_vec, 1) == aligned_size);
-    result = result && (VecAlignedOffsetAt(&aligned_vec, 2) == 2 * aligned_size);
+    result = result && (VecAlignedOffsetAt(&aligned_vec, 1) == sizeof(int));
+    result = result && (VecAlignedOffsetAt(&aligned_vec, 2) == 2 * sizeof(int));
 
     // Clean up
     VecDeinit(&aligned_vec);
@@ -292,13 +291,12 @@ bool test_vec_empty_find_contains(void) {
     return result;
 }
 
-// vec_aligned_size @ 25:36 (alignment > 1 -> alignment <= 1): for an
-// allocator with alignment 16 the element stride must be ALIGN_UP_POW2(4,16)
-// == 16, not the un-aligned 4. Writes (which go through the .c stride) then
-// diverge from the alignment-aware reads (header VecAt stride), corrupting
-// values.
+// Element stride is `sizeof(T)` on every allocator. Storing then loading
+// through the Vec on a high-base-alignment (16) allocator must round-trip
+// every value: the .c write stride and the header VecAt read stride are both
+// `sizeof(u32)`, so they cannot diverge.
 bool test_aligned_stride_roundtrip(void) {
-    WriteFmt("Testing aligned element stride round-trips values\n");
+    WriteFmt("Testing element stride round-trips values\n");
 
     HeapAllocator alloc = HeapAllocatorInitAligned(16);
 
@@ -310,8 +308,7 @@ bool test_aligned_stride_roundtrip(void) {
         VecPushBackR(&vec, values[i]);
     }
 
-    // Real: store and load both use stride 16, values match. Mutant: stores
-    // use stride 4 while VecAt loads use stride 16, so values diverge.
+    // Store and load both use stride `sizeof(u32)`, so values match.
     bool result = (VecLen(&vec) == 4);
     for (int i = 0; i < 4; i++) {
         result = result && (VecAt(&vec, i) == values[i]);

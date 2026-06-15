@@ -47,12 +47,12 @@ typedef struct {
 /// - copy_deinit : If provided then is used to deinit data held by vector.
 ///                 Caution when dealing with shared ownership.
 /// - data        : Data held by vector. Don't access by direct indexing. Use `VecAt(..)`
-/// - allocator   : Allocator bound to this vector. Its `alignment` field governs both
-///                 the alignment of the underlying buffer and the per-element stride.
-///                 NULL for stack-init vecs (`VecInitStack` / `StrInitStack`): the
-///                 macro plants an `_Alignas(T) char[]` backing buffer so per-element
-///                 stride collapses to `sizeof(T)`, and any operation that would grow
-///                 the vec aborts via `VecReserve`.
+/// - allocator   : Allocator bound to this vector. Its `alignment` field governs the
+///                 alignment of the underlying buffer base only; the per-element stride
+///                 is always `sizeof(T)`. NULL for stack-init vecs (`VecInitStack` /
+///                 `StrInitStack`): the macro plants an `_Alignas(T) char[]` backing
+///                 buffer, and any operation that would grow the vec aborts via
+///                 `VecReserve`.
 ///
 /// TAGS: Vec, Generic, Length, Size, Pointer
 ///

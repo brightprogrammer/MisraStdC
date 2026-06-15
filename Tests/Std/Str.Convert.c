@@ -1964,10 +1964,13 @@ static bool test_from_f64_int_oom_returns_null(void) {
 
     Str            s      = StrInit(&bp);
     StrFloatFormat config = {.precision = 0, .force_sci = false, .uppercase = false};
-    // Positive value, precision 0 -> the integer digits are the only emit, and
-    // the 8-byte slot is too small for the Str's backing buffer, so that push
-    // fails. No later direct-return push can mask the mutated `ok`.
-    Str *ret = StrFromF64(&s, 123.0, &config);
+    // Positive 15-digit value, precision 0 -> the integer digits are the only
+    // emit (no sign/prefix/'.'/'e' pushes). The Str is a Vec(char) with stride
+    // sizeof(char) == 1, so its backing buffer grows pow2 (alloc n2+1 bytes);
+    // the 8-byte slot holds the first seven chars but the eighth integer-digit
+    // push needs a 9-byte buffer and fails inside the integer-digit loop. No
+    // later direct-return push can mask the mutated `ok`.
+    Str *ret = StrFromF64(&s, 123456789012345.0, &config);
 
     bool result = (ret == NULL);
     if (!result) {
@@ -1986,25 +1989,24 @@ static bool test_from_f64_int_oom_returns_null(void) {
 // return-NULL before `return str`), so a failure there is observable: real
 // returns NULL, mutant falls through to `return str`.
 //
-// "1.23e+150" is nine bytes. With a 96-byte Budget slot the backing buffer
-// holds the first eight ("1.23e+15") but the ninth byte -- the final exponent
-// digit, pushed by this very loop -- crosses the slot's growth boundary and
-// fails. (Empirically swept: real returns NULL across slots ~66..128 for this
-// value; the mutant returns &s.)
+// "1.23e+150" is nine bytes. The Str is a Vec(char) with stride sizeof(char)
+// == 1, so its backing buffer grows pow2 (alloc n2+1 bytes). With an 8-byte
+// Budget slot the buffer holds "1.23e+1" (seven chars), but the eighth char --
+// the exponent digit '5', pushed by this very loop -- needs a 9-byte buffer
+// and fails. All earlier pushes (through 'e', '+', and the first exponent
+// digit '1') succeed, so it is the exponent loop -- not an earlier push --
+// that fails.
 //   real   : `ok` stays false -> returns NULL.
 //   mutant : `ok` becomes truthy -> falls through -> returns &s (non-NULL).
 static bool test_from_f64_exp_oom_returns_null(void) {
     WriteFmt("Testing StrFromF64 returns NULL when an exponent-digit push fails (790:28)\n");
 
     u8              buf[512] = {0};
-    BudgetAllocator bp       = BudgetAllocatorInit(buf, sizeof(buf), 96);
+    BudgetAllocator bp       = BudgetAllocatorInit(buf, sizeof(buf), 8);
 
     Str            s      = StrInit(&bp);
     StrFloatFormat config = {.precision = 2, .force_sci = true, .uppercase = false};
-    // "1.23e+150": the final exponent digit push is the one that overruns the
-    // slot, so it is the exponent loop -- not an earlier direct-return push --
-    // that fails.
-    Str *ret = StrFromF64(&s, 1.23e150, &config);
+    Str           *ret    = StrFromF64(&s, 1.23e150, &config);
 
     bool result = (ret == NULL);
     if (!result) {

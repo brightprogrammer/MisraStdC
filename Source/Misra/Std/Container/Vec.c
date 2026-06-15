@@ -14,37 +14,23 @@
 // Vec(char)) is implicitly C-string-compatible. Allocated capacity is
 // always `stored_capacity + 1` items.
 
-static inline size vec_aligned_size(GenericVec *v, size item_size) {
-    ValidateVec(v);
-    // Stack-init vecs (no allocator) keep element stride at
-    // `sizeof(T)`: their backing buffer is a `_Alignas(T) char[]`,
-    // so every slot already lies on T's natural boundary.
-    if (!v->allocator) {
-        return item_size;
-    }
-    return v->allocator->alignment > 1 ? ALIGN_UP_POW2(item_size, v->allocator->alignment) : item_size;
-}
-
-static inline size vec_aligned_offset_at(GenericVec *v, size idx, size item_size) {
-    ValidateVec(v);
-    return idx * vec_aligned_size(v, item_size);
-}
+// Element stride is `item_size` (== `sizeof(T)`). Since `sizeof(T)` is always
+// a multiple of `_Alignof(T)`, contiguous elements stay naturally aligned. The
+// allocator governs only the alignment of the buffer base, never the stride.
 
 static inline u8 *vec_ptr_at(GenericVec *v, size idx, size item_size) {
     ValidateVec(v);
 
-    return (u8 *)v->data + vec_aligned_offset_at(v, idx, item_size);
+    return (u8 *)v->data + idx * item_size;
 }
 
 static inline const u8 *vec_const_ptr_at(const GenericVec *v, size idx, size item_size) {
     ValidateVec(v);
 
-    return (const u8 *)v->data + vec_aligned_offset_at((GenericVec *)v, idx, item_size);
+    return (const u8 *)v->data + idx * item_size;
 }
 
 void deinit_vec(GenericVec *vec, size item_size) {
-    size aligned_size;
-
     ValidateVec(vec);
 
     // Stack-init vecs have no allocator and own no heap storage:
@@ -56,14 +42,13 @@ void deinit_vec(GenericVec *vec, size item_size) {
         LOG_FATAL("vector not growable, no allocator assigned, probably stack inited");
     }
 
-    aligned_size = vec_aligned_size(vec, item_size);
     if (vec->data) {
         if (vec->copy_deinit) {
             for (size i = 0; i < vec->length; i++) {
                 vec->copy_deinit(vec_ptr_at(vec, i, item_size), vec->allocator);
             }
         } else {
-            MemSet(vec->data, 0, aligned_size * (vec->capacity + 1));
+            MemSet(vec->data, 0, item_size * (vec->capacity + 1));
         }
 
         AllocatorFree(vec->allocator, vec->data);
@@ -77,18 +62,15 @@ void deinit_vec(GenericVec *vec, size item_size) {
 
 
 void clear_vec(GenericVec *vec, size item_size) {
-    size aligned_size;
-
     ValidateVec(vec);
 
-    aligned_size = vec_aligned_size(vec, item_size);
     if (vec->data) {
         if (vec->copy_deinit) {
             for (size i = 0; i < vec->length; i++) {
                 vec->copy_deinit(vec_ptr_at(vec, i, item_size), vec->allocator);
             }
         } else {
-            MemSet(vec->data, 0, aligned_size * (vec->capacity + 1));
+            MemSet(vec->data, 0, item_size * (vec->capacity + 1));
         }
     }
 
@@ -96,11 +78,8 @@ void clear_vec(GenericVec *vec, size item_size) {
 }
 
 bool reserve_vec(GenericVec *vec, size item_size, size n) {
-    size aligned_size;
-
     ValidateVec(vec);
 
-    aligned_size = vec_aligned_size(vec, item_size);
     if (n > vec->capacity) {
         if (!vec->allocator) {
             LOG_FATAL("vector not growable, no allocator assigned, probably stack inited");
@@ -109,11 +88,11 @@ bool reserve_vec(GenericVec *vec, size item_size, size n) {
         // path is guarded in insert; this multiplicative one wraps when a
         // large element stride times a large `n` exceeds `size`, which would
         // under-allocate and let later writes run off the buffer.
-        if (aligned_size != 0 && (n + 1) > (size)-1 / aligned_size) {
+        if (item_size != 0 && (n + 1) > (size)-1 / item_size) {
             LOG_FATAL("vector reserve: capacity * item_size overflows size");
         }
         size old_capacity = (size)vec->capacity;
-        u8  *ptr          = (u8 *)AllocatorRealloc(vec->allocator, vec->data, aligned_size * (n + 1));
+        u8  *ptr          = (u8 *)AllocatorRealloc(vec->allocator, vec->data, item_size * (n + 1));
 
         if (!ptr) {
             // Not LOG_SYS_ERROR: allocator failures don't flow through the
@@ -122,7 +101,7 @@ bool reserve_vec(GenericVec *vec, size item_size, size n) {
             return false;
         }
         vec->data = (char *)ptr;
-        MemSet(ptr + old_capacity * aligned_size, 0, aligned_size * (n + 1 - old_capacity));
+        MemSet(ptr + old_capacity * item_size, 0, item_size * (n + 1 - old_capacity));
         vec->capacity = n;
         MAGIC_MARK_DIRTY(vec);
     }
@@ -152,8 +131,6 @@ bool reserve_pow2_vec(GenericVec *vec, size item_size, size n) {
 
 
 bool reduce_space_vec(GenericVec *vec, size item_size) {
-    size aligned_size;
-
     ValidateVec(vec);
 
     // Same rationale as `deinit_vec`: a stack-init vec has no
@@ -162,7 +139,6 @@ bool reduce_space_vec(GenericVec *vec, size item_size) {
         LOG_FATAL("vector not growable, no allocator assigned, probably stack inited");
     }
 
-    aligned_size = vec_aligned_size(vec, item_size);
     if (vec->length == 0) {
         AllocatorFree(vec->allocator, vec->data);
         vec->data     = NULL;
@@ -175,10 +151,10 @@ bool reduce_space_vec(GenericVec *vec, size item_size) {
     } else {
         // Same multiplicative-overflow guard as `reserve_vec`: length*item_size
         // must not wrap before the realloc sizes the shrunk buffer.
-        if (aligned_size != 0 && (vec->length + 1) > (size)-1 / aligned_size) {
+        if (item_size != 0 && (vec->length + 1) > (size)-1 / item_size) {
             LOG_FATAL("vector reduce: capacity * item_size overflows size");
         }
-        u8 *ptr = (u8 *)AllocatorRealloc(vec->allocator, vec->data, aligned_size * (vec->length + 1));
+        u8 *ptr = (u8 *)AllocatorRealloc(vec->allocator, vec->data, item_size * (vec->length + 1));
         if (!ptr) {
             // Not LOG_SYS_ERROR: allocator failures don't flow through the
             // syscall error path; the LOG_ERROR variant is the right report.
@@ -217,7 +193,6 @@ bool clone_vec(GenericVec *dst, const GenericVec *src, size item_size) {
 
 
 bool insert_range_into_vec(GenericVec *vec, const u8 *item_data, size item_size, size idx, size count) {
-    size aligned_size;
     size inserted_count = 0;
 
     if (!count) {
@@ -235,7 +210,6 @@ bool insert_range_into_vec(GenericVec *vec, const u8 *item_data, size item_size,
         LOG_FATAL("vector insert: length + count overflows size");
     }
 
-    aligned_size = vec_aligned_size(vec, item_size);
     if (vec->length + count >= vec->capacity) {
         if (!reserve_pow2_vec(vec, item_size, vec->length + count)) {
             return false;
@@ -246,7 +220,7 @@ bool insert_range_into_vec(GenericVec *vec, const u8 *item_data, size item_size,
         MemMove(
             vec_ptr_at(vec, idx + count, item_size),
             vec_ptr_at(vec, idx, item_size),
-            (vec->length - idx) * aligned_size
+            (vec->length - idx) * item_size
         );
     }
 
@@ -258,14 +232,14 @@ bool insert_range_into_vec(GenericVec *vec, const u8 *item_data, size item_size,
                     vec->copy_deinit(vec_ptr_at(vec, idx + s, item_size), vec->allocator);
                 }
 
-                MemSet(vec_ptr_at(vec, idx, item_size), 0, count * aligned_size);
+                MemSet(vec_ptr_at(vec, idx, item_size), 0, count * item_size);
                 if (idx < vec->length) {
                     MemMove(
                         vec_ptr_at(vec, idx, item_size),
                         vec_ptr_at(vec, idx + count, item_size),
-                        (vec->length - idx) * aligned_size
+                        (vec->length - idx) * item_size
                     );
-                    MemSet(vec_ptr_at(vec, vec->length, item_size), 0, count * aligned_size);
+                    MemSet(vec_ptr_at(vec, vec->length, item_size), 0, count * item_size);
                 }
 
                 return false;
@@ -283,7 +257,6 @@ bool insert_range_into_vec(GenericVec *vec, const u8 *item_data, size item_size,
 }
 
 bool insert_range_fast_into_vec(GenericVec *vec, const u8 *item_data, size item_size, size idx, size count) {
-    size aligned_size;
     size inserted_count = 0;
     size displaced      = 0;
 
@@ -301,7 +274,6 @@ bool insert_range_fast_into_vec(GenericVec *vec, const u8 *item_data, size item_
         LOG_FATAL("vector insert (fast): length + count overflows size");
     }
 
-    aligned_size = vec_aligned_size(vec, item_size);
     if (vec->length + count >= vec->capacity) {
         if (!reserve_pow2_vec(vec, item_size, vec->length + count)) {
             return false;
@@ -321,7 +293,7 @@ bool insert_range_fast_into_vec(GenericVec *vec, const u8 *item_data, size item_
         MemMove(
             vec_ptr_at(vec, vec->length + count - displaced, item_size),
             vec_ptr_at(vec, idx, item_size),
-            aligned_size * displaced
+            item_size * displaced
         );
     }
 
@@ -337,11 +309,11 @@ bool insert_range_fast_into_vec(GenericVec *vec, const u8 *item_data, size item_
                     MemMove(
                         vec_ptr_at(vec, idx, item_size),
                         vec_ptr_at(vec, vec->length + count - displaced, item_size),
-                        aligned_size * displaced
+                        item_size * displaced
                     );
                 }
 
-                MemSet(vec_ptr_at(vec, vec->length, item_size), 0, aligned_size * count);
+                MemSet(vec_ptr_at(vec, vec->length, item_size), 0, item_size * count);
                 return false;
             }
             inserted_count++;
@@ -373,16 +345,16 @@ void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size 
     // running copy_deinit. Doing it before the slide keeps the source
     // bytes live for both paths and lets the slide be a single MemMove.
     if (removed_data) {
-        MemCopy(removed_data, vec_ptr_at(vec, start, item_size), count * vec_aligned_size(vec, item_size));
+        MemCopy(removed_data, vec_ptr_at(vec, start, item_size), count * item_size);
     } else {
         if (vec->copy_deinit) {
             u8 *vec_data = vec_ptr_at(vec, start, item_size);
             for (size s = 0; s < count; s++) {
                 vec->copy_deinit(vec_data, vec->allocator);
-                vec_data += vec_aligned_size(vec, item_size);
+                vec_data += item_size;
             }
         } else {
-            MemSet(vec_ptr_at(vec, start, item_size), 0, count * vec_aligned_size(vec, item_size));
+            MemSet(vec_ptr_at(vec, start, item_size), 0, count * item_size);
         }
     }
 
@@ -392,9 +364,9 @@ void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size 
     MemMove(
         vec_ptr_at(vec, start, item_size),
         vec_ptr_at(vec, start + count, item_size),
-        (vec->length - start - count) * vec_aligned_size(vec, item_size)
+        (vec->length - start - count) * item_size
     );
-    MemSet(vec_ptr_at(vec, (vec->length - count), item_size), 0, count * vec_aligned_size(vec, item_size));
+    MemSet(vec_ptr_at(vec, (vec->length - count), item_size), 0, count * item_size);
 
     vec->length -= count;
 
@@ -415,16 +387,16 @@ void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, 
     }
 
     if (removed_data) {
-        MemCopy(removed_data, vec_ptr_at(vec, start, item_size), count * vec_aligned_size(vec, item_size));
+        MemCopy(removed_data, vec_ptr_at(vec, start, item_size), count * item_size);
     } else {
         if (vec->copy_deinit) {
             u8 *vec_data = vec_ptr_at(vec, start, item_size);
             for (size s = 0; s < count; s++) {
                 vec->copy_deinit(vec_data, vec->allocator);
-                vec_data += vec_aligned_size(vec, item_size);
+                vec_data += item_size;
             }
         } else {
-            MemSet(vec_ptr_at(vec, start, item_size), 0, count * vec_aligned_size(vec, item_size));
+            MemSet(vec_ptr_at(vec, start, item_size), 0, count * item_size);
         }
     }
 
@@ -442,11 +414,11 @@ void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, 
         MemMove(
             vec_ptr_at(vec, start, item_size),
             vec_ptr_at(vec, vec->length - elements_to_move, item_size),
-            elements_to_move * vec_aligned_size(vec, item_size)
+            elements_to_move * item_size
         );
     }
 
-    MemSet(vec_ptr_at(vec, vec->length - count, item_size), 0, count * vec_aligned_size(vec, item_size));
+    MemSet(vec_ptr_at(vec, vec->length - count, item_size), 0, count * item_size);
 
     vec->length -= count;
 
@@ -458,13 +430,6 @@ void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, 
 
 void vec_sort(GenericVec *vec, size item_size, GenericCompare comp) {
     ValidateVec(vec);
-
-    if (vec_aligned_size(vec, item_size) != item_size) {
-        LOG_FATAL(
-            "QSort not implemented for vectors wherein the size of items don't "
-            "match their aligned size."
-        );
-    }
 
     MemSort(vec->data, vec->length, item_size, comp);
 }
@@ -484,7 +449,7 @@ void swap_vec(GenericVec *vec, size item_size, size idx1, size idx2) {
     u8 *a, *b, tmp;
     a = vec_ptr_at(vec, idx1, item_size);
     b = vec_ptr_at(vec, idx2, item_size);
-    // Swap the user bytes only; alignment padding is never read.
+    // Swap the element bytes. Stride is `item_size`, so the full element.
     while (item_size--) {
         tmp = *a;
         *a  = *b;

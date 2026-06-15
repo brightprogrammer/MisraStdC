@@ -503,7 +503,7 @@
 ///
 /// Reinitialize `vd` as a deep clone of `vs`.
 /// Any current contents of `vd` are first deinitialized. The destination adopts
-/// `vs`'s `copy_init` / `copy_deinit` / alignment / allocator configuration,
+/// `vs`'s `copy_init` / `copy_deinit` / allocator configuration,
 /// then all elements are deep-copied.
 ///
 /// vd[out] : Destination vector. Must be initialized; its current contents are
@@ -512,7 +512,7 @@
 ///
 /// SUCCESS : Returns `true`. `vd` now holds a deep copy of every element of
 ///           `vs`, has the same length, and carries `vs`'s `copy_init` /
-///           `copy_deinit` / alignment / allocator configuration. The prior
+///           `copy_deinit` / allocator configuration. The prior
 ///           contents of `vd` were released before the clone began.
 /// FAILURE : Returns `false` on allocation failure during the clone. `vd` is
 ///           left in a valid but partially-populated state (the prior
@@ -531,7 +531,7 @@
                                .copy_deinit = VecCopyDeinit(vs),                                                       \
                                .data        = NULL,                                                                    \
                                .allocator   = VecAllocator(vs),                                                        \
-                               .__magic     = VEC_MAGIC | MAGIC_VALIDATED_BIT},                                                              \
+                               .__magic     = VEC_MAGIC | MAGIC_VALIDATED_BIT},                                            \
      clone_vec(GENERIC_VEC(vd), GENERIC_VEC(vs), sizeof(VEC_DATATYPE(vd))))
 
 ///
