@@ -208,6 +208,7 @@ misra_std_sources = files(
     # Vec/Str/Io plumbing that LOG_FATAL formats through.
     'Source/Misra/Sys.c',
     'Source/Misra/Sys/Mutex.c',
+    'Source/Misra/Sys/Clock.c',
     'Source/Misra/Std/Log.c',
     'Source/Misra/Std/Memory.c',
     'Source/Misra/Std/Zstr.c',

@@ -9,6 +9,7 @@
 
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Zstr.h>
+#include <Misra/Sys/Clock.h>
 #include <Misra/Sys/Errno.h>
 #include <Misra/Sys/Mutex.h>
 
