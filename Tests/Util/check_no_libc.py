@@ -142,7 +142,7 @@ EXEMPTIONS = {
 }
 
 # Directories to scan, relative to repo root.
-SCAN_DIRS = ("Source", "Include", "Bin", "Tests")
+SCAN_DIRS = ("Source", "Include", "Bin", "Tests", "Benchmark")
 
 # File suffixes we consider.
 SUFFIXES = (".c", ".h", ".cpp", ".hpp", ".inc")

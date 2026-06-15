@@ -758,6 +758,13 @@ endif
 # Include tests
 subdir('Tests')
 
+# Benchmark suite. Off by default; one freestanding exe per module in
+# Benchmark/Source/. Enable with -Dbenchmark=true, then run
+# Benchmark/Scripts/run.py to refresh Benchmark/README.md.
+if get_option('benchmark')
+    subdir('Benchmark')
+endif
+
 # Install library headers
 # Header install gating. Only headers for enabled features land in the
 # install prefix. Disabled features have their `Container/<Name>/`,

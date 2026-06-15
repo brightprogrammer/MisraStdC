@@ -73,3 +73,6 @@ option('prng_reseed_interval', type: 'integer', value: 10000, min: 1, descriptio
 # default-CRT build path and for downstream packagers who keep libc on the
 # link line for unrelated reasons.
 option('disable_libc_diet', type: 'boolean', value: false, description: 'Force a hosted build: keep libc / UCRT on the link line, drop the in-tree `_Freestanding.c` overrides, do not switch to the custom entry point. Equivalent to enabling a sanitizer for the freestanding-flag purpose, but without the sanitizer instrumentation.')
+
+# --- Tooling ----------------------------------------------------------------
+option('benchmark', type: 'boolean', value: false, description: 'Build the benchmark suite (Benchmark/, one libc-free freestanding exe per module). Off by default. After building, run Benchmark/Scripts/run.py to refresh Benchmark/README.md.')
