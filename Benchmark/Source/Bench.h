@@ -42,13 +42,21 @@
 /// Copying through a local and constraining to a register forces the
 /// load to happen.
 ///
+/// There is deliberately NO `"memory"` clobber here. A memory clobber
+/// would force the compiler to reload every memory operand each
+/// iteration and forbid hoisting loop-invariant setup (e.g. a
+/// container's element-stride computation) out of the timed loop --
+/// measuring a pessimised op no real caller would see. `BenchUse` only
+/// materialises the value; the loads under test still happen because
+/// their addresses vary. When you genuinely need to stop the compiler
+/// reordering or eliding memory effects, reach for `BenchClobber`.
+///
 #define BenchUse(x)                                                                                                    \
     do {                                                                                                               \
         __typeof__(x) _bench_use_v = (x);                                                                              \
         __asm__ volatile(""                                                                                            \
                          :                                                                                             \
-                         : "r"(_bench_use_v)                                                                           \
-                         : "memory");                                                                                  \
+                         : "r"(_bench_use_v));                                                                         \
     } while (0)
 
 ///
