@@ -4,8 +4,16 @@
 ///
 /// Benchmark driver: runs cases, computes integer summary statistics,
 /// and prints machine-readable result lines. See Bench.h for the model.
+///
+/// The driver leans on MisraStdC primitives: samples live in a
+/// `Vec(u64)` ordered with `VecSort`. The lone exception is the standard
+/// deviation's integer square root -- the library's only sqrt is the
+/// arbitrary-precision `IntSqrt`, too heavy for a `u64`, so the narrow
+/// `bench_u64_sqrt` is written here (the "no fitting primitive -> write
+/// one" branch of the dogfooding rule).
 
 #include <Misra/Config.h>
+#include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Io.h>
 
 #include "Bench.h"
@@ -13,7 +21,6 @@
 // Defaults, applied when a BenchCase leaves the field zero.
 #define BENCH_WARMUP_DEFAULT  2
 #define BENCH_SAMPLES_DEFAULT 15
-#define BENCH_SAMPLES_MAX     256
 
 // Below this median, a single sample is dominated by clock overhead and
 // resolution; the row is flagged so the reader treats it as indicative
@@ -33,9 +40,18 @@ static const char *bench_arch_str(void) {
 #endif
 }
 
-// Integer square root (floor). Used for the std-deviation without
-// pulling in libm / float math.
-static u64 bench_isqrt(u64 v) {
+// Ascending GenericCompare over u64 samples, for VecSort.
+static i32 bench_u64_cmp(const void *first, const void *second) {
+    u64 a = *(const u64 *)first;
+    u64 b = *(const u64 *)second;
+    return a < b ? -1 : (a > b ? 1 : 0);
+}
+
+// floor(sqrt(v)) over u64, by Newton's method. The library's only sqrt
+// is the arbitrary-precision IntSqrt (Int is a BitVec-backed bignum, not
+// a machine int) -- allocating a bignum to root a 64-bit variance is the
+// wrong tool, so we write the narrow one the library lacks.
+static u64 bench_u64_sqrt(u64 v) {
     if (v == 0)
         return 0;
     u64 x = v;
@@ -47,19 +63,6 @@ static u64 bench_isqrt(u64 v) {
     return x;
 }
 
-// In-place ascending insertion sort. `n` is small (<= BENCH_SAMPLES_MAX).
-static void bench_sort(u64 *a, u32 n) {
-    for (u32 i = 1; i < n; i++) {
-        u64 k = a[i];
-        i32 j = (i32)i - 1;
-        while (j >= 0 && a[j] > k) {
-            a[j + 1] = a[j];
-            j--;
-        }
-        a[j + 1] = k;
-    }
-}
-
 int bench_main(const char *module, const BenchCase *cases, u32 ncases, int argc, char **argv) {
     (void)argc;
     (void)argv;
@@ -67,16 +70,17 @@ int bench_main(const char *module, const BenchCase *cases, u32 ncases, int argc,
     static const u64 default_sizes[] = {64, 1024, 16384, 262144, 0};
 
     DefaultAllocator heap = DefaultAllocatorInit();
+    Vec(u64) samples      = VecInit(&heap);
 
     WriteFmtLn("MISRABENCH\tv1\tmodule={}\tarch={}", module, bench_arch_str());
 
     for (u32 c = 0; c < ncases; c++) {
-        const BenchCase *bc      = &cases[c];
-        const u64       *sizes   = bc->sizes ? bc->sizes : default_sizes;
-        u32              warmup  = bc->warmup ? bc->warmup : BENCH_WARMUP_DEFAULT;
-        u32              samples = bc->samples ? bc->samples : BENCH_SAMPLES_DEFAULT;
-        if (samples > BENCH_SAMPLES_MAX)
-            samples = BENCH_SAMPLES_MAX;
+        const BenchCase *bc       = &cases[c];
+        const u64       *sizes    = bc->sizes ? bc->sizes : default_sizes;
+        u32              warmup   = bc->warmup ? bc->warmup : BENCH_WARMUP_DEFAULT;
+        u32              n_sample = bc->samples ? bc->samples : BENCH_SAMPLES_DEFAULT;
+
+        VecReserve(&samples, n_sample); // fixed capacity, reused across sizes
 
         for (u32 si = 0; sizes[si] != 0; si++) {
             u64 n = sizes[si];
@@ -86,29 +90,29 @@ int bench_main(const char *module, const BenchCase *cases, u32 ncases, int argc,
                 (void)bc->fn(&ctx);
             }
 
-            u64 smp[BENCH_SAMPLES_MAX];
-            for (u32 i = 0; i < samples; i++) {
+            VecClear(&samples);
+            for (u32 i = 0; i < n_sample; i++) {
                 BenchCtx ctx = {.n = n, .alloc = &heap, .rng = {BENCH_RNG_SEED}};
-                smp[i]       = bc->fn(&ctx);
+                VecPushBackR(&samples, bc->fn(&ctx));
             }
 
-            // sum / mean before sorting; min / max / median after.
-            u64 sum = 0;
-            for (u32 i = 0; i < samples; i++)
-                sum += smp[i];
-            u64 mean = sum / samples;
+            // mean and variance over the unsorted samples.
+            u64 sum                      = 0;
+            VecForeach(&samples, s) sum += s;
+            u64 mean                     = sum / n_sample;
 
             u64 var_acc = 0;
-            for (u32 i = 0; i < samples; i++) {
-                u64 d    = smp[i] > mean ? smp[i] - mean : mean - smp[i];
+            VecForeach(&samples, s) {
+                u64 d    = s > mean ? s - mean : mean - s;
                 var_acc += d * d;
             }
-            u64 stddev = bench_isqrt(var_acc / samples);
+            u64 stddev = bench_u64_sqrt(var_acc / n_sample);
 
-            bench_sort(smp, samples);
-            u64 mn  = smp[0];
-            u64 mx  = smp[samples - 1];
-            u64 med = smp[samples / 2];
+            // min / median / max off the sorted samples.
+            VecSort(&samples, bench_u64_cmp);
+            u64 mn  = VecAt(&samples, 0);
+            u64 med = VecAt(&samples, n_sample / 2);
+            u64 mx  = VecAt(&samples, n_sample - 1);
 
             u64         ops  = bc->ops ? bc->ops(n) : n;
             const char *flag = med < BENCH_MIN_RELIABLE_NS ? "low" : "ok";
@@ -120,7 +124,7 @@ int bench_main(const char *module, const BenchCase *cases, u32 ncases, int argc,
                 bc->name,
                 n,
                 ops,
-                samples,
+                n_sample,
                 mn,
                 med,
                 mean,
@@ -131,6 +135,7 @@ int bench_main(const char *module, const BenchCase *cases, u32 ncases, int argc,
         }
     }
 
+    VecDeinit(&samples);
     DefaultAllocatorDeinit(&heap);
     return 0;
 }
