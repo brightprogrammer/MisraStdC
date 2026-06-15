@@ -63,9 +63,6 @@ option('parser_dns',      type: 'boolean', value: true, description: 'Build DNS 
 # --- Tunables ---------------------------------------------------------------
 option('prng_reseed_interval', type: 'integer', value: 10000, min: 1, description: 'Number of Prng* calls between kernel-CSPRNG reseeds of the internal PRNG state. Smaller = stronger sequence (more kernel calls), larger = faster but the sequence stays correlated longer between reseeds.')
 
-# --- Benchmark --------------------------------------------------------------
-option('benchmark', type: 'boolean', value: false, description: 'Build the allocator benchmark in Benchmark/. Requires Google Benchmark + jemalloc + mimalloc + gperftools pkg-config / link availability. Run Benchmark/Scripts/run.py against the built binaries to refresh Benchmark/README.md.')
-
 # --- Build posture overrides ------------------------------------------------
 # The library defaults to a freestanding posture (no libc startup, in-tree
 # mem*, custom _start on Linux / misra_start on Windows-clang-cl, /NODEFAULTLIB

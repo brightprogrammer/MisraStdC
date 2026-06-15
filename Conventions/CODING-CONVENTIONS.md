@@ -309,12 +309,11 @@ of the codebase to see them in action.
   the Zstr-everywhere rule doesn't override `int main(int argc, char
   **argv)`. The boundary is the carve-out; everything that wraps it
   is fair game for Misra-native types.
-- **Fuzz harnesses and Benchmark drivers are out of scope.** Code under
-  `Fuzz/` and `Benchmark/` (in particular `Bench.cpp` and
-  `Allocator_libc.c`) is allowed to include libc / C++ standard headers —
-  these are harness boundaries that intentionally compare the in-tree
-  implementation against external baselines. `check_no_libc.py` covers
-  the library proper (`Source/`, `Include/`, `Tests/`).
+- **Fuzz harnesses are out of scope.** Code under `Fuzz/` is allowed to
+  include libc / C++ standard headers — these are harness boundaries that
+  intentionally exercise the in-tree implementation against external
+  inputs. `check_no_libc.py` covers the library proper (`Source/`,
+  `Include/`, `Tests/`).
 
 ## `_Generic` dispatch
 
