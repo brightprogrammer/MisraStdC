@@ -9,14 +9,17 @@
 /// rest of the library; it links freestanding exactly as the Bin/ tools
 /// do.
 ///
-/// MEASUREMENT MODEL. A benchmark is a single function that returns the
-/// elapsed nanoseconds of the operation under test. It owns its own
-/// timing: it brackets ONLY the operation with two `ClockMonoNs()` reads
-/// and a `{ }` block, and does all fixture construction / input
-/// generation / result consumption OUTSIDE that block (untimed). The
-/// driver re-initialises the context (RNG included) before every call,
-/// so each sample starts from a byte-identical state -- destructive ops
-/// are safe because each call rebuilds its own fixture.
+/// MEASUREMENT MODEL. A case is a `setup` / `run` / `teardown` triple. For
+/// each workload size the driver builds the fixture once via `setup`, then
+/// calls `run` repeatedly, accumulating each pass's elapsed `dt` until the
+/// time budget is spent or the iteration cap is hit (whichever first), and
+/// reports min / median / mean / stddev over the collected samples. `run`
+/// owns its timing: it brackets ONLY the operation with two `ClockMonoNs()`
+/// reads and a `{ }` block, keeping all input generation / result
+/// consumption outside that block. A read-only `run` reuses the fixture
+/// across every pass; a `run` that mutates or consumes the fixture raises
+/// `ctx->dirty`, and the driver rebuilds (teardown + setup) before the next
+/// pass.
 ///
 /// DEFEATING DEAD-CODE ELIMINATION. The timed block must contain nothing
 /// but the target API call(s) and the minimal loop to repeat them. Never
@@ -110,38 +113,48 @@ static inline void bench_keep_ptr(const void *p) {
 }
 
 ///
-/// Context handed to every benchmark. The driver fills it fresh before
-/// each call: `n` is the workload size for the current row, `alloc` is
-/// the (single, reused) allocator to build fixtures with, and `rng` is
-/// re-seeded to `BENCH_RNG_SEED` every call.
+/// Context shared across a case's setup / run / teardown for one
+/// workload size. `n` is the workload size, `alloc` is the allocator to
+/// build the fixture with, `rng` is the fixed-seed PRNG (re-seeded once
+/// per size), `fx` is the case-owned fixture pointer (set by `setup`,
+/// used by `run`, freed by `teardown`), and `dirty` is the signal a
+/// `run` raises when it left the fixture unusable for the next pass.
 ///
 typedef struct {
     u64               n;
     DefaultAllocator *alloc;
     BenchRng          rng;
+    void             *fx;
+    bool              dirty;
 } BenchCtx;
 
-/// A benchmark: returns the elapsed nanoseconds of its timed region.
-typedef u64 (*BenchFn)(BenchCtx *ctx);
+/// Build the fixture for `ctx->n` into `ctx->fx`. Untimed.
+typedef void (*BenchSetupFn)(BenchCtx *ctx);
+/// Time exactly the operation under test over `ctx->fx`; return elapsed
+/// nanoseconds. If the operation left the fixture unusable for a
+/// subsequent pass (e.g. it mutated or consumed it), set `ctx->dirty` so
+/// the driver rebuilds before the next pass.
+typedef u64 (*BenchRunFn)(BenchCtx *ctx);
+/// Release the fixture in `ctx->fx`. Untimed.
+typedef void (*BenchTeardownFn)(BenchCtx *ctx);
 
 ///
 /// A registered benchmark case.
-///   name    : short identifier, e.g. "at_sequential".
-///   fn      : the benchmark function.
-///   ops     : how many target-API ops one call represents, used as the
-///             ns-per-op divisor by downstream tooling. NULL means `n`.
-///   sizes   : 0-terminated array of workload sizes. NULL means the
-///             driver's default set.
-///   samples : recorded measurements per size. 0 means the default.
-///   warmup  : discarded measurements per size. 0 means the default.
+///   name     : short identifier, e.g. "at_sequential".
+///   setup    : build the fixture (once per size, and again after any
+///              `dirty` pass).
+///   run      : time one pass of the operation; return elapsed ns; raise
+///              `ctx->dirty` if the fixture is now spent.
+///   teardown : free the fixture.
+///   sizes    : 0-terminated array of workload sizes. NULL means the
+///              driver's default set.
 ///
 typedef struct {
-    const char *name;
-    BenchFn     fn;
-    u64 (*ops)(u64 n);
-    const u64 *sizes;
-    u32        samples;
-    u32        warmup;
+    const char     *name;
+    BenchSetupFn    setup;
+    BenchRunFn      run;
+    BenchTeardownFn teardown;
+    const u64      *sizes;
 } BenchCase;
 
 ///
@@ -150,6 +163,22 @@ typedef struct {
 /// and currently unused.
 ///
 int bench_main(const char *module, const BenchCase *cases, u32 ncases, int argc, char **argv);
+
+///
+/// Build a `BenchCase` from a bare case name. Derives the display name
+/// (`"<name>"`) and the three callbacks (`<name>_setup`, `<name>_run`,
+/// `<name>_teardown`) by token-pasting, collapsing the descriptor to one
+/// line: `BENCH_CASE(at_sequential)`.
+///
+#define BENCH_CASE(cname) {.name = #cname, .setup = cname##_setup, .run = cname##_run, .teardown = cname##_teardown}
+
+///
+/// Like `BENCH_CASE`, but with an explicit shared `setup`/`teardown` so
+/// several cases over the same fixture reuse one pair; only `<name>_run`
+/// is derived: `BENCH_CASE_FX(at_random, u64_index_setup, u64_index_teardown)`.
+///
+#define BENCH_CASE_FX(cname, setup_fn, teardown_fn)                                                                    \
+    {.name = #cname, .setup = (setup_fn), .run = cname##_run, .teardown = (teardown_fn)}
 
 ///
 /// Emit a `main` for a module file. `cases` must be a statically-sized

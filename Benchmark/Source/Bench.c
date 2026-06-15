@@ -2,15 +2,15 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Benchmark driver: runs cases, computes integer summary statistics,
-/// and prints machine-readable result lines. See Bench.h for the model.
+/// Benchmark driver. For each (case, size) it builds the fixture once,
+/// then accumulates one-pass `dt` samples until either the time budget
+/// is spent or the iteration cap is hit, rebuilding the fixture whenever
+/// a pass reports it `dirty`. Reports integer summary statistics over the
+/// collected samples. See Bench.h for the measurement model.
 ///
-/// The driver leans on MisraStdC primitives: samples live in a
-/// `Vec(u64)` ordered with `VecSort`. The lone exception is the standard
-/// deviation's integer square root -- the library's only sqrt is the
-/// arbitrary-precision `IntSqrt`, too heavy for a `u64`, so the narrow
-/// `bench_u64_sqrt` is written here (the "no fitting primitive -> write
-/// one" branch of the dogfooding rule).
+/// The driver uses MisraStdC primitives: samples live in a `Vec(u64)`
+/// ordered with `VecSort`. The iteration cap bounds the sample count so
+/// the buffer stays small even for fast ops.
 
 #include <Misra/Config.h>
 #include <Misra/Std/Container/Vec.h>
@@ -18,15 +18,12 @@
 
 #include "Bench.h"
 
-// Defaults, applied when a BenchCase leaves the field zero.
-#define BENCH_WARMUP_DEFAULT  2
-#define BENCH_SAMPLES_DEFAULT 15
-
-// Below this median, a single sample is dominated by clock overhead and
-// resolution; the row is flagged so the reader treats it as indicative
-// rather than precise. (Roughly two orders of magnitude over the ~20 ns
-// ClockMonoNs call cost.)
-#define BENCH_MIN_RELIABLE_NS 2000
+// Stop a measurement once EITHER limit is reached:
+//   - accumulated timed `dt` reaches the budget, or
+//   - the sample count reaches the cap (so a fast op doesn't spin for
+//     the full budget, and the sample buffer stays bounded).
+#define BENCH_BUDGET_NS 30000000000ull // 30 s of accumulated dt
+#define BENCH_ITER_CAP  100000u
 
 volatile u64 g_bench_sink;
 
@@ -75,66 +72,63 @@ int bench_main(const char *module, const BenchCase *cases, u32 ncases, int argc,
 
     DefaultAllocator heap = DefaultAllocatorInit();
     Vec(u64) samples      = VecInit(&heap);
+    VecReserve(&samples, BENCH_ITER_CAP); // bounded once; reused across rows
 
     WriteFmtLn("MISRABENCH\tv1\tmodule={}\tarch={}", module, bench_arch_str());
 
     for (u32 c = 0; c < ncases; c++) {
-        const BenchCase *bc       = &cases[c];
-        const u64       *sizes    = bc->sizes ? bc->sizes : default_sizes;
-        u32              warmup   = bc->warmup ? bc->warmup : BENCH_WARMUP_DEFAULT;
-        u32              n_sample = bc->samples ? bc->samples : BENCH_SAMPLES_DEFAULT;
-
-        VecReserve(&samples, n_sample); // fixed capacity, reused across sizes
+        const BenchCase *bc    = &cases[c];
+        const u64       *sizes = bc->sizes ? bc->sizes : default_sizes;
 
         for (u32 si = 0; sizes[si] != 0; si++) {
-            u64 n = sizes[si];
+            BenchCtx ctx = {.n = sizes[si], .alloc = &heap, .rng = {BENCH_RNG_SEED}, .fx = NULL, .dirty = false};
 
-            for (u32 w = 0; w < warmup; w++) {
-                BenchCtx ctx = {.n = n, .alloc = &heap, .rng = {BENCH_RNG_SEED}};
-                (void)bc->fn(&ctx);
-            }
+            bc->setup(&ctx);
 
             VecClear(&samples);
-            for (u32 i = 0; i < n_sample; i++) {
-                BenchCtx ctx = {.n = n, .alloc = &heap, .rng = {BENCH_RNG_SEED}};
-                VecPushBackR(&samples, bc->fn(&ctx));
+            u64 acc = 0;
+            while (acc < BENCH_BUDGET_NS && VecLen(&samples) < BENCH_ITER_CAP) {
+                ctx.dirty = false;
+                u64 dt    = bc->run(&ctx);
+                VecPushBackR(&samples, dt);
+                acc += dt;
+                if (ctx.dirty) {
+                    bc->teardown(&ctx);
+                    bc->setup(&ctx);
+                }
             }
 
-            // mean and variance over the unsorted samples.
+            bc->teardown(&ctx);
+
+            u64 passes = VecLen(&samples);
+
             u64 sum                      = 0;
             VecForeach(&samples, s) sum += s;
-            u64 mean                     = sum / n_sample;
+            u64 mean                     = sum / passes;
 
             u64 var_acc = 0;
             VecForeach(&samples, s) {
                 u64 d    = s > mean ? s - mean : mean - s;
                 var_acc += d * d;
             }
-            u64 stddev = bench_u64_sqrt(var_acc / n_sample);
+            u64 stddev = bench_u64_sqrt(var_acc / passes);
 
-            // min / median / max off the sorted samples.
             VecSort(&samples, bench_u64_cmp);
             u64 mn  = VecAt(&samples, 0);
-            u64 med = VecAt(&samples, n_sample / 2);
-            u64 mx  = VecAt(&samples, n_sample - 1);
-
-            u64         ops  = bc->ops ? bc->ops(n) : n;
-            const char *flag = med < BENCH_MIN_RELIABLE_NS ? "low" : "ok";
+            u64 med = VecAt(&samples, passes / 2);
+            u64 mx  = VecAt(&samples, passes - 1);
 
             WriteFmtLn(
-                "BENCH\tmodule={}\tcase={}\tn={}\tops={}\tsamples={}\tmin_ns={}\tmed_ns={}\tmean_ns={}\tmax_ns={}"
-                "\tstddev_ns={}\tflag={}",
+                "BENCH\tmodule={}\tcase={}\tn={}\tpasses={}\tmin_ns={}\tmed_ns={}\tmean_ns={}\tmax_ns={}\tstddev_ns={}",
                 module,
                 bc->name,
-                n,
-                ops,
-                n_sample,
+                ctx.n,
+                passes,
                 mn,
                 med,
                 mean,
                 mx,
-                stddev,
-                flag
+                stddev
             );
         }
     }
