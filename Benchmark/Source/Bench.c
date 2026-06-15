@@ -47,10 +47,14 @@ static i32 bench_u64_cmp(const void *first, const void *second) {
     return a < b ? -1 : (a > b ? 1 : 0);
 }
 
-// floor(sqrt(v)) over u64, by Newton's method. The library's only sqrt
-// is the arbitrary-precision IntSqrt (Int is a BitVec-backed bignum, not
-// a machine int) -- allocating a bignum to root a 64-bit variance is the
-// wrong tool, so we write the narrow one the library lacks.
+// floor(sqrt(v)) over u64, by Newton's method.
+//
+// TODO: remove this once Int auto-dispatches a fixed-width fast path for
+// values that fit a machine word (falling back to the bignum only on
+// overflow). Today the library's only sqrt is the arbitrary-precision
+// IntSqrt -- Int is a BitVec-backed bignum, so rooting a 64-bit variance
+// through it would allocate a bignum per result row. Until Int does that
+// dispatch, we write the narrow sqrt the library lacks.
 static u64 bench_u64_sqrt(u64 v) {
     if (v == 0)
         return 0;
