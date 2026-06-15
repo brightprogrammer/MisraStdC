@@ -791,10 +791,10 @@ region_hash = "sha256:ff52da4a4e8211d69b09bac43d45de68059b361706fa861da9c4c97bd7
 [[ignore]]
 id = "VEC-AD44AB"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [239, 239]
+lines = [213, 213]
 mutator = "cxx_ge_to_gt"
 bucket = "B"
-rationale = "The reserve trigger `length+count >= capacity` vs `> capacity` only differs at length+count == capacity. reserve_vec always allocates aligned_size*(n+1) bytes (capacity+1 physical slots) so when length+count == capacity there are exactly length+count+1 slots available — enough for the length+count data slots plus the sentinel at index length+count. Both branches therefore keep all writes in-bounds; data correctness is identical. The only difference is the resulting capacity value (mutant may keep a smaller, possibly non-pow2 capacity while original rounds up via reserve_pow2). Capacity is an implementation-chosen value, not a documented contract output."
+rationale = "The reserve trigger `length+count >= capacity` vs `> capacity` only differs at length+count == capacity. reserve_vec always allocates item_size*(n+1) bytes (capacity+1 physical slots) so when length+count == capacity there are exactly length+count+1 slots available — enough for the length+count data slots plus the sentinel at index length+count. Both branches therefore keep all writes in-bounds; data correctness is identical. The only difference is the resulting capacity value (mutant may keep a smaller, possibly non-pow2 capacity while original rounds up via reserve_pow2). Capacity is an implementation-chosen value, not a documented contract output."
 author = "proposals"
 created = "2026-06-10"
 region_hash = "sha256:a12c6507a270d1322949cc096e93f71240bd303f68b194dd3b2a632b8c2bdb5a"
@@ -813,7 +813,7 @@ region_hash = "sha256:0ff1b523f7118bb383e63031390af51dfb745fa8d1d4f004845b4c1201
 [[ignore]]
 id = "VEC-1B27DA"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [525, 525]
+lines = [490, 490]
 mutator = "cxx_le_to_lt"
 bucket = "B"
 rationale = "`<=` -> `<` differs only at new_size==vec->capacity. Since length<=capacity==new_size, the shrink predicate (new_size<vec->length) is unreachable, so no element is dropped/leaked. The only effect is the boundary case routes through the else branch which calls reserve_pow2_vec(capacity) — this may enlarge capacity to the next power of two but length is still set to new_size and existing data is preserved by realloc. Only the implementation-chosen capacity differs; documented contract (length==new_size, data intact, capacity>=new_size) still holds."
@@ -835,7 +835,7 @@ region_hash = "sha256:06a02af519a9ae67e8e020987d529659b2805f3ade824ce9fb960a311c
 [[ignore]]
 id = "VEC-47C720"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [146, 146]
+lines = [125, 125]
 mutator = "cxx_lt_to_le"
 bucket = "B"
 rationale = "`n2 < n` -> `n2 <= n` runs one extra doubling when n2==n (e.g. n=4 yields n2=8 instead of 4). The result still satisfies capacity>=n (8>=4); it only over-reserves to the next power of two. reserve_pow2_vec is internal-only (clone_vec, insert_range_into_vec, insert_range_fast_into_vec, resize_vec) and every caller needs only capacity>=requested, never an exact capacity. Documented contract holds; only the implementation-chosen capacity value differs."
@@ -912,10 +912,10 @@ region_hash = "sha256:5b8a4dc12a116b3b648784ab53c24fb8aac739c97c05ce38b4bcc9a85f
 [[ignore]]
 id = "VEC-2B8CD8"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [316, 316]
+lines = [288, 288]
 mutator = "cxx_lt_to_le"
 bucket = "C"
-rationale = "idx<vec->length becomes idx<=vec->length. idx is bounded by idx<=length (296). The only new case is idx==length: the block then computes displaced=length-idx=0, the clamp 0>count is false, and MemMove copies aligned_size*0=0 bytes (no-op) from a valid in-capacity pointer; displaced stays 0 so the rollback path is unaffected. Identical observable behaviour for all inputs."
+rationale = "idx<vec->length becomes idx<=vec->length. idx is bounded by idx<=length (296). The only new case is idx==length: the block then computes displaced=length-idx=0, the clamp 0>count is false, and MemMove copies item_size*0=0 bytes (no-op) from a valid in-capacity pointer; displaced stays 0 so the rollback path is unaffected. Identical observable behaviour for all inputs."
 author = "proposals"
 created = "2026-06-10"
 region_hash = "sha256:38cb6c91e7dced4cbbd478af51c2721e531e3eecd6876e72533febd4d14dd024"
@@ -923,7 +923,7 @@ region_hash = "sha256:38cb6c91e7dced4cbbd478af51c2721e531e3eecd6876e72533febd4d1
 [[ignore]]
 id = "VEC-EDD9A3"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [318, 318]
+lines = [290, 290]
 mutator = "cxx_gt_to_ge"
 bucket = "C"
 rationale = "Clamp if(displaced>count) displaced=count becomes >=. The only added case is displaced==count, where the assignment sets displaced to count — a value it already holds. No state changes, identical for all inputs."
@@ -934,10 +934,10 @@ region_hash = "sha256:4601bcba460c79f0f55bafdc46aecacc162d9715e30e551c83210a4f5a
 [[ignore]]
 id = "VEC-C2D68F"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [245, 245]
+lines = [219, 219]
 mutator = "cxx_lt_to_le"
 bucket = "C"
-rationale = "Guard `idx < vec->length` around the shift-right MemMove. When idx == vec->length (append), original skips the move; mutant `idx <= length` executes MemMove with size (length-idx)*aligned_size = 0, which is a no-op (MemMove of 0 bytes does not dereference). For idx < length both behave identically. So for all inputs observable behaviour is unchanged."
+rationale = "Guard `idx < vec->length` around the shift-right MemMove. When idx == vec->length (append), original skips the move; mutant `idx <= length` executes MemMove with size (length-idx)*item_size = 0, which is a no-op (MemMove of 0 bytes does not dereference). For idx < length both behave identically. So for all inputs observable behaviour is unchanged."
 author = "proposals"
 created = "2026-06-10"
 region_hash = "sha256:38cb6c91e7dced4cbbd478af51c2721e531e3eecd6876e72533febd4d14dd024"
@@ -945,10 +945,10 @@ region_hash = "sha256:38cb6c91e7dced4cbbd478af51c2721e531e3eecd6876e72533febd4d1
 [[ignore]]
 id = "VEC-F4149A"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [262, 262]
+lines = [236, 236]
 mutator = "cxx_lt_to_le"
 bucket = "C"
-rationale = "`idx < length` -> `idx <= length` makes the shift-back block also run when idx==length. There the MemMove size (length-idx)*aligned_size is 0 (no-op) and memset268 zeroes [length, length+count) — a region that memset261 (count*aligned_size) just zeroed identically. So the extra block only re-zeroes already-zero bytes and performs a 0-byte move. For idx<length both versions behave identically. No input distinguishes the two."
+rationale = "`idx < length` -> `idx <= length` makes the shift-back block also run when idx==length. There the MemMove size (length-idx)*item_size is 0 (no-op) and memset268 zeroes [length, length+count) — a region that memset261 (count*item_size) just zeroed identically. So the extra block only re-zeroes already-zero bytes and performs a 0-byte move. For idx<length both versions behave identically. No input distinguishes the two."
 author = "proposals"
 created = "2026-06-10"
 region_hash = "sha256:38cb6c91e7dced4cbbd478af51c2721e531e3eecd6876e72533febd4d14dd024"
@@ -956,7 +956,7 @@ region_hash = "sha256:38cb6c91e7dced4cbbd478af51c2721e531e3eecd6876e72533febd4d1
 [[ignore]]
 id = "VEC-9C83DB"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [410, 410]
+lines = [382, 382]
 mutator = "cxx_gt_to_ge"
 bucket = "C"
 rationale = "Line 410 is the overflow guard `count > (size)-1 - start`. gt->ge adds the case start+count == SIZE_MAX. That input does NOT overflow, so under gt it passes to line 413: `start+count > length` becomes `SIZE_MAX > length`, which is always true (length can never reach SIZE_MAX bytes), so it aborts at 413. Under ge it aborts at 410. Both versions LOG_FATAL for the only distinguishing input and behave identically (no branch taken) for every non-aborting input. No input yields a different caller-observable outcome."
@@ -967,18 +967,18 @@ region_hash = "sha256:18b53d4356e5d3b4f8bfcfbd4a65d2486891a9fbf97b6d335739e1e0c8
 [[ignore]]
 id = "VEC-92A647"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [427, 427]
+lines = [399, 399]
 mutator = "cxx_mul_to_div"
 bucket = "C"
 rationale = "Line 427 zeroes the discarded gap [start,start+count) in the no-removed-data/no-copy_deinit branch. This region is ENTIRELY re-written afterward: line 442 overwrites [start, start+elements_to_move) with swapped-in tail data, and line 449 zeroes [length-count, length). Proof for the remainder: elements_to_move = min(count, available) with available = length-start-count. When elements_to_move==count the whole gap is covered by 442. Otherwise elements_to_move==available and the uncovered tail [start+available, start+count) satisfies start+available == length-count, so it is a subset of 449's region [length-count, length) (since start+count <= length). Thus every byte 427 touches is overwritten regardless of how many bytes it zeroes; mul->div is unobservable."
 author = "proposals"
 created = "2026-06-10"
-region_hash = "sha256:8767a2b32e0e35f8e4e1c4243497fbd6e7a732db921bd61b5a7c5170d8ecf1e4"
+region_hash = "sha256:37e4e4054984bae47ebb63722e700602202494b50d07c52fc357a3e1106de671"
 
 [[ignore]]
 id = "VEC-540826"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [437, 437]
+lines = [409, 409]
 mutator = "cxx_gt_to_ge"
 bucket = "C"
 rationale = "Line 437: `if (elements_to_move > available_elements) elements_to_move = available_elements;` with elements_to_move initialized to count. gt->ge only changes behavior when count == available_elements: gt leaves elements_to_move==count, ge assigns available_elements (==count). The assigned value equals the kept value, so elements_to_move is identical in both versions for all inputs."
@@ -989,7 +989,7 @@ region_hash = "sha256:b4d70a7468f8f94785a860b22e9451d0b112a8a87374a1220e1e47c433
 [[ignore]]
 id = "VEC-ED78CA"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [441, 441]
+lines = [413, 413]
 mutator = "cxx_gt_to_ge"
 bucket = "C"
 rationale = "Line 441: `if (elements_to_move > 0)`. elements_to_move is unsigned size, so >=0 is always true; the only new case versus >0 is elements_to_move==0, which makes the MemMove size `0 * aligned == 0`. MemMove early-returns on n==0 (Memory.c:49) before any pointer dereference, so the source ptr at vec_ptr_at(vec,length,...) is never read. The 0-byte move is a no-op identical to skipping it. No input distinguishes."
@@ -1000,7 +1000,7 @@ region_hash = "sha256:cdee7ac31376ca1c6785e46f349eee0198e68474657868c8aca1f60b2e
 [[ignore]]
 id = "VEC-B03E13"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [365, 365]
+lines = [337, 337]
 mutator = "cxx_gt_to_ge"
 bucket = "C"
 rationale = "`count > (size)-1 - start` -> `>=`. The only newly-triggering input is count == (size)-1 - start, i.e. start+count == SIZE_MAX. For any real vec, vec->length < SIZE_MAX (it indexes a live buffer), so the very next check at line 368 `start+count > vec->length` is true and LOG_FATALs anyway. Both original and mutant abort on that input; for all other inputs the comparison result is identical. Observably equivalent (both abort)."
@@ -1011,84 +1011,84 @@ region_hash = "sha256:18b53d4356e5d3b4f8bfcfbd4a65d2486891a9fbf97b6d335739e1e0c8
 [[ignore]]
 id = "VEC-8F8397"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [385, 385]
+lines = [357, 357]
 mutator = "cxx_mul_to_div"
 bucket = "C"
 rationale = "This MemSet zeros `[start, start+count)` in the no-deinit/no-removed_data path. Every byte it writes is subsequently overwritten: the compaction MemMove at line 392 writes `[start, length-count)`, and line 397 zeros `[length-count, length)`; since start+count <= length, the union [start, length-count) U [length-count, length) covers all of [start, start+count). So no byte's final caller-visible value depends on line 385's count. count*stride vs count/stride only changes intermediate bytes that are unconditionally rewritten -> identical observable behaviour for all inputs."
 author = "proposals"
 created = "2026-06-10"
-region_hash = "sha256:8767a2b32e0e35f8e4e1c4243497fbd6e7a732db921bd61b5a7c5170d8ecf1e4"
+region_hash = "sha256:37e4e4054984bae47ebb63722e700602202494b50d07c52fc357a3e1106de671"
 
 [[ignore]]
 id = "VEC-E23545"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [178, 178]
+lines = [154, 154]
 mutator = "cxx_ne_to_eq"
 bucket = "C"
-rationale = "`aligned_size != 0` -> `aligned_size == 0`. aligned_size = vec_aligned_size = item_size or ALIGN_UP(item_size,align); item_size=sizeof(T)>=1, so aligned_size>=1 ALWAYS. Thus the original guard's left operand is always true and the right `(length+1) > MAX/aligned_size` is always evaluated; the mutant makes it always false, so the overflow LOG_FATAL is skipped. But the overflow it guards (aligned_size*(length+1) wrapping) is unreachable: the vec already holds `length` elements in an existing buffer of capacity*aligned_size bytes, so length*aligned_size <= SIZE_MAX, and (length+1)*aligned_size cannot wrap for any realizable allocation. Original never fatals here either -> identical observable behaviour."
+rationale = "`item_size != 0` -> `item_size == 0`. item_size=sizeof(T)>=1 ALWAYS. Thus the original guard's left operand is always true and the right `(length+1) > MAX/item_size` is always evaluated; the mutant makes it always false, so the overflow LOG_FATAL is skipped. But the overflow it guards (item_size*(length+1) wrapping) is unreachable: the vec already holds `length` elements in an existing buffer of capacity*item_size bytes, so length*item_size <= SIZE_MAX, and (length+1)*item_size cannot wrap for any realizable allocation. Original never fatals here either -> identical observable behaviour."
 author = "proposals"
 created = "2026-06-10"
-region_hash = "sha256:87668d01f4582e158daa56bc94ee2b293f224f11b033c3ec13f37d668195bc7b"
+region_hash = "sha256:5d7b1bbdef3781addf113273d9627ecd5ee6de8eee9f6f26206c8229f01cfb58"
 
 [[ignore]]
 id = "VEC-001"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [178, 178]
+lines = [154, 154]
 mutator = "cxx_add_to_sub"
 bucket = "C"
 rationale = "`(vec->length + 1)` -> `(vec->length - 1)` appears ONLY in the overflow-guard comparison at 178; the realloc at 181 has its own independent `(vec->length + 1)` and is not affected. The guard is unreachable for realizable inputs (existing buffer proves no overflow), so changing its threshold from length+1 to length-1 never changes whether it fires (it never fires). Observably equivalent."
 author = "proposals"
 created = "2026-06-10"
-region_hash = "sha256:87668d01f4582e158daa56bc94ee2b293f224f11b033c3ec13f37d668195bc7b"
+region_hash = "sha256:5d7b1bbdef3781addf113273d9627ecd5ee6de8eee9f6f26206c8229f01cfb58"
 
 [[ignore]]
 id = "VEC-002"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [178, 178]
+lines = [154, 154]
 mutator = "cxx_gt_to_ge"
 bucket = "C"
-rationale = "`>` -> `>=` in the overflow guard only differs at the boundary (length+1) == MAX/aligned_size, i.e. when (length+1)*aligned_size is essentially SIZE_MAX. That requires a buffer spanning ~all of address space, which is unrealizable since the vec's current buffer already exists. For every realizable input both forms yield false, so no LOG_FATAL difference -> equivalent."
+rationale = "`>` -> `>=` in the overflow guard only differs at the boundary (length+1) == MAX/item_size, i.e. when (length+1)*item_size is essentially SIZE_MAX. That requires a buffer spanning ~all of address space, which is unrealizable since the vec's current buffer already exists. For every realizable input both forms yield false, so no LOG_FATAL difference -> equivalent."
 author = "proposals"
 created = "2026-06-10"
-region_hash = "sha256:87668d01f4582e158daa56bc94ee2b293f224f11b033c3ec13f37d668195bc7b"
+region_hash = "sha256:5d7b1bbdef3781addf113273d9627ecd5ee6de8eee9f6f26206c8229f01cfb58"
 
 [[ignore]]
 id = "VEC-003"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [178, 178]
+lines = [154, 154]
 mutator = "cxx_div_to_mul"
 bucket = "C"
-rationale = "`(size)-1 / aligned_size` -> `(size)-1 * aligned_size`. Since aligned_size>=1, SIZE_MAX*aligned_size mod 2^64 = SIZE_MAX-(aligned_size-1), a value near SIZE_MAX. The guard becomes `(length+1) > ~SIZE_MAX`, which is never true for any realizable length (length+1 << SIZE_MAX because the buffer exists). Original guard also never fires for realizable inputs. The only difference would be at the address-space boundary, which is unreachable -> equivalent."
+rationale = "`(size)-1 / item_size` -> `(size)-1 * item_size`. Since item_size>=1, SIZE_MAX*item_size mod 2^64 = SIZE_MAX-(item_size-1), a value near SIZE_MAX. The guard becomes `(length+1) > ~SIZE_MAX`, which is never true for any realizable length (length+1 << SIZE_MAX because the buffer exists). Original guard also never fires for realizable inputs. The only difference would be at the address-space boundary, which is unreachable -> equivalent."
 author = "proposals"
 created = "2026-06-10"
-region_hash = "sha256:87668d01f4582e158daa56bc94ee2b293f224f11b033c3ec13f37d668195bc7b"
+region_hash = "sha256:5d7b1bbdef3781addf113273d9627ecd5ee6de8eee9f6f26206c8229f01cfb58"
 
 [[ignore]]
 id = "VEC-CAA157"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [66, 66]
+lines = [51, 51]
 mutator = "cxx_mul_to_div"
 bucket = "C"
-rationale = "Line 66 runs only in the no-copy_deinit branch and merely scrubs the buffer to zero immediately before AllocatorFree (line 69) and the full header zero (line 75). Changing the byte count to aligned_size/(capacity+1) only shrinks the scrub region; the memory is freed right after and no API path can read freed bytes, and AllocatorFree does not validate buffer contents. Division yields a smaller-or-equal count, so no overflow/overwrite. Observably identical for all inputs."
+rationale = "Line 51 runs only in the no-copy_deinit branch and merely scrubs the buffer to zero immediately before AllocatorFree and the full header zero. Changing the byte count to item_size/(capacity+1) only shrinks the scrub region; the memory is freed right after and no API path can read freed bytes, and AllocatorFree does not validate buffer contents. Division yields a smaller-or-equal count, so no overflow/overwrite. Observably identical for all inputs."
 author = "proposals"
 created = "2026-06-10"
-region_hash = "sha256:b4312f9221dbc2b05c210ae9aba5ff8eccbdd05f1dac0a28e08bbb88868f6fdc"
+region_hash = "sha256:05bafc8284cce50b56fd1f095a03117504f9a7b2e2e229bcdd0d9aba22895439"
 
 [[ignore]]
 id = "VEC-004"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [66, 66]
+lines = [51, 51]
 mutator = "cxx_add_to_sub"
 bucket = "C"
 rationale = "capacity+1 -> capacity-1 in the same pre-free scrub. data!=NULL implies capacity>=1 (every allocation goes through reserve_vec setting capacity=n>=1; reduce_space's length==0 path nulls data with capacity=0), so capacity-1>=0 and there is no unsigned underflow/overwrite. The scrub region only shrinks, and the buffer is freed + header zeroed immediately after, so no caller can observe the difference."
 author = "proposals"
 created = "2026-06-10"
-region_hash = "sha256:b4312f9221dbc2b05c210ae9aba5ff8eccbdd05f1dac0a28e08bbb88868f6fdc"
+region_hash = "sha256:05bafc8284cce50b56fd1f095a03117504f9a7b2e2e229bcdd0d9aba22895439"
 
 [[ignore]]
 id = "VEC-88EE44"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [526, 526]
+lines = [491, 491]
 mutator = "cxx_lt_to_le"
 bucket = "C"
 rationale = "`new_size < vec->length` -> `new_size <= vec->length` adds the boundary new_size==vec->length. There it calls remove_range_vec(vec, NULL, item_size, new_size, vec->length-new_size) with count = length-length = 0. remove_range_vec with count==0 is a total no-op: the copy_deinit loop runs 0 times, both MemMove/MemSet sizes are 0, and length -= 0. Then length=new_size (==old length). Observably identical for every input."
@@ -1099,10 +1099,10 @@ region_hash = "sha256:66ca53f60b203d62bafe354f142d43662db214b725ae4b892e1f91c096
 [[ignore]]
 id = "VEC-7CDD07"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [104, 104]
+lines = [83, 83]
 mutator = "cxx_gt_to_ge"
 bucket = "C"
-rationale = "`n > vec->capacity` -> `n >= vec->capacity` only adds the boundary n==capacity. There old_capacity==n, so the realloc requests aligned_size*(n+1) — the same byte count it already holds (contents preserved by realloc), and the MemSet zeroes aligned_size*(n+1-old_capacity)=aligned_size*1 bytes at offset old_capacity*aligned_size, i.e. exactly the sentinel slot which is already zero by invariant. capacity is set to n (unchanged), length unchanged, data contents unchanged. For every normal input the observable result is identical (only a redundant same-size realloc, whose return is non-NULL for any real allocation that already exists)."
+rationale = "`n > vec->capacity` -> `n >= vec->capacity` only adds the boundary n==capacity. There old_capacity==n, so the realloc requests item_size*(n+1) — the same byte count it already holds (contents preserved by realloc), and the MemSet zeroes item_size*(n+1-old_capacity)=item_size*1 bytes at offset old_capacity*item_size, i.e. exactly the sentinel slot which is already zero by invariant. capacity is set to n (unchanged), length unchanged, data contents unchanged. For every normal input the observable result is identical (only a redundant same-size realloc, whose return is non-NULL for any real allocation that already exists)."
 author = "proposals"
 created = "2026-06-10"
 region_hash = "sha256:9759c044af3e8d2155145913b69c265b4213f1cf8618877180e66d3c4d3eed80"
@@ -1110,7 +1110,7 @@ region_hash = "sha256:9759c044af3e8d2155145913b69c265b4213f1cf8618877180e66d3c4d
 [[ignore]]
 id = "VEC-495543"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [142, 142]
+lines = [121, 121]
 mutator = "cxx_gt_to_ge"
 bucket = "C"
 rationale = "`n > (1<<63)` -> `n >= (1<<63)` differs only at n==2^63. Original does NOT early-return there: the doubling loop reaches n2==2^63 exactly and stops (no infinite spin), then calls reserve_vec(2^63). On any real 64-bit system reserve_vec(2^63) cannot allocate ~8 EB; the allocator returns NULL so reserve_vec returns false. The mutant returns false immediately. Both paths return false for n==2^63 — identical observable return value; only a LOG_ERROR side-effect differs, which no caller observes."
@@ -1119,20 +1119,9 @@ created = "2026-06-10"
 region_hash = "sha256:9750fbb2dca95d7af80eab49d2b0f948e49dd303777326f5d1e80cdc582527a4"
 
 [[ignore]]
-id = "VEC-F7A7E0"
-file = "Source/Misra/Std/Container/Vec.c"
-lines = [25, 25]
-mutator = "cxx_gt_to_ge"
-bucket = "C"
-rationale = "`alignment > 1` -> `alignment >= 1` only changes the alignment==1 case from returning item_size to ALIGN_UP_POW2(item_size, 1). But ALIGN_UP_POW2's own macro guard is `(alignment)>1 ? ... : (value)`, so ALIGN_UP_POW2(item_size,1)==item_size. Identical result for alignment==1; unchanged for all other alignments. Equivalent for every input."
-author = "proposals"
-created = "2026-06-10"
-region_hash = "sha256:3117ec9fbb519a27765c8a0875e806174175f8efbfa920b5990b447bb15c682d"
-
-[[ignore]]
 id = "VEC-3B95B9"
 file = "Source/Misra/Std/Container/Vec.c"
-lines = [569, 569]
+lines = [534, 534]
 mutator = "cxx_and_to_or"
 bucket = "C"
 rationale = "`!(v->__magic & MAGIC_VALIDATED_BIT)` -> `!(v->__magic | MAGIC_VALIDATED_BIT)`. ORing in bit 1<<63 is always non-zero, so `!(...)` is always false: the early return never fires and validate_vec_structural always runs (then the bit is cleared as before). For any vec that is actually valid, the structural invariants always hold, so running them redundantly produces no FATAL and no state change beyond clearing the memoization bit (which the original also clears when it does run). Within the library all structural mutations go through MARK_DIRTY, so no legitimate input reaches validate while structurally invalid yet memoized-clean. Observably identical (only extra read-only work)."
@@ -1216,3 +1205,25 @@ rationale = "Probe-exhaustion LOG_FATAL: not deadend-testable with a const_hash 
 author = "proposals"
 created = "2026-06-10"
 region_hash = "sha256:45347d80bd9591148a85a92c3a3b661d83d43cd343f7153ec3cebd18fcbd51aa"
+
+[[ignore]]
+id = "VEC-005"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [181, 181]
+mutator = "cxx_replace_scalar_call"
+bucket = "B"
+rationale = "clone_vec's `reserve_pow2_vec(dst, item_size, src->length)` is a pre-reserve optimization: it grows dst once up-front so the per-element insert loop (185-188) does not repeatedly realloc. Replacing the call with a constant skips the pre-reserve, but each subsequent insert_range_into_vec reserves on demand, so the clone still yields identical dst contents and length -- only the number of intermediate reallocations differs. Observably equivalent; performance-only."
+author = "proposals"
+created = "2026-06-15"
+region_hash = "sha256:ec155a82eba1d0fa924613ccdb98e3d115c0b6c826a01d54313fcc41b6dfb928"
+
+[[ignore]]
+id = "VEC-006"
+file = "Source/Misra/Std/Container/Vec.c"
+lines = [235, 235]
+mutator = "cxx_mul_to_div"
+bucket = "C"
+rationale = "Line 235 is the failure-rollback scrub in insert_range_into_vec: when a mid-insert copy_init fails, the partially-shifted bytes are zeroed before returning false. `count * item_size` -> `count / item_size` only shrinks the scrubbed span on an error path that is unreachable without fault injection (no fault-injection infra exists; see MULL-DISCOVERY-CONVENTIONS.md). The buffer is internal and length is restored on the failure return, so no caller observes the scrubbed bytes. Equivalent on every reachable input."
+author = "proposals"
+created = "2026-06-15"
+region_hash = "sha256:e7d4dac3bf9906d0666af0ae09c0a85b60ee9183af92cdd7d2068324b88bddfe"
