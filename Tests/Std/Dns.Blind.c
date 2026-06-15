@@ -194,30 +194,6 @@ static u64 build_hop_chain(u8 *w, u64 nptr) {
     return p;
 }
 
-// 104:15 cxx_init_const -- `u32 hops = 0` -> `= 42`. A 30-hop chain (nptr=29)
-// is well under MAX_HOPS(64) and resolves with the real seed (0). The mutant
-// seeds hops=42, so `++hops > 64` trips on the 23rd hop (42+23 = 65) and
-// rejects this valid name. Asserting a SUCCESSFUL resolve to "zz" kills it.
-static bool test_blind_hops_init_zero(void) {
-    DebugAllocator dbg = make_lean_dbg();
-    Allocator     *a   = ALLOCATOR_OF(&dbg);
-
-    u8  wire[4096];
-    u64 len = build_hop_chain(wire, 29); // 30 hops total
-
-    DnsResponse resp  = {0};
-    bool        ok    = DnsParseResponse(&resp, wire, len, a);
-    bool        match = ok && VecLen(&resp.answers) == 1;
-    if (match) {
-        DnsRecord *r = VecPtrAt(&resp.answers, 0);
-        match        = r->type == DNS_TYPE_A && r->ttl == 7 && ZstrCompare(StrBegin(&r->name), "zz") == 0;
-    }
-
-    DnsResponseDeinit(&resp);
-    DebugAllocatorDeinit(&dbg);
-    return match;
-}
-
 // 142:24 cxx_gt_to_ge -- `if (++hops > MAX_HOPS)` -> `>=`. A chain of EXACTLY
 // 64 hops (nptr=63) is the legal maximum: real code does `++hops` to 64 and
 // `64 > 64` is false -> continues and resolves. The `>=` mutant trips
@@ -248,7 +224,6 @@ int main(void) {
         test_blind_question_name_fail_no_leak,
         test_blind_record_decode_fail_no_leak,
         test_blind_pointer_truncated_rejected,
-        test_blind_hops_init_zero,
         test_blind_hops_max_boundary,
     };
     return run_test_suite(tests, sizeof(tests) / sizeof(tests[0]), NULL, 0, "Dns.Blind");

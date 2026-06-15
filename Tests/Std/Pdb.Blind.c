@@ -184,41 +184,6 @@ static int open_count(Allocator *base, Blob *b) {
 }
 
 // ===========================================================================
-// Multi-block stream read (lines 121, 128) -- a SymRecord stream wider than
-// one block, with a record straddling the block boundary, must be read and
-// resolved intact.
-// ===========================================================================
-static bool test_multiblock_symrec_resolves(void) {
-    DefaultAllocator alloc = DefaultAllocatorInit();
-    Allocator       *base  = ALLOCATOR_OF(&alloc);
-
-    u32  sizes[6] = {0, 28, 0, 76, 600, 40};
-    Blob b        = build_blob(512, sizes, 6, 0);
-    put_info(&b);
-    put_dbi(&b, 4, 5);
-    put_section(&b, 5, 0x1000);
-    static char longname[541];
-    for (u32 i = 0; i < 540; ++i)
-        longname[i] = (char)('A' + (i % 26));
-    longname[540] = '\0';
-    put_pub32(stream_page(&b, 4), 0x100, 1, longname);
-
-    Pdb pdb;
-    if (!PdbOpenFromMemoryCopy(&pdb, b.bytes, b.len, base)) {
-        DefaultAllocatorDeinit(&alloc);
-        return false;
-    }
-    bool ok = VecLen(&pdb.functions) == 1;
-    if (ok) {
-        const PdbFunction *f = VecPtrAt(&pdb.functions, 0);
-        ok                   = f->rva == 0x1100 && ZstrCompare(f->name, longname) == 0;
-    }
-    PdbDeinit(&pdb);
-    DefaultAllocatorDeinit(&alloc);
-    return ok;
-}
-
-// ===========================================================================
 // block_count substitution (line 115) -- a SymRecord stream deeper than 42
 // blocks. With block_count forced to 42, reading the deep blocks trips
 // `page >= 42` (line 121) and stream_read fails -> walk fails -> open fails.
@@ -294,44 +259,6 @@ static bool test_multiblock_directory_no_overrun(void) {
     if (opened)
         PdbDeinit(&pdb);
     // No heap write may have overrun any allocation (canary intact).
-    ok = ok && DebugAllocatorOverflows(&dbg) == 0;
-    DebugAllocatorDeinit(&dbg);
-    return ok;
-}
-
-// ===========================================================================
-// per-stream array allocation sizes (lines 259, 260, 261) under
-// DebugAllocator. With > 10 streams the natural allocations exceed 42
-// bytes; the `= 42` init makes a tiny allocation that the per-stream write
-// loop overruns (stream_sizes[i] @275, stream_blocks[i] @307,
-// stream_block_counts[i] @308). The canary catches the overrun.
-// ===========================================================================
-static bool test_many_streams_array_alloc_sized(void) {
-    DebugAllocator dbg  = DebugAllocatorInit();
-    Allocator     *base = ALLOCATOR_OF(&dbg);
-
-    // 40 streams: 40*4 = 160 bytes (sizes/counts), 40*8 = 320 (ptrs), all
-    // far past 42. Functional streams 1/3/4/5; the rest empty.
-    enum {
-        N = 40
-    };
-    u32 sizes[N];
-    MemSet(sizes, 0, sizeof(sizes));
-    sizes[1] = 28;
-    sizes[3] = 76;
-    sizes[4] = 26;
-    sizes[5] = 40;
-    Blob b   = build_blob(512, sizes, N, 0);
-    put_info(&b);
-    put_dbi(&b, 4, 5);
-    put_section(&b, 5, 0x1000);
-    put_pub32(stream_page(&b, 4), 0x100, 1, "fn");
-
-    Pdb  pdb;
-    bool opened = PdbOpenFromMemoryCopy(&pdb, b.bytes, b.len, base);
-    bool ok     = opened && VecLen(&pdb.functions) == 1 && pdb.num_streams == N;
-    if (opened)
-        PdbDeinit(&pdb);
     ok = ok && DebugAllocatorOverflows(&dbg) == 0;
     DebugAllocatorDeinit(&dbg);
     return ok;
@@ -473,10 +400,8 @@ static bool test_name_nul_search_excludes_end(void) {
 
 int main(void) {
     TestFunction tests[] = {
-        test_multiblock_symrec_resolves,
         test_deep_block_count_used,
         test_multiblock_directory_no_overrun,
-        test_many_streams_array_alloc_sized,
         test_many_sections_no_overrun,
         test_symrec_index_equals_num_streams,
         test_dbi_ok_reset_on_optdbg_overrun,

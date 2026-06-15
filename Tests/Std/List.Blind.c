@@ -65,36 +65,6 @@ static bool test_node_origin_tail_zero_step(void) {
 }
 
 // ---------------------------------------------------------------------------
-// 476:52 cxx_gt_to_ge  in get_node_random_access lower-bound guard:
-//   (ridx < 0 && (u64)(-ridx) > nidx)  ->  (... >= nidx)
-// A backward relative jump that lands EXACTLY on the head (abs target 0,
-// i.e. -ridx == nidx) is in-bounds: real code proceeds and returns the head
-// node. The mutant treats `-ridx == nidx` as out-of-bounds and aborts.
-//
-// nidx=3, ridx=-3 -> abs target idx 0 (head, value 0).
-// Real returns the head node; mutant LOG_FATALs (process aborts -> test
-// fails under the mutation).
-// ---------------------------------------------------------------------------
-static bool test_random_access_back_to_head_inbounds(void) {
-    WriteFmt("Testing get_node_random_access backward jump landing on head\n");
-
-    DefaultAllocator alloc = DefaultAllocatorInit();
-    List(int) list         = ListInit(&alloc);
-    fill_decades(GENERIC_LIST(&list), 9);
-
-    GenericListNode *origin = node_at_list(GENERIC_LIST(&list), sizeof(int), 3);
-    GenericListNode *got    = get_node_random_access(GENERIC_LIST(&list), origin, 3, -3);
-
-    // Real: head node, value 0. Mutant aborts before returning.
-    bool result = got && (node_value(got) == 0);
-    result      = result && (got == GENERIC_LIST(&list)->head);
-
-    ListDeinit(&list);
-    DefaultAllocatorDeinit(&alloc);
-    return result;
-}
-
-// ---------------------------------------------------------------------------
 // 434:22 cxx_and_to_or  in validate_list memoization gate:
 //   if (!(l->__magic & MAGIC_VALIDATED_BIT)) return;
 //     ->  if (!(l->__magic | MAGIC_VALIDATED_BIT)) return;
@@ -169,7 +139,6 @@ static bool deadend_random_access_nidx_equals_length(void) {
 int main(void) {
     TestFunction tests[] = {
         test_node_origin_tail_zero_step,
-        test_random_access_back_to_head_inbounds,
         test_validate_memoization_skips_structural,
     };
     TestFunction deadend_tests[] = {

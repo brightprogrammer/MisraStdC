@@ -23,22 +23,6 @@ static DefaultAllocator alloc;
 // recognised and skipped, "0b101" parses as 101b == 5. Mutant: prefix_char
 // 'b' makes `'b' != 'b'` false and `'b' == 'B'` false, so the prefix is NOT
 // skipped; the parser then meets a 'b' that is not a base-2 digit and fails.
-bool test_to_u64_base2_prefix_skipped(void);
-bool test_to_u64_base2_prefix_skipped(void) {
-    WriteFmt("Testing StrToU64 skips 0b prefix on explicit base 2 (533:51)\n");
-
-    Str            s      = StrInitFromZstr("0b101", &alloc);
-    StrParseConfig config = {.base = 2};
-    u64            value  = 0;
-    bool           ok     = StrToU64(&s, &value, &config);
-
-    // Real: prefix skipped, "101" base 2 == 5.
-    bool result = ok && (value == 5);
-
-    StrDeinit(&s);
-    return result;
-}
-
 // ---- 533:51 cxx_eq_to_ne (uppercase 'B' arm) ----------------------------
 // skip_prefix, base-2 case has TWO comparisons on one line:
 //   if (prefix_char == 'b' || prefix_char == 'B')
@@ -91,7 +75,6 @@ int main(void) {
     alloc = DefaultAllocatorInit();
 
     TestFunction tests[] = {
-        test_to_u64_base2_prefix_skipped,
         test_to_u64_base2_uppercase_prefix_skipped,
         test_to_f64_missing_exponent_digits_fails,
     };

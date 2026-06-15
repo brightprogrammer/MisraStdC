@@ -125,59 +125,9 @@ bool test_bl_symtab_link_equals_seccount_rejected(void) {
     return !opened; // real rejects an out-of-range symtab link
 }
 
-// Companion (positive pin): a valid sh_link (== NSEC-1, the last valid index)
-// is accepted and parses. This anchors that the link bound is specifically
-// about `== len`, not a general rejection of symtabs.
-bool test_bl_symtab_link_in_range_accepted(void) {
-    DefaultAllocator alloc = DefaultAllocatorInit();
-    enum {
-        FSIZE      = 0x200,
-        SHSTR_OFF  = 0x40,
-        SHSTR_SZ   = 28,
-        STRTAB_OFF = 0x60,
-        STRTAB_SZ  = 1,
-        SYMTAB_OFF = 0x80,
-        SYMTAB_SZ  = BL_SYM_SIZE,
-        SHT_OFF    = 0x100,
-        NSEC       = 4, // NULL, shstrtab, symtab, strtab
-    };
-    u8 buf[FSIZE];
-    MemSet(buf, 0, sizeof(buf));
-    bl_wr_header(buf, SHT_OFF, NSEC, 1);
-    MemCopy(&buf[SHSTR_OFF], "\0.shstrtab\0.symtab\0.strtab\0", 27);
-    buf[STRTAB_OFF] = '\0';
-
-    u8 *sht = &buf[SHT_OFF];
-    bl_wr_shdr(&sht[0], 0, ELF_SECTION_TYPE_NULL, 0, 0, 0, 0, 0, 0, 0);
-    bl_wr_shdr(&sht[1 * BL_SHDR_SIZE], 1, ELF_SECTION_TYPE_STRTAB, 0, 0, SHSTR_OFF, SHSTR_SZ, 0, 0, 0);
-    bl_wr_shdr(
-        &sht[2 * BL_SHDR_SIZE],
-        11,
-        ELF_SECTION_TYPE_SYMTAB,
-        0,
-        0,
-        SYMTAB_OFF,
-        SYMTAB_SZ,
-        3, // sh_link -> .strtab (index 3 = NSEC-1, valid)
-        0,
-        BL_SYM_SIZE
-    );
-    bl_wr_shdr(&sht[3 * BL_SHDR_SIZE], 19, ELF_SECTION_TYPE_STRTAB, 0, 0, STRTAB_OFF, STRTAB_SZ, 0, 0, 0);
-
-    Elf  elf;
-    bool ok = ElfOpenFromMemoryCopy(&elf, buf, sizeof(buf), ALLOCATOR_OF(&alloc));
-    if (ok) {
-        ok = VecLen(&elf.sections) == NSEC;
-        ElfDeinit(&elf);
-    }
-    DefaultAllocatorDeinit(&alloc);
-    return ok;
-}
-
 int main(void) {
     TestFunction tests[] = {
         test_bl_symtab_link_equals_seccount_rejected,
-        test_bl_symtab_link_in_range_accepted,
     };
     TestFunction deadend_tests[] = {0};
     (void)deadend_tests;

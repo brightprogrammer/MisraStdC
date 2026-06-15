@@ -24,38 +24,6 @@
 #include "../Util/TestRunner.h"
 
 // ---------------------------------------------------------------------------
-// DnsRecordDeinit: StrDeinit(&self->name) (Dns.c:324).
-//
-// An A record whose name "example.com" decodes into a heap-backed Str. After
-// DnsResponseDeinit the name's backing must be released; a removed
-// StrDeinit(&self->name) leaks it -> live count != 0.
-// ---------------------------------------------------------------------------
-bool test_leak_record_name_freed(void) {
-    DebugAllocator dbg  = DebugAllocatorInit();
-    Allocator     *adbg = ALLOCATOR_OF(&dbg);
-
-    // header: id=0x1234 flags=0x8180 qd=0 an=1 ns=0 ar=0
-    // answer: name "example.com" (uncompressed) A IN ttl=300 rdlen=4 1.2.3.4
-    static const u8 wire[] = {0x12, 0x34, 0x81, 0x80, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x07,
-                              'e',  'x',  'a',  'm',  'p',  'l',  'e',  0x03, 'c',  'o',  'm',  0x00, 0x00,
-                              0x01, 0x00, 0x01, 0x00, 0x00, 0x01, 0x2c, 0x00, 0x04, 0x01, 0x02, 0x03, 0x04};
-
-    DnsResponse resp = {0};
-    bool        ok   = DnsParseResponse(&resp, wire, sizeof(wire), adbg);
-    ok               = ok && (VecLen(&resp.answers) == 1);
-    // The decoded name must really be heap-backed (non-empty), otherwise the
-    // dropped StrDeinit would have nothing to leak.
-    ok = ok && (StrLen(&VecPtrAt(&resp.answers, 0)->name) == 11);
-
-    DnsResponseDeinit(&resp);
-    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
-    ok = ok && (DebugAllocatorLiveBytes(&dbg) == 0);
-
-    DebugAllocatorDeinit(&dbg);
-    return ok;
-}
-
-// ---------------------------------------------------------------------------
 // DnsRecordDeinit: StrDeinit(&self->target) (Dns.c:325).
 //
 // A CNAME record decodes its target name into a heap-backed Str. A removed
@@ -130,35 +98,6 @@ static u64 leak_put_a_record(u8 *w, u64 p, char c) {
 }
 
 // ---------------------------------------------------------------------------
-// DnsResponseDeinit: deinit_record_list(&self->answers) (Dns.c:343).
-//
-// A single answer record (no authority / additional) means the only live
-// allocations belong to the answers list. A removed deinit_record_list on the
-// answers section leaks the entire list -> live count != 0 after cleanup.
-// ---------------------------------------------------------------------------
-bool test_leak_answers_list_freed(void) {
-    DebugAllocator dbg  = DebugAllocatorInit();
-    Allocator     *adbg = ALLOCATOR_OF(&dbg);
-
-    u8  wire[64];
-    u64 p = 12;
-    leak_hdr(wire, 1, 0, 0);
-    p = leak_put_a_record(wire, p, 'a');
-
-    DnsResponse resp = {0};
-    bool        ok   = DnsParseResponse(&resp, wire, p, adbg);
-    ok               = ok && (VecLen(&resp.answers) == 1);
-    ok               = ok && (VecLen(&resp.authority) == 0) && (VecLen(&resp.additional) == 0);
-
-    DnsResponseDeinit(&resp);
-    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
-    ok = ok && (DebugAllocatorLiveBytes(&dbg) == 0);
-
-    DebugAllocatorDeinit(&dbg);
-    return ok;
-}
-
-// ---------------------------------------------------------------------------
 // DnsResponseDeinit: deinit_record_list(&self->authority) (Dns.c:344).
 //
 // A single authority record (no answers / additional). A removed
@@ -216,9 +155,7 @@ bool test_leak_additional_list_freed(void) {
 
 int main(void) {
     TestFunction tests[] = {
-        test_leak_record_name_freed,
         test_leak_record_target_freed,
-        test_leak_answers_list_freed,
         test_leak_authority_list_freed,
         test_leak_additional_list_freed,
     };

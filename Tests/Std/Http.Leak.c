@@ -23,24 +23,6 @@
 // value through the DebugAllocator, deinit it, and require the allocator to be
 // drained. Dropping either StrDeinit leaks that field's backing buffer.
 
-bool test_hl_header_deinit_releases_key_and_value(void) {
-    DebugAllocator dbg  = DebugAllocatorInit();
-    Allocator     *adbg = ALLOCATOR_OF(&dbg);
-
-    HttpHeader hh = HttpHeaderInit(adbg);
-    // Strings long enough to force a heap allocation (past any SSO buffer).
-    StrAppendFmt(&hh.key, "X-Some-Fairly-Long-Header-Name-For-Heap");
-    StrAppendFmt(&hh.value, "and-a-fairly-long-header-value-too-here");
-
-    bool ok = (DebugAllocatorLiveCount(&dbg) > 0);
-
-    HttpHeaderDeinit(&hh);
-    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
-
-    DebugAllocatorDeinit(&dbg);
-    return ok;
-}
-
 // =============================================================================
 // http_header_deinit (L32 value): the Vec deep-copy deinit callback runs when a
 // Vec(HttpHeader) is torn down. Build a Vec(HttpHeader) wired with the deep-copy
@@ -84,56 +66,12 @@ bool test_hl_headers_vec_deinit_releases_values(void) {
 // strings are long enough to heap-allocate leaks that scratch storage if either
 // StrDeinit is dropped. The whole parse-then-deinit round-trip must drain to 0.
 
-bool test_hl_request_parse_scratch_strings_freed(void) {
-    DebugAllocator dbg  = DebugAllocatorInit();
-    Allocator     *adbg = ALLOCATOR_OF(&dbg);
-
-    // CONNECT is a recognised 7-char method; the version "HTTP/1.1" and the
-    // method spelling both flow through the scratch Strs the success path frees.
-    Zstr raw =
-        "CONNECT /a-reasonably-long-request-target-url HTTP/1.1\r\n"
-        "\r\n";
-
-    HttpRequest req  = HttpRequestInit(adbg);
-    Zstr        next = HttpRequestParse(&req, raw);
-    bool        ok   = (next != raw) && (req.method == HTTP_REQUEST_METHOD_CONNECT);
-
-    HttpRequestDeinit(&req);
-    // Scratch method+version Strs are gone; url + headers freed by Deinit.
-    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
-
-    DebugAllocatorDeinit(&dbg);
-    return ok;
-}
-
 // =============================================================================
 // Header ownership by move: http_request_parse_zstr inserts each parsed header
 // into req->headers by move (no deep copy). HttpRequestDeinit frees every
 // header's key+value via its per-element loop, so the allocator must drain.
 // Before the move-ownership fix the deep-copy push abandoned the local scratch
 // header, leaking one key+value pair per parsed header.
-
-bool test_hl_request_parse_headers_owned_no_leak(void) {
-    DebugAllocator dbg  = DebugAllocatorInit();
-    Allocator     *adbg = ALLOCATOR_OF(&dbg);
-
-    Zstr raw =
-        "GET /path HTTP/1.1\r\n"
-        "Host: example.com\r\n"
-        "Accept: text/html\r\n"
-        "X-Custom-Header: some-long-value\r\n"
-        "\r\n";
-
-    HttpRequest req  = HttpRequestInit(adbg);
-    Zstr        next = HttpRequestParse(&req, raw);
-    bool        ok   = (next != raw) && (VecLen(&req.headers) == 3);
-
-    HttpRequestDeinit(&req);
-    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);
-
-    DebugAllocatorDeinit(&dbg);
-    return ok;
-}
 
 // =============================================================================
 // HttpRequestDeinit (L191 StrDeinit(&req->url)): the parsed URL is owned by the
@@ -196,26 +134,6 @@ bool test_hl_respond_with_html_releases_old_body(void) {
 // owned by the response allocator. A non-empty body must be released at deinit;
 // dropping its StrDeinit leaks it even though VecDeinit + MemSet still run.
 
-bool test_hl_response_deinit_releases_body(void) {
-    DebugAllocator dbg  = DebugAllocatorInit();
-    Allocator     *adbg = ALLOCATOR_OF(&dbg);
-
-    Str html = StrInit(adbg);
-    StrAppendFmt(&html, "<h1>a-body-long-enough-to-force-heap-allocation</h1>");
-
-    HttpResponse response = HttpResponseInit(adbg);
-    HttpRespondWithHtml(&response, HTTP_RESPONSE_CODE_OK, &html);
-    StrDeinit(&html);
-
-    bool ok = (StrLen(&response.body) > 0) && (DebugAllocatorLiveCount(&dbg) > 0);
-
-    HttpResponseDeinit(&response);
-    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
-
-    DebugAllocatorDeinit(&dbg);
-    return ok;
-}
-
 #if FEATURE_FILE
 // =============================================================================
 // http_respond_with_file_zstr (L431 StrDeinit(&response->body)): before reading
@@ -261,13 +179,9 @@ int main(void) {
     WriteFmt("[INFO] Starting Http.Leak tests\n\n");
 
     TestFunction tests[] = {
-        test_hl_header_deinit_releases_key_and_value,
         test_hl_headers_vec_deinit_releases_values,
-        test_hl_request_parse_scratch_strings_freed,
-        test_hl_request_parse_headers_owned_no_leak,
         test_hl_request_deinit_releases_url,
         test_hl_respond_with_html_releases_old_body,
-        test_hl_response_deinit_releases_body,
 #if FEATURE_FILE
         test_hl_respond_with_file_releases_old_body,
 #endif

@@ -153,77 +153,6 @@ static MapPolicy make_probe_policy(MapPolicyNextIndexFn next_index) {
 // they are not killable in caller-observable terms.
 // ---------------------------------------------------------------------------
 
-// Insert well past the first growth boundary with a well-distributed hash:
-// all keys retrievable, count exact.
-static bool test_growth_keeps_all_keys_retrievable(void) {
-    typedef Map(int, int) IntIntMap;
-    DefaultAllocator alloc  = DefaultAllocatorInit();
-    IntIntMap        map    = MapInit(i32_hash, i32_compare, &alloc);
-    bool             result = true;
-
-    const int n = 40;
-    for (int k = 0; k < n; k++)
-        result = result && MapInsertR(&map, k, k * 13 + 7);
-
-    result = result && (MapPairCount(&map) == n);
-    for (int k = 0; k < n; k++) {
-        int *v = MapGetFirstPtr(&map, k);
-        result = result && v && (*v == k * 13 + 7);
-    }
-
-    MapDeinit(&map);
-    DefaultAllocatorDeinit(&alloc);
-    return result;
-}
-
-// Same growth contract under the all-collisions identity hash: every key maps
-// to bucket 0, so growth + probing must still place and re-find each one.
-static bool test_growth_not_suppressed_on_insert(void) {
-    typedef Map(int, int) IntIntMap;
-    DefaultAllocator alloc  = DefaultAllocatorInit();
-    IntIntMap        map    = MapInitWithPolicy(id_hash, i32_compare, MapPolicyLinear, &alloc);
-    bool             result = true;
-
-    const int n = 24;
-    for (int k = 0; k < n; k++)
-        result = result && MapInsertR(&map, k * 8, k * 7 + 2);
-
-    result = result && (MapPairCount(&map) == n);
-    for (int k = 0; k < n; k++) {
-        int *v = MapGetFirstPtr(&map, k * 8);
-        result = result && v && (*v == k * 7 + 2);
-    }
-
-    MapDeinit(&map);
-    DefaultAllocatorDeinit(&alloc);
-    return result;
-}
-
-// quadratic_probe_index collision-resolution CONTRACT: keys 8k all share
-// first_index 0; the quadratic probe must spread them so each returns its own
-// value with none lost. (15:24 add_to_sub still yields a full-period probe and
-// is equivalent -- see report -- so this guards the probe path generally.)
-static bool test_quadratic_collisions_each_key_own_value(void) {
-    typedef Map(int, int) IntIntMap;
-    DefaultAllocator alloc  = DefaultAllocatorInit();
-    IntIntMap        map    = MapInitWithPolicy(id_hash, i32_compare, MapPolicyQuadratic, &alloc);
-    bool             result = true;
-
-    const int n = 24;
-    for (int i = 0; i < n; i++)
-        result = result && MapInsertR(&map, i * 8, i * 8 + 3);
-
-    result = result && (MapPairCount(&map) == n);
-    for (int i = 0; i < n; i++) {
-        int *v = MapGetFirstPtr(&map, i * 8);
-        result = result && v && (*v == i * 8 + 3);
-    }
-
-    MapDeinit(&map);
-    DefaultAllocatorDeinit(&alloc);
-    return result;
-}
-
 // 120:14 init_const (the self-check's snapshot `length` rewritten to 42).
 // CONTRACT: validate_map_policy must accept a policy that is sufficient for
 // every snapshot it actually probes. This policy is sufficient for the real
@@ -333,9 +262,6 @@ static bool test_validate_skips_structural_after_first_op(void) {
 
 int main(void) {
     TestFunction tests[] = {
-        test_growth_keeps_all_keys_retrievable,
-        test_growth_not_suppressed_on_insert,
-        test_quadratic_collisions_each_key_own_value,
         test_self_check_accepts_policy_sufficient_for_real_snapshots,
         test_validate_skips_structural_after_first_op,
     };

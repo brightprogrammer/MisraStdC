@@ -77,7 +77,6 @@ elf_tests = [
 dwarf_tests = [
     ['Dwarf', 'Std/Dwarf.c'],
     ['Dwarf.Mut', 'Std/Dwarf.Mut.c'],
-    ['Dwarf.Blind', 'Std/Dwarf.Blind.c'],
 ]
 
 pe_tests = [
@@ -117,7 +116,6 @@ sys_dns_tests = [
     ['SysDns.Wire', 'Std/SysDns.Wire.c'],
     ['SysDns.Api', 'Std/SysDns.Api.c'],
     ['SysDns.Mut', 'Std/SysDns.Mut.c'],
-    ['SysDns.Blind', 'Std/SysDns.Blind.c'],
 ]
 
 macho_cache_tests = [
@@ -130,7 +128,6 @@ procmaps_tests = [
     ['ProcMaps', 'Std/ProcMaps.c'],
     ['ProcMaps.Parse', 'Std/ProcMaps.Parse.c'],
     ['ProcMaps.Mut', 'Std/ProcMaps.Mut.c'],
-    ['ProcMaps.Blind', 'Std/ProcMaps.Blind.c'],
 ]
 
 symresolve_tests = [

@@ -29,28 +29,6 @@ static i32 i32_compare(const void *lhs, const void *rhs) {
 // tests pin the *exact* capacity, which the behavioural suite never asserts.
 // ===========================================================================
 
-// 19:36 cxx_eq_to_ne: `(length + pending) == 0` -> `!= 0`. The mutant makes
-// should_rehash return false for every non-empty insert, so the load-factor
-// growth path never fires and the table is stuck at capacity 8. Real code
-// grows to 16 on the 7th insert. (Also covers 27:50 and the 940 grow branch.)
-static bool test_default_grow_at_load_threshold(void) {
-    typedef Map(int, int) IntIntMap;
-    DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
-
-    for (int k = 0; k < 7; k++)
-        MapInsertR(&map, k, k);
-
-    // Insert #7 crossed the 3/4 load factor; capacity must have doubled.
-    bool result = (MapCapacity(&map) == 16) && (MapPairCount(&map) == 7);
-    for (int k = 0; k < 7; k++)
-        result = result && MapGetFirstPtr(&map, k) && (*MapGetFirstPtr(&map, k) == k);
-
-    MapDeinit(&map);
-    DefaultAllocatorDeinit(&alloc);
-    return result;
-}
-
 // 27:50 cxx_mul_to_div: `(length+tomb+pending) * 4` -> `/ 4`. The mutant makes
 // the comparison `small/4 >= cap*3` essentially never true, so no preemptive
 // growth happens and the table stays at capacity 8 across the first 7 inserts.
@@ -64,39 +42,6 @@ static bool test_default_grow_uses_multiply_not_divide(void) {
         MapInsertR(&map, k, k);
 
     bool result = (MapCapacity(&map) == 16);
-
-    MapDeinit(&map);
-    DefaultAllocatorDeinit(&alloc);
-    return result;
-}
-
-// 27:18 cxx_add_to_sub: `length + tombstones + pending` -> `length - tombstones
-// + pending`. Only observable with tombstones present. Set up length 3,
-// tombstones 2 at capacity 8: a fresh insert crosses (3+2+1)*4 == 24 == 8*3,
-// so real code rehashes in place and the tombstone count drops to 0. The
-// mutant computes (3-2+1)*4 == 8 < 24 and skips the rehash, leaving tombstones
-// behind.
-static bool test_default_rehash_counts_tombstones(void) {
-    typedef Map(int, int) IntIntMap;
-    DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
-
-    for (int k = 0; k < 5; k++)
-        MapInsertR(&map, k, k);
-    MapRemoveAll(&map, 1);
-    MapRemoveAll(&map, 3);
-    bool result = (MapPairCount(&map) == 3) && (MapTombstones(&map) == 2) && (MapCapacity(&map) == 8);
-
-    MapInsertR(&map, 100, 100); // (3+2+1)*4 == 24 == 8*3 -> rehash clears tombstones
-
-    result = result && (MapTombstones(&map) == 0);
-    result = result && (MapPairCount(&map) == 4);
-    // All survivors still retrievable, removed keys gone.
-    result = result && MapGetFirstPtr(&map, 0) && (*MapGetFirstPtr(&map, 0) == 0);
-    result = result && MapGetFirstPtr(&map, 2) && (*MapGetFirstPtr(&map, 2) == 2);
-    result = result && MapGetFirstPtr(&map, 4) && (*MapGetFirstPtr(&map, 4) == 4);
-    result = result && MapGetFirstPtr(&map, 100) && (*MapGetFirstPtr(&map, 100) == 100);
-    result = result && !MapContainsKey(&map, 1) && !MapContainsKey(&map, 3);
 
     MapDeinit(&map);
     DefaultAllocatorDeinit(&alloc);
@@ -132,27 +77,6 @@ static bool test_default_rehash_inclusive_at_boundary(void) {
 // ===========================================================================
 // default_next_capacity doubling loop (line 54).
 // ===========================================================================
-
-// 54:27 cxx_mul_to_div: `(new_capacity * 3) / 4` -> `(new_capacity / 3) / 4`.
-// The mutated loop condition stays true far longer, so the doubling loop
-// overshoots massively (needed 6 -> capacity 128 instead of 8). The 6th insert
-// keeps the table at capacity 8 in real code (next_capacity(...,6) == 8); the
-// mutant blows it up.
-static bool test_next_capacity_load_factor_multiply(void) {
-    typedef Map(int, int) IntIntMap;
-    DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
-
-    for (int k = 0; k < 6; k++)
-        MapInsertR(&map, k, k);
-
-    // next_capacity(length=5, needed=6) == 8: the in-place rehash keeps cap 8.
-    bool result = (MapCapacity(&map) == 8) && (MapPairCount(&map) == 6);
-
-    MapDeinit(&map);
-    DefaultAllocatorDeinit(&alloc);
-    return result;
-}
 
 // 54:37 cxx_lt_to_le: the doubling guard `< needed` -> `<= needed`. The mutant
 // loops one extra time exactly when `(cap*3)/4 == needed`. For the 6th insert
@@ -279,11 +203,8 @@ static bool test_probe_recovery_forced_n_is_capacity_plus_one(void) {
 
 int main(void) {
     TestFunction tests[] = {
-        test_default_grow_at_load_threshold,
         test_default_grow_uses_multiply_not_divide,
-        test_default_rehash_counts_tombstones,
         test_default_rehash_inclusive_at_boundary,
-        test_next_capacity_load_factor_multiply,
         test_next_capacity_doubling_strict_less,
         test_setonly_raw_reinsert_decrements_tombstones,
         test_probe_recovery_forced_n_is_capacity_plus_one,

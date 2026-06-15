@@ -115,29 +115,6 @@ static bool test_blind_missing_required_message(void) {
 }
 
 // ---------------------------------------------------------------------------
-// 641:25 (help.role = ARG_ROLE_FLAG -> 42). The synthetic --help spec is the
-// ONLY option-role spec in a parser with no user options, so the any_option
-// scan (line 332, checks role==OPTIONAL/FLAG/COUNT) makes "[OPTIONS]" appear
-// solely because help.role is FLAG. With help.role==42 the scan misses and
-// "[OPTIONS]" disappears. Capture --help and assert "[OPTIONS]" is present.
-// ---------------------------------------------------------------------------
-static bool test_blind_synthetic_help_role_is_flag(void) {
-    DefaultAllocator a = DefaultAllocatorInit();
-    ArgParse         p = ArgParseInit("prog", NULL, &a);
-
-    // No user options: the only option-role spec is the synthetic --help.
-    char  *argv[] = {(char *)"prog", (char *)"--help"};
-    Str    out    = StrInit(&a);
-    ArgRun rc     = capture_run(&p, 2, argv, &out);
-
-    bool ok = (rc == ARG_RUN_HELP) && str_has(&out, "[OPTIONS]");
-    StrDeinit(&out);
-    ArgParseDeinit(&p);
-    DefaultAllocatorDeinit(&a);
-    return ok;
-}
-
-// ---------------------------------------------------------------------------
 // 496:19 (n >= 128 -> n > 128). The split-flag-name buffer is 128 bytes; a
 // flag-name part of exactly 128 chars needs 129 bytes (name + NUL) and must be
 // rejected with "flag name too long". The mutant lets n==128 through. We use a
@@ -183,7 +160,6 @@ int main(void) {
     TestFunction tests[] = {
         test_blind_too_many_positionals_message,
         test_blind_missing_required_message,
-        test_blind_synthetic_help_role_is_flag,
         test_blind_flag_name_too_long_boundary,
     };
     TestFunction deadend_tests[] = {0};

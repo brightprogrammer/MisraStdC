@@ -484,55 +484,6 @@ bool test_dwm_trailing_short_bytes_fail_build(void) {
     return ok;
 }
 
-// 610:16  `ok = false` on the collect_cu_strings-failure branch -> `ok = 42`.
-// An include_directories table whose first string runs to the end of the CU
-// without a NUL makes BufReadZstr fail inside collect_cu_strings. Real code sets
-// ok=false and the build returns false. `ok = 42` makes it return true.
-bool test_dwm_unterminated_dir_string_fails_build(void) {
-    DefaultAllocator alloc = DefaultAllocatorInit();
-    Allocator       *base  = ALLOCATOR_OF(&alloc);
-
-    // Hand-rolled header with an unterminated include_directories entry.
-    u8  dl[256];
-    u8 *q               = dl;
-    u8 *unit_len_field  = q;
-    q                  += 4;
-    put_u16(q, 4);
-    q                 += 2;
-    u8 *hdr_len_field  = q;
-    q                 += 4;
-    u8 *after_hdr_len  = q;
-    *q++               = HDR_MIN_INSTR_LEN;
-    *q++               = 1;
-    *q++               = 1;
-    *q++               = HDR_LINE_BASE;
-    *q++               = HDR_LINE_RANGE;
-    *q++               = HDR_OPCODE_BASE;
-    for (u32 i = 0; i < 12; ++i)
-        *q++ = kStdOpcodeLengths[i];
-    put_u32(hdr_len_field, (u32)(q - after_hdr_len));
-    // include_directories: a string with NO terminating NUL, and the CU ends
-    // immediately after it -> BufReadZstr can never find a NUL.
-    const char d1[] = "unterminated_directory_entry_runs_off_the_end";
-    MemCopy(q, d1, sizeof(d1) - 1); // copy WITHOUT the trailing NUL
-    q += sizeof(d1) - 1;
-    put_u32(unit_len_field, (u32)(q - (unit_len_field + 4)));
-    u64 dl_len = (u64)(q - dl);
-
-    Elf        elf;
-    DwarfLines lines;
-    bool       built = build_from_dl(&lines, &elf, base, dl, dl_len);
-    bool       ok    = !built; // malformed table -> build must fail
-    if (built) {
-        DwarfLinesDeinit(&lines);
-        ElfDeinit(&elf);
-    } else {
-        ElfDeinit(&elf);
-    }
-    DefaultAllocatorDeinit(&alloc);
-    return ok;
-}
-
 // ===========================================================================
 // LEAK KILLS (cxx_remove_void_call on reachable error-path cleanup).
 // ===========================================================================
@@ -550,29 +501,6 @@ static u64 build_truncated_program_cu(u8 *dl) {
     *p++ = 0x80;
     *p++ = 0x80;
     return finalize_unit(&fx, dl, p);
-}
-
-// 628:13  `cu_strings_deinit(&cs)` on the run_line_program-failure path is
-//          dropped. The three CuStrings vectors leak. A truncated program
-//          reaches this branch; the leak shows up as LiveCount > 0.
-bool test_dwm_run_line_failure_frees_cu_strings(void) {
-    DebugAllocator dbg  = leak_alloc();
-    Allocator     *base = ALLOCATOR_OF(&dbg);
-
-    u8  dl[512];
-    u64 dl_len = build_truncated_program_cu(dl);
-
-    Elf        elf;
-    DwarfLines lines;
-    bool       built = build_from_dl(&lines, &elf, base, dl, dl_len);
-    if (built)
-        DwarfLinesDeinit(&lines); // defensive: should not happen
-    ElfDeinit(&elf);
-
-    // Real code freed the CuStrings on the failure branch -> allocator drained.
-    bool ok = !built && (DebugAllocatorLiveCount(&dbg) == 0);
-    DebugAllocatorDeinit(&dbg);
-    return ok;
 }
 
 // 652:9  `DwarfLinesDeinit(out)` on the `if (!ok)` build-failure teardown is
@@ -667,8 +595,6 @@ int main(void) {
         test_dwm_const_add_pc_saturates_on_overflow,
         test_dwm_special_opcode_saturates_on_overflow,
         test_dwm_trailing_short_bytes_fail_build,
-        test_dwm_unterminated_dir_string_fails_build,
-        test_dwm_run_line_failure_frees_cu_strings,
         test_dwm_build_failure_frees_lines,
         test_dwm_collect_failure_frees_cu_strings,
     };

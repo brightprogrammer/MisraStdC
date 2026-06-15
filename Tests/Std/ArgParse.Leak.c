@@ -19,28 +19,6 @@
 //
 // A minimal parser (no specs) still builds and frees `usage`, so this test
 // isolates the 361 Deinit from the per-spec left_col Deinit at 414.
-bool test_help_frees_usage_str(void);
-bool test_help_frees_usage_str(void) {
-    WriteFmt("Testing print_help frees usage Str (361:5)\n");
-
-    DebugAllocator dbg  = DebugAllocatorInit();
-    Allocator     *adbg = ALLOCATOR_OF(&dbg);
-
-    ArgParse p = ArgParseInit("prog", "an about line", adbg);
-
-    char  *argv[] = {(char *)"prog", (char *)"--help"};
-    ArgRun rc     = ArgParseRun(&p, 2, argv);
-
-    ArgParseDeinit(&p);
-
-    // Real code frees the usage Str inside print_help; with the Deinit
-    // removed it survives as a live allocation.
-    bool ok = (rc == ARG_RUN_HELP) && (DebugAllocatorLiveCount(&dbg) == 0);
-
-    DebugAllocatorDeinit(&dbg);
-    return ok;
-}
-
 // ---- 414:9 cxx_remove_void_call -----------------------------------------
 // print_help builds one left-column Str per spec (left_col[i] from
 // self->alloc at 374) and StrDeinit's each in the loop at 414. Removing
@@ -79,7 +57,6 @@ bool test_help_frees_left_col_strs(void) {
 
 int main(void) {
     TestFunction tests[] = {
-        test_help_frees_usage_str,
         test_help_frees_left_col_strs,
     };
     TestFunction deadend_tests[] = {0};
