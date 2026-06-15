@@ -90,8 +90,8 @@
 // Trigger the retention shrink policy when the allocator's footprint
 // is at least this large AND the in-use ratio drops below the half-
 // of-footprint mark. Below this threshold the allocator keeps every
-// freed page retained -- AllocFreePair-style hot-reuse workloads
-// stay hot and benchmarks at small sizes don't churn munmap/mmap.
+// freed page retained -- small hot-reuse workloads stay hot and
+// don't churn munmap/mmap.
 // Real workloads holding tens of MiB or more get retention bled back
 // to the kernel when their working set shrinks.
 #define HEAP_FOOTPRINT_SHRINK_THRESHOLD (1u << 20) // 1 MiB
@@ -134,7 +134,7 @@ extern "C" {
     // cache line. Without the alignment, the natural sizeof() (56)
     // leaves the tail of every bucket bleeding into the first 8 bytes
     // of the next cache line, doubling the probe cost on hit and
-    // adding measurable latency to BM_AllocFreePair on small sizes.
+    // adding measurable latency to hot alloc/free pairs at small sizes.
     // This is the documented hardware-constraint carve-out in the
     // macro-hygiene section of CODING-CONVENTIONS.md.
     typedef struct HeapPage {

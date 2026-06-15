@@ -59,7 +59,7 @@ typedef HeapAllocator DefaultAllocator;
 /// time: `HeapAllocator` by default; `DebugAllocator` when
 /// `FEATURE_DEFAULT_ALLOC_DEBUG` is on (with page-backed UAF detection
 /// layered on top when `FEATURE_DEFAULT_ALLOC_DEBUG_PAGE_BACKED` is
-/// also on). Tests / Fuzz / Bench code calls this and gets the project's
+/// also on). Tests and Fuzz code call this and get the project's
 /// recommended allocator for the current build.
 ///
 /// SUCCESS : Returns an initialised `DefaultAllocator` by value.

@@ -285,8 +285,9 @@ freestanding = (get_option('b_sanitize') == 'none') and not get_option('disable_
 # rewriting the Mem* byte loops into `call memset`/`memcpy`. Without
 # this, our `_Freestanding.c` shim shadows libc's symbol and the
 # rewritten call recurses infinitely at runtime on -O2+ builds. C
-# only because C++ stdlib (used by the benchmark harness) explicitly
-# refuses to compile under `-ffreestanding`.
+# only because `-ffreestanding` is a C-language flag; scoping it to C
+# keeps it off any C++ TU, whose standard library refuses to compile
+# under `-ffreestanding`.
 if freestanding and cc.has_argument('-ffreestanding')
     add_project_arguments('-ffreestanding', language: 'c')
 endif

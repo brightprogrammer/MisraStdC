@@ -543,7 +543,7 @@ static FORCE_INLINE void heap_reclaim_empty_page(HeapAllocator *heap, u32 idx) {
     // Keep one warm page per class. Reclaiming the only warm page of a
     // class makes the next alloc grow_class right back, pop from recycle,
     // and re-stamp a fresh HeapPage descriptor (two 32-byte AVX moves on
-    // x86_64) -- the cycles that the AllocFreePair-shaped workload pays
+    // x86_64) -- the cycles that a hot alloc/free-pair workload pays
     // again and again if the guard is missing.
     //
     // The check is intentionally only against the warm list, not full
@@ -570,7 +570,7 @@ static FORCE_INLINE void heap_reclaim_empty_page(HeapAllocator *heap, u32 idx) {
 // first, then recycle) until footprint is at most three-quarters of
 // its old value. Only entered when the inlined fast check below has
 // already confirmed the policy is triggered, so the body never runs
-// on hot AllocFreePair iterations.
+// on hot alloc/free-pair iterations.
 static void heap_shrink_retention(HeapAllocator *heap) {
     u64 footprint = (u64)heap->base.footprint_bytes;
     u64 target    = footprint - footprint / 4u; // 75% of current
@@ -595,10 +595,10 @@ static void heap_shrink_retention(HeapAllocator *heap) {
 // heap_allocator_deallocate so the common case (no shrink needed)
 // doesn't cost a function call.
 //
-// The threshold protects benchmarks at small sizes -- AllocFreePair at
-// any size stays well under 1 MiB footprint, so retention persists for
-// hot reuse. Real workloads holding tens of MiB or more get retention
-// bled back to the kernel when their working set shrinks.
+// The threshold protects small hot-reuse workloads -- an alloc/free
+// pair at any size stays well under 1 MiB footprint, so retention
+// persists for hot reuse. Real workloads holding tens of MiB or more
+// get retention bled back to the kernel when their working set shrinks.
 static FORCE_INLINE void heap_maybe_shrink_retention(HeapAllocator *heap) {
     u64 footprint = (u64)heap->base.footprint_bytes;
     if (footprint < HEAP_FOOTPRINT_SHRINK_THRESHOLD)

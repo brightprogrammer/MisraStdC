@@ -149,7 +149,7 @@ extern "C" {
         // a single direct field load through
         // `AllocatorFootprintBytes(a)`. Not gated on
         // FEATURE_ALLOC_STATS -- footprint is independently useful
-        // (e.g. fragmentation ratios for the benchmark harness).
+        // (e.g. fragmentation-ratio introspection).
         size footprint_bytes;
 #if FEATURE_ALLOC_STATS
         AllocatorStats stats;

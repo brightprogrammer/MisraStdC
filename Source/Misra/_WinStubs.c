@@ -127,7 +127,7 @@ __attribute__((used)) int _fltused = 0x9875;
 // (4) UCRT <stdio.h> inline-function fallout. <stdio.h> has __inline
 //     defs of sprintf/snprintf/_vsnprintf_l that bottom out at
 //     __stdio_common_vsprintf (dllimport). Any TU that pulls <stdio.h>
-//     (e.g. test/bench harnesses that include it explicitly, or a
+//     (e.g. a test harness that includes it explicitly, or a
 //     misbehaving downstream consumer) instantiates the inlines, so
 //     the linker sees calls to it even though libmisra_std itself
 //     never calls sprintf. Provide a stub that returns -1 (sprintf's
