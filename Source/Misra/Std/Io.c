@@ -1776,22 +1776,23 @@ bool _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
                         return false;
                     }
                 }
-                Str hex = StrInit(StrAllocator(o));
-                if (!StrFromU64(&hex, c, &config)) {
-                    StrDeinit(&hex);
-                    return false;
-                }
-                if (StrLen(&hex) == 1) {
-                    if (!StrPushFrontR(&hex, '0')) {
-                        StrDeinit(&hex);
+                // Hex of one byte is <= 2 glyphs (+ a leading '0' pad), so
+                // an 8-byte stack scratch suffices; no allocator needed.
+                StrInitStack(hex, 8) {
+                    // (u8) so a high byte (>= 0x80) renders as its two-digit
+                    // value, not a sign-extended 16-digit u64 (cf. site below).
+                    if (!StrFromU64(&hex, (u8)c, &config)) {
+                        return false;
+                    }
+                    if (StrLen(&hex) == 1) {
+                        if (!StrPushFrontR(&hex, '0')) {
+                            return false;
+                        }
+                    }
+                    if (!StrPushBackMany(o, "0x") || !StrMergeR(o, &hex)) {
                         return false;
                     }
                 }
-                if (!StrPushBackMany(o, "0x") || !StrMerge(o, &hex)) {
-                    StrDeinit(&hex);
-                    return false;
-                }
-                StrDeinit(&hex);
             }
         } else {
             // `precision` truncates to at most N chars (mirrors Python's
@@ -1863,23 +1864,22 @@ bool _write_Zstr(Str *o, FmtInfo *fmt_info, Zstr *s) {
                         return false;
                     }
                 }
-                Str          hex    = StrInit(StrAllocator(o));
                 StrIntFormat config = {.base = 16, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0};
-                if (!StrFromU64(&hex, (u8)xs[i], &config)) {
-                    StrDeinit(&hex);
-                    return false;
-                }
-                if (StrLen(&hex) == 1) {
-                    if (!StrPushFrontR(&hex, '0')) {
-                        StrDeinit(&hex);
+                // Hex of one byte is <= 2 glyphs (+ a leading '0' pad), so
+                // an 8-byte stack scratch suffices; no allocator needed.
+                StrInitStack(hex, 8) {
+                    if (!StrFromU64(&hex, (u8)xs[i], &config)) {
+                        return false;
+                    }
+                    if (StrLen(&hex) == 1) {
+                        if (!StrPushFrontR(&hex, '0')) {
+                            return false;
+                        }
+                    }
+                    if (!StrPushBackMany(o, "0x") || !StrMergeR(o, &hex)) {
                         return false;
                     }
                 }
-                if (!StrPushBackMany(o, "0x") || !StrMerge(o, &hex)) {
-                    StrDeinit(&hex);
-                    return false;
-                }
-                StrDeinit(&hex);
                 i++;
             }
         } else {
@@ -1951,11 +1951,6 @@ bool _write_u64(Str *o, FmtInfo *fmt_info, u64 *v) {
     // size of just-this-field, not the accumulated buffer.
     size start_len = StrLen(o);
 
-    // Format into a scratch Str first, then merge into `o`: keeps the
-    // base-prefix / sign / padding logic from having to reach into
-    // `o`'s prefix bytes after the fact.
-    Str temp = StrInit(StrAllocator(o));
-
     u8 base = 10;
     if (fmt_info->flags & FMT_FLAG_HEX) {
         base = 16;
@@ -1971,16 +1966,20 @@ bool _write_u64(Str *o, FmtInfo *fmt_info, u64 *v) {
     bool         zero_pad   = (fmt_info->flags & FMT_FLAG_ZERO_PAD) != 0;
     bool         use_prefix = (base != 10) && !zero_pad;
     StrIntFormat config = {.base = base, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0, .use_prefix = use_prefix};
-    if (!StrFromU64(&temp, *v, &config)) {
-        StrDeinit(&temp);
-        return false;
-    }
 
-    if (!StrMerge(o, &temp)) {
-        StrDeinit(&temp);
-        return false;
+    // Render into a stack scratch, then merge into `o`: keeps the base-
+    // prefix / sign / padding logic self-contained. A u64 in binary (64
+    // digits + "0b") is the longest, so 80 bytes covers every base. No
+    // allocator needed -- and `o` itself may be a stack Str (e.g. the
+    // LOG_SYS_* errno scratch), which has no allocator to inherit.
+    StrInitStack(temp, 80) {
+        if (!StrFromU64(&temp, *v, &config)) {
+            return false;
+        }
+        if (!StrMergeR(o, &temp)) {
+            return false;
+        }
     }
-    StrDeinit(&temp);
 
     if (fmt_info->width > 0) {
         size content_len = StrLen(o) - start_len;
@@ -2052,11 +2051,6 @@ bool _write_i64(Str *o, FmtInfo *fmt_info, i64 *v) {
     // size of just-this-field, not the accumulated buffer.
     size start_len = StrLen(o);
 
-    // Format into a scratch Str first, then merge into `o`: keeps the
-    // base-prefix / sign / padding logic from having to reach into
-    // `o`'s prefix bytes after the fact.
-    Str temp = StrInit(StrAllocator(o));
-
     u8 base = 10;
     if (fmt_info->flags & FMT_FLAG_HEX) {
         base = 16;
@@ -2071,16 +2065,18 @@ bool _write_i64(Str *o, FmtInfo *fmt_info, i64 *v) {
     bool         zero_pad   = (fmt_info->flags & FMT_FLAG_ZERO_PAD) != 0;
     bool         use_prefix = (base != 10) && !zero_pad;
     StrIntFormat config = {.base = base, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0, .use_prefix = use_prefix};
-    if (!StrFromI64(&temp, *v, &config)) {
-        StrDeinit(&temp);
-        return false;
-    }
 
-    if (!StrMerge(o, &temp)) {
-        StrDeinit(&temp);
-        return false;
+    // Render into a stack scratch, then merge into `o` (see _write_u64):
+    // 80 bytes covers an i64 in any base (binary 64 + "0b" + sign). No
+    // allocator needed -- `o` may itself be a stack Str.
+    StrInitStack(temp, 80) {
+        if (!StrFromI64(&temp, *v, &config)) {
+            return false;
+        }
+        if (!StrMergeR(o, &temp)) {
+            return false;
+        }
     }
-    StrDeinit(&temp);
 
     if (fmt_info->width > 0) {
         size content_len = StrLen(o) - start_len;
@@ -2190,24 +2186,25 @@ bool _write_f64(Str *o, FmtInfo *fmt_info, f64 *v) {
         // Format into a scratch Str first then merge -- same rationale
         // as the integer renderers: padding/sign accounting wants a
         // self-contained slice it can measure.
-        Str temp = StrInit(StrAllocator(o));
-
         u8             precision = fmt_info->flags & FMT_FLAG_HAS_PRECISION ? fmt_info->precision : 6;
         StrFloatFormat config    = {
                .precision = precision,
                .force_sci = (fmt_info->flags & FMT_FLAG_SCIENTIFIC) != 0,
                .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0
         };
-        if (!StrFromF64(&temp, *v, &config)) {
-            StrDeinit(&temp);
-            return false;
-        }
 
-        if (!StrMerge(o, &temp)) {
-            StrDeinit(&temp);
-            return false;
+        // Render into a stack scratch, then merge into `o` (see
+        // _write_u64). The longest %f is near DBL_MAX: ~309 integer
+        // digits + '.' + precision (u8, <= 255) + sign, so 1024 bytes
+        // covers it with margin. No allocator -- `o` may be a stack Str.
+        StrInitStack(temp, 1024) {
+            if (!StrFromF64(&temp, *v, &config)) {
+                return false;
+            }
+            if (!StrMergeR(o, &temp)) {
+                return false;
+            }
         }
-        StrDeinit(&temp);
     }
 
     if (fmt_info->width > 0) {

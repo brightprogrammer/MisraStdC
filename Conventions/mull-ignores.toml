@@ -2744,92 +2744,15 @@ created     = "2026-06-27"
 region_hash = "sha256:ea4eb234a54dd665c78a32c527d2b55322ba5625bf04c8db30ea16594be11c72"
 
 [[ignore]]
-id          = "IO-B-1781-remove_void_call"
-file        = "Source/Misra/Std/Io.c"
-lines       = [1781, 1781]
-mutator     = "cxx_remove_void_call"
-bucket      = "B"
-rationale   = "StrDeinit(&hex) on the `if (!StrFromU64(...))` error branch. Reachable only when StrFromU64 fails = allocation fault; no fault-injection infra, so the leak is non-observable. Approved alloc-failure-cleanup ignore."
-author      = "Siddharth Mishra"
-created     = "2026-06-27"
-region_hash = "sha256:dab0767b305211d521ca1768cbda601c8fe43310478bdf18914ac26604fd52b6"
-
-[[ignore]]
-id          = "IO-B-1786-remove_void_call"
-file        = "Source/Misra/Std/Io.c"
-lines       = [1786, 1786]
-mutator     = "cxx_remove_void_call"
-bucket      = "B"
-rationale   = "StrDeinit(&hex) on the `if (!StrPushFrontR(&hex,'0'))` error branch -- reachable only under allocation failure of PushFront. Non-observable without fault injection."
-author      = "Siddharth Mishra"
-created     = "2026-06-27"
-region_hash = "sha256:dab0767b305211d521ca1768cbda601c8fe43310478bdf18914ac26604fd52b6"
-
-[[ignore]]
-id          = "IO-B-1791-remove_void_call"
-file        = "Source/Misra/Std/Io.c"
-lines       = [1791, 1791]
-mutator     = "cxx_remove_void_call"
-bucket      = "B"
-rationale   = "StrDeinit(&hex) on the `if (!StrPushBackMany(o,\"0x\") || !StrMerge(o,&hex))` error branch -- reachable only under allocation failure. Non-observable without fault injection."
-author      = "Siddharth Mishra"
-created     = "2026-06-27"
-region_hash = "sha256:dab0767b305211d521ca1768cbda601c8fe43310478bdf18914ac26604fd52b6"
-
-[[ignore]]
 id          = "IO-C-1831-gt_to_ge"
 file        = "Source/Misra/Std/Io.c"
-lines       = [1831, 1831]
+lines       = [1832, 1832]
 mutator     = "cxx_gt_to_ge"
 bucket      = "C"
 rationale   = "`fmt_info->width > 0` -> `>= 0`. width is u32 (Io.h:97), so `>= 0` is always true, making StrPad always run. But StrPad is documented (Io.h:360) to be a no-op when content_len >= width; with width==0, content_len (size, unsigned) >= 0 always holds, so the extra call pads nothing and returns true. No observable difference in rendered bytes."
 author      = "Siddharth Mishra"
 created     = "2026-06-27"
 region_hash = "sha256:cdefa8d13c340613aba0889eab2abdd4f362313fe8d33da24fb9692659cf95ae"
-
-[[ignore]]
-id          = "IO-B-1869-remove_void_call"
-file        = "Source/Misra/Std/Io.c"
-lines       = [1869, 1869]
-mutator     = "cxx_remove_void_call"
-bucket      = "B"
-rationale   = "_write_Zstr hex path: StrDeinit(&hex) on the StrFromU64-failure branch. StrFromU64 only fails on allocation failure; no fault-injection hook, so the leak is unobservable on any reachable success path."
-author      = "Siddharth Mishra"
-created     = "2026-06-27"
-region_hash = "sha256:dab0767b305211d521ca1768cbda601c8fe43310478bdf18914ac26604fd52b6"
-
-[[ignore]]
-id          = "IO-B-1874-remove_void_call"
-file        = "Source/Misra/Std/Io.c"
-lines       = [1874, 1874]
-mutator     = "cxx_remove_void_call"
-bucket      = "B"
-rationale   = "_write_Zstr hex path: StrDeinit(&hex) on the StrPushFrontR('0')-failure branch. Reached only on alloc failure; non-observable without fault injection."
-author      = "Siddharth Mishra"
-created     = "2026-06-27"
-region_hash = "sha256:dab0767b305211d521ca1768cbda601c8fe43310478bdf18914ac26604fd52b6"
-
-[[ignore]]
-id          = "IO-B-1879-remove_void_call"
-file        = "Source/Misra/Std/Io.c"
-lines       = [1879, 1879]
-mutator     = "cxx_remove_void_call"
-bucket      = "B"
-rationale   = "_write_Zstr hex path: StrDeinit(&hex) on the (StrPushBackMany||StrMerge) failure branch. Only reachable on alloc failure; non-observable."
-author      = "Siddharth Mishra"
-created     = "2026-06-27"
-region_hash = "sha256:dab0767b305211d521ca1768cbda601c8fe43310478bdf18914ac26604fd52b6"
-
-[[ignore]]
-id          = "IO-C-1882-remove_void_call"
-file        = "Source/Misra/Std/Io.c"
-lines       = [1882, 1882]
-mutator     = "cxx_remove_void_call"
-bucket      = "C"
-rationale   = "_write_Zstr hex success path: this StrDeinit(&hex) runs AFTER a successful StrMerge(o,&hex). StrMerge=StrMergeL=vec_merge_l, and vec_release_merged_source_on_success frees hex->data and nulls it on success (o has no copy_init). So hex is already empty; StrDeinit is a no-op and removing it leaks nothing."
-author      = "Siddharth Mishra"
-created     = "2026-06-27"
-region_hash = "sha256:dab0767b305211d521ca1768cbda601c8fe43310478bdf18914ac26604fd52b6"
 
 [[ignore]]
 id          = "IO-C-1919-gt_to_ge"
@@ -2843,31 +2766,9 @@ created     = "2026-06-27"
 region_hash = "sha256:cdefa8d13c340613aba0889eab2abdd4f362313fe8d33da24fb9692659cf95ae"
 
 [[ignore]]
-id          = "IO-B-1980-remove_void_call"
-file        = "Source/Misra/Std/Io.c"
-lines       = [1980, 1980]
-mutator     = "cxx_remove_void_call"
-bucket      = "B"
-rationale   = "_write_u64: StrDeinit(&temp) on the StrMerge-failure branch. StrMerge fails only on alloc failure (and leaves temp unchanged); non-observable without fault injection."
-author      = "Siddharth Mishra"
-created     = "2026-06-27"
-region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c66a8c3"
-
-[[ignore]]
-id          = "IO-C-1983-remove_void_call"
-file        = "Source/Misra/Std/Io.c"
-lines       = [1983, 1983]
-mutator     = "cxx_remove_void_call"
-bucket      = "C"
-rationale   = "_write_u64 success path: StrDeinit(&temp) runs after a successful StrMerge(o,&temp), which (vec_merge_l, no copy_init on o) already freed temp->data and nulled it. temp is empty; the Deinit is a no-op, removing it leaks nothing."
-author      = "Siddharth Mishra"
-created     = "2026-06-27"
-region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c66a8c3"
-
-[[ignore]]
 id          = "IO-C-1985-gt_to_ge"
 file        = "Source/Misra/Std/Io.c"
-lines       = [1985, 1985]
+lines       = [1984, 1984]
 mutator     = "cxx_gt_to_ge"
 bucket      = "C"
 rationale   = "_write_u64: width is u32; width>=0 always true, but at width==0 both pad_numeric_zeros and StrPad short-circuit on content_len>=width. No observable change."
@@ -2876,42 +2777,9 @@ created     = "2026-06-27"
 region_hash = "sha256:cdefa8d13c340613aba0889eab2abdd4f362313fe8d33da24fb9692659cf95ae"
 
 [[ignore]]
-id          = "IO-B-2075-remove_void_call"
-file        = "Source/Misra/Std/Io.c"
-lines       = [2075, 2075]
-mutator     = "cxx_remove_void_call"
-bucket      = "B"
-rationale   = "_write_i64: StrDeinit(&temp) on the StrFromI64-failure branch. Only reachable on alloc failure; non-observable without fault injection."
-author      = "Siddharth Mishra"
-created     = "2026-06-27"
-region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c66a8c3"
-
-[[ignore]]
-id          = "IO-B-2080-remove_void_call"
-file        = "Source/Misra/Std/Io.c"
-lines       = [2080, 2080]
-mutator     = "cxx_remove_void_call"
-bucket      = "B"
-rationale   = "_write_i64: StrDeinit(&temp) on the StrMerge-failure branch. Only reachable on alloc failure; non-observable."
-author      = "Siddharth Mishra"
-created     = "2026-06-27"
-region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c66a8c3"
-
-[[ignore]]
-id          = "IO-C-2083-remove_void_call"
-file        = "Source/Misra/Std/Io.c"
-lines       = [2083, 2083]
-mutator     = "cxx_remove_void_call"
-bucket      = "C"
-rationale   = "_write_i64 success path: StrDeinit(&temp) runs after successful StrMerge, which already freed and nulled temp->data (no copy_init on o). temp empty; Deinit is a no-op, removal leaks nothing."
-author      = "Siddharth Mishra"
-created     = "2026-06-27"
-region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c66a8c3"
-
-[[ignore]]
 id          = "IO-C-2085-gt_to_ge"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2085, 2085]
+lines       = [2081, 2081]
 mutator     = "cxx_gt_to_ge"
 bucket      = "C"
 rationale   = "_write_i64: width is u32; width>=0 always true, but width==0 makes pad_numeric_zeros/StrPad short-circuit (content_len>=0). No observable difference."
@@ -2922,7 +2790,7 @@ region_hash = "sha256:cdefa8d13c340613aba0889eab2abdd4f362313fe8d33da24fb9692659
 [[ignore]]
 id          = "IO-C-2174-lt_to_le"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2174, 2174]
+lines       = [2170, 2170]
 mutator     = "cxx_lt_to_le"
 bucket      = "C"
 rationale   = "_write_f64 inf branch: guarded by F64IsInf(*v), so *v is +inf or -inf, never 0. *v<0 vs *v<=0 differ only at *v==0, which is unreachable here; -inf still gets '-', +inf still does not."
@@ -2933,7 +2801,7 @@ region_hash = "sha256:679e31f9776709555f639dfe94195b0ce4077234dcf490f34a97a37708
 [[ignore]]
 id          = "IO-C-2195-and_to_or"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2195, 2195]
+lines       = [2189, 2189]
 mutator     = "cxx_and_to_or"
 bucket      = "C"
 rationale   = "_write_f64: ternary `flags & FMT_FLAG_HAS_PRECISION ? fmt_info->precision : 6`. fmt_info->precision DEFAULTS to 6 (parse_format_spec sets .precision=6 when no '.N'). Mutating & to | makes the condition always true so it always reads fmt_info->precision, but when HAS_PRECISION is unset that value is exactly 6 = the else branch. Same rendered precision in every case; equivalent."
@@ -2942,31 +2810,9 @@ created     = "2026-06-27"
 region_hash = "sha256:2c9c123c15abf0fd9aa1e947a5f00210179eda74ce982ec8c1b041f5db7498e9"
 
 [[ignore]]
-id          = "IO-B-2202-remove_void_call"
-file        = "Source/Misra/Std/Io.c"
-lines       = [2202, 2202]
-mutator     = "cxx_remove_void_call"
-bucket      = "B"
-rationale   = "_write_f64: StrDeinit(&temp) on the StrFromF64-failure branch. Only reachable on alloc failure; non-observable without fault injection."
-author      = "Siddharth Mishra"
-created     = "2026-06-27"
-region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c66a8c3"
-
-[[ignore]]
-id          = "IO-B-2207-remove_void_call"
-file        = "Source/Misra/Std/Io.c"
-lines       = [2207, 2207]
-mutator     = "cxx_remove_void_call"
-bucket      = "B"
-rationale   = "StrDeinit(&temp) on the StrMerge-FAILURE branch of _write_f64. StrMerge only fails on alloc failure; with a DebugAllocator-backed `o` that branch is never taken in a normal test, so the dropped Deinit is non-observable without fault injection. Approved error-branch ignore (source frees correctly on success path at 2210)."
-author      = "Siddharth Mishra"
-created     = "2026-06-27"
-region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c66a8c3"
-
-[[ignore]]
 id          = "IO-C-2213-gt_to_ge"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2213, 2213]
+lines       = [2210, 2210]
 mutator     = "cxx_gt_to_ge"
 bucket      = "C"
 rationale   = "width is u32; `width>0`->`width>=0` is always-true, so when width==0 the mutant calls StrPad(o,0,align,content_len). StrPad early-returns true when content_len>=width (256-258), and content_len(size)>=0 always, so it is a no-op. No observable byte difference."
@@ -2977,7 +2823,7 @@ region_hash = "sha256:cdefa8d13c340613aba0889eab2abdd4f362313fe8d33da24fb9692659
 [[ignore]]
 id          = "IO-C-2243-init_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2243, 2243]
+lines       = [2240, 2240]
 mutator     = "cxx_init_const"
 bucket      = "C"
 rationale   = "start_len=0 in _write_Float is unconditionally overwritten by start_len=StrLen(o) at 2258 before its first read at 2289. The intervening LOG_FATAL paths (2247,2255) never read it. Init value is dead; 42 is never observed."
@@ -2988,7 +2834,7 @@ region_hash = "sha256:13ee06b4c3e6d6e6ee779ca7422545bf7aa8cab3953abf80743519b0cb
 [[ignore]]
 id          = "IO-C-2251-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2251, 2251]
+lines       = [2248, 2248]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "ValidateStr(o) only aborts on already-corrupt Str state; on valid input it has no observable effect. Removing it is equivalent."
@@ -2999,7 +2845,7 @@ region_hash = "sha256:02a35129729fa2514030b34029d848275e7848353d9229b08d91100a26
 [[ignore]]
 id          = "IO-C-2252-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2252, 2252]
+lines       = [2249, 2249]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "ValidateFloat(value) only aborts on already-corrupt Float state; no observable effect on valid input. Equivalent."
@@ -3010,7 +2856,7 @@ region_hash = "sha256:b53436ceb9b4ff96fa528da07f5f886309b44689b8d649acd2e667e695
 [[ignore]]
 id          = "IO-B-2283-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2283, 2283]
+lines       = [2280, 2280]
 mutator     = "cxx_remove_void_call"
 bucket      = "B"
 rationale   = "StrDeinit(&temp) on the StrMerge-FAILURE branch of _write_Float. StrMerge fails only on alloc failure; branch unreachable without fault injection, so dropping the Deinit is non-observable. Success-path Deinit at 2286 frees correctly."
@@ -3021,7 +2867,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-C-2288-gt_to_ge"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2288, 2288]
+lines       = [2285, 2285]
 mutator     = "cxx_gt_to_ge"
 bucket      = "C"
 rationale   = "Same as 2213: width u32, `width>0`->`width>=0` always true; StrPad(o,0,...) is a no-op since content_len>=0>=width. No observable change."
@@ -3032,7 +2878,7 @@ region_hash = "sha256:cdefa8d13c340613aba0889eab2abdd4f362313fe8d33da24fb9692659
 [[ignore]]
 id          = "IO-C-2310-init_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2310, 2310]
+lines       = [2307, 2307]
 mutator     = "cxx_init_const"
 bucket      = "C"
 rationale   = "char result=0 in ZstrProcessEscape: every reachable path to `return result` (2369) assigns result in its switch case first; the default case returns the literal 0 directly, not via result. Init value is dead; 42 never observed."
@@ -3043,7 +2889,7 @@ region_hash = "sha256:c5189fa2ba58fed4edcc9d8cdb776c441921a8e41a5955f26264407bcd
 [[ignore]]
 id          = "IO-C-2376-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2376, 2376]
+lines       = [2373, 2373]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "ValidateStr(s) only aborts on corrupt destination Str; no observable effect on valid input. Equivalent."
@@ -3054,7 +2900,7 @@ region_hash = "sha256:ea4eb234a54dd665c78a32c527d2b55322ba5625bf04c8db30ea16594b
 [[ignore]]
 id          = "IO-C-2391-post_dec_to_post_inc"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2391, 2391]
+lines       = [2388, 2388]
 mutator     = "cxx_post_dec_to_post_inc"
 bucket      = "C"
 rationale   = "r-- after consuming the opening quote. r=max_read_len which is set to the full remaining input length (rem_in, 630/3008) and only narrowed by trailing-literal boundaries. In quoted mode the closing-quote branch (2415-2418) returns before the r-budget can bind, because the closing quote always lies within the r budget. The off-by-2 from r++ thus never changes the consumed span or content for any clean reachable input; divergence would require a contrived trailing-literal narrowing that itself fails the overall match. Unobservable."
@@ -3065,7 +2911,7 @@ region_hash = "sha256:80fa45bd1fe137267aa9c3fb35818a6612a224e856e2051fab5cb0f298
 [[ignore]]
 id          = "IO-B-2400-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2400, 2400]
+lines       = [2397, 2397]
 mutator     = "cxx_remove_void_call"
 bucket      = "B"
 rationale   = "StrDeinit(s) on the invalid-escape error branch (c==0). s is the caller's destination container (e.g. temp in _read_Zstr at 3000, or the user's Buf via _read_Buf). On NULL return the caller still deinits its own Str (3036), so the original already double-deinits this path; no passing leak test can be written on the original to assert this Deinit. Error-branch cleanup, non-observable without fault injection."
@@ -3076,7 +2922,7 @@ region_hash = "sha256:fd1db4e2bcd2bb00fbddd2ae29fbf7f81e5abc7ce7d8d722d19f97baf7
 [[ignore]]
 id          = "IO-C-2408-assign_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2408, 2408]
+lines       = [2405, 2405]
 mutator     = "cxx_assign_const"
 bucket      = "C"
 rationale   = "r=(r>=2)?r-2:0 replaced by r=42 (quoted escape budget update). r=max_read_len equals full remaining input length and is only ever the binding constraint under trailing-literal narrowing; in the quoted path the closing-quote return fires first, so resetting r to 42 vs r-2 does not change the consumed span or content for any reachable input that yields a successful parse. The r==1 wrap the guard protects against requires narrowing that also breaks the overall match. Unobservable."
@@ -3087,7 +2933,7 @@ region_hash = "sha256:b4b11f926ca48014dc79a2c3b65cad3d5946bbf21c52095517fedf4321
 [[ignore]]
 id          = "IO-C-2408-ge_to_gt"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2408, 2408]
+lines       = [2405, 2405]
 mutator     = "cxx_ge_to_gt"
 bucket      = "C"
 rationale   = "`r>=2u` vs `r>2u` in `(r>=2u)?(r-2u):0u`: at r==2 original yields r-2=0 and mutant yields else=0 (identical); for r<2 both yield 0; for r>2 both yield r-2. The ternary result is identical for every r. Provably equivalent."
@@ -3098,7 +2944,7 @@ region_hash = "sha256:b4b11f926ca48014dc79a2c3b65cad3d5946bbf21c52095517fedf4321
 [[ignore]]
 id          = "IO-C-2417-post_dec_to_post_inc"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2417, 2417]
+lines       = [2414, 2414]
 mutator     = "cxx_post_dec_to_post_inc"
 bucket      = "C"
 rationale   = "r-- in the closing-quote branch (i++; r--; return i;). r is a local read no further on any path after this point; the value is dead, so r-- vs r++ is unobservable (C-equivalent)."
@@ -3109,7 +2955,7 @@ region_hash = "sha256:80fa45bd1fe137267aa9c3fb35818a6612a224e856e2051fab5cb0f298
 [[ignore]]
 id          = "IO-C-2444-ge_to_gt"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2444, 2444]
+lines       = [2441, 2441]
 mutator     = "cxx_ge_to_gt"
 bucket      = "C"
 rationale   = "(r>=2u)?(r-2u):0u -> (r>2u)?(r-2u):0u. At the only differing input r==2: correct yields r-2=0, mutant yields the else 0 -> identical. For all other r the selected branch and value coincide. The ternary produces the same result for every r, so the swap is equivalent."
@@ -3120,7 +2966,7 @@ region_hash = "sha256:b4b11f926ca48014dc79a2c3b65cad3d5946bbf21c52095517fedf4321
 [[ignore]]
 id          = "IO-C-2523-eq_to_ne"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2523, 2523]
+lines       = [2520, 2520]
 mutator     = "cxx_eq_to_ne"
 bucket      = "C"
 rationale   = "if (len==3) -> if (len!=3) guards the inf/nan special-case. That whole block is dead for the tokens reaching is_valid_numeric_string: genuine inf/nan are intercepted by the dedicated branch in _read_f32/_read_f64 before this call, and the digit pre-pass (is_valid_number_char) never emits i/I/n/N, so the inner comparisons can never return true. Entering vs skipping the block for any reachable token falls through to the same digit-walk verdict; no input changes the result. Boundary unreachable -> equivalent."
@@ -3131,7 +2977,7 @@ region_hash = "sha256:61756d82cfd6407a8fcc578eb74092944dd60715089a5ccbea0c35e0b4
 [[ignore]]
 id          = "IO-C-2524-eq_to_ne"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2524, 2524]
+lines       = [2521, 2521]
 mutator     = "cxx_eq_to_ne"
 bucket      = "C"
 rationale   = "data[0]=='i' -> data[0]!='i' inside the dead inf-detection. A true return additionally requires data[1] in {n,N}, but 'n'/'N' are not valid number chars so never appear in temp, and real inf tokens never reach here. The && chain can never return true for any reachable token regardless of this flip. Equivalent."
@@ -3142,7 +2988,7 @@ region_hash = "sha256:0d1a56931de3ae785c66c1e32ff2e40d1a3f3051cc9588a57b349790fc
 [[ignore]]
 id          = "IO-C-2525-eq_to_ne"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2525, 2525]
+lines       = [2522, 2522]
 mutator     = "cxx_eq_to_ne"
 bucket      = "C"
 rationale   = "data[2]=='f' -> data[2]!='f' in the dead inf-detection. Reaching this clause requires data[0] in {i,I} and data[1] in {n,N}, neither of which occurs in a reachable temp (those chars aren't valid number chars; real inf intercepted upstream). The clause is never evaluated to decide a true return for any reachable token. Equivalent."
@@ -3153,7 +2999,7 @@ region_hash = "sha256:726342eff51ca71e11080c0945dc38d2c9dbc605c7ef7cc18727f84baa
 [[ignore]]
 id          = "IO-C-2528-eq_to_ne"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2528, 2528]
+lines       = [2525, 2525]
 mutator     = "cxx_eq_to_ne"
 bucket      = "C"
 rationale   = "Part of the len==3 'nan' check inside the inf/nan short-circuit block. Both allow_float=true callers (_read_f64 @2744, _read_f32 @3562) pre-consume any token starting with i/I/n/N via the special-value StrToF64 branch and return before reaching is_valid_numeric_string; the digit-walk fallback breaks on the leading letter yielding empty temp. So temp here never starts with 'n' — boundary unreachable."
@@ -3164,7 +3010,7 @@ region_hash = "sha256:13c702d4570c59188cf2c64819220d22c69896ad95dd3d31acf6e956de
 [[ignore]]
 id          = "IO-C-2529-eq_to_ne"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2529, 2529]
+lines       = [2526, 2526]
 mutator     = "cxx_eq_to_ne"
 bucket      = "C"
 rationale   = "data[2]=='n' branch of the dead 'nan' check; temp can never equal 'nan' here, special-value branch consumes it upstream. Unreachable."
@@ -3175,7 +3021,7 @@ region_hash = "sha256:3b51beb0bc9df890bb9e067b3f9d1c605560ad9f4315e99fbc52b6a90e
 [[ignore]]
 id          = "IO-C-2534-eq_to_ne"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2534, 2534]
+lines       = [2531, 2531]
 mutator     = "cxx_eq_to_ne"
 bucket      = "C"
 rationale   = "len==4 && data[0]=='-' guard of the '-inf' check. The float callers' special-value branch triggers on '-' followed by i/I and pre-consumes '-inf', so temp here never equals '-inf'. Unreachable boundary."
@@ -3186,7 +3032,7 @@ region_hash = "sha256:b3c45f88a3d4cccef2d6b3340b858c8561379a02a10e5632a96da70f6d
 [[ignore]]
 id          = "IO-C-2535-eq_to_ne"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2535, 2535]
+lines       = [2532, 2532]
 mutator     = "cxx_eq_to_ne"
 bucket      = "C"
 rationale   = "data[1]=='i' branch of the dead '-inf' check; '-inf' tokens are pre-consumed by the special-value branch in both float callers. Unreachable."
@@ -3197,7 +3043,7 @@ region_hash = "sha256:9fa52c7dc791252b88026993f84036ae9c9672eb6a151cfe1daaee19ae
 [[ignore]]
 id          = "IO-C-2536-eq_to_ne"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2536, 2536]
+lines       = [2533, 2533]
 mutator     = "cxx_eq_to_ne"
 bucket      = "C"
 rationale   = "data[3]=='f' branch of the dead '-inf' check; temp never equals '-inf' here. Unreachable boundary."
@@ -3208,7 +3054,7 @@ region_hash = "sha256:c4cba72232c8f504bcd9a16612f6397682638b8db9019b643e893fc6fc
 [[ignore]]
 id          = "IO-C-2548-assign_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2548, 2548]
+lines       = [2545, 2545]
 mutator     = "cxx_assign_const"
 bucket      = "C"
 rationale   = "is_hex = true mutated to is_hex = 42. is_hex is bool, so 42 converts to true — identical value. is_hex is only read in truthiness contexts (if (is_hex || ...) and if (is_hex && ...)), so no observable difference. x*1 / truthy-bool identity."
@@ -3219,7 +3065,7 @@ region_hash = "sha256:8bfaa1b86dc4f04a7950f4881b9a2f5ddfcc94d405636f5baa5bf98a8b
 [[ignore]]
 id          = "IO-C-2550-assign_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2550, 2550]
+lines       = [2547, 2547]
 mutator     = "cxx_assign_const"
 bucket      = "C"
 rationale   = "is_bin = true mutated to is_bin = 42. bool conversion makes 42 == true; is_bin read only for truthiness (if (is_hex || is_bin || is_oct), if (is_bin && ...)). No observable difference."
@@ -3230,7 +3076,7 @@ region_hash = "sha256:f2385f9a9594564e6a62c678acd3b276746aacb54a938399926226569b
 [[ignore]]
 id          = "IO-C-2552-assign_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2552, 2552]
+lines       = [2549, 2549]
 mutator     = "cxx_assign_const"
 bucket      = "C"
 rationale   = "is_oct is bool; assigning 42 stores true. is_oct is only ever read in truthiness (2564, 2604), and the assigned real value is already true on this reachable branch. No observable difference."
@@ -3241,7 +3087,7 @@ region_hash = "sha256:84af0ac3fc68e6db2c8f2a8882cf74069eba688d638fc976d4967309ba
 [[ignore]]
 id          = "IO-C-2564-eq_to_ne"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2564, 2564]
+lines       = [2561, 2561]
 mutator     = "cxx_eq_to_ne"
 bucket      = "C"
 rationale   = "i==0 -> i!=0 makes the strict re-validator skip per-base char validation for i>=2 in 0x/0b/0o slices (i=0 still continues via the digit branch at 2592). Every input it newly accepts contains a base-invalid char that StrToU64/StrToF64 re-rejects (Str.c:913-918), so StrReadFmt's success/failure outcome is unchanged."
@@ -3252,7 +3098,7 @@ region_hash = "sha256:5f82a7db76cf8ef56d15343533dd9c876b6c4ca969b1f1f77ffaefde83
 [[ignore]]
 id          = "IO-C-2571-gt_to_ge"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2571, 2571]
+lines       = [2568, 2568]
 mutator     = "cxx_gt_to_ge"
 bucket      = "C"
 rationale   = "The i>0 test sits inside `i==0 || (allow_float && has_exp && (i>0 && ...))`. The leading `i==0 ||` short-circuits, so the inner expression is only evaluated when i>=1; the i==0 boundary is unreachable and `>` vs `>=` give identical results."
@@ -3263,7 +3109,7 @@ region_hash = "sha256:5f6c3ff41c1bb246a40b777a76a65dca73c3aba9672392014bf8e51271
 [[ignore]]
 id          = "IO-C-2580-assign_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2580, 2580]
+lines       = [2577, 2577]
 mutator     = "cxx_assign_const"
 bucket      = "C"
 rationale   = "has_decimal is bool; 42 stores true. It is read only in boolean context (if (has_decimal) at 2577), and the real assigned value is true anyway. Equivalent."
@@ -3274,7 +3120,7 @@ region_hash = "sha256:6422a84003e8979b6dd29a085759dc633df215eff96d1b093d17107941
 [[ignore]]
 id          = "IO-C-2588-assign_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2588, 2588]
+lines       = [2585, 2585]
 mutator     = "cxx_assign_const"
 bucket      = "C"
 rationale   = "has_exp is bool; 42 stores true. Read only in boolean context (2585, 2613) and the real value is true. Equivalent."
@@ -3285,7 +3131,7 @@ region_hash = "sha256:e8e833ef595527bacd1e076763c387cf30100aeb9dfa4e504d2cad449b
 [[ignore]]
 id          = "IO-C-2600-eq_to_ne"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2600, 2600]
+lines       = [2597, 2597]
 mutator     = "cxx_eq_to_ne"
 bucket      = "C"
 rationale   = "Line 2592 `if (c>='0'&&c<='9') continue;` runs before this is_bin branch, so binary digits 0/1 already continued. Only stray prefix letters x/X/o/O reach here (original cond false); flipping to !='0' makes them continue, but StrToU64 re-rejects those slices. Net outcome unchanged."
@@ -3296,7 +3142,7 @@ region_hash = "sha256:602b98ffb93448b49373446b525a88cbc5f868ffb15cfda73161ecf957
 [[ignore]]
 id          = "IO-C-2604-ge_to_gt"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2604, 2604]
+lines       = [2601, 2601]
 mutator     = "cxx_ge_to_gt"
 bucket      = "C"
 rationale   = "is_oct digit branch shadowed by 2592 (octal digits 0-7 are within 0-9). Only x/X/o/O reach here; for them c>='0' and c>'0' both leave the combined condition false. No reachable observable change."
@@ -3307,7 +3153,7 @@ region_hash = "sha256:412b82d7fb86e82346d230d36ad037827ab97cabfaf5096116a572a2f5
 [[ignore]]
 id          = "IO-C-2604-ge_to_lt"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2604, 2604]
+lines       = [2601, 2601]
 mutator     = "cxx_ge_to_lt"
 bucket      = "C"
 rationale   = "Shadowed by 2592; only x/X/o/O reach this point (ASCII>'0'), so c>='0' (true) vs c<'0' (false) ANDed with c<='7' (false for these chars) both yield false. Equivalent."
@@ -3318,7 +3164,7 @@ region_hash = "sha256:412b82d7fb86e82346d230d36ad037827ab97cabfaf5096116a572a2f5
 [[ignore]]
 id          = "IO-C-2604-le_to_gt"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2604, 2604]
+lines       = [2601, 2601]
 mutator     = "cxx_le_to_gt"
 bucket      = "C"
 rationale   = "Shadowed by 2592; only x/X/o/O reach here. c<='7' flips to c>'7', which can make 'x'/'o' continue, but those octal slices are re-rejected by StrToU64. Net parse outcome unchanged."
@@ -3329,7 +3175,7 @@ region_hash = "sha256:412b82d7fb86e82346d230d36ad037827ab97cabfaf5096116a572a2f5
 [[ignore]]
 id          = "IO-C-2604-le_to_lt"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2604, 2604]
+lines       = [2601, 2601]
 mutator     = "cxx_le_to_lt"
 bucket      = "C"
 rationale   = "Shadowed by 2592; for the only reachable chars (x/X/o/O, ASCII>'7') c<='7' (false) and c<'7' (false) are equal, combined condition stays false. Equivalent."
@@ -3340,7 +3186,7 @@ region_hash = "sha256:412b82d7fb86e82346d230d36ad037827ab97cabfaf5096116a572a2f5
 [[ignore]]
 id          = "IO-C-2614-init_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2614, 2614]
+lines       = [2611, 2611]
 mutator     = "cxx_init_const"
 bucket      = "C"
 rationale   = "The float collection loop (2701-2737) only consumes an e/E when a digit follows (2721 rewinds otherwise), so a collected slice never ends in e/E/+/-. The trailing-exponent `return false` is unreachable; on every reachable slice last_char is a digit and the if is false whether last_char is the real char or 42. Equivalent."
@@ -3351,7 +3197,7 @@ region_hash = "sha256:f4ffd0805be165f8f63cd6b7615c49ea69be6fa9ee628280084bbe0385
 [[ignore]]
 id          = "IO-C-2614-sub_to_add"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2614, 2614]
+lines       = [2611, 2611]
 mutator     = "cxx_sub_to_add"
 bucket      = "C"
 rationale   = "data[len-1]->data[len+1] reads one byte past the NUL of the freshly allocated temp. The trailing-exponent branch is already unreachable (collection strips incomplete exponents, slices end in a digit), so the compared byte never legitimately equals e/E/+/-, and the read byte is the NUL/canary region; the if stays false. No deterministic observable difference."
@@ -3362,7 +3208,7 @@ region_hash = "sha256:f4ffd0805be165f8f63cd6b7615c49ea69be6fa9ee628280084bbe0385
 [[ignore]]
 id          = "IO-C-2651-init_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2651, 2651]
+lines       = [2648, 2648]
 mutator     = "cxx_init_const"
 bucket      = "C"
 rationale   = "u64 temp=0 -> 42 only sets byte 0; bytes 1-7 are 0 for both. read_chars_internal overwrites byte 0 on any read of >=1 char, so temp is identical on every successful parse. The sole divergent case (0 chars read) returns next==in, which the read driver (Io.c:774) treats as failure, so no successful parse observes the init value."
@@ -3373,7 +3219,7 @@ region_hash = "sha256:4cc2f3f50eb2d6c3c871fd0e51c96b23a73c37d4a38ea175efae344ba6
 [[ignore]]
 id          = "IO-C-2659-init_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2659, 2659]
+lines       = [2656, 2656]
 mutator     = "cxx_init_const"
 bucket      = "C"
 rationale   = "char c=0 -> 42 is overwritten by StrIterPeek(&si,&c) at 2661 before c is read; on empty input peek returns false and short-circuits before IS_SPACE(c), so the init value is never observed. Dead init."
@@ -3384,7 +3230,7 @@ region_hash = "sha256:1b42bf30680859475c74e5bae567c9f1f5edb46bdafbbdad6c792dc484
 [[ignore]]
 id          = "IO-C-2674-init_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2674, 2674]
+lines       = [2671, 2671]
 mutator     = "cxx_init_const"
 bucket      = "C"
 rationale   = "c1 is overwritten by StrIterPeekAt(&si,1,&c1) whenever a 2nd char exists; the init value only survives when peek FAILS (no 2nd char). The only read of c1 is `c=='-' && (c1=='i'||c1=='I')`. With init 0 c1 is not 'i'/'I'; with mutant 42 ('*') it is also not 'i'/'I'. Same branch decision on every reachable path, so 42 is indistinguishable from 0."
@@ -3395,7 +3241,7 @@ region_hash = "sha256:070e4c97ba5322716c9dd2abbbd127a0aaa85df185b23b028b42b93a8a
 [[ignore]]
 id          = "IO-B-2689-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2689, 2689]
+lines       = [2686, 2686]
 mutator     = "cxx_remove_void_call"
 bucket      = "B"
 rationale   = "StrDeinit(&temp) on the inf/nan success branch; temp is StrInitFromCstr(...,&scratch) where scratch=DefaultAllocatorInit() — an internal allocator with no injectable hook. A leak from dropping this Deinit cannot be observed by a DebugAllocator the test controls (read-side scratch, not StrAllocator of a caller container)."
@@ -3406,7 +3252,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-B-2693-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2693, 2693]
+lines       = [2690, 2690]
 mutator     = "cxx_remove_void_call"
 bucket      = "B"
 rationale   = "StrDeinit(&temp) on the inf/nan fall-through; temp backed by internal DefaultAllocatorInit() scratch, no injectable hook, leak non-observable."
@@ -3417,7 +3263,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-C-2708-assign_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2708, 2708]
+lines       = [2705, 2705]
 mutator     = "cxx_assign_const"
 bucket      = "C"
 rationale   = "has_decimal is a bool consumed only as truthiness (`if (has_decimal) break;`). Assigning 42 bool-converts to true, identical to the original true; never compared as a value. Dead distinction."
@@ -3428,7 +3274,7 @@ region_hash = "sha256:6422a84003e8979b6dd29a085759dc633df215eff96d1b093d17107941
 [[ignore]]
 id          = "IO-C-2714-gt_to_ge"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2714, 2714]
+lines       = [2711, 2711]
 mutator     = "cxx_gt_to_ge"
 bucket      = "C"
 rationale   = "`>`→`>=` differs only when StrIterIndex(&si)==StrIterIndex(&saved), i.e. the FIRST loop char, and only under the `c=='e'||c=='E'` guard — a leading 'e'/'E'. A float with no mantissa never parses: in every leading-'e' case StrToF64 fails (have_digits==false, e.g. 'e+5') or is_valid_numeric_string rejects ('e'), so both original and mutant return `start` with *v unwritten. Boundary is unreachable for any successful/observable parse."
@@ -3439,7 +3285,7 @@ region_hash = "sha256:c252d492eeb5fe9a79f69625edcf4359811ee302fe5784e9bbd8265e48
 [[ignore]]
 id          = "IO-B-2746-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2746, 2746]
+lines       = [2743, 2743]
 mutator     = "cxx_remove_void_call"
 bucket      = "B"
 rationale   = "StrDeinit(&temp) on the invalid-format error branch of _read_f64; temp backed by internal DefaultAllocatorInit() scratch, no injectable hook, leak non-observable."
@@ -3450,7 +3296,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-B-2753-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2753, 2753]
+lines       = [2750, 2750]
 mutator     = "cxx_remove_void_call"
 bucket      = "B"
 rationale   = "StrDeinit(&temp) on the StrToF64-failure branch of _read_f64; internal DefaultAllocator scratch, non-observable leak."
@@ -3461,7 +3307,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-B-2758-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2758, 2758]
+lines       = [2755, 2755]
 mutator     = "cxx_remove_void_call"
 bucket      = "B"
 rationale   = "StrDeinit(&temp) on the _read_f64 success path; internal DefaultAllocator scratch, non-observable leak."
@@ -3472,7 +3318,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-C-2772-init_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2772, 2772]
+lines       = [2769, 2769]
 mutator     = "cxx_init_const"
 bucket      = "C"
 rationale   = "char c=0 in _read_u8 is written by StrIterPeek(&si,&c) before every read (IS_SPACE(c) only evaluated when Peek returned true and wrote c; on failure the && short-circuits). c is re-fetched by Peek in every later loop too. Init value never read, so 42 is dead."
@@ -3483,7 +3329,7 @@ region_hash = "sha256:1b42bf30680859475c74e5bae567c9f1f5edb46bdafbbdad6c792dc484
 [[ignore]]
 id          = "IO-B-2812-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2812, 2812]
+lines       = [2809, 2809]
 mutator     = "cxx_remove_void_call"
 bucket      = "B"
 rationale   = "StrDeinit(&temp) on the 'Incomplete number format' reject branch of _read_u8; internal DefaultAllocator scratch, non-observable leak."
@@ -3494,7 +3340,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-C-2817-replace_scalar_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2817, 2817]
+lines       = [2814, 2814]
 mutator     = "cxx_replace_scalar_call"
 bucket      = "C"
 rationale   = "Replacing is_valid_numeric_string(&temp,false) with truthy 42 makes `!42`==false, so the reject branch is never taken and all strings flow to StrToU64. But StrToU64 is an equally-strict downstream gate: it returns false on any non-space invalid digit and requires the 0x/0b/0o prefix for non-decimal digits — exactly the cases is_valid_numeric_string rejects (\"a5\",\"1f\",\"0x\" all fail StrToU64 too). No input is rejected by is_valid_numeric_string yet accepted by StrToU64, so the check is redundant for the integer path and removing it changes no observable result."
@@ -3505,7 +3351,7 @@ region_hash = "sha256:b4142cf7ab8320f1f06a7abf432918fa8a1c4f41c59cf655c8b514192b
 [[ignore]]
 id          = "IO-B-2819-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2819, 2819]
+lines       = [2816, 2816]
 mutator     = "cxx_remove_void_call"
 bucket      = "B"
 rationale   = "StrDeinit(&temp) on the 'Invalid numeric format' branch of _read_u8; internal DefaultAllocator scratch, non-observable leak."
@@ -3516,7 +3362,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-B-2830-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2830, 2830]
+lines       = [2827, 2827]
 mutator     = "cxx_remove_void_call"
 bucket      = "B"
 rationale   = "StrDeinit(&temp) on the StrToU64-failure branch of _read_u8; internal DefaultAllocator scratch, non-observable leak."
@@ -3527,7 +3373,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-B-2837-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2837, 2837]
+lines       = [2834, 2834]
 mutator     = "cxx_remove_void_call"
 bucket      = "B"
 rationale   = "StrDeinit(&temp) on the val>UINT8_MAX overflow branch of _read_u8; internal DefaultAllocator scratch, non-observable leak."
@@ -3538,7 +3384,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-B-2843-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2843, 2843]
+lines       = [2840, 2840]
 mutator     = "cxx_remove_void_call"
 bucket      = "B"
 rationale   = "_read_u8 success path. temp = StrInitFromCstr(start,pos,&scratch) where scratch = DefaultAllocatorInit() is an INTERNAL allocator with no injectable hook. Dropping StrDeinit(&temp) leaks scratch-backed memory, but the leak is through an internal DefaultAllocator (line 2844 DefaultAllocatorDeinit), not observable via a DebugAllocator leak test. Per the faithful model this is non-observable without fault injection."
@@ -3549,7 +3395,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-C-3017-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3017, 3017]
+lines       = [3014, 3014]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "_read_ZstrAlloc, next==i branch. _read_Str returns the ORIGINAL i pointer only at its empty-input early-out (Io.c:2385) / is_string leading-whitespace return, both BEFORE any StrPushBack into temp. So on this branch temp is still the StrInit(allocator_ptr) zero value (data==NULL, no allocation). StrDeinit(&temp) is a no-op; removing it leaks nothing. Equivalent."
@@ -3560,7 +3406,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-B-3027-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3027, 3027]
+lines       = [3024, 3024]
 mutator     = "cxx_remove_void_call"
 bucket      = "B"
 rationale   = "_read_ZstrAlloc, ZstrDupN-failure branch. temp IS allocated here (parse succeeded, next!=i), so the StrDeinit frees real memory, but the branch is only reached when ZstrDupN returns NULL (allocation failure). With no fault-injection infra the branch is unreachable, so non-observable."
@@ -3571,7 +3417,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-C-3047-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3047, 3047]
+lines       = [3044, 3044]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "ValidateStr(o) in _write_BitVec. Validate* aborts only on already-corrupt Str state; for a well-formed o (every reachable test) it is a no-op. Removing it has no observable effect. Equivalent."
@@ -3582,7 +3428,7 @@ region_hash = "sha256:02a35129729fa2514030b34029d848275e7848353d9229b08d91100a26
 [[ignore]]
 id          = "IO-B-3096-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3096, 3096]
+lines       = [3093, 3093]
 mutator     = "cxx_remove_void_call"
 bucket      = "B"
 rationale   = "_write_BitVec StrMerge-failure branch. vec_merge_l only zeroes the source on SUCCESS (Vec/Private.h:66 returns false without releasing on failure), so on this branch bit_str still owns its buffer and StrDeinit is meaningful. But the branch is reached only when StrMerge (vec_insert_range_l) fails = allocation failure; no fault-injection infra, so non-observable."
@@ -3593,7 +3439,7 @@ region_hash = "sha256:916d114f873322fcfc1aec73427903664d07bed366a58a27a52d55fbc6
 [[ignore]]
 id          = "IO-C-3099-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3099, 3099]
+lines       = [3096, 3096]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "_write_BitVec no-flag (raw bit-string) success path. StrMerge(o,&bit_str) is the L-form ownership transfer: on success it frees-and-zeroes bit_str into o (vec_release_merged_source_on_success, copy_init==NULL for Str). So bit_str.data==NULL at line 3099 and StrDeinit(&bit_str) is a no-op; removing it leaks nothing. (This is exactly why the existing test_leak_write_bitvec_freed cannot kill it.) Equivalent."
@@ -3604,7 +3450,7 @@ region_hash = "sha256:916d114f873322fcfc1aec73427903664d07bed366a58a27a52d55fbc6
 [[ignore]]
 id          = "IO-C-3103-gt_to_ge"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3103, 3103]
+lines       = [3100, 3100]
 mutator     = "cxx_gt_to_ge"
 bucket      = "C"
 rationale   = "if (fmt_info->width > 0) -> >=. width is u32; only the width==0 boundary differs. With >= it then calls StrPad(o,0,align,content_len); StrPad early-returns true when content_len>=width (Io.c:257), and content_len>=0>=width=0 always, so the call is a no-op. No rendered-byte difference. Equivalent."
@@ -3615,7 +3461,7 @@ region_hash = "sha256:cdefa8d13c340613aba0889eab2abdd4f362313fe8d33da24fb9692659
 [[ignore]]
 id          = "IO-C-3121-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3121, 3121]
+lines       = [3118, 3118]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "ValidateStr(o) in _write_Int. Aborts only on corrupt Str; no-op for valid o on every reachable path. Equivalent."
@@ -3626,7 +3472,7 @@ region_hash = "sha256:02a35129729fa2514030b34029d848275e7848353d9229b08d91100a26
 [[ignore]]
 id          = "IO-C-3122-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3122, 3122]
+lines       = [3119, 3119]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "ValidateInt(value) in _write_Int. Aborts only on corrupt Int; no-op for valid value on every reachable path. Equivalent."
@@ -3637,7 +3483,7 @@ region_hash = "sha256:ce93338470142f29c6f0186a8f80697513ffb260d375eba5b92ffe401f
 [[ignore]]
 id          = "IO-B-3162-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3162, 3162]
+lines       = [3159, 3159]
 mutator     = "cxx_remove_void_call"
 bucket      = "B"
 rationale   = "_write_Int StrMerge-failure branch. On failure vec_merge_l does NOT zero temp (Vec/Private.h:66), so StrDeinit frees a real buffer, but the branch is reachable only when StrMerge fails = allocation failure. No fault-injection infra, non-observable."
@@ -3648,7 +3494,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-C-3165-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3165, 3165]
+lines       = [3162, 3162]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "_write_Int success path. StrMerge(o,&temp) is L-form ownership transfer: on success temp is freed-and-zeroed into o (copy_init==NULL for Str). temp.data==NULL at 3165, so StrDeinit(&temp) is a no-op and removing it leaks nothing. (This is why the existing test_leak_write_int_freed cannot kill it.) Equivalent."
@@ -3659,7 +3505,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-C-3167-gt_to_ge"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3167, 3167]
+lines       = [3164, 3164]
 mutator     = "cxx_gt_to_ge"
 bucket      = "C"
 rationale   = "Same width>0 -> width>=0 case as 3103. width==0 boundary makes StrPad(o,0,...) which early-returns (content_len>=0>=0) as a no-op. No observable difference. Equivalent."
@@ -3670,7 +3516,7 @@ region_hash = "sha256:cdefa8d13c340613aba0889eab2abdd4f362313fe8d33da24fb9692659
 [[ignore]]
 id          = "IO-C-3186-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3186, 3186]
+lines       = [3183, 3183]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "ValidateBitVec(bv) in _read_BitVec. Aborts only on corrupt BitVec; no-op for valid bv on every reachable path. Equivalent."
@@ -3681,7 +3527,7 @@ region_hash = "sha256:e23e0a87bcb8cfc67825ec8fd1394777765ccfd72a1e285434061ddbb0
 [[ignore]]
 id          = "IO-C-3189-init_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3189, 3189]
+lines       = [3186, 3186]
 mutator     = "cxx_init_const"
 bucket      = "C"
 rationale   = "char c = 0 in _read_BitVec, used only as while (StrIterPeek(&si,&c) && IS_SPACE(c)) and later StrIterPeek(&si,&c)&&IS_XDIGIT(c). StrIterPeek writes c before it is read; if peek returns false the && short-circuits before reading c. The initializer value (0 vs 42) is never observed. Dead init. Equivalent."
@@ -3692,7 +3538,7 @@ region_hash = "sha256:1b42bf30680859475c74e5bae567c9f1f5edb46bdafbbdad6c792dc484
 [[ignore]]
 id          = "IO-C-3202-init_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3202, 3202]
+lines       = [3199, 3199]
 mutator     = "cxx_init_const"
 bucket      = "C"
 rationale   = "char c0 = 0 in _read_BitVec. StrIterRemainingLength != 0 is checked at 3195, so StrIterPeekAt(&si,0,&c0) at 3204 always writes c0 before it is read at 3207 (c0=='0'). The initializer value is overwritten before any read. Dead init. Equivalent."
@@ -3703,7 +3549,7 @@ region_hash = "sha256:289c6ec66ee49aedd2ff812d2275abd9069fa87ab269b1c2fec11be766
 [[ignore]]
 id          = "IO-C-3203-init_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3203, 3203]
+lines       = [3200, 3200]
 mutator     = "cxx_init_const"
 bucket      = "C"
 rationale   = "c1 is overwritten by StrIterPeekAt(&si,1,&c1); its init value is only retained when that offset-1 peek FAILS (≤1 byte at cursor). c1 is read only in `c1=='x'||'X'` and `c1=='o'||'O'`. Neither 0 nor 42 equals any prefix char, so both fall through to binary parse identically. Dead-on-the-only-reachable-init-path value."
@@ -3714,7 +3560,7 @@ region_hash = "sha256:070e4c97ba5322716c9dd2abbbd127a0aaa85df185b23b028b42b93a8a
 [[ignore]]
 id          = "IO-C-3240-lt_to_le"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3240, 3240]
+lines       = [3237, 3237]
 mutator     = "cxx_lt_to_le"
 bucket      = "C"
 rationale   = "`if (bit_len < 4) bit_len = 4;` vs `<= 4`. The two differ only at bit_len==4, where original leaves it 4 and mutant assigns 4 — same value. The clamp is idempotent at the boundary, so BitVecFromInteger receives identical bit_len. Unobservable."
@@ -3725,7 +3571,7 @@ region_hash = "sha256:5d78acdb4c31fec12afd18b9fb73d6bdbe34c4a5346a18c4aa499c07e4
 [[ignore]]
 id          = "IO-C-3278-lt_to_le"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3278, 3278]
+lines       = [3275, 3275]
 mutator     = "cxx_lt_to_le"
 bucket      = "C"
 rationale   = "`if (bit_len < 3) bit_len = 3;` vs `<= 3`. Differ only at bit_len==3, where both yield 3. Idempotent clamp at boundary; resulting bit_len identical. Unobservable."
@@ -3736,7 +3582,7 @@ region_hash = "sha256:3ec82e078b81da99a104f68cbb5f16e0b1902cd61731bb1cccacde29e5
 [[ignore]]
 id          = "IO-C-3322-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3322, 3322]
+lines       = [3319, 3319]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "ValidateInt(value) only aborts on already-corrupt Int state; on valid input it is a no-op. Per the faithful model Validate* removal is non-observable → equivalent."
@@ -3747,7 +3593,7 @@ region_hash = "sha256:ce93338470142f29c6f0186a8f80697513ffb260d375eba5b92ffe401f
 [[ignore]]
 id          = "IO-C-3325-init_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3325, 3325]
+lines       = [3322, 3322]
 mutator     = "cxx_init_const"
 bucket      = "C"
 rationale   = "c is the loop scratch; `while (StrIterPeek(&si,&c) && IS_SPACE(c))` writes c via StrIterPeek before reading it, and on peek-failure the && short-circuits so IS_SPACE(c) is never evaluated. Init value never observed; 42 equivalent."
@@ -3758,7 +3604,7 @@ region_hash = "sha256:1b42bf30680859475c74e5bae567c9f1f5edb46bdafbbdad6c792dc484
 [[ignore]]
 id          = "IO-C-3341-init_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3341, 3341]
+lines       = [3338, 3338]
 mutator     = "cxx_init_const"
 bucket      = "C"
 rationale   = "d0 is overwritten by StrIterPeek(&si,&d0) before the `d0=='+'` read. The preceding StrIterRemainingLength check (3331) guarantees ≥1 byte, so the peek always succeeds and d0's init is never observed. Equivalent."
@@ -3769,7 +3615,7 @@ region_hash = "sha256:d02b100371960e8e8878e55436337e2d12ef0fdf5e0a4cb7b435ec07cd
 [[ignore]]
 id          = "IO-C-3348-init_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3348, 3348]
+lines       = [3345, 3345]
 mutator     = "cxx_init_const"
 bucket      = "C"
 rationale   = "p0's init survives only when StrIterPeekAt(&si,0,&p0) fails (cursor at end, e.g. input \"+\"). p0 is read only as `p0=='0'`; neither 0 nor 42 equals '0', so the three prefix-rejection checks all stay false and control flows identically to the digit loop. Equivalent."
@@ -3780,7 +3626,7 @@ region_hash = "sha256:a9b4d53eac6be9d37f4c7d283225bb8e7eaf496e9a74bf192f31ebd696
 [[ignore]]
 id          = "IO-C-3349-init_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3349, 3349]
+lines       = [3346, 3346]
 mutator     = "cxx_init_const"
 bucket      = "C"
 rationale   = "p1's init survives only when StrIterPeekAt(&si,1,&p1) fails. p1 is read only against the prefix letters x/X/b/B/o/O; neither 0 nor 42 matches any, so no prefix-rejection branch is taken in either case. Equivalent."
@@ -3791,7 +3637,7 @@ region_hash = "sha256:bce3defacfae4a01dce2202c7522bd1bb544966ba210d6bf5e0786799a
 [[ignore]]
 id          = "IO-C-3375-init_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3375, 3375]
+lines       = [3372, 3372]
 mutator     = "cxx_init_const"
 bucket      = "C"
 rationale   = "trailing is written by StrIterPeek(&si,&trailing) before the `trailing=='_'` read, and on peek-failure the && short-circuits. Init never observed; 42 equivalent."
@@ -3802,7 +3648,7 @@ region_hash = "sha256:e9b7d0308abfe01a6e9ae845eecf91ce553c1c25e52eb435a4798d09fe
 [[ignore]]
 id          = "IO-C-3383-init_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3383, 3383]
+lines       = [3380, 3380]
 mutator     = "cxx_init_const"
 bucket      = "C"
 rationale   = "42 forces ok=true. ok is only read as `if(!ok)`. temp holds optional leading '+' (skipped by int_try_from_str_radix_zstr, Int.c:688) followed by chars the digit-scan accepted via ZstrHexDigitValue<radix; for radix∈{2,8,10,16} every such char is also accepted by int_radix_digit, and Int is arbitrary-precision so no overflow. Thus IntTryFromStrRadix never returns false on a reachable path (only on internal alloc failure). Truthy-bool never-false → equivalent."
@@ -3813,7 +3659,7 @@ region_hash = "sha256:67b7abfa3b350a1e61b7655a42787dd7ad4208a87137409f822b7919d4
 [[ignore]]
 id          = "IO-B-3386-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3386, 3386]
+lines       = [3383, 3383]
 mutator     = "cxx_remove_void_call"
 bucket      = "B"
 rationale   = "StrDeinit(&temp) sits on the `if(!ok)` branch, which (per 3383 analysis) is reachable only when IntTryFromStrRadix fails on an internal allocation (int_mul/add_u64_in_place via the bignum's own allocator) — there is no input that makes valid radix digits fail to parse. Reaching the leak requires fault injection; non-observable without it."
@@ -3824,7 +3670,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-C-3400-init_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3400, 3400]
+lines       = [3397, 3397]
 mutator     = "cxx_init_const"
 bucket      = "C"
 rationale   = "token_len is unconditionally reassigned at line 3436 (`token_len = float_fmt_token_length(start)`) before its first read at 3438 (`if(token_len==0)`); no earlier path reads it. Overwritten-before-read; 42 equivalent."
@@ -3835,7 +3681,7 @@ region_hash = "sha256:b3edc031fed1f5bbdcc04c97825729a0f1d2d5c272c277997056cb0954
 [[ignore]]
 id          = "IO-C-3414-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3414, 3414]
+lines       = [3411, 3411]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "At this point temp is the empty StrInit(FloatAllocator(value)) from 3409 (not yet reassigned to StrInitFromCstr at 3446). StrInit is a struct-literal macro (→VecInit) that allocates nothing, so StrDeinit on it frees no memory. Removing it leaks nothing even though the unsupported-flags branch is reachable. Unobservable."
@@ -3846,7 +3692,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-C-3415-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3415, 3415]
+lines       = [3412, 3412]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "FloatDeinit(&parsed) in the unsupported-flags error branch. parsed = FloatInit(...) which allocates nothing (IntInit_1 -> BitVecInit_1, data=NULL) and FloatTryFromStr was never called on it. Removing the deinit frees nothing; no observable memory effect."
@@ -3857,7 +3703,7 @@ region_hash = "sha256:80346ac2036f50dcab36e33b57f9a9d7d35eb76715f115c348f8757952
 [[ignore]]
 id          = "IO-C-3419-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3419, 3419]
+lines       = [3416, 3416]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "ValidateFloat(value) is a validator that only aborts on already-corrupt state; removing it is unobservable on valid input."
@@ -3868,7 +3714,7 @@ region_hash = "sha256:b53436ceb9b4ff96fa528da07f5f886309b44689b8d649acd2e667e695
 [[ignore]]
 id          = "IO-C-3422-init_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3422, 3422]
+lines       = [3419, 3419]
 mutator     = "cxx_init_const"
 bucket      = "C"
 rationale   = "char c = 0 is a dead init. The while condition StrIterPeek(&si,&c) writes c before IS_SPACE(c) reads it (short-circuit means c is unread when Peek returns false). On the empty-input path the function returns at 3429 before any read of c. 0 vs 42 never observed."
@@ -3879,7 +3725,7 @@ region_hash = "sha256:1b42bf30680859475c74e5bae567c9f1f5edb46bdafbbdad6c792dc484
 [[ignore]]
 id          = "IO-C-3430-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3430, 3430]
+lines       = [3427, 3427]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "StrDeinit(&temp) in empty-input branch. temp is the StrInit (empty, NULL data) and was never appended between 3409 and here. Removal frees nothing."
@@ -3890,7 +3736,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-C-3431-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3431, 3431]
+lines       = [3428, 3428]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "FloatDeinit(&parsed) in empty-input branch; parsed is FloatInit (no allocation), never parsed into. No leak."
@@ -3901,7 +3747,7 @@ region_hash = "sha256:80346ac2036f50dcab36e33b57f9a9d7d35eb76715f115c348f8757952
 [[ignore]]
 id          = "IO-C-3440-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3440, 3440]
+lines       = [3437, 3437]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "StrDeinit(&temp) in token_len==0 branch. temp still the empty StrInit (untouched since 3409). No allocation to leak."
@@ -3912,7 +3758,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-C-3441-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3441, 3441]
+lines       = [3438, 3438]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "FloatDeinit(&parsed) in token_len==0 branch; parsed empty (no alloc). No leak."
@@ -3923,7 +3769,7 @@ region_hash = "sha256:80346ac2036f50dcab36e33b57f9a9d7d35eb76715f115c348f8757952
 [[ignore]]
 id          = "IO-C-3445-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3445, 3445]
+lines       = [3442, 3442]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "StrDeinit(&temp) on the success path before temp is reused at 3446. At this point temp is still the empty StrInit (never appended), so the deinit frees nothing; it merely precedes reassignment. No observable leak."
@@ -3934,7 +3780,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-C-3449-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3449, 3449]
+lines       = [3446, 3446]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "FloatDeinit(&parsed) in the FloatTryFromStr-fail branch. Per FloatTryFromStr's contract, on FAILURE *out retains its pre-call value, so parsed remains the empty FloatInit (no net allocation). Removing the deinit frees nothing; unobservable."
@@ -3945,7 +3791,7 @@ region_hash = "sha256:80346ac2036f50dcab36e33b57f9a9d7d35eb76715f115c348f8757952
 [[ignore]]
 id          = "IO-C-3478-init_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3478, 3478]
+lines       = [3475, 3475]
 mutator     = "cxx_init_const"
 bucket      = "C"
 rationale   = "char c = 0 dead init in _read_f32; whitespace loop's StrIterPeek writes c before IS_SPACE reads it, and the empty-input early-return (3485) happens before c is otherwise read. 0 vs 42 never observed."
@@ -3956,7 +3802,7 @@ region_hash = "sha256:1b42bf30680859475c74e5bae567c9f1f5edb46bdafbbdad6c792dc484
 [[ignore]]
 id          = "IO-C-3493-init_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3493, 3493]
+lines       = [3490, 3490]
 mutator     = "cxx_init_const"
 bucket      = "C"
 rationale   = "char c1 = 0. (void)StrIterPeekAt(&si,1,&c1) overwrites c1 whenever a char exists at offset 1. The init survives only when input is exhausted at offset 1 AND c=='-' (line 3495), where c1 is compared only to 'i'/'I'; neither 0 nor 42 equals those, so the result (false) is identical. No observable difference."
@@ -3967,7 +3813,7 @@ region_hash = "sha256:070e4c97ba5322716c9dd2abbbd127a0aaa85df185b23b028b42b93a8a
 [[ignore]]
 id          = "IO-B-3510-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3510, 3510]
+lines       = [3507, 3507]
 mutator     = "cxx_remove_void_call"
 bucket      = "B"
 rationale   = "StrDeinit(&temp) where temp = StrInitFromCstr(start, len, &scratch) (3502), scratch = internal DefaultAllocatorInit() (3462) with no injectable hook. The leak goes into the internal default allocator and cannot be observed by a DebugAllocator leak test."
@@ -3978,7 +3824,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-B-3514-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3514, 3514]
+lines       = [3511, 3511]
 mutator     = "cxx_remove_void_call"
 bucket      = "B"
 rationale   = "StrDeinit(&temp) in the StrToF64-fail branch; temp again allocated through the internal &scratch DefaultAllocator (no injectable hook). Leak is non-observable without fault injection."
@@ -3989,7 +3835,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-C-3526-assign_const"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3526, 3526]
+lines       = [3523, 3523]
 mutator     = "cxx_assign_const"
 bucket      = "C"
 rationale   = "has_decimal = true (mutated to 42). has_decimal is only ever read for truthiness (if (has_decimal) break at 3524). 42 and true are both truthy, so behavior is identical."
@@ -4000,7 +3846,7 @@ region_hash = "sha256:6422a84003e8979b6dd29a085759dc633df215eff96d1b093d17107941
 [[ignore]]
 id          = "IO-C-3532-gt_to_ge"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3532, 3532]
+lines       = [3529, 3529]
 mutator     = "cxx_gt_to_ge"
 bucket      = "C"
 rationale   = "In _read_f32, `StrIterIndex(&si) > StrIterIndex(&saved)` gates the exponent-introducer path. > vs >= only diverge when si==saved, i.e. the FIRST token char is 'e'/'E'. Any such leading-'e' token has no mantissa digit, and StrToF64 returns false unless have_digits is set (Str.c:1139), and have_digits is set ONLY by integer/fractional mantissa digits (Str.c:1078,1089), never by exponent digits. Traced all sub-cases (\"e\",\"e5\",\"e+5\",\"e.5\"): every one fails StrToF64, hits the error return of `start` (computed from the fixed saved index, identical in both variants) with *v left unwritten. So both > and >= yield the identical observable outcome (error, return start, *v unchanged). Equivalent."
@@ -4011,7 +3857,7 @@ region_hash = "sha256:c252d492eeb5fe9a79f69625edcf4359811ee302fe5784e9bbd8265e48
 [[ignore]]
 id          = "IO-B-3564-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3564, 3564]
+lines       = [3561, 3561]
 mutator     = "cxx_remove_void_call"
 bucket      = "B"
 rationale   = "StrDeinit(&temp) on the is_valid_numeric_string-failure error branch of _read_f32. temp is StrInitFromCstr(...,&scratch) where scratch=DefaultAllocatorInit() (Io.c:3462), an internal per-call allocator with no caller-injectable hook (read side, destination is f32 *v, not a container). Removing the Deinit leaks into that internal allocator; no test can read its live count. Non-observable without fault injection."
@@ -4022,7 +3868,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-B-3574-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3574, 3574]
+lines       = [3571, 3571]
 mutator     = "cxx_remove_void_call"
 bucket      = "B"
 rationale   = "StrDeinit(&temp) on the StrToF64-failure error branch of _read_f32. temp backed by the internal scratch=DefaultAllocatorInit() (Io.c:3462), no injectable allocator hook; this is the read side writing f32 *v, not a container's own allocator. Dropped Deinit leaks only into the internal allocator, unobservable from a leak test. Non-observable without fault injection."
@@ -4033,7 +3879,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-B-3580-remove_void_call"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3580, 3580]
+lines       = [3577, 3577]
 mutator     = "cxx_remove_void_call"
 bucket      = "B"
 rationale   = "StrDeinit(&temp) on the success path of _read_f32 (after *v=(f32)val). temp backed by internal scratch=DefaultAllocatorInit() (Io.c:3462); allocator is created internally with no test-injectable handle, and the destination is f32 *v not a container allocator. Removing it leaks into the internal scratch only; a DebugAllocator leak test cannot observe it. Non-observable without fault injection."
@@ -4080,7 +3926,7 @@ region_hash = "sha256:a714348312c0d87d829bfe2a00872e877a407f7f679c52b347e1899ade
 [[ignore]]
 id          = "IO-VALIDATESTR-1847"
 file        = "Source/Misra/Std/Io.c"
-lines       = [1847, 1847]
+lines       = [1848, 1848]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "ValidateStr(o) aborts only on an already-corrupt Str; the formatter always receives a valid output Str, so removing the validation is unobservable."
@@ -4089,20 +3935,9 @@ created     = "2026-06-27"
 region_hash = "sha256:02a35129729fa2514030b34029d848275e7848353d9229b08d91100a260b073c"
 
 [[ignore]]
-id          = "IO-FROMU64FAIL-1975"
-file        = "Source/Misra/Std/Io.c"
-lines       = [1975, 1975]
-mutator     = "cxx_remove_void_call"
-bucket      = "B"
-rationale   = "StrDeinit(&temp) on the StrFromU64-failure branch; StrFromU64 does not fail for a representable integer, so the branch is unreachable for valid input (no fault-injection infra)."
-author      = "Siddharth Mishra"
-created     = "2026-06-27"
-region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c66a8c3"
-
-[[ignore]]
 id          = "IO-VALIDATEBV-3048"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3048, 3048]
+lines       = [3045, 3045]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "ValidateBitVec(bv) aborts only on a corrupt BitVec; unobservable on the valid BitVec the formatter receives."
@@ -4114,31 +3949,9 @@ region_hash = "sha256:e23e0a87bcb8cfc67825ec8fd1394777765ccfd72a1e285434061ddbb0
 # --- Io.c: merge-redundant-deinit + spec-overflow (2026-06-27) ---
 
 [[ignore]]
-id          = "IO-MERGEDEINIT-1794"
-file        = "Source/Misra/Std/Io.c"
-lines       = [1794, 1794]
-mutator     = "cxx_remove_void_call"
-bucket      = "C"
-rationale   = "trailing StrDeinit(&temp) after a SUCCESSFUL StrMergeL, which already releases the source buffer (vec_merge_l -> vec_release_merged_source_on_success zeros src on success); the Deinit is redundant, so removing it leaks nothing."
-author      = "Siddharth Mishra"
-created     = "2026-06-27"
-region_hash = "sha256:dab0767b305211d521ca1768cbda601c8fe43310478bdf18914ac26604fd52b6"
-
-[[ignore]]
-id          = "IO-MERGEDEINIT-2210"
-file        = "Source/Misra/Std/Io.c"
-lines       = [2210, 2210]
-mutator     = "cxx_remove_void_call"
-bucket      = "C"
-rationale   = "trailing StrDeinit(&temp) after a SUCCESSFUL StrMergeL, which already releases the source buffer (vec_merge_l -> vec_release_merged_source_on_success zeros src on success); the Deinit is redundant, so removing it leaks nothing."
-author      = "Siddharth Mishra"
-created     = "2026-06-27"
-region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c66a8c3"
-
-[[ignore]]
 id          = "IO-MERGEDEINIT-2286"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2286, 2286]
+lines       = [2283, 2283]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "trailing StrDeinit(&temp) after a SUCCESSFUL StrMergeL, which already releases the source buffer (vec_merge_l -> vec_release_merged_source_on_success zeros src on success); the Deinit is redundant, so removing it leaks nothing."
@@ -4149,7 +3962,7 @@ region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c
 [[ignore]]
 id          = "IO-MERGEDEINIT-3448"
 file        = "Source/Misra/Std/Io.c"
-lines       = [3448, 3448]
+lines       = [3445, 3445]
 mutator     = "cxx_remove_void_call"
 bucket      = "C"
 rationale   = "StrDeinit(&temp) before reassigning temp; the prior temp was released by its preceding successful StrMergeL/StrInit so the free is a no-op -- redundant, removing it leaks nothing."
@@ -4185,7 +3998,7 @@ region_hash = "sha256:aaa31d068758c505de072a564e7dbf4eacb5428afe8e0be29ab38efc82
 [[ignore]]
 id          = "IO-BAREPREFIX-2808"
 file        = "Source/Misra/Std/Io.c"
-lines       = [2808, 2808]
+lines       = [2805, 2805]
 mutator     = "cxx_eq_to_ne"
 bucket      = "C"
 rationale   = "the StrLen==2 && [0]=='0' bare-prefix early-reject is redundant: with it disabled (mutant), the integer parser still fails on a digitless 0x/0X/0b/0B/0o/0O token and returns the unchanged cursor -- the same observable result (read fails). Verified: all six bare prefixes are rejected identically with and without the guard."

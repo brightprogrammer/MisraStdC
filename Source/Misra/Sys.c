@@ -228,23 +228,18 @@ static Zstr errno_description(i32 eno) {
     }
 }
 
-// KNOWN LIMITATION: `err_str` must be heap-backed. `LOG_SYS_*` macros
-// pass a 256-byte `StrInitStack` scratch whose allocator is NULL, and
-// the `StrAppendFmt` integer formatter below builds a sub-`Str` from
-// `StrAllocator(out)` to render the errno number -- a NULL allocator
-// there trips `reserve_vec` even though the rendered text would fit
-// in 256 bytes. Callers on errno-bearing paths exercised by tests
-// (e.g. `FileOpen` on a missing file) therefore route `LOG_ERROR`
-// with a raw `errno` number instead of `LOG_SYS_ERROR`. Fix belongs
-// in the `_write_*` family (fall through to a default allocator when
-// `o`'s allocator is NULL), not here.
+// Renders "<description> (errno <n>)" straight into `err_str`, reusing
+// the buffer the caller already provided. `LOG_SYS_*` hands us a
+// 256-byte `StrInitStack` scratch (allocator NULL by design); the errno
+// text always fits, so no growth -- and therefore no allocator -- is
+// needed. Writing into a fresh `StrInit(StrAllocator(err_str))` instead
+// would inherit that NULL allocator into a zero-capacity Str and abort
+// on the first byte via `reserve_vec`, regardless of platform; it only
+// stayed hidden because the errno paths that reach here are rare.
 Str *StrError(i32 eno, Str *err_str) {
     ValidateStr(err_str);
-    Allocator *alloc = StrAllocator(err_str);
-    Str        out   = StrInit(alloc);
-    StrAppendFmt(&out, "{} (errno {})", errno_description(eno), eno);
-    StrDeinit(err_str);
-    *err_str = out;
+    StrClear(err_str);
+    StrAppendFmt(err_str, "{} (errno {})", errno_description(eno), eno);
     return err_str;
 }
 
