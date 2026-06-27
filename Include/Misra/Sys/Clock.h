@@ -42,7 +42,16 @@
 ///
 u64 ClockMonoNs(void);
 
-#if ARCHITECTURE_X86_64
+#if defined(_MSC_VER) && !defined(__clang__)
+// Real MSVC (cl.exe) has no GNU statement-expressions / inline asm; use the
+// compiler intrinsic. clang-cl defines __clang__ and takes the GNU path below.
+#    include <intrin.h>
+#    if ARCHITECTURE_AARCH64
+#        define ClockTick() ((u64)_ReadStatusReg(ARM64_CNTVCT))
+#    else
+#        define ClockTick() ((u64)__rdtsc())
+#    endif
+#elif ARCHITECTURE_X86_64
 #    define ClockTick()                                                                                                \
         (__extension__({                                                                                               \
             u32 tsc_lo_, tsc_hi_;                                                                                      \

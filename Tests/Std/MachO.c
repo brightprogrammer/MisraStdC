@@ -822,7 +822,7 @@ bool test_mh1_tab_end_addition(void) {
     u32 stroff  = symoff + tab_len;   // strtab right after table
     u32 strsize = 16;
     u32 BUF     = stroff + strsize + 16;
-    u8  b[0x200];
+    u8  b[0x300];                     // must cover BUF (=544 here); 0x200 overflowed
     MemSet(b, 0, sizeof(b));
     SymCfg cfg = {.buf_size = BUF, .symoff = symoff, .nsyms = NSY, .stroff = stroff, .strsize = strsize};
     build_scaffold(b, &cfg);
