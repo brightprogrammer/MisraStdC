@@ -4,43 +4,31 @@
 #include <Misra/Std/Zstr.h>
 #include <Misra/Std/ArgParse.h>
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/File.h>
 #include <Misra/Std/Log.h>
-
-#include <unistd.h>
 
 #include "../Util/TestRunner.h"
 
 // ---------------------------------------------------------------------------
-// stderr capture: ArgParse writes errors / --help to fd 2 (FileStderr). To
-// assert error wording (which distinguishes several "both branches ERROR but
-// different message" mutants) we redirect fd 2 into a pipe, run, then drain.
-// pipe/dup/dup2/read are POSIX OS interfaces, allowed in tests.
+// ArgParse writes errors / --help to its output sink (`p->out`, default
+// FileStderr()). To assert error wording (which distinguishes several "both
+// branches ERROR but different message" mutants) we point the sink at a temp
+// file, run, then read it back. Fully portable -- no fd/handle redirection.
 // ---------------------------------------------------------------------------
 static ArgRun capture_run(ArgParse *p, int argc, char **argv, Str *out) {
-    int pipefd[2];
-    if (pipe(pipefd) != 0)
-        LOG_FATAL("capture_run: pipe failed");
-    int saved = dup(2);
-    if (saved < 0)
-        LOG_FATAL("capture_run: dup failed");
-    if (dup2(pipefd[1], 2) < 0)
-        LOG_FATAL("capture_run: dup2 failed");
-    close(pipefd[1]);
+    Str  tmp_path = StrInit(p->alloc);
+    File tmp      = FileOpenTemp(&tmp_path, p->alloc);
+    StrDeinit(&tmp_path);
+    if (!FileIsOpen(&tmp))
+        LOG_FATAL("capture_run: FileOpenTemp failed");
 
+    p->out    = &tmp;
     ArgRun rc = ArgParseRun(p, argc, argv);
+    p->out    = NULL;
 
-    dup2(saved, 2);
-    close(saved);
-
-    char buf[4096];
-    for (;;) {
-        long n = read(pipefd[0], buf, sizeof(buf));
-        if (n <= 0)
-            break;
-        for (long i = 0; i < n; ++i)
-            StrPushBackR(out, buf[i]);
-    }
-    close(pipefd[0]);
+    FileSeek(&tmp, 0, FILE_SEEK_SET);
+    FileRead(&tmp, out);
+    FileClose(&tmp);
     return rc;
 }
 

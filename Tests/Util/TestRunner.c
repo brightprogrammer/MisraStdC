@@ -160,9 +160,10 @@ __attribute__((naked, used, noreturn)) static void LongJmp(JmpBuf env, int val) 
         "1: jmpq *56(%rdi)\n"
     );
 }
-#elif (PLATFORM_LINUX || PLATFORM_DARWIN) && ARCHITECTURE_AARCH64
+#elif (PLATFORM_LINUX || PLATFORM_DARWIN) && ARCHITECTURE_AARCH64 && defined(__clang__)
 // AAPCS64: 1st arg in X0, 2nd arg in X1. Callee-saved scalars:
-// X19-X28, X29 (fp), X30 (lr). Plus SP.
+// X19-X28, X29 (fp), X30 (lr). Plus SP. Clang honours `naked` on
+// AArch64, so the asm body is emitted verbatim with no prologue.
 __attribute__((naked, used)) static int SetJmp(JmpBuf env) {
     __asm__(
         "stp x19, x20, [x0,  #0]\n"
@@ -194,6 +195,52 @@ __attribute__((naked, used, noreturn)) static void LongJmp(JmpBuf env, int val) 
         "1: ret\n"
     );
 }
+#elif (PLATFORM_LINUX || PLATFORM_DARWIN) && ARCHITECTURE_AARCH64
+// GCC silently IGNORES `__attribute__((naked))` on AArch64 (it warns
+// `'naked' attribute directive ignored` and emits a real
+// prologue/epilogue). That prologue does `stp x29,x30,[sp,#-16]!`, so
+// the SP this routine hands back in the JmpBuf is 16 bytes below the
+// caller's frame; `LongJmp` then restores that bad SP and the unwound
+// frame is corrupt -- under ASan it lands in a guard page (the
+// `SEGV in g_test_abort_jmp` seen on the arm64 CI). Authoring the pair
+// as file-scope asm sidesteps `naked` entirely: top-level asm is never
+// wrapped in a prologue by any compiler. GCC/AArch64 only ever targets
+// Linux/ELF here (Darwin uses Clang, handled above), so the symbols
+// need no Mach-O underscore prefix.
+int  SetJmp(JmpBuf env);
+void LongJmp(JmpBuf env, int val) __attribute__((noreturn));
+
+__asm__(
+    ".text\n"
+    ".p2align 2\n"
+    ".globl SetJmp\n"
+    "SetJmp:\n"
+    "    stp x19, x20, [x0,  #0]\n"
+    "    stp x21, x22, [x0, #16]\n"
+    "    stp x23, x24, [x0, #32]\n"
+    "    stp x25, x26, [x0, #48]\n"
+    "    stp x27, x28, [x0, #64]\n"
+    "    stp x29, x30, [x0, #80]\n"
+    "    mov x1, sp\n"
+    "    str x1,       [x0, #96]\n"
+    "    mov w0, #0\n"
+    "    ret\n"
+    ".p2align 2\n"
+    ".globl LongJmp\n"
+    "LongJmp:\n"
+    "    ldp x19, x20, [x0,  #0]\n"
+    "    ldp x21, x22, [x0, #16]\n"
+    "    ldp x23, x24, [x0, #32]\n"
+    "    ldp x25, x26, [x0, #48]\n"
+    "    ldp x27, x28, [x0, #64]\n"
+    "    ldp x29, x30, [x0, #80]\n"
+    "    ldr x2,       [x0, #96]\n"
+    "    mov sp, x2\n"
+    "    mov w0, w1\n"
+    "    cbnz w0, 1f\n"
+    "    mov w0, #1\n"
+    "1:  ret\n"
+);
 #endif
 
 // Global jump buffer for capturing aborts

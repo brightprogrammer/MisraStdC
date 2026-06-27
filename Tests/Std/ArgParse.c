@@ -6,8 +6,6 @@
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 
-#include <unistd.h>
-
 #include "../Util/TestRunner.h"
 
 // ----------------------------------------------------------------------------
@@ -603,47 +601,33 @@ static bool test_help_returns_help_code(void) {
 // ===========================================================================
 
 // ---------------------------------------------------------------------------
-// print_help writes its usage table straight to fd 2 (FileStderr). To
-// assert the EXACT layout -- column alignment, padding width, section
-// order, separators -- we redirect fd 2 to a pipe, run
-// ArgParseRun(--help), then drain the pipe back into a Str. pipe / dup /
-// dup2 / read are OS interfaces (POSIX), not libc, so they are allowed
-// in MisraStdC tests.
+// To assert the EXACT --help layout -- column alignment, padding width,
+// section order, separators -- we point the parser's output sink (`p->out`)
+// at a temp file, run ArgParseRun(--help), then read the file back. Fully
+// portable: the `File` abstraction handles the platform difference, so the
+// test needs no fd/handle redirection.
 //
 // ArgParseRun appends a synthetic "-h, --help  print this help" FLAG
 // spec before printing, so every captured help text ends with that row.
 // ---------------------------------------------------------------------------
 static void capture_help(ArgParse *p, Str *out) {
-    int pipefd[2];
-    if (pipe(pipefd) != 0)
-        LOG_FATAL("capture_help: pipe failed");
+    Str  tmp_path = StrInit(p->alloc);
+    File tmp      = FileOpenTemp(&tmp_path, p->alloc);
+    StrDeinit(&tmp_path);
+    if (!FileIsOpen(&tmp))
+        LOG_FATAL("capture_help: FileOpenTemp failed");
 
-    int saved = dup(2);
-    if (saved < 0)
-        LOG_FATAL("capture_help: dup failed");
-    if (dup2(pipefd[1], 2) < 0)
-        LOG_FATAL("capture_help: dup2 failed");
-    close(pipefd[1]);
-
+    p->out        = &tmp;
     char  *argv[] = {(char *)"prog", (char *)"--help"};
     ArgRun rc     = ArgParseRun(p, 2, argv);
-
-    // Restore the real stderr before draining so later logging is sane.
-    dup2(saved, 2);
-    close(saved);
+    p->out        = NULL;
 
     if (rc != ARG_RUN_HELP)
         LOG_FATAL("capture_help: expected ARG_RUN_HELP, got {}", (int)rc);
 
-    char buf[4096];
-    for (;;) {
-        long n = read(pipefd[0], buf, sizeof(buf));
-        if (n <= 0)
-            break;
-        for (long i = 0; i < n; ++i)
-            StrPushBackR(out, buf[i]);
-    }
-    close(pipefd[0]);
+    FileSeek(&tmp, 0, FILE_SEEK_SET);
+    FileRead(&tmp, out);
+    FileClose(&tmp);
 }
 
 static bool help_equals(ArgParse *p, Zstr expected) {
@@ -895,10 +879,8 @@ static bool test_a1_render_cap_is_64(void) {
 // width) are then asserted.
 // ----------------------------------------------------------------------------
 
-// Run --help with stderr redirected into `out`. Returns true on a clean
-// capture. The captured help text (whole stderr stream) lands in `out`.
-// (Tempfile-based variant; the pipe-based capture_help above is kept
-// under its own name.)
+// Run --help with the parser's output sink pointed at a temp file, then
+// read it back into `out`. Returns true on a clean ARG_RUN_HELP capture.
 static bool capture_help_file(ArgParse *p, Str *out) {
     Str  tmp_path = StrInit(p->alloc);
     File tmp      = FileOpenTemp(&tmp_path, p->alloc);
@@ -906,23 +888,10 @@ static bool capture_help_file(ArgParse *p, Str *out) {
     if (!FileIsOpen(&tmp))
         return false;
 
-    int saved = dup(2);
-    if (saved < 0) {
-        FileClose(&tmp);
-        return false;
-    }
-    if (dup2(tmp.fd, 2) < 0) {
-        close(saved);
-        FileClose(&tmp);
-        return false;
-    }
-
+    p->out        = &tmp;
     char  *argv[] = {(char *)"prog", (char *)"--help"};
     ArgRun rc     = ArgParseRun(p, 2, argv);
-
-    // Restore stderr before doing anything that might write to it.
-    dup2(saved, 2);
-    close(saved);
+    p->out        = NULL;
 
     bool ok = (rc == ARG_RUN_HELP);
     FileSeek(&tmp, 0, FILE_SEEK_SET);

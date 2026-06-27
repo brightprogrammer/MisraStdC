@@ -74,7 +74,7 @@ u64 DateTimeToUnixNs(DateTime dt) {
     i64 days      = days_from_civil(dt.year, dt.month, dt.day);
     i64 local_sec = days * SECS_PER_DAY + (i64)dt.hour * 3600 + (i64)dt.minute * 60 + (i64)dt.second;
     i64 utc_sec   = local_sec - (i64)dt.utc_offset_seconds;
-    return (u64)(utc_sec * NS_PER_SEC + (i64)dt.nanosecond);
+    return (u64)utc_sec * (u64)NS_PER_SEC + (u64)dt.nanosecond;
 }
 
 i32 DateTimeCompare(DateTime a, DateTime b) {

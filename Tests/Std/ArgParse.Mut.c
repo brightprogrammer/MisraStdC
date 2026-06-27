@@ -12,45 +12,31 @@
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 
-#include <unistd.h>
-
 #include "../Util/TestRunner.h"
 
 // ---------------------------------------------------------------------------
-// --help capture: print_help writes the usage table to fd 2 (FileStderr).
-// Redirect fd 2 into a pipe, run --help, drain the pipe back into a Str.
-// (Same technique the existing ArgParse.c suite uses.)
+// --help capture: point the parser's output sink at a temp file (`p->out`),
+// run --help, then read the file back. Fully portable -- the `File`
+// abstraction handles the platform difference, no fd/handle redirection.
 // ---------------------------------------------------------------------------
 static void capture_help(ArgParse *p, Str *out) {
-    int pipefd[2];
-    if (pipe(pipefd) != 0)
-        LOG_FATAL("capture_help: pipe failed");
+    Str  tmp_path = StrInit(p->alloc);
+    File tmp      = FileOpenTemp(&tmp_path, p->alloc);
+    StrDeinit(&tmp_path);
+    if (!FileIsOpen(&tmp))
+        LOG_FATAL("capture_help: FileOpenTemp failed");
 
-    int saved = dup(2);
-    if (saved < 0)
-        LOG_FATAL("capture_help: dup failed");
-    if (dup2(pipefd[1], 2) < 0)
-        LOG_FATAL("capture_help: dup2 failed");
-    close(pipefd[1]);
-
+    p->out        = &tmp;
     char  *argv[] = {(char *)"prog", (char *)"--help"};
     ArgRun rc     = ArgParseRun(p, 2, argv);
-
-    dup2(saved, 2);
-    close(saved);
+    p->out        = NULL;
 
     if (rc != ARG_RUN_HELP)
         LOG_FATAL("capture_help: expected ARG_RUN_HELP, got {}", (int)rc);
 
-    char buf[4096];
-    for (;;) {
-        long n = read(pipefd[0], buf, sizeof(buf));
-        if (n <= 0)
-            break;
-        for (long i = 0; i < n; ++i)
-            StrPushBackR(out, buf[i]);
-    }
-    close(pipefd[0]);
+    FileSeek(&tmp, 0, FILE_SEEK_SET);
+    FileRead(&tmp, out);
+    FileClose(&tmp);
 }
 
 static bool help_equals(ArgParse *p, Zstr expected) {

@@ -41,6 +41,7 @@
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Container/Vec.h>
+#include <Misra/Std/File.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Types.h>
 
@@ -128,12 +129,17 @@ extern "C" {
     /// `name`  -- shown as the program name in `--help` and errors.
     /// `about` -- one-line description at the top of `--help`. May be NULL.
     /// `alloc` -- where the `specs` Vec and any owned strings come from.
+    /// `out`   -- where `--help` and error text are written. NULL (the
+    ///            default) means `FileStderr()`; point it at any `File`
+    ///            (e.g. a `FileOpenTemp` handle) to capture the output
+    ///            portably, with no OS-level stream redirection.
     ///
     typedef struct ArgParse {
         Allocator *alloc;
         Zstr       name;
         Zstr       about;
         ArgSpecs   specs;
+        File      *out;
     } ArgParse;
 
     ///

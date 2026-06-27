@@ -312,7 +312,7 @@ static u64 spec_format_left(const ArgSpec *sp, Str *out) {
 }
 
 static void print_help(ArgParse *self) {
-    File err = FileStderr();
+    File err = self->out ? *self->out : FileStderr();
 
     if (self->about) {
         FWriteFmtLn(&err, "{} -- {}", self->name, self->about);
@@ -643,7 +643,7 @@ ArgRun ArgParseRun(ArgParse *self, int argc, char **argv) {
         VecPushBack(&self->specs, help);
     }
 
-    File err = FileStderr();
+    File err = self->out ? *self->out : FileStderr();
 
     bool rest_positional = false;
     u64  next_positional = 0;

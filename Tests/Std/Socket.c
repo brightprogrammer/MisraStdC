@@ -807,8 +807,13 @@ bool test_sk3_parse_ipv6_fields(void) {
     ok            = ok && addr.length == 28u; // sizeof(struct sockaddr_in6)
 
     // raw[0..1] is sin6_family (Linux: u16 host order at offset 0).
-    // AF_INET6 == 10. A mutation to 42 changes this byte.
+    // AF_INET6 == 10. A mutation to 42 changes this byte. The raw byte
+    // layout (offset, width, AF_INET6 value) is Linux-specific -- macOS
+    // prefixes sin6_len and uses AF_INET6==30, Windows uses 23 -- so this
+    // check is gated to Linux, which is also the only platform mull runs on.
+#if PLATFORM_LINUX
     ok = ok && addr.raw[0] == 10u && addr.raw[1] == 0u;
+#endif
 
     Str s = SocketAddrFormat(&addr, a);
     ok    = ok && StrLen(&s) > 0 && ZstrCompare(StrBegin(&s), "[2001:db8::1]:443") == 0;
