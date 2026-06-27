@@ -2444,8 +2444,10 @@ bool test_pd4_deinit_frees_name_pool(void) {
     return ok;
 }
 
-#define X_TMP_VALID "/tmp/pd4_valid_pdb.bin"
-#define X_TMP_JUNK  "/tmp/pd4_junk_pdb.bin"
+// CWD-relative (not /tmp): Windows has no /tmp, and the CWD is the
+// portable writable scratch location (same convention as FileOpenTemp).
+#define X_TMP_VALID "pd4_valid_pdb.bin"
+#define X_TMP_JUNK  "pd4_junk_pdb.bin"
 
 // Contract: a valid PDB written to disk opens via the path-based
 // constructor and exposes the right info.

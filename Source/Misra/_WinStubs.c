@@ -110,13 +110,34 @@ __attribute__((no_stack_protector, used)) void __security_check_cookie(unsigned 
 }
 
 // (2) Stack-probe. clang-cl emits __chkstk in prologues with frames
-//     bigger than the probe threshold (default 4 KiB). UCRT/ntdll
-//     provide a routine that touches every guard page so the OS
-//     demand-faults them in. Our runtime never has frames that large
-//     (Allocator handles big buffers), so a no-op is fine. Same
-//     approach as the Mac __chkstk_darwin stub.
+//     bigger than the probe threshold (default 4 KiB). The frame size
+//     is passed in RAX; the routine must touch every guard page from
+//     the current SP down to SP-RAX so the OS demand-faults them in,
+//     then return with RAX unchanged (the prologue does `sub rsp, rax`
+//     afterwards). A no-op `ret` skips the probing, so a >4 KiB frame
+//     writes past the unmoved guard page and faults (0xC0000005) -- a
+//     real crash, e.g. a test with two ~KB stack arrays. This is the
+//     canonical x86-64 implementation (matches LLVM compiler-rt).
 __attribute__((naked, used)) void __chkstk(void) {
-    __asm__("ret");
+    __asm__(
+        "push %rcx\n"
+        "push %rax\n"
+        "cmp $0x1000, %rax\n"
+        "lea 24(%rsp), %rcx\n" // first byte above the two pushes + return addr
+        "jb 1f\n"
+        "2:\n"                 // probe each full page
+        "sub $0x1000, %rcx\n"
+        "orl $0, (%rcx)\n"
+        "sub $0x1000, %rax\n"
+        "cmp $0x1000, %rax\n"
+        "ja 2b\n"
+        "1:\n" // probe the final partial page
+        "sub %rax, %rcx\n"
+        "orl $0, (%rcx)\n"
+        "pop %rax\n"
+        "pop %rcx\n"
+        "ret\n"
+    );
 }
 
 // (3) Floating-point indicator. MSVC C-runtime convention: every

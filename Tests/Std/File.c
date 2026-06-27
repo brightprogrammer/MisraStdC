@@ -482,6 +482,12 @@ bool test_fm_56_r_mode_reads_content(void) {
 bool test_fm_172_fromfd_keeps_fd(void) {
     WriteFmt("Testing FileFromFd preserves the fd value (FileFd round-trip)\n");
 
+#if PLATFORM_WINDOWS
+    // FileFromFd / FileFd are POSIX-fd APIs. On Windows a File wraps a
+    // HANDLE, FileFromFd ignores the fd, and FileFd is a stub returning
+    // -1 -- there is no fd to round-trip, so this contract is POSIX-only.
+    return true;
+#else
     // fd 1 (stdout) is a stable, known descriptor.
     File f  = FileFromFd(1);
     bool ok = (FileFd(&f) == 1);
@@ -489,6 +495,7 @@ bool test_fm_172_fromfd_keeps_fd(void) {
     File g = FileFromFd(0);
     ok     = ok && (FileFd(&g) == 0);
     return ok;
+#endif
 }
 
 // L173 `f.owns = false`: a borrowed File must NOT own its fd, so FileClose is

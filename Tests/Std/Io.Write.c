@@ -3027,7 +3027,7 @@ static bool test_m27_token_trailing_letter_stops(void) {
 }
 
 static bool test_m28_fwrite_roundtrip_string(void) {
-    Zstr path = "/tmp/io_mutants28_str.txt";
+    Zstr path = "io_mutants28_str.txt"; // CWD-relative: portable (no /tmp on Windows)
     File f    = FileOpen(path, "w");
     if (!FileIsOpen(&f)) {
         return false;
@@ -3044,7 +3044,7 @@ static bool test_m28_fwrite_roundtrip_string(void) {
 }
 
 static bool test_m28_fwrite_roundtrip_int(void) {
-    Zstr path = "/tmp/io_mutants28_int.txt";
+    Zstr path = "io_mutants28_int.txt"; // CWD-relative: portable (no /tmp on Windows)
     File f    = FileOpen(path, "w");
     if (!FileIsOpen(&f)) {
         return false;
@@ -3061,7 +3061,7 @@ static bool test_m28_fwrite_roundtrip_int(void) {
 // newline is part of the single written line and the write-count identity
 // compare still holds (543:83) with the '\n' counted.
 static bool test_m28_fwriteln_roundtrip(void) {
-    Zstr path = "/tmp/io_mutants28_ln.txt";
+    Zstr path = "io_mutants28_ln.txt"; // CWD-relative: portable (no /tmp on Windows)
     File f    = FileOpen(path, "w");
     if (!FileIsOpen(&f)) {
         return false;

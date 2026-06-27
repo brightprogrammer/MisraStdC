@@ -37,6 +37,12 @@ static bool write_test_file_local(Zstr text, Str *out_path, Allocator *alloc) {
 bool test_mut_240_isopen_fd_zero(void) {
     WriteFmt("Testing FileIsOpen reports a borrowed fd 0 as open (>= 0 boundary)\n");
 
+#if PLATFORM_WINDOWS
+    // The `fd >= 0` boundary is POSIX-only: on Windows FileIsOpen tests a
+    // HANDLE, and FileFromFd always yields INVALID_HANDLE_VALUE (the fd is
+    // ignored), so there is no fd-0 boundary to pin here.
+    return true;
+#else
     // fd 0 (stdin) is a valid, open descriptor. `>= 0` must accept it;
     // a `> 0` mutant would wrongly report it not-open.
     File f  = FileFromFd(0);
@@ -46,6 +52,7 @@ bool test_mut_240_isopen_fd_zero(void) {
     File g = FileFromFd(-1);
     ok     = ok && (FileIsOpen(&g) == false);
     return ok;
+#endif
 }
 
 // L498 `if (!path || (!buf && n > 0))` in file_write_and_close_from_bytes:

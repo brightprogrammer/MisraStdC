@@ -621,7 +621,8 @@ static SockFd plat_socket(int af, int type, int proto) {
 }
 
 static bool plat_bind(SockFd s, const void *addr, u32 len) {
-    long ret = direct_sys3(MISRA_SYS_bind, (long)(int)s, (long)(u64)(const struct sockaddr *)addr, (long)(socklen_t)len);
+    long ret =
+        direct_sys3(MISRA_SYS_bind, (long)(int)s, (long)(u64)(const struct sockaddr *)addr, (long)(socklen_t)len);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "bind() failed");
         return false;
@@ -694,8 +695,8 @@ static bool plat_setsockopt(SockFd s, int level, int optname, const void *optval
 }
 
 static bool plat_getsockname(SockFd s, void *addr, u32 *len_io) {
-    socklen_t sl  = (socklen_t)*len_io;
-    long      ret = direct_sys3(MISRA_SYS_getsockname, (long)(int)s, (long)(u64)(struct sockaddr *)addr, (long)(u64)&sl);
+    socklen_t sl = (socklen_t)*len_io;
+    long ret     = direct_sys3(MISRA_SYS_getsockname, (long)(int)s, (long)(u64)(struct sockaddr *)addr, (long)(u64)&sl);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "getsockname() failed");
         return false;
@@ -1002,6 +1003,11 @@ i32 SocketPoll(SocketPollItem *items, u32 count, i32 timeout_ms) {
 
     i32 ret;
 #if PLATFORM_WINDOWS
+    // WSAPoll rejects nfds == 0 with WSAEINVAL (POSIX poll() waits and
+    // returns 0). Nothing to wait on means nothing is ready: return 0.
+    if (count == 0) {
+        return 0;
+    }
     // WSAPoll on Win10 2004+ is correct; older Windows had a bug on
     // failed connect that we'd need a select() fallback for. We accept
     // the modern-Windows-only constraint.
@@ -1033,6 +1039,16 @@ i32 SocketPoll(SocketPollItem *items, u32 count, i32 timeout_ms) {
             if (pfds[i].revents & POLLIN) {
                 ready |= SOCKET_POLL_READ;
             }
+#if PLATFORM_WINDOWS
+            // WSAPoll flags a closed/reset peer with POLLHUP but, unlike
+            // POSIX poll(), without POLLRDNORM -- yet the socket is still
+            // readable (a read drains any buffered bytes, then returns 0
+            // for EOF). Surface POLLHUP as read-ready so callers see the
+            // same "peer closed -> readable" signal they get on POSIX.
+            if (pfds[i].revents & POLLHUP) {
+                ready |= SOCKET_POLL_READ;
+            }
+#endif
             if (pfds[i].revents & POLLOUT) {
                 ready |= SOCKET_POLL_WRITE;
             }
