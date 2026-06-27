@@ -27,6 +27,7 @@
 
 #include <Misra.h>
 #include <Misra/Std/Allocator/Debug.h>
+#include <Misra/Std/Container/BitVec.h>
 #include <Misra/Std/Container/Float.h>
 #include <Misra/Std/Container/Int.h>
 #include <Misra/Std/Container/Str.h>
@@ -261,8 +262,227 @@ bool test_leak_write_i64_temp_freed(void) {
     return ok;
 }
 
+// ---------------------------------------------------------------------------
+// Remaining WRITE-side scratch leaks. Every `_write_<T>` builds its rendering
+// in a scratch Str allocated through `StrAllocator(o)` and frees it with a
+// trailing `StrDeinit`; with `o` backed by a DebugAllocator a removed Deinit
+// leaks. One test per writer / format path, with container values backed by a
+// SEPARATE heap so only the formatter scratch shows in dbg's live count.
+// ---------------------------------------------------------------------------
+#define LEAK_WRITE_PRELUDE()                                                                                           \
+    DebugAllocator dbg  = DebugAllocatorInitWith(LEAK_CFG);                                                            \
+    Allocator     *adbg = ALLOCATOR_OF(&dbg);                                                                          \
+    Str            out  = StrInit(adbg);                                                                               \
+    bool           ok   = true
+
+#define LEAK_WRITE_EPILOGUE()                                                                                          \
+    StrDeinit(&out);                                                                                                   \
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);                           \
+    DebugAllocatorDeinit(&dbg);                                                                                        \
+    return ok
+
+bool test_leak_write_u64_temp_freed(void) {
+    LEAK_WRITE_PRELUDE();
+    ok = ok && StrAppendFmt(&out, "{}", (u64)12345678901234ull) && (StrLen(&out) > 0);
+    LEAK_WRITE_EPILOGUE();
+}
+
+bool test_leak_write_f64_temp_freed(void) {
+    LEAK_WRITE_PRELUDE();
+    ok = ok && StrAppendFmt(&out, "{}", (f64)3.14159) && (StrLen(&out) > 0);
+    LEAK_WRITE_EPILOGUE();
+}
+
+bool test_leak_write_str_freed(void) {
+    HeapAllocator va = HeapAllocatorInit();
+    Str           s  = StrInit(ALLOCATOR_OF(&va));
+    StrAppendFmt(&s, "payload");
+    LEAK_WRITE_PRELUDE();
+    ok = ok && StrAppendFmt(&out, "{}", s) && (StrLen(&out) > 0);
+    StrDeinit(&out);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    StrDeinit(&s);
+    HeapAllocatorDeinit(&va);
+    return ok;
+}
+
+bool test_leak_write_int_freed(void) {
+    HeapAllocator va = HeapAllocatorInit();
+    Int           v  = IntFromStr("123456789012345678901234567890", ALLOCATOR_OF(&va));
+    LEAK_WRITE_PRELUDE();
+    ok = ok && StrAppendFmt(&out, "{}", v) && (StrLen(&out) > 0);
+    StrDeinit(&out);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    IntDeinit(&v);
+    HeapAllocatorDeinit(&va);
+    return ok;
+}
+
+bool test_leak_write_float_freed(void) {
+    HeapAllocator va = HeapAllocatorInit();
+    Float         v  = FloatFromStr("2.718281828", ALLOCATOR_OF(&va));
+    LEAK_WRITE_PRELUDE();
+    ok = ok && StrAppendFmt(&out, "{}", v) && (StrLen(&out) > 0);
+    StrDeinit(&out);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    FloatDeinit(&v);
+    HeapAllocatorDeinit(&va);
+    return ok;
+}
+
+bool test_leak_write_bitvec_freed(void) {
+    HeapAllocator va = HeapAllocatorInit();
+    BitVec        v  = BitVecInit(ALLOCATOR_OF(&va));
+    BitVecResize(&v, 12);
+    LEAK_WRITE_PRELUDE();
+    ok = ok && StrAppendFmt(&out, "{}", v) && (StrLen(&out) > 0);
+    StrDeinit(&out);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    BitVecDeinit(&v);
+    HeapAllocatorDeinit(&va);
+    return ok;
+}
+
+// ---------------------------------------------------------------------------
+// Per-format-path WRITE-side scratch frees (mull A-kills): each writer
+// allocates its render scratch through StrAllocator(o) on a SPECIFIC format
+// flag and frees it with a trailing StrDeinit. Exercise that exact flag path.
+// ---------------------------------------------------------------------------
+
+// 1794: _write_Str `{x}` (FMT_FLAG_HEX) per-byte `hex` scratch.
+bool test_leak_write_str_hex_per_byte_freed(void) {
+    HeapAllocator sa = HeapAllocatorInit();
+    Str           s  = StrInit(ALLOCATOR_OF(&sa));
+    for (int i = 0; i < 8; ++i)
+        StrPushBackR(&s, (char)0xAB);
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Str            out = StrInit(ALLOCATOR_OF(&dbg));
+    bool           ok  = StrAppendFmt(&out, "{x}", s) && (StrLen(&out) > 0);
+    StrDeinit(&out);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    StrDeinit(&s);
+    HeapAllocatorDeinit(&sa);
+    return ok;
+}
+
+// 2210: _write_f64 finite default-decimal `temp` scratch.
+bool test_leak_write_f64_default_freed(void) {
+    LEAK_WRITE_PRELUDE();
+    ok = ok && StrAppendFmt(&out, "{}", 1e300) && (StrLen(&out) > 0);
+    LEAK_WRITE_EPILOGUE();
+}
+
+// 2286: _write_Float default-decimal `temp` (via float_try_to_decimal_str).
+bool test_leak_write_float_default_freed(void) {
+    HeapAllocator fa = HeapAllocatorInit();
+    Float         f  = FloatFromStr("12345678901234567890123456789012345678901234567890.5", ALLOCATOR_OF(&fa));
+    LEAK_WRITE_PRELUDE();
+    ok = ok && StrAppendFmt(&out, "{}", f) && (StrLen(&out) > 0);
+    StrDeinit(&out);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    FloatDeinit(&f);
+    HeapAllocatorDeinit(&fa);
+    return ok;
+}
+
+// ---------------------------------------------------------------------------
+// READ-side error/budget paths that free the DESTINATION Str (backed by the
+// caller's allocator) -- the reader frees `s` on these branches, so the test
+// must NOT free it again. The format-read budget binds before the input ends
+// via an interior literal anchor, so the unterminated/error branch runs.
+// ---------------------------------------------------------------------------
+
+// 2408 / 2421 / 2466: quoted-string read whose budget saturates before the
+// closing quote -> unterminated-quote branch frees the destination Str.
+static bool leak_quoted_unterminated(Zstr input, Zstr fmt) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Str            s   = StrInit(ALLOCATOR_OF(&dbg));
+    Zstr           p   = input;
+    StrReadFmt(p, fmt, s); // reader frees s on the unterminated/error branch
+    bool ok = (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+bool test_leak_read_quoted_budget_escape_freed(void) {
+    // open-quote + 24 \n escapes + 'E' + close-quote, fmt "{s}E".
+    return leak_quoted_unterminated(
+        "\"\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\nE\"",
+        "{s}E"
+    );
+}
+
+bool test_leak_read_quoted_budget_plain_freed(void) {
+    return leak_quoted_unterminated("\"aaaaaaaaaaaaaaaaaaaaaaaa#\"", "{s}#");
+}
+
+bool test_leak_read_quoted_unterminated_freed(void) {
+    return leak_quoted_unterminated("\"aaaaaaaaaaaaaaaaaaaaaaaa", "{s}");
+}
+
+// 2439: unquoted invalid-escape error path frees the destination Str.
+bool test_leak_read_unquoted_bad_escape_freed(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Str            s   = StrInit(ALLOCATOR_OF(&dbg));
+    Zstr           p   = "aaaaaaaaaaaaaaaaaaaaaaaa\\q"; // 24 'a' + invalid \q
+    StrReadFmt(p, "{}", s);
+    bool ok = (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// 3232 / 3273: BitVec hex/oct read overflow error path frees the internal
+// scratch (allocated through the destination BitVec's allocator).
+static bool leak_bitvec_overflow(Zstr input) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    BitVec         bv  = BitVecInit(ALLOCATOR_OF(&dbg));
+    Zstr           p   = input;
+    StrReadFmt(p, "{}", bv);
+    BitVecDeinit(&bv);
+    bool ok = (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+bool test_leak_read_bitvec_hex_overflow_freed(void) {
+    return leak_bitvec_overflow("0xFFFFFFFFFFFFFFFFF"); // 17 hex digits > 64 bits
+}
+
+bool test_leak_read_bitvec_oct_overflow_freed(void) {
+    return leak_bitvec_overflow("0o7777777777777777777777"); // 22 oct digits > 64 bits
+}
+
+// 3448: Float read whose token passes length-scan but FloatTryFromStr fails on
+// exponent overflow -> fail branch frees the internal `temp` scratch.
+bool test_leak_read_float_exp_overflow_freed(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          fv  = FloatInit(ALLOCATOR_OF(&dbg));
+    Zstr           p   = "1e99999999999999999999999999999999999999999999999999";
+    StrReadFmt(p, "{}", fv);
+    FloatDeinit(&fv);
+    bool ok = (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
 int main(void) {
     TestFunction tests[] = {
+        test_leak_write_str_hex_per_byte_freed,
+        test_leak_write_f64_default_freed,
+        test_leak_write_float_default_freed,
+        test_leak_read_quoted_budget_escape_freed,
+        test_leak_read_quoted_budget_plain_freed,
+        test_leak_read_quoted_unterminated_freed,
+        test_leak_read_unquoted_bad_escape_freed,
+        test_leak_read_bitvec_hex_overflow_freed,
+        test_leak_read_bitvec_oct_overflow_freed,
+        test_leak_read_float_exp_overflow_freed,
         test_leak_sci_nonzero_digits_freed,
         test_leak_sci_zero_digits_freed,
         test_leak_decimal_withdot_canonical_freed,
@@ -271,6 +491,12 @@ int main(void) {
         test_leak_read_float_prior_value_freed,
         test_leak_write_zstr_hex_per_byte_freed,
         test_leak_write_i64_temp_freed,
+        test_leak_write_u64_temp_freed,
+        test_leak_write_f64_temp_freed,
+        test_leak_write_str_freed,
+        test_leak_write_int_freed,
+        test_leak_write_float_freed,
+        test_leak_write_bitvec_freed,
     };
     TestFunction deadend_tests[] = {
         0,

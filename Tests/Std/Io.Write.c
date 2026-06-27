@@ -4748,6 +4748,21 @@ static bool test_m8_precision9_string(void) {
     return ok;
 }
 
+// Deadend: a binary format with more raw fields than supplied args must abort
+// (`arg_index >= argc` -> LOG_FATAL "too few arguments"). Two `{<1r}` fields,
+// one arg: the second field trips the guard.
+static bool test_deadend_bufread_too_few_args(void) {
+    WriteFmt("bufread too-few-args must abort\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Buf              b     = BufInit(&alloc);
+    BufWriteFmt(&b, "{<1r}{<1r}", (u8)0x11, (u8)0x22); // 2 bytes available
+    BufIter it = BufIterFromBuf(&b);
+    u8      v8 = 0;
+    BufReadFmt(&it, "{<1r}{<1r}", v8);                 // 2 fields, 1 arg -> abort
+    BufDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return true;
+}
 
 int main(void) {
     WriteFmt("[INFO] Starting format writer tests\n\n");
@@ -4997,6 +5012,7 @@ int main(void) {
     TestFunction deadend_tests[] = {
         test_m16_nonraw_spec_deadend,
         test_m32_deadend_nonraw_legal_width,
+        test_deadend_bufread_too_few_args,
     };
 
     return run_test_suite(

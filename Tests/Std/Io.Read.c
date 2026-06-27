@@ -2017,6 +2017,71 @@ static bool test_datetime_iso_read(void) {
     return ok;
 }
 
+// A format spec of exactly 32 chars must be REJECTED (spec_len >= 32). The
+// read fails, so the input cursor stays put and the destination is untouched.
+static bool test_read_spec_too_long_rejected(void) {
+    u64  v     = 0;
+    Zstr p     = "ff";
+    Zstr start = p;
+    StrReadFmt(p, "{xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx}", v); // exactly 32 'x'
+    return (p == start) && (v == 0);
+}
+
+// Unquoted-string read budget binds at the interior literal anchor '#': two
+// `\n` escapes exhaust the budget, so the field is exactly 2 bytes and 'rest'
+// is not consumed (pins the escape-budget decrement against over-reading).
+static bool test_read_escape_budget_anchor(void) {
+    DefaultAllocator a   = DefaultAllocatorInit();
+    Str              out = StrInit(ALLOCATOR_OF(&a));
+    Zstr             p   = "\\n\\n#rest";
+    StrReadFmt(p, "{}#", out);
+    bool ok = (StrLen(&out) == 2) && (StrBegin(&out)[0] == '\n') && (StrBegin(&out)[1] == '\n');
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&a);
+    return ok;
+}
+
+// _read_u8 hex form: "0xff" parses to 255, but a BARE prefix "0x" (no digits)
+// must be REJECTED (pins the `StrLen==2 && [0]=='0' && [1]=='x'` bare-prefix
+// guard: the mutant that disables it would accept "0x" and read 0).
+static bool test_read_u8_hex(void) {
+    u8 v = 0;
+    {
+        Zstr p = "0xff";
+        StrReadFmt(p, "{}", v);
+        if (v != 255)
+            return false;
+    }
+    // Every bare prefix (no digits) must be rejected -- covers whichever
+    // prefix-letter comparison the mutant flips.
+    Zstr bare[] = {"0x", "0X", "0b", "0B", "0o", "0O"};
+    for (u32 k = 0; k < sizeof(bare) / sizeof(bare[0]); ++k) {
+        Zstr p     = bare[k];
+        Zstr start = p;
+        u8   w     = 7;
+        StrReadFmt(p, "{}", w);
+        if (p != start || w != 7) // real: read fails, cursor + dest untouched
+            return false;
+    }
+    return true;
+}
+
+// max_read_len defaults to the remaining input length; an unanchored string
+// field longer than the mutant's constant (42) must read in FULL (the
+// `max_read_len = rem_in` survivor would cap it at 42).
+static bool test_read_long_string_no_cap(void) {
+    DefaultAllocator a   = DefaultAllocatorInit();
+    Str              out = StrInit(ALLOCATOR_OF(&a));
+    // Quoted string of 50 chars: max_read_len (= rem_in) must allow the full
+    // read; the `max_read_len = rem_in` survivor would cap it at 42.
+    Zstr p = "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""; // 50 'a' quoted
+    StrReadFmt(p, "{s}", out);
+    bool ok = (StrLen(&out) == 50);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&a);
+    return ok;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting format reader tests\n\n");
 
@@ -2036,6 +2101,10 @@ int main(void) {
         test_int_reading,
         test_float_reading,
         test_datetime_iso_read,
+        test_read_spec_too_long_rejected,
+        test_read_escape_budget_anchor,
+        test_read_u8_hex,
+        test_read_long_string_no_cap,
         test_m1_escaped_open_brace,
         test_m1_escaped_open_brace_exact,
         test_m1_escaped_close_brace,
