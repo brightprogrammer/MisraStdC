@@ -1982,6 +1982,41 @@ static bool test_m9_escape_mixed_nibbles(void) {
     return ok;
 }
 
+// DateTime parses from ISO 8601 through the IO reader. Lives in the Io
+// suite so mutation testing of Io.c's _read_DateTime is covered: the Z /
+// +HH:MM / -HH:MM offset forms (incl. half-hour minutes), the
+// nanosecond branch, and the field comparisons.
+static bool test_datetime_iso_read(void) {
+    bool ok = true;
+    {
+        Zstr     in = "2021-01-01T00:00:00Z";
+        DateTime d  = {0};
+        StrReadFmt(in, "{}", d);
+        ok = ok && d.year == 2021 && d.month == 1 && d.day == 1 && d.hour == 0 && d.minute == 0 && d.second == 0 &&
+             d.nanosecond == 0 && d.utc_offset_seconds == 0 && d.weekday == 5 /* Friday, derived on parse */;
+    }
+    {
+        Zstr     in = "2021-01-01T05:30:00+05:30";
+        DateTime d  = {0};
+        StrReadFmt(in, "{}", d);
+        ok = ok && d.year == 2021 && d.hour == 5 && d.minute == 30 && d.utc_offset_seconds == 19800;
+    }
+    {
+        Zstr     in = "2020-12-31T14:30:00-09:30";
+        DateTime d  = {0};
+        StrReadFmt(in, "{}", d);
+        ok = ok && d.year == 2020 && d.month == 12 && d.day == 31 && d.hour == 14 && d.minute == 30 &&
+             d.utc_offset_seconds == -34200;
+    }
+    {
+        Zstr     in = "2021-01-01T00:00:00.123456789Z";
+        DateTime d  = {0};
+        StrReadFmt(in, "{}", d);
+        ok = ok && d.nanosecond == 123456789 && d.utc_offset_seconds == 0;
+    }
+    return ok;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting format reader tests\n\n");
 
@@ -2000,6 +2035,7 @@ int main(void) {
         test_bitvec_reading,
         test_int_reading,
         test_float_reading,
+        test_datetime_iso_read,
         test_m1_escaped_open_brace,
         test_m1_escaped_open_brace_exact,
         test_m1_escaped_close_brace,

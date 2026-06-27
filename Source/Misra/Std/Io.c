@@ -821,9 +821,29 @@ bool buf_read_fmt(BufIter *iter, Zstr fmtstr, TypeSpecificIO *argv, u64 argc) {
 
     while (StrIterPeek(&fsi, &fc)) {
         if (fc != '{') {
-            LOG_FATAL("buf_read_fmt: stray '{c}' in binary fmt; only {{<Nr}} / {{>Nr}} allowed", (u32)(u8)fc);
+            // Literal byte: must match the cursor exactly. A mismatch or
+            // a short buffer is a soft parse failure (rewind + false),
+            // not an abort -- this is how magic bytes are checked inline.
+            if (IterRemainingLength(iter) < 1 || *(const u8 *)IterPos(iter) != (u8)fc) {
+                *iter = start;
+                return false;
+            }
+            IterMustMove(iter, 1);
+            StrIterMustNext(&fsi);
+            continue;
         }
         StrIterMustNext(&fsi); // step over '{'
+        // `{{` escapes to a single literal '{' byte.
+        char esc = 0;
+        if (StrIterPeek(&fsi, &esc) && esc == '{') {
+            if (IterRemainingLength(iter) < 1 || *(const u8 *)IterPos(iter) != (u8)'{') {
+                *iter = start;
+                return false;
+            }
+            IterMustMove(iter, 1);
+            StrIterMustNext(&fsi); // step over second '{'
+            continue;
+        }
         StrIter spec_start_fsi = fsi;
         Zstr    spec_start     = (Zstr)StrIterPos(&fsi);
         char    sc             = 0;
@@ -1004,9 +1024,23 @@ static bool render_binary_fmt(Str *out, Zstr fmtstr, TypeSpecificIO *argv, u64 a
     char    fc        = 0;
     while (StrIterPeek(&fsi, &fc)) {
         if (fc != '{') {
-            LOG_FATAL("buf_*_fmt: stray '{c}' in binary fmt; only {{<Nr}} / {{>Nr}} allowed", (u32)(u8)fc);
+            // Literal byte: emit verbatim (mirrors the read side's match).
+            if (!StrPushBackR(out, fc)) {
+                return false;
+            }
+            StrIterMustNext(&fsi);
+            continue;
         }
         StrIterMustNext(&fsi); // step over '{'
+        // `{{` escapes to a single literal '{' byte.
+        char esc = 0;
+        if (StrIterPeek(&fsi, &esc) && esc == '{') {
+            if (!StrPushBackR(out, '{')) {
+                return false;
+            }
+            StrIterMustNext(&fsi); // step over second '{'
+            continue;
+        }
         StrIter spec_start_fsi = fsi;
         Zstr    spec_start     = (Zstr)StrIterPos(&fsi);
         char    sc             = 0;
@@ -1621,6 +1655,100 @@ bool _write_Buf(Str *o, FmtInfo *fmt_info, Buf *b) {
 }
 Zstr _read_Buf(Zstr i, FmtInfo *fmt_info, Buf *b) {
     return _read_Str(i, fmt_info, (Str *)b);
+}
+
+// DateTime renders / parses as ISO 8601: `YYYY-MM-DDTHH:MM:SS[.fffffffff]`
+// followed by `Z` (UTC) or `+HH:MM` / `-HH:MM`. The fractional part is
+// emitted only when nanoseconds are nonzero; the 9-digit zero-padded
+// fraction is exactly the nanosecond count, so it parses back as a plain
+// integer. Writer and reader share the layout, so a value round-trips.
+bool _write_DateTime(Str *o, FmtInfo *fmt_info, DateTime *dt) {
+    (void)fmt_info;
+    if (!o || !dt) {
+        LOG_FATAL("Invalid arguments");
+    }
+    if (!StrAppendFmt(
+            o,
+            "{04}-{02}-{02}T{02}:{02}:{02}",
+            dt->year,
+            (u32)dt->month,
+            (u32)dt->day,
+            (u32)dt->hour,
+            (u32)dt->minute,
+            (u32)dt->second
+        )) {
+        return false;
+    }
+    if (dt->nanosecond != 0 && !StrAppendFmt(o, ".{09}", dt->nanosecond)) {
+        return false;
+    }
+    if (dt->utc_offset_seconds == 0) {
+        return StrAppendFmt(o, "Z");
+    }
+    i32 off = dt->utc_offset_seconds;
+    u32 ao  = (u32)(off < 0 ? -off : off);
+    u32 oh  = ao / 3600;
+    u32 om  = (ao % 3600) / 60;
+    if (off < 0) {
+        return StrAppendFmt(o, "-{02}:{02}", oh, om);
+    }
+    return StrAppendFmt(o, "+{02}:{02}", oh, om);
+}
+
+Zstr _read_DateTime(Zstr i, FmtInfo *fmt_info, DateTime *dt) {
+    (void)fmt_info;
+    if (!i || !dt) {
+        LOG_FATAL("Invalid arguments");
+    }
+    Zstr p    = i;
+    i32  year = 0;
+    u32  mon = 0, day = 0, hh = 0, mm = 0, ss = 0;
+    StrReadFmt(p, "{}-{}-{}T{}:{}:{}", year, mon, day, hh, mm, ss);
+    if (p == i) {
+        return i; // no date-time prefix matched
+    }
+
+    u32 nanos = 0;
+    if (*p == '.') {
+        p++;
+        Zstr frac_at = p;
+        StrReadFmt(p, "{}", nanos);
+        if (p == frac_at) {
+            return i; // '.' with no fraction
+        }
+    }
+
+    i32 offset = 0;
+    if (*p == 'Z') {
+        p++;
+    } else if (*p == '+' || *p == '-') {
+        i32  sign   = (*p == '-') ? -1 : 1;
+        Zstr off_at = ++p;
+        u32  oh = 0, om = 0;
+        StrReadFmt(p, "{}:{}", oh, om);
+        if (p == off_at) {
+            return i; // malformed offset
+        }
+        offset = sign * (i32)(oh * 3600 + om * 60);
+    } else {
+        return i; // missing offset designator
+    }
+
+    DateTime tmp;
+    tmp.year               = year;
+    tmp.month              = (u8)mon;
+    tmp.day                = (u8)day;
+    tmp.hour               = (u8)hh;
+    tmp.minute             = (u8)mm;
+    tmp.second             = (u8)ss;
+    tmp.nanosecond         = nanos;
+    tmp.utc_offset_seconds = offset;
+    tmp.weekday            = 0;
+    // Derive the weekday from the canonical conversion so a parsed value
+    // carries a correct weekday regardless of the input text.
+    tmp.weekday = DateTimeFromUnixNs(DateTimeToUnixNs(tmp), offset).weekday;
+    *dt         = tmp;
+    return p;
 }
 
 bool _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {

@@ -339,7 +339,8 @@ if opt_bitvec and opt_int and opt_float
 endif
 
 if opt_file
-    foreach test_info : file_tests
+    # Tzif (/etc/localtime parser) is gated on opt_file, same as File.c.
+    foreach test_info : file_tests + [['Tzif', 'Std/Tzif.c']]
         test_name = test_info[0]
         test_src = test_info[1]
 
@@ -807,6 +808,27 @@ if opt_alloc_debug
 endif
 
 foreach test_info : str_tests
+    test_name = test_info[0]
+    test_src = test_info[1]
+
+    test_exe = executable(
+        test_name,
+        files(test_src),
+        link_with: [misra_std_no_backtrace],
+        dependencies: [test_util_dep_no_backtrace],
+        c_args: test_args,
+        include_directories: inc_misra,
+        install: false
+    )
+
+    test(test_name, test_exe)
+endforeach
+
+clock_tests = [
+    ['DateTime', 'Std/DateTime.c'],
+    ['Clock', 'Std/Clock.c'],
+]
+foreach test_info : clock_tests
     test_name = test_info[0]
     test_src = test_info[1]
 

@@ -1227,3 +1227,603 @@ rationale = "Line 235 is the failure-rollback scrub in insert_range_into_vec: wh
 author = "proposals"
 created = "2026-06-15"
 region_hash = "sha256:e7d4dac3bf9906d0666af0ae09c0a85b60ee9183af92cdd7d2068324b88bddfe"
+
+# --- DateTime / Clock / Tzif (added 2026-06-26) ---
+
+[[ignore]]
+id          = "DATETIME-NEGYEAR-018A"
+file        = "Source/Misra/Std/DateTime.c"
+lines       = [18, 18]
+mutator     = "cxx_ge_to_gt"
+bucket      = "C"
+rationale   = "days_from_civil negative-year branch (y<0) is unreachable for the u64 epoch domain (year>=1970 => y>0 always); the ternary's else arm is dead code."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:d6baa8f1456c1cebb1e84bef8e33e44ce9dcf1f6a025e0b022406f08f8f9f283"
+
+[[ignore]]
+id          = "DATETIME-NEGYEAR-018B"
+file        = "Source/Misra/Std/DateTime.c"
+lines       = [18, 18]
+mutator     = "cxx_sub_to_add"
+bucket      = "C"
+rationale   = "days_from_civil negative-year branch (y<0) is unreachable for the u64 epoch domain (year>=1970 => y>0 always); the ternary's else arm is dead code."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:d6baa8f1456c1cebb1e84bef8e33e44ce9dcf1f6a025e0b022406f08f8f9f283"
+
+[[ignore]]
+id          = "DATETIME-NEGZ-028A"
+file        = "Source/Misra/Std/DateTime.c"
+lines       = [28, 28]
+mutator     = "cxx_ge_to_gt"
+bucket      = "C"
+rationale   = "civil_from_days negative serial-day branch (z<0) is unreachable for the u64 epoch domain (representable dates give z>0); the else arm is dead code."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:0767d05551d691337814d2a904d03123caec3efad6a2021093d747031b1f6ea1"
+
+[[ignore]]
+id          = "DATETIME-NEGZ-028B"
+file        = "Source/Misra/Std/DateTime.c"
+lines       = [28, 28]
+mutator     = "cxx_sub_to_add"
+bucket      = "C"
+rationale   = "civil_from_days negative serial-day branch (z<0) is unreachable for the u64 epoch domain (representable dates give z>0); the else arm is dead code."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:0767d05551d691337814d2a904d03123caec3efad6a2021093d747031b1f6ea1"
+
+[[ignore]]
+id          = "DATETIME-LEAPCORR-030"
+file        = "Source/Misra/Std/DateTime.c"
+lines       = [30, 30]
+mutator     = "cxx_add_to_sub"
+bucket      = "C"
+rationale   = "Gregorian leap-correction term (+doe/36524); no u64-representable date observably changes the computed civil year -- verified by a dense Jan-1/Dec-31 round-trip sweep 1970..2550 plus the exact century/400-cycle boundaries."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:693006389d6d7626d749b267f574934e17d0896a227269c3cb59b3fe9189de4e"
+
+[[ignore]]
+id          = "DATETIME-DEADINIT-051"
+file        = "Source/Misra/Std/DateTime.c"
+lines       = [51, 51]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "dead init -- the local is an out-param / immediately-reassigned value, written before any read; the replaced constant is never observed."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:a6d8962380e0f5750363f44b4ae4a608dcf628faf66b412ff75b510a6139b372"
+
+[[ignore]]
+id          = "DATETIME-DEADINIT-052"
+file        = "Source/Misra/Std/DateTime.c"
+lines       = [52, 52]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "dead init -- the local is an out-param / immediately-reassigned value, written before any read; the replaced constant is never observed."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:c2e92983fc76d1820c17e046e8034576eff0eccd01bca6ac440fac3d5f976c11"
+
+[[ignore]]
+id          = "DATETIME-DEADWD-058"
+file        = "Source/Misra/Std/DateTime.c"
+lines       = [58, 58]
+mutator     = "cxx_add_assign_to_sub_assign"
+bucket      = "C"
+rationale   = "the `wd += 7` body sits under `if (wd < 0)`, unreachable for u64 epochs (weekday is always >= 0)."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:2e2653727258b6ade38bad79599db1f89c3e0470cb16774b576a270e1a3edb79"
+
+[[ignore]]
+id          = "CLOCK-MONO-060A"
+file        = "Source/Misra/Sys/Clock.c"
+lines       = [60, 60]
+mutator     = "cxx_init_const"
+bucket      = "B"
+rationale   = "monotonic-clock reader: the boot-relative value and the clock_gettime error branch are not assertable without a reference clock or fault injection (no fault-injection infra exists)."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:af0c15c4a07d7dd4c2fd422f5a64321a10a766ed49d7dc6254baae71c830762c"
+
+[[ignore]]
+id          = "CLOCK-MONO-060B"
+file        = "Source/Misra/Sys/Clock.c"
+lines       = [60, 60]
+mutator     = "cxx_replace_scalar_call"
+bucket      = "B"
+rationale   = "monotonic-clock reader: the boot-relative value and the clock_gettime error branch are not assertable without a reference clock or fault injection (no fault-injection infra exists)."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:af0c15c4a07d7dd4c2fd422f5a64321a10a766ed49d7dc6254baae71c830762c"
+
+[[ignore]]
+id          = "CLOCK-MONO-061A"
+file        = "Source/Misra/Sys/Clock.c"
+lines       = [61, 61]
+mutator     = "cxx_lt_to_ge"
+bucket      = "B"
+rationale   = "monotonic-clock reader: the boot-relative value and the clock_gettime error branch are not assertable without a reference clock or fault injection (no fault-injection infra exists)."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:a0c1000805b42a0c1c58696f478c4aa24d4ef5a02f9d6f6a17f7f6c9e0a56529"
+
+[[ignore]]
+id          = "CLOCK-MONO-061B"
+file        = "Source/Misra/Sys/Clock.c"
+lines       = [61, 61]
+mutator     = "cxx_lt_to_le"
+bucket      = "B"
+rationale   = "monotonic-clock reader: the boot-relative value and the clock_gettime error branch are not assertable without a reference clock or fault injection (no fault-injection infra exists)."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:a0c1000805b42a0c1c58696f478c4aa24d4ef5a02f9d6f6a17f7f6c9e0a56529"
+
+[[ignore]]
+id          = "CLOCK-MONO-063A"
+file        = "Source/Misra/Sys/Clock.c"
+lines       = [63, 63]
+mutator     = "cxx_mul_to_div"
+bucket      = "B"
+rationale   = "monotonic-clock reader: the boot-relative value and the clock_gettime error branch are not assertable without a reference clock or fault injection (no fault-injection infra exists)."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:83b317f851ed5e446169aa740729cc2dcf2c5c28f6a32c84f35b1ceb16b69cd3"
+
+[[ignore]]
+id          = "CLOCK-MONO-063B"
+file        = "Source/Misra/Sys/Clock.c"
+lines       = [63, 63]
+mutator     = "cxx_add_to_sub"
+bucket      = "B"
+rationale   = "monotonic-clock reader: the boot-relative value and the clock_gettime error branch are not assertable without a reference clock or fault injection (no fault-injection infra exists)."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:83b317f851ed5e446169aa740729cc2dcf2c5c28f6a32c84f35b1ceb16b69cd3"
+
+[[ignore]]
+id          = "CLOCK-REAL-091"
+file        = "Source/Misra/Sys/Clock.c"
+lines       = [91, 91]
+mutator     = "cxx_init_const"
+bucket      = "B"
+rationale   = "ClockRealNs syscall-skipped/sentinel path: the value is unspecified stack data, not reliably distinguished by a recent-timestamp range check; error branch needs fault injection."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:439b8b8d0cf093d13f2421639cc9ebbb8f8aa5480b96c908fe196cb4a5cb104b"
+
+[[ignore]]
+id          = "CLOCK-REAL-094"
+file        = "Source/Misra/Sys/Clock.c"
+lines       = [94, 94]
+mutator     = "cxx_add_to_sub"
+bucket      = "C"
+rationale   = "the sub-second `+ tv_nsec` term is below the resolution of the recent-timestamp range assertion (adding/subtracting <1e9 from ~1.7e18 ns is invisible after /1e9)."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:83b317f851ed5e446169aa740729cc2dcf2c5c28f6a32c84f35b1ceb16b69cd3"
+
+[[ignore]]
+id          = "CLOCK-LOCAL-112"
+file        = "Source/Misra/Sys/Clock.c"
+lines       = [112, 112]
+mutator     = "cxx_init_const"
+bucket      = "B"
+rationale   = "ClockLocal local-offset resolution is host-timezone-dependent and not asserted to a fixed value; the TzifLocalOffsetSeconds call and the ns->s conversion do not change the sanity-checked DateTime fields."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:557546541e873ea96a95a05af173a853e2892487a2d7ee9a74850e10423e8eea"
+
+[[ignore]]
+id          = "CLOCK-LOCAL-113A"
+file        = "Source/Misra/Sys/Clock.c"
+lines       = [113, 113]
+mutator     = "cxx_init_const"
+bucket      = "B"
+rationale   = "ClockLocal local-offset resolution is host-timezone-dependent and not asserted to a fixed value; the TzifLocalOffsetSeconds call and the ns->s conversion do not change the sanity-checked DateTime fields."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:f3da061a8932d350c4da0ff80d03afa99979b5dc009459a75f4a2dc80184b41d"
+
+[[ignore]]
+id          = "CLOCK-LOCAL-113B"
+file        = "Source/Misra/Sys/Clock.c"
+lines       = [113, 113]
+mutator     = "cxx_replace_scalar_call"
+bucket      = "B"
+rationale   = "ClockLocal local-offset resolution is host-timezone-dependent and not asserted to a fixed value; the TzifLocalOffsetSeconds call and the ns->s conversion do not change the sanity-checked DateTime fields."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:f3da061a8932d350c4da0ff80d03afa99979b5dc009459a75f4a2dc80184b41d"
+
+[[ignore]]
+id          = "CLOCK-LOCAL-113C"
+file        = "Source/Misra/Sys/Clock.c"
+lines       = [113, 113]
+mutator     = "cxx_div_to_mul"
+bucket      = "B"
+rationale   = "ClockLocal local-offset resolution is host-timezone-dependent and not asserted to a fixed value; the TzifLocalOffsetSeconds call and the ns->s conversion do not change the sanity-checked DateTime fields."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:f3da061a8932d350c4da0ff80d03afa99979b5dc009459a75f4a2dc80184b41d"
+
+[[ignore]]
+id          = "TZIF-HDRGUARD-050"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [50, 50]
+mutator     = "cxx_lt_to_le"
+bucket      = "C"
+rationale   = "`IterRemainingLength < 44` header guard; the <= boundary (exactly 44 bytes) is a header-only image that fails the subsequent resolve identically."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:af7817fc00e78e8d9ac72d64782f378c9abc0647b7698e64b86cc6680665a62f"
+
+[[ignore]]
+id          = "TZIF-DEADINIT-054"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [54, 54]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "dead init -- overwritten before read (BufReadFmt out-param, or loop bookkeeping set in the taken branch)."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:80624cf36b97b31b2abe19ad21448d9348b50f82920b3df01168aaeb524b5535"
+
+[[ignore]]
+id          = "TZIF-MUL1-070"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [70, 70]
+mutator     = "cxx_mul_to_div"
+bucket      = "C"
+rationale   = "`* 1` term in the v1-block-size sum; x*1 == x/1 (arithmetic identity)."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:63681a5083403e7fbc7db7da7b01825b1781bdbbafe4f2508332e2d0fc97d3c6"
+
+[[ignore]]
+id          = "TZIF-MUL1-071"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [71, 71]
+mutator     = "cxx_mul_to_div"
+bucket      = "C"
+rationale   = "`* 1` term in the v1-block-size sum; x*1 == x/1 (arithmetic identity)."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:d8473a713914f32fac8a1a3a1726244ee5cf54f1f52e7a0226206e44bbf1274a"
+
+[[ignore]]
+id          = "TZIF-DEADINIT-087"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [87, 87]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "dead init -- overwritten before read (BufReadFmt out-param, or loop bookkeeping set in the taken branch)."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:68ea2ca91c745541b46f12127773bc1578f603453927073ce2b4a81d152abc4b"
+
+[[ignore]]
+id          = "TZIF-DEADINIT-089"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [89, 89]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "dead init -- overwritten before read (BufReadFmt out-param, or loop bookkeeping set in the taken branch)."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:bcad4a06810a8135fe9d230043fd1adf41ee310410ea3779dcbd90ab05b5d44b"
+
+[[ignore]]
+id          = "TZIF-DEADINIT-094"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [94, 94]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "dead init -- overwritten before read (BufReadFmt out-param, or loop bookkeeping set in the taken branch)."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:87a2a4323f6b0a709f7a7a471fc74ec862f97a1da4978bb188fb233ef2056a95"
+
+[[ignore]]
+id          = "TZIF-BOOL-100"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [100, 100]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "boolean flag assigned 42; 42 is truthy, behaviourally identical to `true`."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:aee25d18a794d726d3395fa03c435bbd278fe9b1f047f4b95f0e9d08762d1131"
+
+[[ignore]]
+id          = "TZIF-DEADINIT-107"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [107, 107]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "dead init -- overwritten before read (BufReadFmt out-param, or loop bookkeeping set in the taken branch)."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:950d5a52e7d214436331d24cce117f395807e9f596dbbab39728cf23f8d79e3f"
+
+[[ignore]]
+id          = "TZIF-DEADINIT-108"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [108, 108]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "dead init -- overwritten before read (BufReadFmt out-param, or loop bookkeeping set in the taken branch)."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:8a677db31f5832904439125ef3540af032dd8bb09445f95a7455868045ae7494"
+
+[[ignore]]
+id          = "TZIF-ITER0-110"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [110, 110]
+mutator     = "cxx_gt_to_ge"
+bucket      = "C"
+rationale   = "`> 0` vs `>= 0` guards an IterMove; IterMove(0) is a no-op, so the boundary case is behaviourally identical."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:08ea91bddeb9e1ecd32bfd9c6e029dc418742f53b6b6e918739783dc37e4f92b"
+
+[[ignore]]
+id          = "TZIF-BOOL-114"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [114, 114]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "boolean flag assigned 42; 42 is truthy, behaviourally identical to `true`."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:582fe1a4c9982ba1ad8e8dcecb1fae68ac246906eed4b839bb93f3be014de8d4"
+
+[[ignore]]
+id          = "TZIF-ITER0-116"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [116, 116]
+mutator     = "cxx_gt_to_ge"
+bucket      = "C"
+rationale   = "`> 0` vs `>= 0` guards an IterMove; IterMove(0) is a no-op, so the boundary case is behaviourally identical."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:1b0f7fa6e6e4062eb7f6807c1174f45b65cebd4b0404ead04442d3a8eb8fdf09"
+
+[[ignore]]
+id          = "TZIF-ITER0-118"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [118, 118]
+mutator     = "cxx_gt_to_ge"
+bucket      = "C"
+rationale   = "`> 0` vs `>= 0` guards an IterMove; IterMove(0) is a no-op, so the boundary case is behaviourally identical."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:15690cfb2eaa66c45c366f500f142d7d1b81056d4d2c11a351f7443549a899b9"
+
+[[ignore]]
+id          = "TZIF-DEADINIT-125"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [125, 125]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "dead init -- overwritten before read (BufReadFmt out-param, or loop bookkeeping set in the taken branch)."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:ab983cc303b4e12131ba3f664f6e44973657c9db8b0bd67ee771e381734aa275"
+
+[[ignore]]
+id          = "TZIF-DEADINIT-127"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [127, 127]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "dead init -- overwritten before read (BufReadFmt out-param, or loop bookkeeping set in the taken branch)."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:cd36099720ead06e1020989d1904a5931feff11ef44bc175bb0335e4782d0177"
+
+[[ignore]]
+id          = "TZIF-DEADINIT-129"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [129, 129]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "dead init -- overwritten before read (BufReadFmt out-param, or loop bookkeeping set in the taken branch)."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:518f3a82339e0ffda4fcd3b5e6d95320a43b1e8da825f93c6926659236589f2d"
+
+[[ignore]]
+id          = "TZIF-DEADINIT-130"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [130, 130]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "dead init -- overwritten before read (BufReadFmt out-param, or loop bookkeeping set in the taken branch)."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:1e46dba13c9673a01aa6c7ecee72a2ff61de1ece0cfc25c7321a498eb47ea96e"
+
+[[ignore]]
+id          = "TZIF-BOOL-135"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [135, 135]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "boolean flag assigned 42; 42 is truthy, behaviourally identical to `true`."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:5cea23cd31bb8911f9a24224884b2b053fef07710b5eecaf2b26195da132a0b5"
+
+[[ignore]]
+id          = "TZIF-BOOL-139"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [139, 139]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "boolean flag assigned 42; 42 is truthy, behaviourally identical to `true`."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:99b9f6b9de4643cfeeb28da9ef508e6a5c89c1f0224e46d7fade6d1c5ce46c0a"
+
+[[ignore]]
+id          = "TZIF-DEADINIT-166"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [166, 166]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "dead init -- overwritten before read (BufReadFmt out-param, or loop bookkeeping set in the taken branch)."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:557546541e873ea96a95a05af173a853e2892487a2d7ee9a74850e10423e8eea"
+
+[[ignore]]
+id          = "TZIF-FILE-179"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [179, 179]
+mutator     = "cxx_assign_const"
+bucket      = "B"
+rationale   = "TzifLocalOffsetSeconds file-read wrapper; exercised by the Clock suite against the real /etc/localtime, not by this synthetic-image suite."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:b09586fc40d5d39a0f5fb41b29440e8e605c14a6b6d1fb800e14ee7d681665d5"
+
+[[ignore]]
+id          = "TZIF-FILE-181"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [181, 181]
+mutator     = "cxx_assign_const"
+bucket      = "B"
+rationale   = "TzifLocalOffsetSeconds file-read wrapper; exercised by the Clock suite against the real /etc/localtime, not by this synthetic-image suite."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:0d483598166564272498a591185de035d3ee6b7b5e534443f100545a39c4f6cb"
+
+[[ignore]]
+id          = "TZIF-FILE-191A"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [191, 191]
+mutator     = "cxx_lt_to_ge"
+bucket      = "B"
+rationale   = "`FileReadAndClose(...) < 0` read-error branch; needs a file-read failure to exercise."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:51fede6e6d4fe1a5e70abd3a55127c9e1bac630b1b501ae746ce54275d871906"
+
+[[ignore]]
+id          = "TZIF-FILE-191B"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [191, 191]
+mutator     = "cxx_lt_to_le"
+bucket      = "B"
+rationale   = "`FileReadAndClose(...) < 0` read-error branch; needs a file-read failure to exercise."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:51fede6e6d4fe1a5e70abd3a55127c9e1bac630b1b501ae746ce54275d871906"
+
+[[ignore]]
+id          = "TZIF-FILE-196A"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [196, 196]
+mutator     = "cxx_init_const"
+bucket      = "B"
+rationale   = "TzifLocalOffsetSeconds file-read wrapper; exercised by the Clock suite against the real /etc/localtime, not by this synthetic-image suite."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:142feb5a1c2ff9f1ab747b328ca277f5d4b63c383a40eb7209bfb30c3b37f857"
+
+[[ignore]]
+id          = "TZIF-FILE-196B"
+file        = "Source/Misra/Parsers/Tzif.c"
+lines       = [196, 196]
+mutator     = "cxx_replace_scalar_call"
+bucket      = "B"
+rationale   = "TzifLocalOffsetSeconds file-read wrapper; exercised by the Clock suite against the real /etc/localtime, not by this synthetic-image suite."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:142feb5a1c2ff9f1ab747b328ca277f5d4b63c383a40eb7209bfb30c3b37f857"
+
+
+# --- Io.c DateTime reader/writer + literal-escape (added 2026-06-26) ---
+
+[[ignore]]
+id          = "IO-DT-DEADINIT-837"
+file        = "Source/Misra/Std/Io.c"
+lines       = [837, 837]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "dead init -- the local is a StrReadFmt/StrIterPeek out-param, overwritten before any read; the replaced constant is never observed."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:eddbdcee71369c4d9594ad4d485ddf0e876067d441203a8ec66d95a0eadbaf13"
+
+[[ignore]]
+id          = "IO-DT-OFFNONZERO-1689"
+file        = "Source/Misra/Std/Io.c"
+lines       = [1689, 1689]
+mutator     = "cxx_lt_to_le"
+bucket      = "C"
+rationale   = "`off < 0` vs `off <= 0` in _write_DateTime; off is known nonzero here (the utc_offset==0 case returns 'Z' earlier), so the boundary is unreachable -- equivalent."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:2ee86ef2310f5c4628008ebe610efc3e2c7d4a91caf52067bcfb9004eb51b19b"
+
+[[ignore]]
+id          = "IO-DT-OFFNONZERO-1692"
+file        = "Source/Misra/Std/Io.c"
+lines       = [1692, 1692]
+mutator     = "cxx_lt_to_le"
+bucket      = "C"
+rationale   = "`off < 0` vs `off <= 0` in _write_DateTime; off is known nonzero here (the utc_offset==0 case returns 'Z' earlier), so the boundary is unreachable -- equivalent."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:345b2eb9f9330517b3ade0c79116936e689ecc0831da6de6e147d751e688e038"
+
+[[ignore]]
+id          = "IO-DT-DEADINIT-1704"
+file        = "Source/Misra/Std/Io.c"
+lines       = [1704, 1704]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "dead init -- the local is a StrReadFmt/StrIterPeek out-param, overwritten before any read; the replaced constant is never observed."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:a6d8962380e0f5750363f44b4ae4a608dcf628faf66b412ff75b510a6139b372"
+
+[[ignore]]
+id          = "IO-DT-DEADINIT-1705"
+file        = "Source/Misra/Std/Io.c"
+lines       = [1705, 1705]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "dead init -- the local is a StrReadFmt/StrIterPeek out-param, overwritten before any read; the replaced constant is never observed."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:d9ac3f2536b92a3c07c80eb48fbf92adacdabd706f2e9a92676e58acf08506b7"
+
+[[ignore]]
+id          = "IO-DT-DEADINIT-1727"
+file        = "Source/Misra/Std/Io.c"
+lines       = [1727, 1727]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "dead init -- the local is a StrReadFmt/StrIterPeek out-param, overwritten before any read; the replaced constant is never observed."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:0bf38ede95dab86f056b48963c4cb3e137085de09d4acc2637916c902a1dc128"
+
+[[ignore]]
+id          = "IO-DT-DEADINIT-1746"
+file        = "Source/Misra/Std/Io.c"
+lines       = [1746, 1746]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "dead init -- tmp.weekday is set to 0 then immediately recomputed from DateTimeFromUnixNs(DateTimeToUnixNs(tmp)); the 0 is never observed."
+author      = "Siddharth Mishra"
+created     = "2026-06-26"
+region_hash = "sha256:bc7b8034634387051ae1f8d968c69cbcc3bdf31ac65a92f90c061197d46556a1"
+

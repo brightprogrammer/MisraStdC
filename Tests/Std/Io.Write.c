@@ -812,6 +812,129 @@ bool test_buf_raw_endianness_and_roundtrip(void) {
     return ok;
 }
 
+// Binary literal bytes: emitted verbatim on write, matched on read, a
+// mismatch is a soft false (cursor rewound), and `{{` escapes a literal
+// '{'.
+bool test_buf_literal_magic_roundtrip(void);
+bool test_buf_literal_magic_roundtrip(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Buf              b     = BufInit(&alloc);
+    bool             ok    = true;
+
+    // "TZif" literal magic + a version byte, emitted verbatim.
+    ok = ok && BufWriteFmt(&b, "TZif{>1r}", (u8)'2');
+    ok = ok && (BufLength(&b) == 5);
+    {
+        const u8 *d = BufData(&b);
+        ok          = ok && d[0] == 'T' && d[1] == 'Z' && d[2] == 'i' && d[3] == 'f' && d[4] == '2';
+    }
+
+    // Read back: the literal matches and the version is extracted.
+    {
+        BufIter it  = BufIterFromBuf(&b);
+        u8      ver = 0;
+        ok          = ok && BufReadFmt(&it, "TZif{>1r}", ver) && (ver == '2');
+    }
+
+    // Wrong magic -> soft false, no abort, cursor rewound, dest untouched.
+    {
+        BufIter it  = BufIterFromBuf(&b);
+        u8      ver = 0xAB;
+        bool    rd  = BufReadFmt(&it, "TZig{>1r}", ver);
+        ok          = ok && !rd && (ver == 0xAB) && (IterRemainingLength(&it) == 5);
+    }
+
+    BufDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// `{{` round-trips as a single literal '{' byte.
+bool test_buf_literal_brace_escape(void);
+bool test_buf_literal_brace_escape(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Buf              b     = BufInit(&alloc);
+    bool             ok    = true;
+
+    ok = ok && BufWriteFmt(&b, "{{{>1r}", (u8)0x41); // literal '{' then 'A'
+    ok = ok && (BufLength(&b) == 2) && (BufData(&b)[0] == '{') && (BufData(&b)[1] == 0x41);
+
+    BufIter it = BufIterFromBuf(&b);
+    u8      v  = 0;
+    ok         = ok && BufReadFmt(&it, "{{{>1r}", v) && (v == 0x41);
+
+    BufDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// A literal that lands on the LAST byte (cursor has exactly 1 byte left)
+// pins the `remaining < 1` bounds check against an off-by-one.
+bool test_buf_literal_trailing_byte(void);
+bool test_buf_literal_trailing_byte(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Buf              b     = BufInit(&alloc);
+    bool             ok    = true;
+
+    // Bytes 'Q','Z': read the Q, then match the trailing 'Z' literal with
+    // exactly one byte remaining.
+    ok = ok && BufWriteFmt(&b, "{>1r}Z", (u8)'Q');
+    ok = ok && (BufLength(&b) == 2);
+    {
+        BufIter it = BufIterFromBuf(&b);
+        u8      q  = 0;
+        ok         = ok && BufReadFmt(&it, "{>1r}Z", q) && (q == 'Q');
+    }
+    // Same, but the trailing literal is an escaped '{'.
+    StrClear((Str *)&b);
+    ok = ok && BufWriteFmt(&b, "{>1r}{{", (u8)'Q');
+    {
+        BufIter it = BufIterFromBuf(&b);
+        u8      q  = 0;
+        ok         = ok && BufReadFmt(&it, "{>1r}{{", q) && (q == 'Q');
+    }
+
+    BufDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// DateTime renders as ISO 8601 through the IO writer. Lives in the Io
+// suite (not the DateTime suite) so mutation testing of Io.c's
+// _write_DateTime is actually covered: offset sign, half-hour minutes,
+// and the nanosecond branch.
+bool test_datetime_iso_write(void);
+bool test_datetime_iso_write(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              s     = StrInit(&alloc);
+    bool             ok    = true;
+    u64              base  = 1609459200ull * 1000000000ull; // 2021-01-01T00:00:00Z
+
+    DateTime utc = DateTimeFromUnixNs(base, 0);
+    StrClear(&s);
+    StrAppendFmt(&s, "{}", utc);
+    ok = ok && ZstrCompare(StrBegin(&s), "2021-01-01T00:00:00Z") == 0;
+
+    DateTime ist = DateTimeFromUnixNs(base, 19800); // +05:30
+    StrClear(&s);
+    StrAppendFmt(&s, "{}", ist);
+    ok = ok && ZstrCompare(StrBegin(&s), "2021-01-01T05:30:00+05:30") == 0;
+
+    DateTime neg = DateTimeFromUnixNs(base, -34200); // -09:30
+    StrClear(&s);
+    StrAppendFmt(&s, "{}", neg);
+    ok = ok && ZstrCompare(StrBegin(&s), "2020-12-31T14:30:00-09:30") == 0;
+
+    DateTime frac = DateTimeFromUnixNs(base + 123456789ull, 0);
+    StrClear(&s);
+    StrAppendFmt(&s, "{}", frac);
+    ok = ok && ZstrCompare(StrBegin(&s), "2021-01-01T00:00:00.123456789Z") == 0;
+
+    StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
 
 // ---- helpers/macros relocated from Io.Mutants*.c staging files ----
 #define F32_EPSILON        1e-4f
@@ -4650,6 +4773,10 @@ int main(void) {
         test_buf_formatting,
         test_char_nonprintable_escape,
         test_buf_raw_endianness_and_roundtrip,
+        test_buf_literal_magic_roundtrip,
+        test_buf_literal_brace_escape,
+        test_buf_literal_trailing_byte,
+        test_datetime_iso_write,
         test_m1_arg_index_bound,
         test_m1_invalid_spec_leaves_dest,
         test_m1_char_spec_then_literal,

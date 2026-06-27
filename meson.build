@@ -212,6 +212,7 @@ misra_std_sources = files(
     'Source/Misra/Std/Log.c',
     'Source/Misra/Std/Memory.c',
     'Source/Misra/Std/Zstr.c',
+    'Source/Misra/Std/DateTime.c',
     'Source/Misra/Std/Allocator.c',
     'Source/Misra/Std/Allocator/_Os.c',
     'Source/Misra/Std/Allocator/Page.c',
@@ -492,6 +493,9 @@ endif
 
 if opt_file
     misra_std_sources += files('Source/Misra/Std/File.c')
+    # ClockLocal's /etc/localtime (TZif) offset resolver. Needs File, so
+    # it rides the same gate; Clock.c falls back to UTC without it.
+    misra_std_sources += files('Source/Misra/Parsers/Tzif.c')
 endif
 misra_std_sources += files('Source/Misra/Std/Utility/Iter.c')
 
@@ -757,13 +761,6 @@ endif
 
 # Include tests
 subdir('Tests')
-
-# Benchmark suite. Off by default; one freestanding exe per module in
-# Benchmark/Source/. Enable with -Dbenchmark=true, then run
-# Benchmark/Scripts/run.py to refresh Benchmark/README.md.
-if get_option('benchmark')
-    subdir('Benchmark')
-endif
 
 # Install library headers
 # Header install gating. Only headers for enabled features land in the

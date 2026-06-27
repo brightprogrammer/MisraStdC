@@ -14,6 +14,7 @@
 
 #include <Misra/Std/Container.h>
 #include <Misra/Std/Container/Buf.h>
+#include <Misra/Std/DateTime.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Std/File.h>
 #include <Misra/Types.h>
@@ -298,6 +299,7 @@ Float:                                                                          
             TypeSpecificIO: (x),                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, &(x)),                                                                       \
             Buf: TO_TYPE_SPECIFIC_IO(Buf, &(x)),                                                                       \
+            DateTime: TO_TYPE_SPECIFIC_IO(DateTime, &(x)),                                                             \
             IOFMT_FLOAT_CASE_(x, &(x)) IOFMT_INT_CASE_(x, &(x)) IOFMT_BITVEC_CASE_(x, &(x)) IOFMT_USER_CASE_(x, &(x))  \
                 Zstr: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                 \
             char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                   \
@@ -323,6 +325,7 @@ Float:                                                                          
             TypeSpecificIO: (x),                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, (void *)&(x)),                                                               \
             Buf: TO_TYPE_SPECIFIC_IO(Buf, (void *)&(x)),                                                               \
+            DateTime: TO_TYPE_SPECIFIC_IO(DateTime, (void *)&(x)),                                                     \
             IOFMT_FLOAT_CASE_(x, (void *)&(x)) IOFMT_INT_CASE_(x, (void *)&(x)) IOFMT_BITVEC_CASE_(x, (void *)&(x))    \
                 IOFMT_USER_CASE_(x, (void *)&(x)) Zstr: TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                       \
             char *: TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                                                           \
@@ -732,6 +735,7 @@ bool float_try_to_scientific_str(
 // not for direct use
 bool _write_Str(Str *o, FmtInfo *fmt_info, Str *s);
 bool _write_Buf(Str *o, FmtInfo *fmt_info, Buf *b);
+bool _write_DateTime(Str *o, FmtInfo *fmt_info, DateTime *dt);
 bool _write_u8(Str *o, FmtInfo *fmt_info, u8 *v);
 bool _write_u16(Str *o, FmtInfo *fmt_info, u16 *v);
 bool _write_u32(Str *o, FmtInfo *fmt_info, u32 *v);
@@ -756,6 +760,7 @@ bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value);
 
 Zstr _read_Str(Zstr i, FmtInfo *fmt_info, Str *s);
 Zstr _read_Buf(Zstr i, FmtInfo *fmt_info, Buf *b);
+Zstr _read_DateTime(Zstr i, FmtInfo *fmt_info, DateTime *dt);
 Zstr _read_u8(Zstr i, FmtInfo *fmt_info, u8 *v);
 Zstr _read_u16(Zstr i, FmtInfo *fmt_info, u16 *v);
 Zstr _read_u32(Zstr i, FmtInfo *fmt_info, u32 *v);
@@ -789,9 +794,15 @@ Zstr _read_Int(Zstr i, FmtInfo *fmt_info, Int *value);
 // `BufWriteFmt(buf, ...)` clears the Buf first, then appends.
 // `BufPatchFmt(buf, offset, ...)` overwrites existing bytes at offset.
 //
-// Format string accepts only `{<Nr}` (LE) and `{>Nr}` (BE) directives,
-// where N is 1, 2, 4, or 8. The destination variable's natural width
-// must match the spec width.
+// Format string accepts `{<Nr}` (LE) and `{>Nr}` (BE) directives, where
+// N is 1, 2, 4, or 8; the destination variable's natural width must
+// match the spec width. Any other character is a LITERAL byte: on read
+// it must match the cursor byte (a mismatch or short buffer is a soft
+// `false`, not an abort -- use this for inline magic checks, e.g.
+// `BufReadFmt(it, "TZif{>1r}", ver)`); on write it is emitted verbatim.
+// `{{` is the escape for a literal `{` byte. Literals cannot encode a
+// NUL byte (the format string is a NUL-terminated `Zstr`) -- magics
+// containing 0x00 still need a `{>1r}` read plus an explicit compare.
 // ---------------------------------------------------------------------------
 
 ///
