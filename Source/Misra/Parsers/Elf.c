@@ -39,6 +39,7 @@ enum {
 
     // Sizes of the on-disk records we read.
     EHDR64_SIZE_AFTER_IDENT = 48,
+    PHDR64_SIZE             = 56,
     SHDR64_SIZE             = 64,
     SYM64_SIZE              = 24,
 };
@@ -62,6 +63,17 @@ enum {
     "{<2r}" /* e_shentsize */                                                                                          \
     "{<2r}" /* e_shnum     */                                                                                          \
     "{<2r}" /* e_shstrndx  */
+
+// PHDR64: 56 bytes. (p_flags follows p_type in the 64-bit layout.)
+#define FMT_PHDR64_LE                                                                                                  \
+    "{<4r}" /* p_type   */                                                                                             \
+    "{<4r}" /* p_flags  */                                                                                             \
+    "{<8r}" /* p_offset */                                                                                             \
+    "{<8r}" /* p_vaddr  */                                                                                             \
+    "{<8r}" /* p_paddr  */                                                                                             \
+    "{<8r}" /* p_filesz */                                                                                             \
+    "{<8r}" /* p_memsz  */                                                                                             \
+    "{<8r}" /* p_align   */
 
 // SHDR64: 64 bytes.
 #define FMT_SHDR64_LE                                                                                                  \
@@ -238,6 +250,44 @@ static bool elf_decode_sections(Elf *self) {
         s.info       = info;
         s.entry_size = entsize;
         if (!VecPushBackR(&self->sections, s)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Decode the program-header (segment) table. Relocatable objects (.o)
+// have no program headers (phnum == 0); that is not an error.
+static bool elf_decode_segments(Elf *self) {
+    u16 n     = self->header.phnum;
+    u64 phoff = self->header.phoff;
+    if (n == 0) {
+        return true;
+    }
+    u64 needed = (u64)n * PHDR64_SIZE;
+    if (!elf_range_ok(self, phoff, needed)) {
+        LOG_ERROR("Elf: program header table out of range");
+        return false;
+    }
+
+    BufIter iter = BufIterFromBuf(&self->data);
+    IterMustMove(&iter, phoff);
+    for (u16 i = 0; i < n; ++i) {
+        u32 type = 0, flags = 0;
+        u64 offset = 0, vaddr = 0, paddr = 0, filesz = 0, memsz = 0, align = 0;
+
+        BufReadFmt(&iter, FMT_PHDR64_LE, type, flags, offset, vaddr, paddr, filesz, memsz, align);
+        (void)paddr; // physical address is meaningless for a hosted process
+
+        ElfSegment seg;
+        seg.type   = type;
+        seg.flags  = flags;
+        seg.offset = offset;
+        seg.vaddr  = vaddr;
+        seg.filesz = filesz;
+        seg.memsz  = memsz;
+        seg.align  = align;
+        if (!VecPushBackR(&self->segments, seg)) {
             return false;
         }
     }
@@ -440,12 +490,15 @@ bool ElfOpenFromMemory(Elf *out, Buf *in) {
     MemSet(out, 0, sizeof(*out));
     out->data            = taken;
     out->sections        = VecInitT(out->sections, BufAllocator(&taken));
+    out->segments        = VecInitT(out->segments, BufAllocator(&taken));
     out->symbols         = VecInitT(out->symbols, BufAllocator(&taken));
     out->dynamic_symbols = VecInitT(out->dynamic_symbols, BufAllocator(&taken));
 
     if (!elf_decode_header(out))
         goto fail;
     if (!elf_decode_sections(out))
+        goto fail;
+    if (!elf_decode_segments(out))
         goto fail;
     if (!elf_decode_symbols(out))
         goto fail;
@@ -492,6 +545,7 @@ void ElfDeinit(Elf *self) {
         return;
     BufDeinit(&self->data);
     VecDeinit(&self->sections);
+    VecDeinit(&self->segments);
     VecDeinit(&self->symbols);
     VecDeinit(&self->dynamic_symbols);
     MemSet(self, 0, sizeof(*self));

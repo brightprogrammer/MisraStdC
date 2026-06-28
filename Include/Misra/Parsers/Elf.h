@@ -130,8 +130,35 @@ typedef struct ElfSymbol {
     u64           size;
 } ElfSymbol;
 
+///
+/// Program-header segment type. Only `ELF_PT_LOAD` matters to the
+/// runtime symbol resolver (it maps file offsets to virtual addresses);
+/// the raw `p_type` is kept in `ElfSegment.type` for everything else.
+///
+typedef enum ElfSegmentType {
+    ELF_PT_LOAD = 1,
+} ElfSegmentType;
+
+///
+/// Decoded program-header (segment) entry. Needed to convert a runtime
+/// address to a file/virtual address: `p_vaddr` and `p_offset` differ
+/// when the link page size exceeds the file alignment (e.g. AArch64's
+/// 64 KiB `max-page-size`), so a `/proc/self/maps` mapping's file offset
+/// is NOT its virtual address.
+///
+typedef struct ElfSegment {
+    u32 type;   // p_type (ELF_PT_LOAD, ...)
+    u32 flags;  // p_flags (PF_X=1, PF_W=2, PF_R=4)
+    u64 offset; // p_offset: byte offset of the segment in the file
+    u64 vaddr;  // p_vaddr:  virtual address the segment loads at
+    u64 filesz; // p_filesz: bytes occupied in the file
+    u64 memsz;  // p_memsz:  bytes occupied in memory (>= filesz for BSS)
+    u64 align;  // p_align
+} ElfSegment;
+
 typedef Vec(ElfSection) ElfSections;
 typedef Vec(ElfSymbol) ElfSymbols;
+typedef Vec(ElfSegment) ElfSegments;
 
 ///
 /// Parsed ELF file. Holds the raw bytes plus decoded indices into them.
@@ -178,6 +205,7 @@ typedef struct Elf {
     Buf         data;
     ElfHeader   header;
     ElfSections sections;
+    ElfSegments segments; // PT_LOAD et al., in original order (for load-bias math)
     ElfSymbols  symbols;
     ElfSymbols  dynamic_symbols;
     const u8   *build_id;

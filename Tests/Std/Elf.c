@@ -35,8 +35,9 @@ static void wr_u64(u8 *p, u64 v) {
 // ---------------------------------------------------------------------------
 
 enum {
-    ELF_FIXTURE_SIZE = 0x220,
+    ELF_FIXTURE_SIZE = 0x290,
     EHDR_SIZE        = 64,
+    PHDR_SIZE        = 56,
     SHDR_SIZE        = 64,
     SYM_SIZE         = 24,
 
@@ -70,11 +71,26 @@ enum {
     ENTRY_VADDR = 0x401000,
     EM_X86_64   = 62,
 
-    // Program-header fields. The parser only records them (it does not
-    // walk program headers), so any in-file value is fine; we pick
-    // distinctive non-zero values so the decode is observable.
-    PHOFF_VAL = 0x40,
-    PHNUM_VAL = 3,
+    // Real program-header table (the resolver walks it for load-bias
+    // math). Two PT_LOAD segments; the second deliberately has
+    // p_vaddr != p_offset (as AArch64's 64 KiB max-page-size produces),
+    // so a test can pin that the decode keeps them distinct.
+    PHOFF_VAL   = 0x220,
+    PHNUM_VAL   = 2,
+    PT_LOAD_VAL = 1,
+    // segment 0: R-X, offset == vaddr.
+    SEG0_OFF    = 0x0,
+    SEG0_VADDR  = 0x400000,
+    SEG0_FILESZ = 0x1000,
+    SEG0_MEMSZ  = 0x1000,
+    SEG0_FLAGS  = 5, // PF_R | PF_X
+    // segment 1: RW, offset != vaddr (vaddr - offset = 0x410000).
+    SEG1_OFF    = 0x1000,
+    SEG1_VADDR  = 0x411000,
+    SEG1_FILESZ = 0x500,
+    SEG1_MEMSZ  = 0x600,
+    SEG1_FLAGS  = 6,       // PF_R | PF_W
+    SEG_ALIGN   = 0x10000, // 64 KiB (AArch64 max-page-size)
 
     // Distinctive non-zero sh_info on .symtab -- pins s.info = info
     // against the cxx_assign_const mutant that forces info to a constant.
@@ -120,6 +136,18 @@ static void
     wr_u32(&p[44], info);
     wr_u64(&p[48], 1); // addralign
     wr_u64(&p[56], entsize);
+}
+
+// Write a 56-byte ELF64 LE program header at p.
+static void wr_phdr(u8 *p, u32 type, u32 flags, u64 offset, u64 vaddr, u64 filesz, u64 memsz, u64 align) {
+    wr_u32(&p[0], type);
+    wr_u32(&p[4], flags);
+    wr_u64(&p[8], offset);
+    wr_u64(&p[16], vaddr);
+    wr_u64(&p[24], vaddr); // p_paddr (unused by the parser)
+    wr_u64(&p[32], filesz);
+    wr_u64(&p[40], memsz);
+    wr_u64(&p[48], align);
 }
 
 static u8 elf_blob[ELF_FIXTURE_SIZE];
@@ -196,6 +224,28 @@ static void build_elf_blob(void) {
         SYM_SIZE
     );
     wr_shdr(&sht[SEC_STRTAB * SHDR_SIZE], NAME_STRTAB, ELF_SECTION_TYPE_STRTAB, 0, 0, STRTAB_OFF, STRTAB_SZ, 0, 0);
+
+    // --- program header table (at PHOFF_VAL = 0x220) ----------------------
+    wr_phdr(
+        &elf_blob[PHOFF_VAL + 0 * PHDR_SIZE],
+        PT_LOAD_VAL,
+        SEG0_FLAGS,
+        SEG0_OFF,
+        SEG0_VADDR,
+        SEG0_FILESZ,
+        SEG0_MEMSZ,
+        SEG_ALIGN
+    );
+    wr_phdr(
+        &elf_blob[PHOFF_VAL + 1 * PHDR_SIZE],
+        PT_LOAD_VAL,
+        SEG1_FLAGS,
+        SEG1_OFF,
+        SEG1_VADDR,
+        SEG1_FILESZ,
+        SEG1_MEMSZ,
+        SEG_ALIGN
+    );
 }
 
 // Open this test binary itself via /proc/self/exe and verify we can
@@ -332,6 +382,35 @@ bool test_elf_fixture_decodes_known_fields(void) {
     return ok;
 }
 
+// Program headers decode in order with the exact PT_LOAD fields the
+// fixture wrote -- including the second segment's p_vaddr != p_offset
+// (the AArch64 64 KiB-page case the resolver's load-bias math depends
+// on). Pins the per-field decode, the loop bounds, and that every
+// program header is walked.
+bool test_elf_decodes_program_headers(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    build_elf_blob();
+
+    Elf  elf;
+    bool ok = ElfOpenFromMemoryCopy(&elf, elf_blob, sizeof(elf_blob), ALLOCATOR_OF(&alloc));
+    if (ok) {
+        ok = VecLen(&elf.segments) == 2;
+        if (ok) {
+            const ElfSegment *s0 = VecPtrAt(&elf.segments, 0);
+            const ElfSegment *s1 = VecPtrAt(&elf.segments, 1);
+            ok                   = s0->type == ELF_PT_LOAD && s0->flags == SEG0_FLAGS && s0->offset == SEG0_OFF &&
+                 s0->vaddr == SEG0_VADDR && s0->filesz == SEG0_FILESZ && s0->memsz == SEG0_MEMSZ &&
+                 s0->align == SEG_ALIGN && s1->type == ELF_PT_LOAD && s1->flags == SEG1_FLAGS &&
+                 s1->offset == SEG1_OFF && s1->vaddr == SEG1_VADDR && s1->filesz == SEG1_FILESZ &&
+                 s1->memsz == SEG1_MEMSZ && s1->align == SEG_ALIGN &&
+                 s1->vaddr != s1->offset; // distinct vaddr/offset survives decode
+        }
+        ElfDeinit(&elf);
+    }
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
 // ElfResolveAddress maps an address inside [value, value+size) to the
 // enclosing symbol, and returns NULL outside it.
 bool test_elf_resolve_address(void) {
@@ -413,6 +492,42 @@ bool test_elf_rejects_wrong_class(void) {
     u8 bad[ELF_FIXTURE_SIZE];
     MemCopy(bad, elf_blob, sizeof(bad));
     bad[4] = (u8)ELF_CLASS_32; // v1 supports ELF64 only
+    return elf_rejects(bad, sizeof(bad));
+}
+
+// A program-header table whose count runs past EOF is rejected: e_phnum
+// drives the (count * PHDR_SIZE) range check, and without it the decode
+// loop would read off the end of the buffer.
+bool test_elf_rejects_phdr_table_out_of_range(void) {
+    build_elf_blob();
+    u8 bad[ELF_FIXTURE_SIZE];
+    MemCopy(bad, elf_blob, sizeof(bad));
+    wr_u16(&bad[16 + 40], 3); // e_phnum = 3, but only 2 PT_LOADs fit before EOF
+    return elf_rejects(bad, sizeof(bad));
+}
+
+// e_shstrndx == e_shnum must be rejected. `shstrndx >= n` cannot be
+// relaxed to `>`: the section header at index shnum is one past the table
+// and FILE-CONTROLLED, so `>` would read it as the .shstrtab header. We
+// plant a VALID one there (pointing at the real shstrtab) so a relaxed
+// boundary would parse an attacker-chosen string table; correct `>=`
+// rejects on the index itself, not on a downstream range failure.
+bool test_elf_rejects_shstrndx_equals_shnum(void) {
+    build_elf_blob();
+    u8 bad[ELF_FIXTURE_SIZE];
+    MemCopy(bad, elf_blob, sizeof(bad));
+    wr_u16(&bad[16 + 46], N_SECTIONS); // e_shstrndx = shnum (out of range)
+    wr_shdr(
+        &bad[SHT_OFF + N_SECTIONS * SHDR_SIZE],
+        NAME_SHSTRTAB,
+        ELF_SECTION_TYPE_STRTAB,
+        0,
+        0,
+        SHSTR_OFF,
+        SHSTR_SIZE,
+        0,
+        0
+    );
     return elf_rejects(bad, sizeof(bad));
 }
 
@@ -2246,6 +2361,9 @@ int main(void) {
         test_elf_build_id_present,
         test_elf_some_function_symbol,
         test_elf_fixture_decodes_known_fields,
+        test_elf_decodes_program_headers,
+        test_elf_rejects_phdr_table_out_of_range,
+        test_elf_rejects_shstrndx_equals_shnum,
         test_elf_resolve_address,
         test_elf_find_section_absent,
         test_elf_rejects_bad_magic,

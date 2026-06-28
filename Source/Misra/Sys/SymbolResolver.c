@@ -224,6 +224,27 @@ void SymbolResolverDeinit(SymbolResolver *self) {
     MemSet(self, 0, sizeof(*self));
 }
 
+// Module load bias from a `/proc/self/maps` mapping + the file's PT_LOAD
+// table. Symbol `st_value`s and FDE PCs live in p_vaddr space, but a maps
+// line gives a *file* offset. The historical `start - file_offset` only
+// equals the bias when `p_vaddr == p_offset` -- true on 4 KiB-page x86,
+// FALSE on AArch64 where the 64 KiB `max-page-size` leaves `p_vaddr`
+// ahead of `p_offset` for later segments. Find the PT_LOAD covering this
+// mapping's file offset and back the bias out in p_vaddr space; the
+// result is constant per module (`dl_iterate_phdr`'s `dlpi_addr`).
+static u64 resolver_load_bias(const Elf *elf, u64 map_start, u64 map_file_offset) {
+    VecForeachPtr(&elf->segments, seg) {
+        if (seg->type != ELF_PT_LOAD) {
+            continue;
+        }
+        if (map_file_offset >= seg->offset && map_file_offset < seg->offset + seg->filesz) {
+            return map_start - (seg->vaddr + (map_file_offset - seg->offset));
+        }
+    }
+    // No covering PT_LOAD (unusual) -- fall back to the historical formula.
+    return map_start - map_file_offset;
+}
+
 #if FEATURE_PARSER_DWARF
 bool SymbolResolverFindFde(
     SymbolResolver  *self,
@@ -240,11 +261,11 @@ bool SymbolResolverFindFde(
     if (!entry || !entry->path || entry->path[0] == '\0')
         return false;
 
-    u64 load_base = entry->start - entry->file_offset;
-
-    ResolverCacheEntry *cache_entry = resolver_cache_find_or_open(self, entry->path, load_base);
+    ResolverCacheEntry *cache_entry = resolver_cache_find_or_open(self, entry->path, entry->start - entry->file_offset);
     if (!cache_entry)
         return false;
+    // p_vaddr-space bias (not the file-offset shortcut) -- see resolver_load_bias.
+    u64 load_base          = resolver_load_bias(&cache_entry->elf, entry->start, entry->file_offset);
     cache_entry->load_base = load_base;
 
     if (!cache_entry->cfi_built) {
@@ -282,16 +303,14 @@ bool SymbolResolverResolve(SymbolResolver *self, void *runtime_addr, ResolvedSym
         return false;
     }
 
-    // load_base = mapping.start - mapping.file_offset
-    // (covers PIE / shared objects; for ET_EXEC the symbol values are
-    // absolute and load_base happens to equal them, so the math still
-    // works out.)
-    u64 load_base = entry->start - entry->file_offset;
-
-    ResolverCacheEntry *cache_entry = resolver_cache_find_or_open(self, entry->path, load_base);
+    ResolverCacheEntry *cache_entry = resolver_cache_find_or_open(self, entry->path, entry->start - entry->file_offset);
     if (!cache_entry) {
         return false;
     }
+    // Correct load bias in p_vaddr space (see resolver_load_bias). Covers
+    // PIE / shared objects; for ET_EXEC the first PT_LOAD's p_vaddr already
+    // equals the mapping start, so the absolute base still falls out.
+    u64 load_base          = resolver_load_bias(&cache_entry->elf, entry->start, entry->file_offset);
     cache_entry->load_base = load_base;
 
     out->module_path = entry->path;

@@ -106,10 +106,60 @@ static bool test_truncated_header(void) {
     return !TzifOffsetFromBuf(tiny, sizeof(tiny), 0, &off) && off == 999;
 }
 
+static bool test_no_transitions_uses_std_fallback(void) {
+    DefaultAllocator a = DefaultAllocatorInit();
+    Buf              b = BufInit(&a);
+    BufAppendFmt(&b, "TZif{>1r}", (u8)0);
+    put_reserved15(&b);
+    put_counts(&b, 0, 2);
+    BufAppendFmt(&b, "{>4r}{>1r}{>1r}", (i32)-14400, (u8)1, (u8)0); // ttinfo[0] DST
+    BufAppendFmt(&b, "{>4r}{>1r}{>1r}", (i32)-18000, (u8)0, (u8)0); // ttinfo[1] STD
+    i32  off = 0;
+    bool ok  = TzifOffsetFromBuf(BufData(&b), BufLength(&b), 0, &off);
+    BufDeinit(&b);
+    DefaultAllocatorDeinit(&a);
+    return ok && off == -18000;
+}
+
+static bool test_v1_no_std_type_fails(void) {
+    DefaultAllocator a = DefaultAllocatorInit();
+    Buf              b = BufInit(&a);
+    BufAppendFmt(&b, "TZif{>1r}", (u8)0);
+    put_reserved15(&b);
+    put_counts(&b, 0, 1);
+    BufAppendFmt(&b, "{>4r}{>1r}{>1r}", (i32)-14400, (u8)1, (u8)0); // sole ttinfo: DST, no STD
+    i32  off = 7;
+    bool ok  = TzifOffsetFromBuf(BufData(&b), BufLength(&b), 0, &off);
+    BufDeinit(&b);
+    DefaultAllocatorDeinit(&a);
+    return !ok;
+}
+
+static bool test_v2_no_std_type_fails(void) {
+    DefaultAllocator a = DefaultAllocatorInit();
+    Buf              b = BufInit(&a);
+    BufAppendFmt(&b, "TZif{>1r}", (u8)'2');
+    put_reserved15(&b);
+    BufAppendFmt(&b, "{>4r}{>4r}{>4r}{>4r}{>4r}{>4r}", (u32)2, (u32)2, (u32)1, (u32)2, (u32)2, (u32)4);
+    BufAppendFmt(&b, "{>8r}{>8r}{>8r}{>8r}{>4r}{>2r}", (u64)0, (u64)0, (u64)0, (u64)0, (u32)0, (u16)0);
+    BufAppendFmt(&b, "TZif{>1r}", (u8)'2');
+    put_reserved15(&b);
+    put_counts(&b, 0, 1);
+    BufAppendFmt(&b, "{>4r}{>1r}{>1r}", (i32)-14400, (u8)1, (u8)0); // v2 sole ttinfo: DST, no STD
+    i32  off = 7;
+    bool ok  = TzifOffsetFromBuf(BufData(&b), BufLength(&b), 0, &off);
+    BufDeinit(&b);
+    DefaultAllocatorDeinit(&a);
+    return !ok;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_v1_resolve,
         test_v2_resolve,
+        test_no_transitions_uses_std_fallback,
+        test_v1_no_std_type_fails,
+        test_v2_no_std_type_fails,
         test_bad_magic,
         test_truncated_header,
     };

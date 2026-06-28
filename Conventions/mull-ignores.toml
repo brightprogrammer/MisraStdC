@@ -1236,18 +1236,7 @@ file        = "Source/Misra/Std/DateTime.c"
 lines       = [18, 18]
 mutator     = "cxx_ge_to_gt"
 bucket      = "C"
-rationale   = "days_from_civil negative-year branch (y<0) is unreachable for the u64 epoch domain (year>=1970 => y>0 always); the ternary's else arm is dead code."
-author      = "Siddharth Mishra"
-created     = "2026-06-26"
-region_hash = "sha256:d6baa8f1456c1cebb1e84bef8e33e44ce9dcf1f6a025e0b022406f08f8f9f283"
-
-[[ignore]]
-id          = "DATETIME-NEGYEAR-018B"
-file        = "Source/Misra/Std/DateTime.c"
-lines       = [18, 18]
-mutator     = "cxx_sub_to_add"
-bucket      = "C"
-rationale   = "days_from_civil negative-year branch (y<0) is unreachable for the u64 epoch domain (year>=1970 => y>0 always); the ternary's else arm is dead code."
+rationale   = "the y<0 branch IS reachable (year 0 / pre-epoch dates parse via _read_DateTime; the sibling cxx_sub_to_add is killed by test_days_from_civil_year_zero_leap). This ge_to_gt mutant is nonetheless equivalent: y>=0 vs y>0 differ only at y==0, where 0/400 and (0-399)/400 both truncate toward zero to 0, so era is unchanged."
 author      = "Siddharth Mishra"
 created     = "2026-06-26"
 region_hash = "sha256:d6baa8f1456c1cebb1e84bef8e33e44ce9dcf1f6a025e0b022406f08f8f9f283"
@@ -1306,17 +1295,6 @@ rationale   = "dead init -- the local is an out-param / immediately-reassigned v
 author      = "Siddharth Mishra"
 created     = "2026-06-26"
 region_hash = "sha256:c2e92983fc76d1820c17e046e8034576eff0eccd01bca6ac440fac3d5f976c11"
-
-[[ignore]]
-id          = "DATETIME-DEADWD-058"
-file        = "Source/Misra/Std/DateTime.c"
-lines       = [58, 58]
-mutator     = "cxx_add_assign_to_sub_assign"
-bucket      = "C"
-rationale   = "the `wd += 7` body sits under `if (wd < 0)`, unreachable for u64 epochs (weekday is always >= 0)."
-author      = "Siddharth Mishra"
-created     = "2026-06-26"
-region_hash = "sha256:2e2653727258b6ade38bad79599db1f89c3e0470cb16774b576a270e1a3edb79"
 
 [[ignore]]
 id          = "CLOCK-MONO-060A"
@@ -1550,17 +1528,6 @@ created     = "2026-06-26"
 region_hash = "sha256:950d5a52e7d214436331d24cce117f395807e9f596dbbab39728cf23f8d79e3f"
 
 [[ignore]]
-id          = "TZIF-DEADINIT-108"
-file        = "Source/Misra/Parsers/Tzif.c"
-lines       = [108, 108]
-mutator     = "cxx_init_const"
-bucket      = "C"
-rationale   = "dead init -- overwritten before read (BufReadFmt out-param, or loop bookkeeping set in the taken branch)."
-author      = "Siddharth Mishra"
-created     = "2026-06-26"
-region_hash = "sha256:8a677db31f5832904439125ef3540af032dd8bb09445f95a7455868045ae7494"
-
-[[ignore]]
 id          = "TZIF-ITER0-110"
 file        = "Source/Misra/Parsers/Tzif.c"
 lines       = [110, 110]
@@ -1680,28 +1647,6 @@ rationale   = "dead init -- overwritten before read (BufReadFmt out-param, or lo
 author      = "Siddharth Mishra"
 created     = "2026-06-26"
 region_hash = "sha256:557546541e873ea96a95a05af173a853e2892487a2d7ee9a74850e10423e8eea"
-
-[[ignore]]
-id          = "TZIF-FILE-179"
-file        = "Source/Misra/Parsers/Tzif.c"
-lines       = [179, 179]
-mutator     = "cxx_assign_const"
-bucket      = "B"
-rationale   = "TzifLocalOffsetSeconds file-read wrapper; exercised by the Clock suite against the real /etc/localtime, not by this synthetic-image suite."
-author      = "Siddharth Mishra"
-created     = "2026-06-26"
-region_hash = "sha256:b09586fc40d5d39a0f5fb41b29440e8e605c14a6b6d1fb800e14ee7d681665d5"
-
-[[ignore]]
-id          = "TZIF-FILE-181"
-file        = "Source/Misra/Parsers/Tzif.c"
-lines       = [181, 181]
-mutator     = "cxx_assign_const"
-bucket      = "B"
-rationale   = "TzifLocalOffsetSeconds file-read wrapper; exercised by the Clock suite against the real /etc/localtime, not by this synthetic-image suite."
-author      = "Siddharth Mishra"
-created     = "2026-06-26"
-region_hash = "sha256:0d483598166564272498a591185de035d3ee6b7b5e534443f100545a39c4f6cb"
 
 [[ignore]]
 id          = "TZIF-FILE-191A"
@@ -3970,17 +3915,6 @@ author      = "Siddharth Mishra"
 created     = "2026-06-27"
 region_hash = "sha256:4cb5f3cac21f07c36ded10ed46838f7c698cb02d0792eb162367d8841c66a8c3"
 
-[[ignore]]
-id          = "IO-SPECOVERFLOW-605"
-file        = "Source/Misra/Std/Io.c"
-lines       = [605, 605]
-mutator     = "cxx_ge_to_gt"
-bucket      = "B"
-rationale   = "the >=32 guard prevents writing a NUL terminator one byte past the 32-byte StrInitStack spec scratch; the mutant's accepted 32-char spec triggers a 1-byte stack overrun, a memory-safety effect not observable to value-assertion tests or the DebugAllocator (stack buffer, not allocator) -- deferred-OOB class."
-author      = "Siddharth Mishra"
-created     = "2026-06-27"
-region_hash = "sha256:d3a2d84ddab3cc993cda102bf299e1c6ebf2e626a23c06290e6718989363f94c"
-
 
 # --- Io.c: last two verified-redundant (2026-06-27) ---
 
@@ -4001,8 +3935,307 @@ file        = "Source/Misra/Std/Io.c"
 lines       = [2805, 2805]
 mutator     = "cxx_eq_to_ne"
 bucket      = "C"
-rationale   = "the StrLen==2 && [0]=='0' bare-prefix early-reject is redundant: with it disabled (mutant), the integer parser still fails on a digitless 0x/0X/0b/0B/0o/0O token and returns the unchanged cursor -- the same observable result (read fails). Verified: all six bare prefixes are rejected identically with and without the guard."
+rationale   = "Column-specific. The StrLen==2 -> !=2 mutant is NOT equivalent (it false-rejects valid multi-char literals like \"0xff\") and is killed by test_read_u8_hex. The remaining eq_to_ne mutants on this guard ([0]=='0' and the 0x/0X/0b/0B/0o/0O prefix-letter checks) ARE equivalent: they only change behavior for the six len-2 bare-prefix tokens, which is_valid_numeric_string/StrToU64 reject downstream on the SAME token, yielding the identical observable (read fails, cursor unchanged) -- verified by test_read_u8_hex's bare-prefix loop."
 author      = "Siddharth Mishra"
 created     = "2026-06-27"
 region_hash = "sha256:b76cfab9c7e0b4f117feb47c8ebd6f5a8f8d50ed5ecf566ecab65c4b36a9d56b"
+
+
+# --- Elf.c: PT_LOAD decode + parser hardening (added 2026-06-27) ---
+[[ignore]]
+id          = "ELF-105-ge_to_gt"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [105, 105]
+mutator     = "cxx_ge_to_gt"
+bucket      = "C"
+rationale   = "elf_str_at: at idx == strtab_size the '>=' guard returns an empty string; with '>' the fall-through scan `for(p=idx; p<size)` runs zero iterations and also returns an empty string -- the boundary relaxation is unobservable."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:4c4c874306c272eccb60ff5fa5183269d1bdc090199ad0c8a0c6a718ebb2afec"
+
+[[ignore]]
+id          = "ELF-164-init_const"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [164, 164]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Read-scratch local initialised to 0 then overwritten by the immediately-following BufReadFmt before any use; the faithful-42 init mutation is clobbered by the read, so decode output is unchanged."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:2591dab82a4ef08142825565f4c9b745960310686513854a0ae346614433c3d3"
+
+[[ignore]]
+id          = "ELF-165-init_const"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [165, 165]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Read-scratch local initialised to 0 then overwritten by the immediately-following BufReadFmt before any use; the faithful-42 init mutation is clobbered by the read, so decode output is unchanged."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:750256664481269ac5f41d2f220a46c2f4466cea27c96b99262fa4f6e8418f31"
+
+[[ignore]]
+id          = "ELF-166-init_const"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [166, 166]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Read-scratch local initialised to 0 then overwritten by the immediately-following BufReadFmt before any use; the faithful-42 init mutation is clobbered by the read, so decode output is unchanged."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:fb0aeb087b208d67772573f6427a90d0d1b7711df242948987a2a40a653b1787"
+
+[[ignore]]
+id          = "ELF-195-gt_to_ge"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [195, 195]
+mutator     = "cxx_gt_to_ge"
+bucket      = "C"
+rationale   = "elf_decode_header: the `shnum > 0` guard only relaxes for shnum == 0, but a zero-section file is already rejected downstream by `shstrndx >= n` (0 >= 0) in elf_decode_sections -- same reject."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:6338af5817d97cf3987767ef4abe29e414675c4dd73713ba622cc6a5cff63139"
+
+[[ignore]]
+id          = "ELF-218-init_const"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [218, 218]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Read-scratch local initialised to 0 then overwritten by the immediately-following BufReadFmt before any use; the faithful-42 init mutation is clobbered by the read, so decode output is unchanged."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:40e2c6bfc7fa12398c4cd1badee722bd5f6c980c78946834e8e2d8585610272e"
+
+[[ignore]]
+id          = "ELF-219-init_const"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [219, 219]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Read-scratch local initialised to 0 then overwritten by the immediately-following BufReadFmt before any use; the faithful-42 init mutation is clobbered by the read, so decode output is unchanged."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:a052c59c75ab9dccebc5970a0fed0d9773b105ad51af8b6a58ff2350a39832ca"
+
+[[ignore]]
+id          = "ELF-223-init_const"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [223, 223]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Read-scratch local initialised to 0 then overwritten by the immediately-following BufReadFmt before any use; the faithful-42 init mutation is clobbered by the read, so decode output is unchanged."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:0ba972f392eb34ff3d1ae9ed14e477cd0b9a9076112fbfcc5288ea01e0344199"
+
+[[ignore]]
+id          = "ELF-224-init_const"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [224, 224]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Read-scratch local initialised to 0 then overwritten by the immediately-following BufReadFmt before any use; the faithful-42 init mutation is clobbered by the read, so decode output is unchanged."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:23494459144ac51aed36649de3d6c900858cb6fd70964042f6bb867769781e65"
+
+[[ignore]]
+id          = "ELF-237-init_const"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [237, 237]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Read-scratch local initialised to 0 then overwritten by the immediately-following BufReadFmt before any use; the faithful-42 init mutation is clobbered by the read, so decode output is unchanged."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:0ba972f392eb34ff3d1ae9ed14e477cd0b9a9076112fbfcc5288ea01e0344199"
+
+[[ignore]]
+id          = "ELF-238-init_const"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [238, 238]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Read-scratch local initialised to 0 then overwritten by the immediately-following BufReadFmt before any use; the faithful-42 init mutation is clobbered by the read, so decode output is unchanged."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:23494459144ac51aed36649de3d6c900858cb6fd70964042f6bb867769781e65"
+
+[[ignore]]
+id          = "ELF-276-init_const"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [276, 276]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Read-scratch local initialised to 0 then overwritten by the immediately-following BufReadFmt before any use; the faithful-42 init mutation is clobbered by the read, so decode output is unchanged."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:879050facff2dd2a5c9ae40b37de9eb70881ab0b1fa9ac6411bc946924ef7522"
+
+[[ignore]]
+id          = "ELF-277-init_const"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [277, 277]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Read-scratch local initialised to 0 then overwritten by the immediately-following BufReadFmt before any use; the faithful-42 init mutation is clobbered by the read, so decode output is unchanged."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:0646099cb06155dca765130e2909bf4d81d700b491afb3467b217dd57290c79a"
+
+[[ignore]]
+id          = "ELF-335-gt_to_ge"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [335, 335]
+mutator     = "cxx_gt_to_ge"
+bucket      = "B"
+rationale   = "elf_decode_symbol_table: the `count > ELF_MAX_SYMBOLS` (16,777,216) sanity cap; killing `>=` needs a fixture declaring exactly 16M symbols (~384 MB symtab) -- impractical, accepted as a strategy survivor."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:f079930ce16858c93f20e70cca7e8c37f888f325dbeb67eba52493a4a2906fbe"
+
+[[ignore]]
+id          = "ELF-343-init_const"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [343, 343]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Read-scratch local initialised to 0 then overwritten by the immediately-following BufReadFmt before any use; the faithful-42 init mutation is clobbered by the read, so decode output is unchanged."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:59dc365200a53571f32f02271d8431d7810a10d8a83a4c116a790ef10c3e6c01"
+
+[[ignore]]
+id          = "ELF-344-init_const"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [344, 344]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Read-scratch local initialised to 0 then overwritten by the immediately-following BufReadFmt before any use; the faithful-42 init mutation is clobbered by the read, so decode output is unchanged."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:3fb5900b853afdd4ce69e83d4a174deeebdb36b250f6e90592c4bfab1fe521f7"
+
+[[ignore]]
+id          = "ELF-345-init_const"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [345, 345]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Read-scratch local initialised to 0 then overwritten by the immediately-following BufReadFmt before any use; the faithful-42 init mutation is clobbered by the read, so decode output is unchanged."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:cd20e1ca04a990f7b84340b6ec4808a3b458a5435e81f46bbe0318b4a2a85f1a"
+
+[[ignore]]
+id          = "ELF-346-init_const"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [346, 346]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Read-scratch local initialised to 0 then overwritten by the immediately-following BufReadFmt before any use; the faithful-42 init mutation is clobbered by the read, so decode output is unchanged."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:8d878d6776328f7c4c5326e7fcbe27cedc5d08833f61f52ce141715aedb3dea2"
+
+[[ignore]]
+id          = "ELF-368-lt_to_le"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [368, 368]
+mutator     = "cxx_lt_to_le"
+bucket      = "C"
+rationale   = "elf_decode_symbols: `i <= VecLen` reads sections[len], inside the Vec's (capacity+1) allocation; the stale entry's type is never SYMTAB/DYNSYM, so the extra iteration is a no-op."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:45999f80ef742a3b5bedb0adce5fb83b5beb1f6f7b76125dbb6c00de31224624"
+
+[[ignore]]
+id          = "ELF-411-lt_to_le"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [411, 411]
+mutator     = "cxx_lt_to_le"
+bucket      = "C"
+rationale   = "elf_decode_build_id: the `(end-p) < 12` guard is unreachable -- the prior `note->size < 16` early return guarantees end-p >= 16 >= 12; the branch is dead, so mutating it is equivalent."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:7f7f664bf756e218ee23a1c50caa2d7363dd8961055dd7e9ffc6b00308b43758"
+
+[[ignore]]
+id          = "ELF-411-sub_to_add"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [411, 411]
+mutator     = "cxx_sub_to_add"
+bucket      = "C"
+rationale   = "elf_decode_build_id: the `(end-p) < 12` guard is unreachable -- the prior `note->size < 16` early return guarantees end-p >= 16 >= 12; the branch is dead, so mutating it is equivalent."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:7f7f664bf756e218ee23a1c50caa2d7363dd8961055dd7e9ffc6b00308b43758"
+
+[[ignore]]
+id          = "ELF-429-sub_to_add"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [429, 429]
+mutator     = "cxx_sub_to_add"
+bucket      = "C"
+rationale   = "elf_decode_build_id: the `(end-p) < descsz` guard is unreachable -- the earlier `(end-p) < name_padded + descsz` check already guarantees end-p >= descsz after `p += name_padded`; equivalent."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:baaa7ebb40fd7260e04d6424b71acfbaf17e067412ed2ef30d4b03bf61adcb1b"
+
+[[ignore]]
+id          = "ELF-437-lt_to_le"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [437, 437]
+mutator     = "cxx_lt_to_le"
+bucket      = "C"
+rationale   = "elf_decode_debug_link: at size == 5 the parse proceeds but max_name == 1 forces name_len 0 -> empty/unterminated return; correct (proceed) and mutant (early return) both leave debuglink unset."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:9bf6911c1f6a87625e5343495edbf9d667d5f870a4cea237fa3982fdfde792b7"
+
+[[ignore]]
+id          = "ELF-443-gt_to_ge"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [443, 443]
+mutator     = "cxx_gt_to_ge"
+bucket      = "C"
+rationale   = "elf_decode_debug_link: the `dl->size > 4` ternary is unreachable as a true boundary -- the prior `dl->size < 5` guard ensures size >= 5 > 4, so `>` and `>=` both take the `size-4` branch; equivalent."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:dee8a7cd93ce7b96939aed11d1507751cdb7e4bcb280ed76d8d12a37299e9bd4"
+
+[[ignore]]
+id          = "ELF-445-lt_to_le"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [445, 445]
+mutator     = "cxx_lt_to_le"
+bucket      = "C"
+rationale   = "elf_decode_debug_link: `name_len < max_name` vs `<=` -- a terminated name stops at its NUL before max_name identically; an unterminated name is rejected by the following `name_len >= max_name` check either way."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:e748f3a5798d44d15ff08ba0ae8011441be91bb2164f4bd273cfd69feb73b6ba"
+
+[[ignore]]
+id          = "ELF-535-lt_to_le"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [535, 535]
+mutator     = "cxx_lt_to_le"
+bucket      = "C"
+rationale   = "elf_open: `< 0` vs `<= 0` differs only for a 0-byte read (empty file), which then fails elf_decode_header's minimum-size check -- ElfOpen returns false either way."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:335c0b038bf7a1ed6909c9877602f718d0feb4f78889ae7f98e35ef308818de7"
+
+[[ignore]]
+id          = "ELF-593-lt_to_le"
+file        = "Source/Misra/Parsers/Elf.c"
+lines       = [593, 593]
+mutator     = "cxx_lt_to_le"
+bucket      = "C"
+rationale   = "elf_find_section_zstr: `i <= VecLen` reads sections[len] inside the (capacity+1) allocation; the stale name pointer won't ZstrCompare-equal the query, so the extra iteration is a no-op."
+author      = "Siddharth Mishra"
+created     = "2026-06-27"
+region_hash = "sha256:45999f80ef742a3b5bedb0adce5fb83b5beb1f6f7b76125dbb6c00de31224624"
 

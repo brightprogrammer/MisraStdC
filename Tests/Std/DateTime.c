@@ -201,9 +201,22 @@ static bool test_iso_read_direct(void) {
            d.nanosecond == 0 && d.utc_offset_seconds == MST;
 }
 
+static bool test_days_from_civil_year_zero_leap(void) {
+    DateTime y0      = {.year = 0, .month = 1, .day = 1};
+    DateTime y1      = {.year = 1, .month = 1, .day = 1};
+    i64      span_ns = (i64)(DateTimeToUnixNs(y1) - DateTimeToUnixNs(y0));
+    return span_ns == 366LL * 86400LL * (i64)NS_PER_SEC;
+}
+
+static bool test_weekday_negative_local_offset(void) {
+    return DateTimeFromUnixNs(0, -432000).weekday == 6;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_unix_roundtrip,
+        test_days_from_civil_year_zero_leap,
+        test_weekday_negative_local_offset,
         test_to_unix_known,
         test_compare,
         test_diff,

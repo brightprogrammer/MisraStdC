@@ -2027,6 +2027,14 @@ static bool test_read_spec_too_long_rejected(void) {
     return (p == start) && (v == 0);
 }
 
+static bool test_read_spec_len_32_boundary_rejected(void) {
+    u64  v     = 999;
+    Zstr p     = "5";
+    Zstr start = p;
+    StrReadFmt(p, "{11111111111111111111111111111111}", v); // valid 32-char width spec
+    return (p == start) && (v == 999);
+}
+
 // Unquoted-string read budget binds at the interior literal anchor '#': two
 // `\n` escapes exhaust the budget, so the field is exactly 2 bytes and 'rest'
 // is not consumed (pins the escape-budget decrement against over-reading).
@@ -2102,6 +2110,7 @@ int main(void) {
         test_float_reading,
         test_datetime_iso_read,
         test_read_spec_too_long_rejected,
+        test_read_spec_len_32_boundary_rejected,
         test_read_escape_budget_anchor,
         test_read_u8_hex,
         test_read_long_string_no_cap,
