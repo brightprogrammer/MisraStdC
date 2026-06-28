@@ -1047,7 +1047,11 @@ if opt_int
             install: false
         )
 
-        test(test_name, test_exe)
+        # Int.Leak (and the other DebugAllocator-heavy int suites) do many
+        # allocator round-trips with per-call magic validation; on the
+        # native-but-slow arm64 sanitized runner Int.Leak runs past the 60s
+        # default. Generous headroom so CI doesn't flake on slow runners.
+        test(test_name, test_exe, timeout: 180)
     endforeach
 endif
 
@@ -1068,9 +1072,10 @@ if opt_float
 
         # Float tests exercise BitVec / Int / Float chains heavily; under
         # sanitizer + per-call allocator magic validation they run for
-        # well over the meson default 30s. Give them generous headroom so
-        # CI doesn't flake on slow runners.
-        test(test_name, test_exe, timeout: 120)
+        # well over the meson default 30s -- and on the native-but-slow arm64
+        # sanitized runner Float.Math exceeded even the previous 240s cap.
+        # Generous headroom so CI doesn't flake on slow runners.
+        test(test_name, test_exe, timeout: 300)
     endforeach
 endif
 
