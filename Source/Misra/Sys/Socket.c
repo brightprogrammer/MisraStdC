@@ -1033,6 +1033,18 @@ i32 SocketPoll(SocketPollItem *items, u32 count, i32 timeout_ms) {
     }
 #endif
 
+    // --- TEMP DIAGNOSTIC (remove after CI) ---
+    LOG_ERROR("SOCKPOLLDBG count={} timeout={} ret={}", count, timeout_ms, ret);
+    for (u32 di = 0; di < count && di < 8; ++di) {
+        LOG_ERROR(
+            "SOCKPOLLDBG   fd[{}]={} events={x} revents={x}",
+            di,
+            (i64)items[di].fd,
+            (u32)pfds[di].events,
+            (u32)pfds[di].revents
+        );
+    }
+
     if (ret >= 0) {
         for (u32 i = 0; i < count; ++i) {
             u32 ready = 0;
