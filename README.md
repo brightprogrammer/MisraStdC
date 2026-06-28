@@ -5,6 +5,7 @@
 [![Windows MSVC](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows-msvc.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows-msvc.yml)
 [![Windows LLVM](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows-llvm.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows-llvm.yml)
 [![Fuzzing](https://github.com/brightprogrammer/MisraStdC/actions/workflows/fuzz.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/fuzz.yml)
+[![Chat on Zulip](https://img.shields.io/badge/chat-Zulip-6492FE.svg?logo=zulip&logoColor=white)](https://misrastdc.zulipchat.com/join/pbkj7hlz3ebiug35b3267yct/)
 
 A C11 standard library, made with love, to bring some modern concepts into
 plain C. Everything is opt-in at build time — you compile only what you use, and
@@ -156,6 +157,9 @@ In-depth guides live under [`Docs/`](Docs/). Before contributing, read
 [`CODING-CONVENTIONS.md`](Conventions/CODING-CONVENTIONS.md) and run the test suite plus
 `clang-format`. Released into the public domain under the
 [Unlicense](LICENSE.md).
+
+Questions, ideas, or just want to follow along? Join the chat on
+[Zulip](https://misrastdc.zulipchat.com/join/pbkj7hlz3ebiug35b3267yct/).
 
 ## Project status
 
