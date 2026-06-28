@@ -1502,6 +1502,13 @@ static bool test_from_f64_null_aborts(void) {
     return false;
 }
 
+static bool test_from_f64_null_aborts_high_precision(void) {
+    WriteFmt("Testing StrFromF64 NULL aborts before the precision guard\n");
+    StrFloatFormat config = {.precision = 18, .force_sci = false, .uppercase = false};
+    StrFromF64(NULL, 1.0, &config);
+    return false;
+}
+
 // ---- skip_prefix via StrToU64 (Str.Mutants4) ------------------------------
 
 // 525:13 cxx_add_to_sub : `pos + 2 > length` -> `pos - 2 > length`.
@@ -2117,6 +2124,7 @@ int main(void) {
         test_validate_str_guard,           // StrToF64 (Str.Mutants1)
         test_str_to_u64_validate_barrier,  // StrToU64 (Str.Mutants2)
         test_from_f64_null_aborts,         // StrFromF64 (Str.Mutants3)
+        test_from_f64_null_aborts_high_precision,
         test_str_to_i64_corrupt_str_aborts // StrToI64 (Str.Mutants5)
     };
 
