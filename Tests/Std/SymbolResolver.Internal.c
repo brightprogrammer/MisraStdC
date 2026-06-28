@@ -8,10 +8,9 @@
 ///
 ///   * sidecar / build-id path handling (test_sr2_*):
 ///     `append_build_id_path`, `sidecar_matches`, `try_open_sidecar`.
-///   * module cache + teardown (test_sr3_*):
-///     `resolver_cache_find_or_open` (find-loop bound, key compare,
-///     hit-vs-miss branch) and `SymbolResolverDeinit` (per-entry close
-///     loop + map/vec teardown).
+///
+/// (The module cache + teardown is now covered through the public
+/// Init/Resolve/Deinit API in `SymbolResolver.c`, not here.)
 ///
 /// The test executable already supplies the public symbols
 /// (SymbolResolverInit, SymbolResolverResolve, SymbolResolverDeinit) via
@@ -391,189 +390,6 @@ bool test_sr2_open_sidecar_debug_subdir_not_elf(void) {
     return ok == false;
 }
 
-// ===========================================================================
-// test_sr3_* — module cache + teardown
-// ===========================================================================
-
-// Two distinct, no-inline marker functions in OUR module. -O0 test builds
-// keep their .symtab entries, so each resolves to a named symbol whose
-// range our taken address lands in.
-static __attribute__((noinline)) void sr3_marker_a(void) {
-    __asm__ __volatile__("" ::
-                             : "memory");
-}
-static __attribute__((noinline)) void sr3_marker_b(void) {
-    __asm__ __volatile__("" ::
-                             : "memory");
-}
-
-// Find an executable, file-backed mapping whose path differs from
-// `self_path`. Returns the mapping start (a valid code address in another
-// module) via `*out_addr`, or false if none exists.
-static bool sr3_other_module_addr(SymbolResolver *res, Zstr self_path, u64 *out_addr) {
-    for (u64 i = 0; i < VecLen(&res->maps.entries); ++i) {
-        ProcMapEntry *m = VecPtrAt(&res->maps.entries, i);
-        if (m->path && m->path[0] == '/' && (m->perms & PROC_MAP_PERM_EXEC) && ZstrCompare(m->path, self_path) != 0) {
-            *out_addr = m->start;
-            return true;
-        }
-    }
-    return false;
-}
-
-// ---------------------------------------------------------------------------
-// resolver_cache_find_or_open — cache HIT keeps one entry, no re-open
-// ---------------------------------------------------------------------------
-
-// Two resolves into the SAME module: the module is opened+cached on the
-// first, and the second is a HIT that returns the cached entry. Kills the
-// find-loop start/step mutations (i=42, ++i->--i) and the hit branch: a
-// broken cache key or skipped loop re-opens the module -> a second cache
-// entry and a fresh ELF allocation.
-bool test_sr3_same_module_cache_hit_no_realloc(void) {
-    DebugAllocator alloc = DebugAllocatorInit();
-    SymbolResolver res;
-    if (!SymbolResolverInit(&res, ALLOCATOR_OF(&alloc)))
-        return false;
-
-    ResolvedSymbol ra;
-    bool           ok = SymbolResolverResolve(&res, (void *)&sr3_marker_a, &ra);
-    ok = ok && ra.module_path && ra.symbol_name && ZstrFindSubstring(ra.symbol_name, "sr3_marker_a") != NULL;
-    u64  len_after_first  = VecLen(&res.cache);
-    size live_after_first = DebugAllocatorLiveCount(&alloc);
-
-    // Second resolve, different address, SAME module -> cache HIT.
-    ResolvedSymbol rb;
-    ok = ok && SymbolResolverResolve(&res, (void *)&sr3_marker_b, &rb);
-    ok = ok && rb.module_path && rb.symbol_name && ZstrFindSubstring(rb.symbol_name, "sr3_marker_b") != NULL;
-    u64  len_after_second  = VecLen(&res.cache);
-    size live_after_second = DebugAllocatorLiveCount(&alloc);
-
-    // Exactly one cached module, opened once.
-    ok = ok && len_after_first == 1 && len_after_second == 1;
-    // No new allocation on the HIT: the module was not re-opened.
-    ok = ok && live_after_second == live_after_first;
-    // Both resolved to the very same module file.
-    ok = ok && ZstrCompare(ra.module_path, rb.module_path) == 0;
-
-    SymbolResolverDeinit(&res);
-    DebugAllocatorDeinit(&alloc);
-    return ok;
-}
-
-// ---------------------------------------------------------------------------
-// resolver_cache_find_or_open — cross-module MISS makes a distinct entry
-// ---------------------------------------------------------------------------
-
-// Resolve in our module, then resolve in a DIFFERENT module. The second
-// lookup must NOT match the first cached entry (different path): it is a
-// MISS that opens + inserts a second entry. Kills the key-compare swaps
-// (== -> != at the pointer compare and at the ZstrCompare==0 fallback):
-// a flipped compare returns the WRONG first entry for the second module,
-// so the second address resolves against the wrong file.
-bool test_sr3_cross_module_distinct_entry(void) {
-    DebugAllocator alloc = DebugAllocatorInit();
-    SymbolResolver res;
-    if (!SymbolResolverInit(&res, ALLOCATOR_OF(&alloc)))
-        return false;
-
-    ResolvedSymbol ra;
-    bool           ok = SymbolResolverResolve(&res, (void *)&sr3_marker_a, &ra);
-    ok                = ok && ra.module_path;
-    u64 len1          = VecLen(&res.cache);
-
-    u64 other = 0;
-    ok        = ok && sr3_other_module_addr(&res, ra.module_path, &other);
-
-    ResolvedSymbol ro;
-    ok       = ok && SymbolResolverResolve(&res, (void *)other, &ro);
-    u64 len2 = VecLen(&res.cache);
-
-    // First resolve: one entry. Cross-module resolve: a second, distinct
-    // entry. A flipped key compare would re-use entry[0] -> len stays 1
-    // and ro.module_path would equal ra.module_path (wrong file).
-    ok = ok && len1 == 1 && len2 == 2;
-    ok = ok && ro.module_path && ZstrCompare(ro.module_path, ra.module_path) != 0;
-
-    SymbolResolverDeinit(&res);
-    DebugAllocatorDeinit(&alloc);
-    return ok;
-}
-
-// Resolving the cross-module address AGAIN is a HIT on the second entry:
-// the cache stays at two entries and nothing is re-opened. This pins the
-// find-loop to actually walk past entry[0] and match entry[1].
-bool test_sr3_second_module_hit(void) {
-    DebugAllocator alloc = DebugAllocatorInit();
-    SymbolResolver res;
-    if (!SymbolResolverInit(&res, ALLOCATOR_OF(&alloc)))
-        return false;
-
-    ResolvedSymbol ra;
-    bool           ok = SymbolResolverResolve(&res, (void *)&sr3_marker_a, &ra);
-    ok                = ok && ra.module_path;
-
-    u64 other = 0;
-    ok        = ok && sr3_other_module_addr(&res, ra.module_path, &other);
-
-    ResolvedSymbol r1;
-    ok                   = ok && SymbolResolverResolve(&res, (void *)other, &r1);
-    u64  len_before_hit  = VecLen(&res.cache);
-    size live_before_hit = DebugAllocatorLiveCount(&alloc);
-
-    ResolvedSymbol r2;
-    ok                  = ok && SymbolResolverResolve(&res, (void *)other, &r2);
-    u64  len_after_hit  = VecLen(&res.cache);
-    size live_after_hit = DebugAllocatorLiveCount(&alloc);
-
-    ok = ok && len_before_hit == 2 && len_after_hit == 2;
-    ok = ok && live_after_hit == live_before_hit;
-    ok = ok && r1.module_path && r2.module_path && ZstrCompare(r1.module_path, r2.module_path) == 0;
-
-    SymbolResolverDeinit(&res);
-    DebugAllocatorDeinit(&alloc);
-    return ok;
-}
-
-// ---------------------------------------------------------------------------
-// SymbolResolverDeinit — full teardown returns live count to baseline
-// ---------------------------------------------------------------------------
-
-// Populate the cache + ELF + DWARF lines by resolving, then Deinit. A
-// correct teardown frees everything and the DebugAllocator's live count
-// returns to the pre-resolver baseline (0). Each removed deinit in the
-// cleanup loop (ELF close, DwarfLines close) and the trailing VecDeinit /
-// the loop itself (start/bound/step) leaves outstanding allocations the
-// live count catches.
-bool test_sr3_deinit_frees_everything(void) {
-    DebugAllocator alloc    = DebugAllocatorInit();
-    size           baseline = DebugAllocatorLiveCount(&alloc);
-
-    SymbolResolver res;
-    if (!SymbolResolverInit(&res, ALLOCATOR_OF(&alloc)))
-        return false;
-
-    ResolvedSymbol ra;
-    bool           ok = SymbolResolverResolve(&res, (void *)&sr3_marker_a, &ra);
-    ok                = ok && ra.module_path;
-    // Resolve a second module too, so the cleanup loop must walk >1 entry
-    // (kills the loop-bound / start / step mutations: an under-run leaves
-    // the later entries' ELFs + DWARF leaked).
-    u64 other = 0;
-    if (ok && sr3_other_module_addr(&res, ra.module_path, &other)) {
-        ResolvedSymbol ro;
-        ok = ok && SymbolResolverResolve(&res, (void *)other, &ro);
-    }
-    // After a successful resolve the cache holds at least one open ELF and
-    // its built DwarfLines, so the live count is strictly above baseline.
-    ok = ok && DebugAllocatorLiveCount(&alloc) > baseline;
-
-    SymbolResolverDeinit(&res);
-    ok = ok && DebugAllocatorLiveCount(&alloc) == baseline;
-
-    DebugAllocatorDeinit(&alloc);
-    return ok;
-}
 
 int main(void) {
     WriteFmt("[INFO] Starting SymbolResolver.Internal tests\n\n");
@@ -607,12 +423,6 @@ int main(void) {
         test_sr2_open_sidecar_missing,
         test_sr2_open_sidecar_adjacent_not_elf,
         test_sr2_open_sidecar_debug_subdir_not_elf,
-
-        // --- test_sr3_*: cache + deinit ---
-        test_sr3_same_module_cache_hit_no_realloc,
-        test_sr3_cross_module_distinct_entry,
-        test_sr3_second_module_hit,
-        test_sr3_deinit_frees_everything,
     };
 
     return run_test_suite(tests, sizeof(tests) / sizeof(tests[0]), NULL, 0, "SymbolResolver.Internal");
