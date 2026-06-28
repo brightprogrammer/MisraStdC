@@ -11,7 +11,9 @@
 ///   2. Lookup the file path in our cache; on miss, open the file
 ///      through `Parsers/Elf` and stash it for future lookups.
 ///   3. file_relative_addr = runtime_addr - load_base.
-///   4. `ElfResolveAddress(elf, file_relative_addr)`.
+///   4. Resolve file_relative_addr against the ELF symbol tables,
+///      skipping mapping symbols ($x/$d) and non-address symbols
+///      (section/file/TLS) so the real function isn't shadowed.
 
 #include <Misra/Sys/SymbolResolver.h>
 
@@ -241,29 +243,13 @@ void SymbolResolverDeinit(SymbolResolver *self) {
 // `dlpi_addr`).
 static u64 resolver_load_bias(const Elf *elf, u64 map_start, u64 map_file_offset, u64 runtime_addr) {
     u64 addr_file_offset = map_file_offset + (runtime_addr - map_start);
-    // --- TEMP DIAGNOSTIC (remove after CI) ---
-    LOG_ERROR(
-        "SRBIASDBG in map_start={x} map_off={x} addr={x} addr_foff={x} nseg={}",
-        map_start,
-        map_file_offset,
-        runtime_addr,
-        addr_file_offset,
-        (u64)VecLen(&elf->segments)
-    );
     VecForeachPtr(&elf->segments, seg) {
-        if (seg->type != ELF_PT_LOAD) {
+        if (seg->type != ELF_PT_LOAD)
             continue;
-        }
-        // --- TEMP DIAGNOSTIC (remove after CI) ---
-        LOG_ERROR("SRBIASDBG   PT_LOAD off={x} vaddr={x} filesz={x}", seg->offset, seg->vaddr, seg->filesz);
-        if (addr_file_offset >= seg->offset && addr_file_offset < seg->offset + seg->filesz) {
-            u64 b = runtime_addr - (seg->vaddr + (addr_file_offset - seg->offset));
-            LOG_ERROR("SRBIASDBG   SELECTED -> bias={x}", b);
-            return b;
-        }
+        if (addr_file_offset >= seg->offset && addr_file_offset < seg->offset + seg->filesz)
+            return runtime_addr - (seg->vaddr + (addr_file_offset - seg->offset));
     }
     // No covering PT_LOAD (unusual) -- fall back to the historical formula.
-    LOG_ERROR("SRBIASDBG   FALLBACK -> bias={x}", map_start - map_file_offset);
     return map_start - map_file_offset;
 }
 
@@ -309,6 +295,49 @@ bool SymbolResolverFindFde(
 }
 #endif
 
+// $x (A64 code) / $d (data) are AArch64 mapping symbols -- STT_NOTYPE,
+// STB_LOCAL, size 0 -- emitted to mark code/data boundaries and frequently
+// sharing a real function's address. Exclude them by name (the llvm-symbolizer
+// approach) so they don't shadow the real symbol. STT_NOTYPE is otherwise kept,
+// since hand-written assembly functions legitimately carry no type.
+static bool resolver_is_mapping_symbol(const Elf *elf, const ElfSymbol *s) {
+    if (elf->header.machine != ELF_MACHINE_AARCH64 || !s->name)
+        return false;
+    return s->name[0] == '$' && (s->name[1] == 'x' || s->name[1] == 'd');
+}
+
+// Best symbol covering `vaddr`, skipping mapping symbols. Mirrors the parser's
+// elf_search_symbols match rule (exact for size-0, range for sized, prefer
+// GLOBAL) and adds the mapping-symbol filter the parser deliberately stays out
+// of -- address->function resolution is a SymbolResolver concern, not ELF's.
+static const ElfSymbol *resolver_search_symbols(const Elf *elf, const ElfSymbols *syms, u64 vaddr) {
+    const ElfSymbol *best = NULL;
+    for (u64 i = 0; i < VecLen(syms); ++i) {
+        const ElfSymbol *s = VecPtrAt(syms, i);
+        // Consider only real address symbols. Like llvm-symbolizer, keep
+        // NOTYPE/FUNC/OBJECT (NOTYPE covers hand-written asm) and drop
+        // SECTION/FILE/TLS/COMMON, whose empty or non-address names would
+        // otherwise shadow a real function sharing the same address.
+        if (s->type != ELF_SYMBOL_TYPE_NOTYPE && s->type != ELF_SYMBOL_TYPE_FUNC && s->type != ELF_SYMBOL_TYPE_OBJECT)
+            continue;
+        if (resolver_is_mapping_symbol(elf, s))
+            continue;
+        if (s->size == 0) {
+            if (s->value == vaddr && (!best || s->bind == ELF_SYMBOL_BIND_GLOBAL))
+                best = s;
+            continue;
+        }
+        if (vaddr >= s->value && vaddr < s->value + s->size && (!best || s->bind == ELF_SYMBOL_BIND_GLOBAL))
+            best = s;
+    }
+    return best;
+}
+
+static const ElfSymbol *resolver_resolve_addr(const Elf *elf, u64 vaddr) {
+    const ElfSymbol *hit = resolver_search_symbols(elf, &elf->symbols, vaddr);
+    return hit ? hit : resolver_search_symbols(elf, &elf->dynamic_symbols, vaddr);
+}
+
 // ---------------------------------------------------------------------------
 // Resolve
 // ---------------------------------------------------------------------------
@@ -343,9 +372,9 @@ bool SymbolResolverResolve(SymbolResolver *self, void *runtime_addr, ResolvedSym
     // Symbol resolution: try the main file first, fall through to the
     // sidecar (full `.symtab` for stripped binaries) if nothing
     // matches.
-    const ElfSymbol *sym = ElfResolveAddress(&cache_entry->elf, file_relative);
+    const ElfSymbol *sym = resolver_resolve_addr(&cache_entry->elf, file_relative);
     if (!(sym && sym->name && sym->name[0]) && cache_entry->has_sidecar) {
-        sym = ElfResolveAddress(&cache_entry->sidecar, file_relative);
+        sym = resolver_resolve_addr(&cache_entry->sidecar, file_relative);
     }
     if (sym && sym->name && sym->name[0]) {
         out->symbol_name  = sym->name;
@@ -355,23 +384,6 @@ bool SymbolResolverResolve(SymbolResolver *self, void *runtime_addr, ResolvedSym
     } else {
         out->offset = file_relative;
     }
-    // --- TEMP DIAGNOSTIC (remove after CI) ---
-    LOG_ERROR(
-        "SRRESDBG addr={x} map[start={x} off={x} path={}] base={x} frel={x} nsym={} ndyn={} sym={} symval={x} "
-        "symsz={x} sidecar={}",
-        addr,
-        entry->start,
-        entry->file_offset,
-        entry->path ? entry->path : "<null>",
-        load_base,
-        file_relative,
-        (u64)VecLen(&cache_entry->elf.symbols),
-        (u64)VecLen(&cache_entry->elf.dynamic_symbols),
-        (sym && sym->name) ? sym->name : "<null>",
-        sym ? sym->value : (u64)0,
-        sym ? sym->size : (u64)0,
-        cache_entry->has_sidecar ? 1 : 0
-    );
 
 #if FEATURE_PARSER_DWARF
     // .debug_info function-name fallback. Only consulted when neither
