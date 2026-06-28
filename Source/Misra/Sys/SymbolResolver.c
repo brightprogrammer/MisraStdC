@@ -140,7 +140,7 @@ static bool try_open_sidecar(Zstr main_path, const Elf *main, Elf *out, Allocato
 // Cache management
 // ---------------------------------------------------------------------------
 
-static ResolverCacheEntry *resolver_cache_find_or_open(SymbolResolver *self, Zstr path, u64 load_base) {
+static ResolverCacheEntry *resolver_cache_find_or_open(SymbolResolver *self, Zstr path) {
     for (u64 i = 0; i < VecLen(&self->cache); ++i) {
         ResolverCacheEntry *e = VecPtrAt(&self->cache, i);
         if (e->path == path) {
@@ -156,8 +156,7 @@ static ResolverCacheEntry *resolver_cache_find_or_open(SymbolResolver *self, Zst
 
     ResolverCacheEntry entry;
     MemSet(&entry, 0, sizeof(entry));
-    entry.path      = path;
-    entry.load_base = load_base;
+    entry.path = path;
     if (!ElfOpen(&entry.elf, path, self->allocator)) {
         return NULL;
     }
@@ -269,12 +268,11 @@ bool SymbolResolverFindFde(
     if (!entry || !entry->path || entry->path[0] == '\0')
         return false;
 
-    ResolverCacheEntry *cache_entry = resolver_cache_find_or_open(self, entry->path, entry->start - entry->file_offset);
+    ResolverCacheEntry *cache_entry = resolver_cache_find_or_open(self, entry->path);
     if (!cache_entry)
         return false;
     // p_vaddr-space bias (not the file-offset shortcut) -- see resolver_load_bias.
-    u64 load_base          = resolver_load_bias(&cache_entry->elf, entry->start, entry->file_offset, addr);
-    cache_entry->load_base = load_base;
+    u64 load_base = resolver_load_bias(&cache_entry->elf, entry->start, entry->file_offset, addr);
 
     if (!cache_entry->cfi_built) {
         cache_entry->cfi_built = true;
@@ -354,15 +352,14 @@ bool SymbolResolverResolve(SymbolResolver *self, void *runtime_addr, ResolvedSym
         return false;
     }
 
-    ResolverCacheEntry *cache_entry = resolver_cache_find_or_open(self, entry->path, entry->start - entry->file_offset);
+    ResolverCacheEntry *cache_entry = resolver_cache_find_or_open(self, entry->path);
     if (!cache_entry) {
         return false;
     }
     // Correct load bias in p_vaddr space (see resolver_load_bias). Covers
     // PIE / shared objects; for ET_EXEC the first PT_LOAD's p_vaddr already
     // equals the mapping start, so the absolute base still falls out.
-    u64 load_base          = resolver_load_bias(&cache_entry->elf, entry->start, entry->file_offset, addr);
-    cache_entry->load_base = load_base;
+    u64 load_base = resolver_load_bias(&cache_entry->elf, entry->start, entry->file_offset, addr);
 
     out->module_path = entry->path;
     out->module_base = load_base;

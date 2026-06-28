@@ -74,7 +74,6 @@ typedef struct ResolvedSymbol {
 
 typedef struct ResolverCacheEntry {
     Zstr path; // borrowed from ProcMaps.raw
-    u64  load_base;
     Elf  elf;
     // Sidecar debug file found via .gnu_debuglink or .note.gnu.build-id.
     // Populated lazily for stripped binaries that have an installed

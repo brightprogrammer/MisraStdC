@@ -76,13 +76,13 @@ bool test_srmut_cache_zstrcompare_fallback_hits(void) {
     bool ok = (p1 != p2); // genuinely distinct pointers
 
     // Miss -> opens + inserts entry with path == p1.
-    ResolverCacheEntry *e1 = resolver_cache_find_or_open(&res, p1, 0x1000);
+    ResolverCacheEntry *e1 = resolver_cache_find_or_open(&res, p1);
     ok                     = ok && e1 != NULL;
     ok                     = ok && VecLen(&res.cache) == 1;
 
     // Lookup with the OTHER buffer: pointer differs from p1, so only the
     // ZstrCompare fallback can recognise it as the same module.
-    ResolverCacheEntry *e2 = resolver_cache_find_or_open(&res, p2, 0x2000);
+    ResolverCacheEntry *e2 = resolver_cache_find_or_open(&res, p2);
     ok                     = ok && e2 == e1;                // same cached entry reused
     ok                     = ok && VecLen(&res.cache) == 1; // no duplicate open
 
@@ -118,8 +118,7 @@ bool test_srmut_deinit_frees_sidecar(void) {
 
     ResolverCacheEntry entry;
     MemSet(&entry, 0, sizeof(entry));
-    entry.path      = file;
-    entry.load_base = 0x1000;
+    entry.path = file;
 
     bool ok = ElfOpen(&entry.elf, file, ALLOCATOR_OF(&alloc));
     if (ok)
