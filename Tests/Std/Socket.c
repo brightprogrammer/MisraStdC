@@ -387,18 +387,20 @@ bool test_sk1_three_sockets_two_ready_count(void) {
     }
 
     // Make server0 and server2 readable; server1 stays idle.
-    i64  s0   = SocketSend(&p0.client, "A", 1);
-    i64  s2   = SocketSend(&p2.client, "C", 1);
-    bool sent = s0 == 1 && s2 == 1;
-    // --- TEMP DIAGNOSTIC (remove after CI) ---
-    WriteFmt(
-        "SK1DBG sent s0={} s2={} fd0={} fd1={} fd2={}\n",
-        s0,
-        s2,
-        (i64)p0.server.fd,
-        (i64)p1.server.fd,
-        (i64)p2.server.fd
-    );
+    bool sent = SocketSend(&p0.client, "A", 1) == 1 && SocketSend(&p2.client, "C", 1) == 1;
+
+    // Loopback delivery is asynchronous (notably on macOS): SocketSend
+    // returning does not guarantee the byte is in the peer's receive buffer
+    // yet, so a single immediate poll can catch a socket whose data is still
+    // in flight and report it not-ready. poll() is a point-in-time snapshot
+    // and returns on the FIRST ready fd -- it does not wait for the rest.
+    // Block on each readable socket individually first (level-triggered, so
+    // once readable it stays readable) so the combined assertion poll below
+    // is deterministic. Do NOT collapse this back into one poll.
+    SocketPollItem warm0 = {.fd = p0.server.fd, .events_requested = SOCKET_POLL_READ};
+    (void)SocketPoll(&warm0, 1, 1000);
+    SocketPollItem warm2 = {.fd = p2.server.fd, .events_requested = SOCKET_POLL_READ};
+    (void)SocketPoll(&warm2, 1, 1000);
 
     SocketPollItem items[3]   = {0};
     items[0].fd               = p0.server.fd;
@@ -409,33 +411,6 @@ bool test_sk1_three_sockets_two_ready_count(void) {
     items[2].events_requested = SOCKET_POLL_READ;
 
     i32 n = SocketPoll(items, 3, 1000);
-    // --- TEMP DIAGNOSTIC (remove after CI) ---
-    WriteFmt(
-        "SK1DBG poll1 n={} r0={x} r1={x} r2={x}\n",
-        n,
-        items[0].events_ready,
-        items[1].events_ready,
-        items[2].events_ready
-    );
-    // Re-poll the same fds without reading: poll is level-triggered, so a
-    // socket that's genuinely readable stays readable. If poll1 missed one
-    // because its byte was still in flight (async loopback), poll2 now sees
-    // it -> timing snapshot. If poll2 is still wrong -> a real defect.
-    SocketPollItem items2[3]   = {0};
-    items2[0].fd               = p0.server.fd;
-    items2[0].events_requested = SOCKET_POLL_READ;
-    items2[1].fd               = p1.server.fd;
-    items2[1].events_requested = SOCKET_POLL_READ;
-    items2[2].fd               = p2.server.fd;
-    items2[2].events_requested = SOCKET_POLL_READ;
-    i32 n2                     = SocketPoll(items2, 3, 1000);
-    WriteFmt(
-        "SK1DBG poll2 n={} r0={x} r1={x} r2={x}\n",
-        n2,
-        items2[0].events_ready,
-        items2[1].events_ready,
-        items2[2].events_ready
-    );
 
     bool ok = sent && n == 2 && (items[0].events_ready & SOCKET_POLL_READ) != 0 &&
               (items[1].events_ready & SOCKET_POLL_READ) == 0 && (items[2].events_ready & SOCKET_POLL_READ) != 0;
