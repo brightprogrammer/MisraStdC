@@ -203,8 +203,13 @@ bool proc_maps_load(ProcMaps *out, Allocator *alloc) {
             return false;
         }
         StrResize(&out->raw, StrLen(&out->raw) + (u64)n);
-        if (n < (i64)CHUNK)
-            break; // EOF
+        if (n == 0)
+            break; // true EOF. NOT `n < CHUNK`: /proc seq_files pack records
+                   // into their internal buffer and stop at a record boundary
+                   // below the requested size, so a short read happens
+                   // mid-file (any maps over ~4 KiB), not just at the end.
+                   // Treating a short read as EOF drops every later entry
+                   // (including [stack]).
     }
     FileClose(&f);
     if (StrLen(&out->raw) == 0) {
