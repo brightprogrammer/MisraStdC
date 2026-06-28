@@ -69,8 +69,6 @@ enum {
     FUNC_VADDR  = 0x401010,
     FUNC_SIZE   = 0x20,
     ENTRY_VADDR = 0x401000,
-    EM_X86_64   = 62,
-    EM_AARCH64  = 183,
 
     // Real program-header table (the resolver walks it for load-bias
     // math). Two PT_LOAD segments; the second deliberately has
@@ -167,7 +165,7 @@ static void build_elf_blob(void) {
 
     u8 *h = &elf_blob[16];             // after e_ident
     wr_u16(&h[0], (u16)ELF_TYPE_EXEC); // e_type
-    wr_u16(&h[2], EM_X86_64);          // e_machine
+    wr_u16(&h[2], ELF_MACHINE_X86_64); // e_machine
     wr_u32(&h[4], 1);                  // e_version
     wr_u64(&h[8], ENTRY_VADDR);        // e_entry
     wr_u64(&h[16], PHOFF_VAL);         // e_phoff
@@ -356,7 +354,7 @@ bool test_elf_fixture_decodes_known_fields(void) {
     }
 
     ok = elf.header.elf_class == ELF_CLASS_64 && elf.header.data == ELF_DATA_LSB && elf.header.type == ELF_TYPE_EXEC &&
-         elf.header.machine == EM_X86_64 && elf.header.entry == ENTRY_VADDR && elf.header.phoff == PHOFF_VAL &&
+         elf.header.machine == ELF_MACHINE_X86_64 && elf.header.entry == ENTRY_VADDR && elf.header.phoff == PHOFF_VAL &&
          elf.header.phnum == PHNUM_VAL && elf.header.shnum == N_SECTIONS && elf.header.shstrndx == SEC_SHSTRTAB;
 
     // Sections decode in order with correct names.
@@ -630,7 +628,7 @@ static void build_dbg_blob(void) {
 
     u8 *h = &dbg_blob[16];
     wr_u16(&h[0], (u16)ELF_TYPE_DYN);
-    wr_u16(&h[2], EM_X86_64);
+    wr_u16(&h[2], ELF_MACHINE_X86_64);
     wr_u32(&h[4], 1);
     wr_u64(&h[8], 0);
     wr_u64(&h[16], 0);
@@ -956,7 +954,7 @@ bool test_el1_strtab_unterminated_name_is_empty(void) {
     elf_blob[6] = 1;
     u8 *h       = &elf_blob[16];
     wr_u16(&h[0], (u16)ELF_TYPE_EXEC);
-    wr_u16(&h[2], EM_X86_64);
+    wr_u16(&h[2], ELF_MACHINE_X86_64);
     wr_u32(&h[4], 1);
     wr_u64(&h[24], SHT_OFF);
     wr_u16(&h[36], EHDR_SIZE);
@@ -1020,7 +1018,7 @@ bool test_el1_strtab_nul_at_size_boundary_is_empty(void) {
     elf_blob[6] = 1;
     u8 *h       = &elf_blob[16];
     wr_u16(&h[0], (u16)ELF_TYPE_EXEC);
-    wr_u16(&h[2], EM_X86_64);
+    wr_u16(&h[2], ELF_MACHINE_X86_64);
     wr_u32(&h[4], 1);
     wr_u64(&h[24], SHT_OFF);
     wr_u16(&h[36], EHDR_SIZE);
@@ -1079,7 +1077,7 @@ bool test_el1_strtab_forward_scan_name(void) {
     elf_blob[6] = 1;
     u8 *h       = &elf_blob[16];
     wr_u16(&h[0], (u16)ELF_TYPE_EXEC);
-    wr_u16(&h[2], EM_X86_64);
+    wr_u16(&h[2], ELF_MACHINE_X86_64);
     wr_u32(&h[4], 1);
     wr_u64(&h[24], SHT_OFF);
     wr_u16(&h[36], EHDR_SIZE);
@@ -1178,12 +1176,6 @@ bool test_el1_find_section_last_and_absent(void) {
 // minimal-64-byte image builder.
 // ---------------------------------------------------------------------------
 
-#if defined(__aarch64__)
-#    define EM_SELF EM_AARCH64
-#else
-#    define EM_SELF EM_X86_64
-#endif
-
 bool test_el2_self_exe_header_exact(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     Elf              elf;
@@ -1194,7 +1186,7 @@ bool test_el2_self_exe_header_exact(void) {
 
     bool ok = elf.header.elf_class == ELF_CLASS_64;         // EI_CLASS decoded
     ok      = ok && elf.header.data == ELF_DATA_LSB;        // EI_DATA decoded
-    ok      = ok && elf.header.machine == EM_SELF;          // e_machine matches host
+    ok      = ok && elf.header.machine == ELF_MACHINE_HOST; // e_machine matches host
     ok      = ok && (elf.header.type == ELF_TYPE_DYN || elf.header.type == ELF_TYPE_EXEC);
     ok      = ok && elf.header.shoff != 0;                  // section table present
     ok      = ok && elf.header.shnum > 0;                   // has sections
@@ -1222,7 +1214,7 @@ bool test_el2_fixture_header_exact(void) {
     bool ok = elf.header.elf_class == ELF_CLASS_64;
     ok      = ok && elf.header.data == ELF_DATA_LSB;
     ok      = ok && elf.header.type == ELF_TYPE_EXEC;
-    ok      = ok && elf.header.machine == EM_X86_64;
+    ok      = ok && elf.header.machine == ELF_MACHINE_X86_64;
     ok      = ok && elf.header.entry == ENTRY_VADDR;
     ok      = ok && elf.header.phoff == PHOFF_VAL;
     ok      = ok && elf.header.phnum == PHNUM_VAL;
@@ -1253,7 +1245,7 @@ static void build_min64(u8 *b) {
 
     u8 *h = &b[16];
     wr_u16(&h[0], (u16)ELF_TYPE_EXEC); // e_type
-    wr_u16(&h[2], EM_X86_64);          // e_machine
+    wr_u16(&h[2], ELF_MACHINE_X86_64); // e_machine
     // e_entry (bytes 24..31) doubles as section[0].sh_offset (shoff=0):
     // keep it 0 so shstrtab offset is 0.
     wr_u64(&h[8], 0); // e_entry -> sh_offset = 0
@@ -1444,7 +1436,7 @@ bool test_el2_open_real_file_succeeds(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     Elf              elf;
     bool             opened = ElfOpen(&elf, "/proc/self/exe", ALLOCATOR_OF(&alloc));
-    bool             ok     = opened && elf.header.machine == EM_SELF && VecLen(&elf.sections) > 0;
+    bool             ok     = opened && elf.header.machine == ELF_MACHINE_HOST && VecLen(&elf.sections) > 0;
     if (opened)
         ElfDeinit(&elf);
     DefaultAllocatorDeinit(&alloc);
@@ -1482,7 +1474,7 @@ static void wr_ehdr(u8 *blob, u16 etype, u64 shoff, u16 shnum, u16 shstrndx) {
 
     u8 *h = &blob[16];
     wr_u16(&h[0], etype);
-    wr_u16(&h[2], EM_X86_64);
+    wr_u16(&h[2], ELF_MACHINE_X86_64);
     wr_u32(&h[4], 1);
     wr_u64(&h[8], 0);          // e_entry
     wr_u64(&h[16], 0);         // e_phoff
@@ -2177,7 +2169,7 @@ static void wr_ehdr_exec(u8 *blob, u64 shoff, u16 shnum, u16 shstrndx) {
 
     u8 *h = &blob[16];
     wr_u16(&h[0], (u16)ELF_TYPE_EXEC);
-    wr_u16(&h[2], EM_X86_64);
+    wr_u16(&h[2], ELF_MACHINE_X86_64);
     wr_u32(&h[4], 1);
     wr_u64(&h[8], 0);      // e_entry
     wr_u64(&h[16], 0);     // e_phoff

@@ -50,6 +50,22 @@ typedef enum ElfType {
     ELF_TYPE_CORE = 4, // core dump
 } ElfType;
 
+typedef enum ElfMachine {
+    ELF_MACHINE_NONE    = 0,
+    ELF_MACHINE_X86_64  = 62,
+    ELF_MACHINE_AARCH64 = 183,
+} ElfMachine;
+
+// e_machine of the build target -- for callers that parse their own image
+// (e.g. /proc/self/exe) and want to check it against the running arch.
+#if defined(__aarch64__)
+#    define ELF_MACHINE_HOST ELF_MACHINE_AARCH64
+#elif defined(__x86_64__)
+#    define ELF_MACHINE_HOST ELF_MACHINE_X86_64
+#else
+#    define ELF_MACHINE_HOST ELF_MACHINE_NONE
+#endif
+
 typedef enum ElfSectionType {
     ELF_SECTION_TYPE_NULL     = 0,
     ELF_SECTION_TYPE_PROGBITS = 1,
