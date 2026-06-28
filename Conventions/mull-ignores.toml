@@ -4239,3 +4239,241 @@ author      = "Siddharth Mishra"
 created     = "2026-06-27"
 region_hash = "sha256:45999f80ef742a3b5bedb0adce5fb83b5beb1f6f7b76125dbb6c00de31224624"
 
+
+# ---------------------------------------------------------------------------
+# Map / Vec / Str convergence (2026-06-28): final 21 accepted survivors.
+# All are dead code or changes with no value-observable effect. The two
+# distinguishable StrToF64 over-reads (1031/1057) were KILLED by tests, not
+# ledgered. See MULL-DISCOVERY-CONVENTIONS.md.
+# ---------------------------------------------------------------------------
+[[ignore]]
+id          = "MAP-119-lt_to_le"
+file        = "Source/Misra/Std/Container/Map.c"
+lines       = [119, 119]
+mutator     = "cxx_lt_to_le"
+bucket      = "C"
+rationale   = "validate_map_policy snapshots sweep: `idx_i < N` vs `<=` reads one element past the 4-entry `static const snapshots[]` array. No value test can distinguish without asserting the implementation-chosen snapshot count (a bucket-B over-fit); the over-read is detectable only by a memory sanitizer (the mutant dies under MUTATION_SANITIZE=address) and the mutation harness runs SAN=none."
+author      = "Siddharth Mishra"
+created     = "2026-06-28"
+region_hash = "sha256:16238a5f18c3105fc4d401dc431dbce12ff71febcc06c283afeba66b24b4beec"
+
+[[ignore]]
+id          = "MAP-142-lt_to_le"
+file        = "Source/Misra/Std/Container/Map.c"
+lines       = [142, 142]
+mutator     = "cxx_lt_to_le"
+bucket      = "C"
+rationale   = "validate_map_policy capacities sweep: `cap_i < N` vs `<=` reads one element past the 3-entry `static const capacities[]` array. Same as MAP-119: no value-observable change (only the impl-chosen capacity count), the over-read is ASan-only, and the harness runs SAN=none."
+author      = "Siddharth Mishra"
+created     = "2026-06-28"
+region_hash = "sha256:dd83b35ea419c07fc3500e1c3e03123f9f01962668a42032c1dcf67d5c537aef"
+
+[[ignore]]
+id          = "MAP-590-assign_const"
+file        = "Source/Misra/Std/Container/Map.c"
+lines       = [590, 590]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "rehash_map overflow-restore: `map->capacity = old_capacity` -> `= 42`. Reached only when `new_capacity * 2` overflows (`next_cap <= new_capacity`), i.e. capacity >= 2^63 -- no allocation of that size can succeed, so the restore branch never executes."
+author      = "Siddharth Mishra"
+created     = "2026-06-28"
+region_hash = "sha256:d6bf484f8970625a3a755398759710665e65fccaca86c222b0d1de2e61f30b61"
+
+[[ignore]]
+id          = "MAP-984-add_to_sub"
+file        = "Source/Misra/Std/Container/Map.c"
+lines       = [984, 984]
+mutator     = "cxx_add_to_sub"
+bucket      = "B"
+rationale   = "insert rehash growth target: `forced_n = map->capacity + 1` -> `- 1`. The next line clamps `forced_n` up to `map->length + 1` and rehash_map further doubles internally if the size still cannot fit, so every entry stays insertable and retrievable. Killing it would mean asserting the implementation-chosen grow size (strategy)."
+author      = "Siddharth Mishra"
+created     = "2026-06-28"
+region_hash = "sha256:dc2a838e103ca94ba75ed3486eddf074df8b15a31918f7aff557c305787b958e"
+
+[[ignore]]
+id          = "STR-69-sub_to_add"
+file        = "Source/Misra/Std/Container/Str.c"
+lines       = [69, 69]
+mutator     = "cxx_sub_to_add"
+bucket      = "C"
+rationale   = "round_f64 negative branch `(i64)(x - 0.5)` -> `(x + 0.5)`. Unreachable: the only caller (StrFromF64, line 838) strips the sign at line 703 (`value = -value`), so round_f64 always receives a non-negative argument."
+author      = "Siddharth Mishra"
+created     = "2026-06-28"
+region_hash = "sha256:28c67dbbbe1f1bb25f92e5652a46ab23512f197e2174fbe0a383d83adb34b0e5"
+
+[[ignore]]
+id          = "STR-492-remove_void_call"
+file        = "Source/Misra/Std/Container/Str.c"
+lines       = [492, 492]
+mutator     = "cxx_remove_void_call"
+bucket      = "C"
+rationale   = "str_replace_zstr: this `ValidateStr(s)` is redundant -- str_replace_cstr, called on the next line, re-runs ValidateStr, so an invalid Str is rejected identically."
+author      = "Siddharth Mishra"
+created     = "2026-06-28"
+region_hash = "sha256:ea4eb234a54dd665c78a32c527d2b55322ba5625bf04c8db30ea16594be11c72"
+
+[[ignore]]
+id          = "STR-497-remove_void_call"
+file        = "Source/Misra/Std/Container/Str.c"
+lines       = [497, 497]
+mutator     = "cxx_remove_void_call"
+bucket      = "C"
+rationale   = "str_replace_str: same as STR-492 -- this `ValidateStr(s)` is redundant with str_replace_cstr's own ValidateStr on the next line."
+author      = "Siddharth Mishra"
+created     = "2026-06-28"
+region_hash = "sha256:ea4eb234a54dd665c78a32c527d2b55322ba5625bf04c8db30ea16594be11c72"
+
+[[ignore]]
+id          = "STR-595-init_const"
+file        = "Source/Misra/Std/Container/Str.c"
+lines       = [595, 595]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "u64-to-string formatting: `bool ok = true` -> `= 42`. Both are truthy; the later `if (!ok)` behaves identically. No observable difference."
+author      = "Siddharth Mishra"
+created     = "2026-06-28"
+region_hash = "sha256:2089eb4821aae3137df8c829354215c86874efca0800f7b9044685052f3d788d"
+
+[[ignore]]
+id          = "STR-776-init_const"
+file        = "Source/Misra/Std/Container/Str.c"
+lines       = [776, 776]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "StrFromF64 exponent formatting: `bool ok = true` -> `= 42`. Both truthy; `if (!ok)` behaves identically."
+author      = "Siddharth Mishra"
+created     = "2026-06-28"
+region_hash = "sha256:2089eb4821aae3137df8c829354215c86874efca0800f7b9044685052f3d788d"
+
+[[ignore]]
+id          = "STR-807-init_const"
+file        = "Source/Misra/Std/Container/Str.c"
+lines       = [807, 807]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "StrFromF64 integer-part formatting: `bool ok = true` -> `= 42`. Both truthy; `if (!ok)` behaves identically."
+author      = "Siddharth Mishra"
+created     = "2026-06-28"
+region_hash = "sha256:2089eb4821aae3137df8c829354215c86874efca0800f7b9044685052f3d788d"
+
+[[ignore]]
+id          = "STR-817-assign_const"
+file        = "Source/Misra/Std/Container/Str.c"
+lines       = [817, 817]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "StrFromF64 integer-part formatting: `ok = false` -> `= 42` on the StrPushBackR-failure branch. Reached only when StrPushBackR fails (allocator OOM); with no fault-injection infrastructure this branch is unreachable in tests."
+author      = "Siddharth Mishra"
+created     = "2026-06-28"
+region_hash = "sha256:34c8af0b050ec33020e7469a1528864e4bea14cccfbd1e15c8671c1cc5ec979a"
+
+[[ignore]]
+id          = "STR-847-gt_to_ge"
+file        = "Source/Misra/Std/Container/Str.c"
+lines       = [847, 847]
+mutator     = "cxx_gt_to_ge"
+bucket      = "C"
+rationale   = "StrFromF64 fractional rounding `frac_part - digit > 0.999999` -> `>=`. Differs only when the difference equals exactly 0.999999 -- a measure-zero f64 value unreachable by ordinary arithmetic; the emitted digits are identical."
+author      = "Siddharth Mishra"
+created     = "2026-06-28"
+region_hash = "sha256:07ae3bd06dd4ed61c679173f066bcd5259c187dbdf71c3c1872d797ed17a3b4c"
+
+[[ignore]]
+id          = "STR-880-lt_to_le"
+file        = "Source/Misra/Std/Container/Str.c"
+lines       = [880, 880]
+mutator     = "cxx_lt_to_le"
+bucket      = "C"
+rationale   = "StrToU64 leading-whitespace skip `pos < str->length` -> `<=`. The extra read hits data[length], the NUL sentinel (also true for StrToI64's suffix view, whose end coincides with the parent NUL); IS_SPACE(NUL) is false, so the loop stops at the same place. In-bounds, no behavior change."
+author      = "Siddharth Mishra"
+created     = "2026-06-28"
+region_hash = "sha256:6f552cc80a2db3211d094091aba0d5e90c709ec75f724bde13e45f7ff9a1e83b"
+
+[[ignore]]
+id          = "STR-928-assign_const"
+file        = "Source/Misra/Std/Container/Str.c"
+lines       = [928, 928]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "StrToU64 digit loop: `have_digits = true` -> `= 42`. Both truthy; the later `if (!have_digits)` behaves identically."
+author      = "Siddharth Mishra"
+created     = "2026-06-28"
+region_hash = "sha256:78072f8abff6f112da23054ea34a11f68f0eb3d2302cf902c4d45fbc90fcfbd5"
+
+[[ignore]]
+id          = "STR-932-lt_to_le"
+file        = "Source/Misra/Std/Container/Str.c"
+lines       = [932, 932]
+mutator     = "cxx_lt_to_le"
+bucket      = "C"
+rationale   = "StrToU64 trailing-whitespace skip `pos < str->length` -> `<=`. Same as STR-880: reads the in-bounds NUL sentinel, IS_SPACE(NUL) is false, loop stops identically."
+author      = "Siddharth Mishra"
+created     = "2026-06-28"
+region_hash = "sha256:6f552cc80a2db3211d094091aba0d5e90c709ec75f724bde13e45f7ff9a1e83b"
+
+[[ignore]]
+id          = "STR-971-assign_const"
+file        = "Source/Misra/Std/Container/Str.c"
+lines       = [971, 971]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "StrToI64 sign handling: `negative = true` -> `= 42`. Both truthy; the final `negative ? -result : result` negates identically. (A separate test already pins that a leading minus produces a negative value.)"
+author      = "Siddharth Mishra"
+created     = "2026-06-28"
+region_hash = "sha256:0ca78dc322cd3ab085c9b2f1903d8296aaa274b6aede074e3d302f9a26300c6b"
+
+[[ignore]]
+id          = "STR-1052-assign_const"
+file        = "Source/Misra/Std/Container/Str.c"
+lines       = [1052, 1052]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "StrToF64 sign handling: `negative = true` -> `= 42`. Both truthy; `negative ? -result : result` negates identically."
+author      = "Siddharth Mishra"
+created     = "2026-06-28"
+region_hash = "sha256:0ca78dc322cd3ab085c9b2f1903d8296aaa274b6aede074e3d302f9a26300c6b"
+
+[[ignore]]
+id          = "STR-1078-assign_const"
+file        = "Source/Misra/Std/Container/Str.c"
+lines       = [1078, 1078]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "StrToF64 integer-digit loop: `have_digits = true` -> `= 42`. Both truthy; the later `if (!have_digits)` behaves identically."
+author      = "Siddharth Mishra"
+created     = "2026-06-28"
+region_hash = "sha256:78072f8abff6f112da23054ea34a11f68f0eb3d2302cf902c4d45fbc90fcfbd5"
+
+[[ignore]]
+id          = "STR-1089-assign_const"
+file        = "Source/Misra/Std/Container/Str.c"
+lines       = [1089, 1089]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "StrToF64 fractional-digit loop: `have_digits = true` -> `= 42`. Both truthy; `if (!have_digits)` behaves identically."
+author      = "Siddharth Mishra"
+created     = "2026-06-28"
+region_hash = "sha256:78072f8abff6f112da23054ea34a11f68f0eb3d2302cf902c4d45fbc90fcfbd5"
+
+[[ignore]]
+id          = "STR-1100-assign_const"
+file        = "Source/Misra/Std/Container/Str.c"
+lines       = [1100, 1100]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "StrToF64 exponent-sign handling: `exp_negative = true` -> `= 42`. Both truthy; `if (exp_negative)` negates the exponent identically."
+author      = "Siddharth Mishra"
+created     = "2026-06-28"
+region_hash = "sha256:14ceadc1c6990d5d3ed7ef91e2df82c2d7921e09f76c599d2c350afd1bf2c2e0"
+
+[[ignore]]
+id          = "STR-1117-assign_const"
+file        = "Source/Misra/Std/Container/Str.c"
+lines       = [1117, 1117]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "StrToF64 exponent-digit loop: `have_exp_digits = true` -> `= 42`. Both truthy; the later `if (!have_exp_digits)` behaves identically."
+author      = "Siddharth Mishra"
+created     = "2026-06-28"
+region_hash = "sha256:22be62fa1213e2b68139ed5e6280a06ef271239e2bc142b7c811a0585ccf82c2"
+

@@ -891,6 +891,48 @@ static bool test_inf_exact_accept_with_offset(void) {
     return pass;
 }
 
+// 1031:cxx_sub_to_add -- unsigned nan/inf guard `length-pos >= 3` -> `length+pos
+// >= 3`. `str->length` is the hard boundary. The stack buffer holds " nan " but
+// the view's length is 3 (" na"), so the trailing "n " lives in real storage
+// past the logical end. The `+pos` mutant reads those bytes, assembles "nan ",
+// and wrongly accepts; a correct parser sees only " na" and rejects it. Bytes
+// are in-buffer, so this is a value contract, not an ASan-only over-read.
+static bool test_nan_guard_no_overread(void) {
+    bool ok = true;
+    StrInitStack(view, 8) {
+        char *d     = StrBegin(&view);
+        d[0]        = ' ';
+        d[1]        = 'n';
+        d[2]        = 'a';
+        d[3]        = 'n';
+        d[4]        = ' ';
+        view.length = 3; // logical " na"; "n " stays in-buffer past length
+        f64 value   = 0.0;
+        ok          = StrToF64(&view, &value, NULL);
+    }
+    return !ok;
+}
+
+// 1057:cxx_sub_to_add -- negative -inf guard `length-pos >= 3` -> `length+pos >=
+// 3`, after '-' is consumed. Same boundary contract: the view is "-in" while the
+// buffer holds "-inf ", so the `+pos` mutant over-reads to complete "-inf" and
+// wrongly accepts. A correct parser sees only "-in" and rejects it.
+static bool test_neg_inf_guard_no_overread(void) {
+    bool ok = true;
+    StrInitStack(view, 8) {
+        char *d     = StrBegin(&view);
+        d[0]        = '-';
+        d[1]        = 'i';
+        d[2]        = 'n';
+        d[3]        = 'f';
+        d[4]        = ' ';
+        view.length = 3; // logical "-in"; "f " stays in-buffer past length
+        f64 value   = 0.0;
+        ok          = StrToF64(&view, &value, NULL);
+    }
+    return !ok;
+}
+
 // 1052:cxx_assign_const -- `negative=true` forced to false. A negative literal
 // comes back positive.
 static bool test_minus_sign_makes_negative(void) {
@@ -2047,6 +2089,8 @@ int main(void) {
         test_leading_space_advances,
         test_nan_exact_accept_with_offset,
         test_inf_exact_accept_with_offset,
+        test_nan_guard_no_overread,
+        test_neg_inf_guard_no_overread,
         test_minus_sign_makes_negative,
         test_plus_sign_advances,
         test_integer_digits_set_flag,
