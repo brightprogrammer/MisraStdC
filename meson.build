@@ -398,11 +398,14 @@ elif have_misra_start_win and freestanding
         # /GS-: disable stack-canary insertion (no __security_cookie
         # / __security_check_cookie emission in prologues).
         '/GS-',
-        # -mno-stack-arg-probe: stop clang emitting __chkstk calls
-        # in function prologues with large stack frames. Our runtime
-        # never allocates the multi-page stack buffers the probe
-        # protects against.
-        '-mno-stack-arg-probe',
+        # NOTE: we deliberately do NOT pass -mno-stack-arg-probe. clang-cl
+        # emits a __chkstk call in any prologue whose frame exceeds one
+        # page (4 KiB); that probe walks the stack guard pages so a
+        # multi-page frame faults them in instead of skipping one and
+        # crashing (0xC0000005). The probe is resolved from _WinStubs.c
+        # (__chkstk) for the freestanding Bin/ tools and from UCRT for the
+        # test/fuzz binaries, so large frames are safe everywhere. Keeping
+        # the probe means a function with a big local array just works.
         language: 'c',
     )
 

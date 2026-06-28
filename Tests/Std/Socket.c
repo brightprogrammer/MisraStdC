@@ -526,8 +526,8 @@ bool test_sk1_heap_path_many_idle(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     Allocator       *a     = ALLOCATOR_OF(&alloc);
 
-    Pair *pairs = (Pair *)AllocatorAlloc(a, sizeof(Pair) * N, true);
-    u32   made  = 0;
+    Pair pairs[N];
+    u32  made = 0;
     for (u32 i = 0; i < N; ++i) {
         pairs[i] = pair_make(a);
         if (!pairs[i].ok)
@@ -537,7 +537,7 @@ bool test_sk1_heap_path_many_idle(void) {
 
     bool ok = made == N;
     if (ok) {
-        SocketPollItem *items = (SocketPollItem *)AllocatorAlloc(a, sizeof(SocketPollItem) * N, true);
+        SocketPollItem items[N] = {0};
         for (u32 i = 0; i < N; ++i) {
             items[i].fd               = pairs[i].server.fd;
             items[i].events_requested = SOCKET_POLL_READ;
@@ -548,12 +548,10 @@ bool test_sk1_heap_path_many_idle(void) {
         ok    = n == 0;
         for (u32 i = 0; i < N; ++i)
             ok = ok && items[i].events_ready == 0;
-        AllocatorFree(a, items);
     }
 
     for (u32 i = 0; i < made; ++i)
         pair_close(&pairs[i]);
-    AllocatorFree(a, pairs);
     DefaultAllocatorDeinit(&alloc);
     return ok;
 }
@@ -571,8 +569,8 @@ bool test_sk1_heap_path_one_ready(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     Allocator       *a     = ALLOCATOR_OF(&alloc);
 
-    Pair *pairs = (Pair *)AllocatorAlloc(a, sizeof(Pair) * N, true);
-    u32   made  = 0;
+    Pair pairs[N];
+    u32  made = 0;
     for (u32 i = 0; i < N; ++i) {
         pairs[i] = pair_make(a);
         if (!pairs[i].ok)
@@ -585,7 +583,7 @@ bool test_sk1_heap_path_one_ready(void) {
         // Make only the last descriptor readable.
         ok = SocketSend(&pairs[N - 1].client, "L", 1) == 1;
 
-        SocketPollItem *items = (SocketPollItem *)AllocatorAlloc(a, sizeof(SocketPollItem) * N, true);
+        SocketPollItem items[N] = {0};
         for (u32 i = 0; i < N; ++i) {
             items[i].fd               = pairs[i].server.fd;
             items[i].events_requested = SOCKET_POLL_READ;
@@ -595,12 +593,10 @@ bool test_sk1_heap_path_one_ready(void) {
         ok    = ok && n == 1 && (items[N - 1].events_ready & SOCKET_POLL_READ) != 0;
         for (u32 i = 0; i + 1 < N; ++i)
             ok = ok && (items[i].events_ready & SOCKET_POLL_READ) == 0;
-        AllocatorFree(a, items);
     }
 
     for (u32 i = 0; i < made; ++i)
         pair_close(&pairs[i]);
-    AllocatorFree(a, pairs);
     DefaultAllocatorDeinit(&alloc);
     return ok;
 }
