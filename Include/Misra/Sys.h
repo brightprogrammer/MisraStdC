@@ -33,7 +33,7 @@ typedef u64 ProcId;
 #endif
 
 #if FEATURE_SYS_PROCMAPS
-#    include <Misra/Sys/ProcMaps.h>
+#    include <Misra/Parsers/ProcMaps.h>
 #endif
 
 #if FEATURE_SYS_DNS

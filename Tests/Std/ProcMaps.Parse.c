@@ -15,13 +15,13 @@
 
 #include <Misra.h>
 #include <Misra/Std/Allocator/Default.h>
-#include <Misra/Sys/ProcMaps.h>
+#include <Misra/Parsers/ProcMaps.h>
 #include <Misra/Std/Utility/StrIter.h>
 
 #include "../Util/TestRunner.h"
 
 // Pull in the unit under test so the static parsers are callable here.
-#include "../../Source/Misra/Sys/ProcMaps.c"
+#include "../../Source/Misra/Parsers/ProcMaps.c"
 
 // ---------------------------------------------------------------------------
 // Helpers — feed a crafted, MUTABLE line buffer to parse_one_line.

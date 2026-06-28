@@ -1,4 +1,4 @@
-/// file      : sys/proc_maps.c
+/// file      : parsers/proc_maps.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -18,7 +18,7 @@
 /// Paths can contain spaces — we treat everything after the inode
 /// field's trailing whitespace as the path, up to the line terminator.
 
-#include <Misra/Sys/ProcMaps.h>
+#include <Misra/Parsers/ProcMaps.h>
 
 #include <Misra/Std.h>
 #include <Misra/Std/Log.h>
@@ -237,6 +237,13 @@ bool proc_maps_load(ProcMaps *out, Allocator *alloc) {
             ProcMapsDeinit(out);
             return false;
         }
+    }
+
+    // Cache the lowest mapped address so callers don't rescan the vector.
+    for (u64 i = 0; i < VecLen(&out->entries); ++i) {
+        const ProcMapEntry *e = VecPtrAt(&out->entries, i);
+        if (i == 0 || e->start < out->min_addr)
+            out->min_addr = e->start;
     }
 
     return true;

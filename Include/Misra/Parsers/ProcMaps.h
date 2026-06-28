@@ -1,4 +1,4 @@
-/// file      : sys/proc_maps.h
+/// file      : parsers/proc_maps.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -14,8 +14,8 @@
 /// need different backends — `dl_iterate_phdr` on glibc / FreeBSD,
 /// `EnumProcessModules` on Windows. Tracked in FUTURE-PLANS.md.
 
-#ifndef MISRA_SYS_PROC_MAPS_H
-#define MISRA_SYS_PROC_MAPS_H
+#ifndef MISRA_PARSERS_PROC_MAPS_H
+#define MISRA_PARSERS_PROC_MAPS_H
 
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Str.h>
@@ -45,8 +45,9 @@ typedef struct ProcMapEntry {
 typedef Vec(ProcMapEntry) ProcMapEntries;
 
 typedef struct ProcMaps {
-    Str            raw;     // owns the raw /proc/self/maps bytes
-    ProcMapEntries entries; // pointers into `raw`
+    Str            raw;      // owns the raw /proc/self/maps bytes
+    ProcMapEntries entries;  // pointers into `raw`
+    u64            min_addr; // lowest `start` across all entries (0 if none)
 } ProcMaps;
 
 ///

@@ -31,7 +31,7 @@
 #endif
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Vec.h>
-#include <Misra/Sys/ProcMaps.h>
+#include <Misra/Parsers/ProcMaps.h>
 #include <Misra/Types.h>
 
 ///

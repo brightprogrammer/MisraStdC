@@ -1,7 +1,7 @@
 #include <Misra.h>
 #include <Misra/Std/Allocator/Debug.h>
 #include <Misra/Std/Allocator/Default.h>
-#include <Misra/Sys/ProcMaps.h>
+#include <Misra/Parsers/ProcMaps.h>
 
 #include "../Util/TestRunner.h"
 

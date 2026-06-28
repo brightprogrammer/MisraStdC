@@ -17,12 +17,12 @@
 
 #include <Misra.h>
 #include <Misra/Std/Allocator/Debug.h>
-#include <Misra/Sys/ProcMaps.h>
+#include <Misra/Parsers/ProcMaps.h>
 
 #include "../Util/TestRunner.h"
 
 // Pull in the unit under test so we can build a ProcMaps by hand.
-#include "../../Source/Misra/Sys/ProcMaps.c"
+#include "../../Source/Misra/Parsers/ProcMaps.c"
 
 // ---------------------------------------------------------------------------
 // ProcMapsFindByAddr — loop bound `i < VecLen` must NOT be `i <= VecLen`.

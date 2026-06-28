@@ -512,7 +512,7 @@ if opt_sys_socket
     misra_std_sources += files('Source/Misra/Sys/Socket.c')
 endif
 if opt_sys_procmaps
-    misra_std_sources += files('Source/Misra/Sys/ProcMaps.c')
+    misra_std_sources += files('Source/Misra/Parsers/ProcMaps.c')
 endif
 if opt_sys_symresolve
     misra_std_sources += files('Source/Misra/Sys/SymbolResolver.c')
@@ -828,7 +828,7 @@ if not opt_sys_socket
     install_subdir_excludes_files += 'Sys/Socket.h'
 endif
 if not opt_sys_procmaps
-    install_subdir_excludes_files += 'Sys/ProcMaps.h'
+    install_subdir_excludes_files += 'Parsers/ProcMaps.h'
 endif
 if not opt_sys_symresolve
     install_subdir_excludes_files += 'Sys/SymbolResolver.h'
