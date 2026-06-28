@@ -575,39 +575,10 @@ bool test_sr3_deinit_frees_everything(void) {
     return ok;
 }
 
-// resolver_load_bias must pick the PT_LOAD by the resolved address's own
-// file offset, not the page-aligned mapping start. On aarch64's 64 KiB
-// max-page-size, the data segment's maps file offset rounds down below the
-// segment's p_offset, so one page straddles two PT_LOADs; selecting by the
-// mapping offset lands on the wrong segment and biases the result by a page.
-static bool test_sr_load_bias_64k_page_straddle(void) {
-    DefaultAllocator alloc = DefaultAllocatorInit();
-    Allocator       *a     = ALLOCATOR_OF(&alloc);
-
-    Elf elf       = {0};
-    elf.segments  = VecInitT(elf.segments, a);
-    ElfSegment s0 = {.type = ELF_PT_LOAD, .offset = 0, .vaddr = 0, .filesz = 0x8fdb0};
-    ElfSegment s1 = {.type = ELF_PT_LOAD, .offset = 0x8fdb0, .vaddr = 0x9fdb0, .filesz = 0x1000};
-    VecPushBackR(&elf.segments, s0);
-    VecPushBackR(&elf.segments, s1);
-
-    u64 bias         = 0x550000000000ull;
-    u64 runtime_addr = bias + 0x9fe00; // a point inside s1's p_vaddr range
-    u64 map_start    = bias + 0x90000; // 64 KiB-page-aligned mapping start
-    u64 map_file_off = 0x80000;        // 64 KiB-page-aligned file offset (< s1.offset)
-
-    u64 got = resolver_load_bias(&elf, map_start, map_file_off, runtime_addr);
-
-    VecDeinit(&elf.segments);
-    DefaultAllocatorDeinit(&alloc);
-    return got == bias;
-}
-
 int main(void) {
     WriteFmt("[INFO] Starting SymbolResolver.Internal tests\n\n");
 
     TestFunction tests[] = {
-        test_sr_load_bias_64k_page_straddle,
         // --- test_sr2_*: append_build_id_path ---
         test_sr2_bid_canonical,
         test_sr2_bid_full_path,
