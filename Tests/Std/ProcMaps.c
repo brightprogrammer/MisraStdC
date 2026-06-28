@@ -330,6 +330,34 @@ bool test_pm2_deinit_releases_all(void) {
     return ok;
 }
 
+// min_addr must equal the lowest `start` across all entries, and be non-zero
+// for a real process. Pins the min_addr cache loop in proc_maps_load: a loop
+// that never runs, starts past the entries, skips entry 0, or stores a constant
+// leaves min_addr at 0 or above the true minimum.
+bool test_pm2_min_addr_is_lowest_start(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    ProcMaps         maps;
+    if (!ProcMapsLoad(&maps, ALLOCATOR_OF(&alloc))) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    bool ok = VecLen(&maps.entries) > 0;
+    if (ok) {
+        u64 lowest = VecPtrAt(&maps.entries, 0)->start;
+        for (u64 i = 1; i < VecLen(&maps.entries); ++i) {
+            u64 start = VecPtrAt(&maps.entries, i)->start;
+            if (start < lowest)
+                lowest = start;
+        }
+        ok = maps.min_addr == lowest && maps.min_addr != 0;
+    }
+
+    ProcMapsDeinit(&maps);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting ProcMaps tests\n\n");
 
@@ -344,6 +372,7 @@ int main(void) {
         test_pm2_find_below_all_returns_null,
         test_pm2_find_gap_returns_null,
         test_pm2_deinit_releases_all,
+        test_pm2_min_addr_is_lowest_start,
     };
 
     return run_test_suite(tests, sizeof(tests) / sizeof(tests[0]), NULL, 0, "ProcMaps");
