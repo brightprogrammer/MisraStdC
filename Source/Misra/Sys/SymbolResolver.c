@@ -229,16 +229,24 @@ void SymbolResolverDeinit(SymbolResolver *self) {
 // line gives a *file* offset. The historical `start - file_offset` only
 // equals the bias when `p_vaddr == p_offset` -- true on 4 KiB-page x86,
 // FALSE on AArch64 where the 64 KiB `max-page-size` leaves `p_vaddr`
-// ahead of `p_offset` for later segments. Find the PT_LOAD covering this
-// mapping's file offset and back the bias out in p_vaddr space; the
-// result is constant per module (`dl_iterate_phdr`'s `dlpi_addr`).
-static u64 resolver_load_bias(const Elf *elf, u64 map_start, u64 map_file_offset) {
+// ahead of `p_offset` for later segments.
+//
+// Select the covering PT_LOAD by the resolved ADDRESS's own file offset,
+// not the mapping's: /proc maps page-align the file offset down (to 64 KiB
+// on aarch64), so one page can straddle the end of one PT_LOAD and the
+// start of the next and `map_file_offset` can sit below the segment the
+// address really lives in -- picking by `map_file_offset` then lands on the
+// wrong segment and biases the result by a page. The address's true offset
+// is unambiguous. Bias is constant per module (`dl_iterate_phdr`'s
+// `dlpi_addr`).
+static u64 resolver_load_bias(const Elf *elf, u64 map_start, u64 map_file_offset, u64 runtime_addr) {
+    u64 addr_file_offset = map_file_offset + (runtime_addr - map_start);
     VecForeachPtr(&elf->segments, seg) {
         if (seg->type != ELF_PT_LOAD) {
             continue;
         }
-        if (map_file_offset >= seg->offset && map_file_offset < seg->offset + seg->filesz) {
-            return map_start - (seg->vaddr + (map_file_offset - seg->offset));
+        if (addr_file_offset >= seg->offset && addr_file_offset < seg->offset + seg->filesz) {
+            return runtime_addr - (seg->vaddr + (addr_file_offset - seg->offset));
         }
     }
     // No covering PT_LOAD (unusual) -- fall back to the historical formula.
@@ -265,7 +273,7 @@ bool SymbolResolverFindFde(
     if (!cache_entry)
         return false;
     // p_vaddr-space bias (not the file-offset shortcut) -- see resolver_load_bias.
-    u64 load_base          = resolver_load_bias(&cache_entry->elf, entry->start, entry->file_offset);
+    u64 load_base          = resolver_load_bias(&cache_entry->elf, entry->start, entry->file_offset, addr);
     cache_entry->load_base = load_base;
 
     if (!cache_entry->cfi_built) {
@@ -310,7 +318,7 @@ bool SymbolResolverResolve(SymbolResolver *self, void *runtime_addr, ResolvedSym
     // Correct load bias in p_vaddr space (see resolver_load_bias). Covers
     // PIE / shared objects; for ET_EXEC the first PT_LOAD's p_vaddr already
     // equals the mapping start, so the absolute base still falls out.
-    u64 load_base          = resolver_load_bias(&cache_entry->elf, entry->start, entry->file_offset);
+    u64 load_base          = resolver_load_bias(&cache_entry->elf, entry->start, entry->file_offset, addr);
     cache_entry->load_base = load_base;
 
     out->module_path = entry->path;
