@@ -241,15 +241,29 @@ void SymbolResolverDeinit(SymbolResolver *self) {
 // `dlpi_addr`).
 static u64 resolver_load_bias(const Elf *elf, u64 map_start, u64 map_file_offset, u64 runtime_addr) {
     u64 addr_file_offset = map_file_offset + (runtime_addr - map_start);
+    // --- TEMP DIAGNOSTIC (remove after CI) ---
+    LOG_ERROR(
+        "SRBIASDBG in map_start={x} map_off={x} addr={x} addr_foff={x} nseg={}",
+        map_start,
+        map_file_offset,
+        runtime_addr,
+        addr_file_offset,
+        (u64)VecLen(&elf->segments)
+    );
     VecForeachPtr(&elf->segments, seg) {
         if (seg->type != ELF_PT_LOAD) {
             continue;
         }
+        // --- TEMP DIAGNOSTIC (remove after CI) ---
+        LOG_ERROR("SRBIASDBG   PT_LOAD off={x} vaddr={x} filesz={x}", seg->offset, seg->vaddr, seg->filesz);
         if (addr_file_offset >= seg->offset && addr_file_offset < seg->offset + seg->filesz) {
-            return runtime_addr - (seg->vaddr + (addr_file_offset - seg->offset));
+            u64 b = runtime_addr - (seg->vaddr + (addr_file_offset - seg->offset));
+            LOG_ERROR("SRBIASDBG   SELECTED -> bias={x}", b);
+            return b;
         }
     }
     // No covering PT_LOAD (unusual) -- fall back to the historical formula.
+    LOG_ERROR("SRBIASDBG   FALLBACK -> bias={x}", map_start - map_file_offset);
     return map_start - map_file_offset;
 }
 
@@ -341,6 +355,23 @@ bool SymbolResolverResolve(SymbolResolver *self, void *runtime_addr, ResolvedSym
     } else {
         out->offset = file_relative;
     }
+    // --- TEMP DIAGNOSTIC (remove after CI) ---
+    LOG_ERROR(
+        "SRRESDBG addr={x} map[start={x} off={x} path={}] base={x} frel={x} nsym={} ndyn={} sym={} symval={x} "
+        "symsz={x} sidecar={}",
+        addr,
+        entry->start,
+        entry->file_offset,
+        entry->path ? entry->path : "<null>",
+        load_base,
+        file_relative,
+        (u64)VecLen(&cache_entry->elf.symbols),
+        (u64)VecLen(&cache_entry->elf.dynamic_symbols),
+        (sym && sym->name) ? sym->name : "<null>",
+        sym ? sym->value : (u64)0,
+        sym ? sym->size : (u64)0,
+        cache_entry->has_sidecar ? 1 : 0
+    );
 
 #if FEATURE_PARSER_DWARF
     // .debug_info function-name fallback. Only consulted when neither
