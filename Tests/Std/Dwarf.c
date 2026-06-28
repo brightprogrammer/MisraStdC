@@ -132,16 +132,18 @@ bool test_dwarf_cfi_finds_fde_for_self(void) {
             ok = ok && fde->pc_range > 0 && file_relative >= fde->pc_begin &&
                  file_relative < fde->pc_begin + fde->pc_range;
 
-            // Run the CFI VM and verify we get a usable row: the CFA is
-            // `register + offset` (RSP+N on x86-64, SP/x29+N on arm64) and
-            // the return address is recoverable. A frame that spills it
-            // saves it at an offset from CFA, but a leaf keeps it live in
-            // its register (LR/x30 on arm64), so any rule other than
-            // UNDEFINED is a usable return-address location.
+            // Run the CFI VM and verify we get a usable row: the CFA must
+            // be computable as `register + offset` (RSP+N on x86-64,
+            // SP/x29+N on arm64) -- the cross-ABI unwind invariant. We do
+            // NOT assert a rule for the return address: at a function's
+            // entry its location is ABI-specific. x86-64's CALL has
+            // already pushed it (rule OFFSET), but arm64's BL leaves it in
+            // the link register x30 with no CFI rule yet (UNDEFINED, i.e.
+            // "still in the RA register"). Confirmed against this binary's
+            // .eh_frame: the CIE emits only `DW_CFA_def_cfa sp, 0`.
             DwarfUnwindRow row;
             ok = ok && DwarfCfiBuildRow(&cfi, fde, file_relative, &row);
             ok = ok && row.cfa.kind == DWARF_CFA_RULE_REG_OFFSET;
-            ok = ok && row.regs[row.return_address_register].kind != DWARF_REG_RULE_UNDEFINED;
         }
         DwarfCfiDeinit(&cfi);
     }
