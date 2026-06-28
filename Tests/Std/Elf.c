@@ -70,6 +70,7 @@ enum {
     FUNC_SIZE   = 0x20,
     ENTRY_VADDR = 0x401000,
     EM_X86_64   = 62,
+    EM_AARCH64  = 183,
 
     // Real program-header table (the resolver walks it for load-bias
     // math). Two PT_LOAD segments; the second deliberately has
@@ -1177,6 +1178,12 @@ bool test_el1_find_section_last_and_absent(void) {
 // minimal-64-byte image builder.
 // ---------------------------------------------------------------------------
 
+#if defined(__aarch64__)
+#    define EM_SELF EM_AARCH64
+#else
+#    define EM_SELF EM_X86_64
+#endif
+
 bool test_el2_self_exe_header_exact(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     Elf              elf;
@@ -1187,7 +1194,7 @@ bool test_el2_self_exe_header_exact(void) {
 
     bool ok = elf.header.elf_class == ELF_CLASS_64;         // EI_CLASS decoded
     ok      = ok && elf.header.data == ELF_DATA_LSB;        // EI_DATA decoded
-    ok      = ok && elf.header.machine == EM_X86_64;        // e_machine == 62
+    ok      = ok && elf.header.machine == EM_SELF;          // e_machine matches host
     ok      = ok && (elf.header.type == ELF_TYPE_DYN || elf.header.type == ELF_TYPE_EXEC);
     ok      = ok && elf.header.shoff != 0;                  // section table present
     ok      = ok && elf.header.shnum > 0;                   // has sections
@@ -1437,7 +1444,7 @@ bool test_el2_open_real_file_succeeds(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     Elf              elf;
     bool             opened = ElfOpen(&elf, "/proc/self/exe", ALLOCATOR_OF(&alloc));
-    bool             ok     = opened && elf.header.machine == EM_X86_64 && VecLen(&elf.sections) > 0;
+    bool             ok     = opened && elf.header.machine == EM_SELF && VecLen(&elf.sections) > 0;
     if (opened)
         ElfDeinit(&elf);
     DefaultAllocatorDeinit(&alloc);
