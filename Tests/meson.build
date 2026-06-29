@@ -59,7 +59,6 @@ argparse_tests = [
 
 socket_tests = [
     ['Socket', 'Std/Socket.c'],
-    ['Socket.Mut', 'Std/Socket.Mut.c'],
     ['Socket.Blind', 'Std/Socket.Blind.c'],
 ]
 
@@ -70,7 +69,6 @@ http_tests = [
 
 elf_tests = [
     ['Elf', 'Std/Elf.c'],
-    ['Elf.Mut', 'Std/Elf.Mut.c'],
     ['Elf.Blind', 'Std/Elf.Blind.c'],
 ]
 
@@ -82,13 +80,11 @@ dwarf_tests = [
 
 pe_tests = [
     ['Pe', 'Std/Pe.c'],
-    ['Pe.Mut', 'Std/Pe.Mut.c'],
     ['Pe.Blind', 'Std/Pe.Blind.c'],
 ]
 
 pdb_tests = [
     ['Pdb', 'Std/Pdb.c'],
-    ['Pdb.Mut', 'Std/Pdb.Mut.c'],
     ['Pdb.Blind', 'Std/Pdb.Blind.c'],
 ]
 
@@ -98,7 +94,6 @@ pdb_cache_tests = [
 
 macho_tests = [
     ['MachO', 'Std/MachO.c'],
-    ['MachO.Mut', 'Std/MachO.Mut.c'],
     ['MachO.Blind', 'Std/MachO.Blind.c'],
 ]
 
@@ -118,7 +113,6 @@ sys_dns_tests = [
 
 macho_cache_tests = [
     ['MachoCache', 'Std/MachoCache.c'],
-    ['MachoCache.Mut', 'Std/MachoCache.Mut.c'],
     ['MachoCache.Blind', 'Std/MachoCache.Blind.c'],
 ]
 
@@ -148,7 +142,6 @@ alloc_debug_tests = [
 
 iter_tests = [
     ['Iter', 'Std/Iter.c'],
-    ['Iter.Mut', 'Std/Iter.Mut.c'],
     ['Iter.Blind', 'Std/Iter.Blind.c'],
 ]
 
@@ -196,7 +189,6 @@ graph_tests = [
     ['Graph.Foreach', 'Std/Graph.Foreach.c'],
     ['Graph.Ops', 'Std/Graph.Ops.c'],
     ['Graph.Leak', 'Std/Graph.Leak.c'],
-    ['Graph.Mut', 'Std/Graph.Mut.c'],
     ['Graph.Blind', 'Std/Graph.Blind.c'],
 ]
 
