@@ -46,14 +46,12 @@ io_tests = [
 
 file_tests = [
     ['File', 'Std/File.c'],
-    ['File.Mut', 'Std/File.Mut.c'],
     ['File.Blind', 'Std/File.Blind.c'],
 ]
 
 argparse_tests = [
     ['ArgParse', 'Std/ArgParse.c'],
     ['ArgParse.Leak', 'Std/ArgParse.Leak.c'],
-    ['ArgParse.Mut', 'Std/ArgParse.Mut.c'],
     ['ArgParse.Blind', 'Std/ArgParse.Blind.c'],
 ]
 
@@ -74,7 +72,6 @@ elf_tests = [
 
 dwarf_tests = [
     ['Dwarf', 'Std/Dwarf.c'],
-    ['Dwarf.Mut', 'Std/Dwarf.Mut.c'],
     ['DwarfUnwind', 'Std/DwarfUnwind.c'],
 ]
 

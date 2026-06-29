@@ -1,3 +1,4 @@
+#include <Misra.h>
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Std/ArgParse.h>
@@ -1717,6 +1718,46 @@ static bool test_a3_option_without_any_name_aborts(void) {
     return true;
 }
 
+// ---------------------------------------------------------------------------
+// 640:9  ArgParseRun synthetic help spec: help.role = ARG_ROLE_FLAG -> 42
+//
+// The auto-registered --help spec is given ARG_ROLE_FLAG. print_help's
+// any_option scan counts a Flag/Optional/Count to decide whether to emit
+// " [OPTIONS]" in the usage line. For a positional-only parser the synthetic
+// help flag is the ONLY option-role spec, so it is exactly what makes
+// " [OPTIONS]" appear. A role of 42 (not FLAG) drops it from the scan, so the
+// usage line loses " [OPTIONS]". Byte-exact capture pins the usage line.
+//
+// (Verified: applying the literal `help.role = 42;` mutant and rebuilding only
+// Tests/ArgParse.Mut makes this test fail; reverting restores the pass.)
+// ---------------------------------------------------------------------------
+static bool test_mut_help_role_drives_options_tag(void) {
+    DefaultAllocator a = DefaultAllocatorInit();
+    ArgParse         p = ArgParseInit("cp", NULL, &a);
+
+    Zstr from = NULL;
+    Zstr to   = NULL;
+    ArgPositional(&p, "from", &from, "source path");
+    ArgPositional(&p, "to", &to, "dest path");
+
+    Zstr expected =
+        "cp\n"
+        "\n"
+        "usage: cp [OPTIONS] <from> <to>\n"
+        "\n"
+        "positional arguments:\n"
+        "  <from>      source path\n"
+        "  <to>        dest path\n"
+        "\n"
+        "options:\n"
+        "  -h, --help  print this help\n";
+
+    bool ok = help_equals(&p, expected);
+    ArgParseDeinit(&p);
+    DefaultAllocatorDeinit(&a);
+    return ok;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting ArgParse tests\n\n");
 
@@ -1810,6 +1851,7 @@ int main(void) {
         test_a3_flag_bundle_accepted,
         test_a3_bundle_then_missing_required,
         test_a3_short_only_option_registers,
+        test_mut_help_role_drives_options_tag,
     };
 
     TestFunction deadend_tests[] = {
