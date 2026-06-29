@@ -707,6 +707,35 @@ if opt_sys_symresolve and tests_need_posix_exe
         test(test_name, test_exe, timeout: 120)
     endforeach
 
+    # p_vaddr != p_offset load-bias fixture. A shared object built with a
+    # 64 KiB max-page-size leaves its later PT_LOAD segments' p_vaddr ahead of
+    # their p_offset (the AArch64 max-page-size layout, reproduced on x86-64).
+    # Resolving a DATA symbol in that gapped RW segment names it only when
+    # load-bias selects the covering PT_LOAD by the address's own file offset
+    # and applies the p_vaddr-space formula; the historical `start -
+    # file_offset` shortcut biases the file-relative address by a page and the
+    # symbol search misses.
+    bias_lib = shared_library(
+        'symres_bias',
+        files('Std/SymbolResolver.BiasLib.c'),
+        c_args: test_args,
+        link_args: ['-Wl,-z,max-page-size=0x10000', '-Wl,-z,noseparate-code'],
+        install: false
+    )
+
+    bias_exe = executable(
+        'SymbolResolver.Bias',
+        files('Std/SymbolResolver.Bias.c'),
+        link_with: [misra_std_no_backtrace, bias_lib],
+        dependencies: [test_util_dep_no_backtrace],
+        c_args: test_args,
+        include_directories: inc_misra,
+        link_args: ['-rdynamic'],
+        install: false
+    )
+
+    test('SymbolResolver.Bias', bias_exe, timeout: 120)
+
     # Sidecar / `.gnu_debuglink` discovery through the PUBLIC resolve API.
     # The test image is built unstripped, its debug info is split into an
     # adjacent `SymbolResolver.Sidecar.debug` (full `.symtab` kept), then
@@ -834,6 +863,44 @@ if opt_sys_symresolve and tests_need_posix_exe
         )
 
         test('SymbolResolver.DwarfFallback', dwarffallback_main, timeout: 120)
+
+        # `.debug_info` name fallback sourced from a SIDECAR rather than the
+        # running image. The image is built DWARF-4, its debug info split into a
+        # `.debug/` sidecar; the marker is then deleted from the SIDECAR's
+        # `.symtab` and the running image is `--strip-all`ed (no symtab, no
+        # debug). The marker survives only in the sidecar's `.debug_info`, so
+        # resolving it forces the sidecar DWARF-function table to be built (and,
+        # on teardown, freed).
+        if bash.found()
+            sidecardwarf_image = executable(
+                'SymbolResolver.SidecarDwarf.image',
+                files('Std/SymbolResolver.SidecarDwarf.c'),
+                link_with: [misra_std_no_backtrace],
+                dependencies: [test_util_dep_no_backtrace],
+                c_args: test_args + ['-gdwarf-4', '-gno-column-info'],
+                include_directories: inc_misra,
+                link_args: ['-Wl,--build-id=none'],
+                install: false
+            )
+
+            sidecardwarf_main = custom_target(
+                'SymbolResolver.SidecarDwarf',
+                input: sidecardwarf_image,
+                output: 'SymbolResolver.SidecarDwarf',
+                command: [
+                    bash, '-c',
+                    'set -e; in="$1"; out="$2"; oc="$3"; d="$(dirname "$out")"; ' +
+                    'mkdir -p "$d/.debug"; ' +
+                    '"$oc" --only-keep-debug "$in" "$d/.debug/scd.debug.full"; ' +
+                    '"$oc" -N scd_marker "$d/.debug/scd.debug.full" "$d/.debug/scd.debug"; ' +
+                    '"$oc" --strip-all --add-gnu-debuglink="$d/.debug/scd.debug" "$in" "$out"',
+                    'bash', '@INPUT@', '@OUTPUT@', objcopy.full_path()
+                ],
+                build_by_default: true
+            )
+
+            test('SymbolResolver.SidecarDwarf', sidecardwarf_main, timeout: 120)
+        endif
     endif
 endif
 
