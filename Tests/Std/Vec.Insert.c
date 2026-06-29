@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Debug.h>
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Log.h>
@@ -1825,7 +1826,16 @@ static void mut_copy_deinit(void *p_, const Allocator *a) {
 bool test_insert_range_fast_l_reports_failure(void) {
     WriteFmt("Testing VecInsertRangeFastL reports copy_init failure (603:32)\n");
 
-    MutElemVec vec = VecInitWithDeepCopy(mut_copy_init, mut_copy_deinit, &alloc);
+    // Canary allocator: the empty-vec / idx==length failure path also pins the
+    // displaced-init mutant (261:10, `size displaced = 0` -> 42). With idx ==
+    // length the live-tail recompute is skipped, so a non-zero displaced init
+    // drives the rollback's restore MemMove out of bounds; the overflow smashes
+    // the trailing canary, which the free at VecDeinit records as an overflow
+    // event -- so asserting zero overflows kills the mutant deterministically
+    // instead of relying on a chance heap crash.
+    DebugAllocator dbg = DebugAllocatorInit();
+
+    MutElemVec vec = VecInitWithDeepCopy(mut_copy_init, mut_copy_deinit, &dbg);
 
     // Arm copy_init to fail, then attempt a fast L-insert into the empty vec.
     g_fail           = true;
@@ -1837,6 +1847,8 @@ bool test_insert_range_fast_l_reports_failure(void) {
     bool result = (ok == false) && (VecLen(&vec) == 0);
 
     VecDeinit(&vec);
+    result = result && (DebugAllocatorOverflows(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
     return result;
 }
 
