@@ -94,8 +94,6 @@ pdb_tests = [
 
 pdb_cache_tests = [
     ['PdbCache', 'Std/PdbCache.c'],
-    ['PdbCache.Internal', 'Std/PdbCache.Internal.c'],
-    ['PdbCache.Mut', 'Std/PdbCache.Mut.c'],
 ]
 
 macho_tests = [

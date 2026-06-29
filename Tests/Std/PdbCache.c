@@ -8,6 +8,7 @@
 // the OS calls that find `(module_path, module_base)` from a raw IP.
 
 #include <Misra.h>
+#include <Misra/Std/Allocator/Debug.h>
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Std/Memory.h>
@@ -190,7 +191,12 @@ static const u8 kPdbMsfMagic[32] = {'M', 'i', 'c',  'r',  'o',  's', 'o', 'f',  
 
 static u8 pdb_blob[PDB_BLOB_SIZE];
 
-static void build_pdb_blob(Zstr func_name, u32 func_rva) {
+// Build a valid PDB (matching kGuid/kAge) with one function at `func_rva`.
+// The section base is `sec_va`, so the in-stream symbol offset is
+// `func_rva - sec_va`. When `match_guid` is false the PDB Info GUID is
+// corrupted so the (GUID, age) pairing check in the cache rejects the PDB
+// even though PdbOpen itself still succeeds.
+static void build_pdb_blob_va(Zstr func_name, u32 sec_va, u32 func_rva, bool match_guid) {
     MemSet(pdb_blob, 0, sizeof(pdb_blob));
 
     // Compute S_PUB32 record size based on function name length.
@@ -231,6 +237,8 @@ static void build_pdb_blob(Zstr func_name, u32 func_rva) {
     wr_u32(&info[4], 0);
     wr_u32(&info[8], kAge);
     MemCopy(&info[12], kGuid, 16);
+    if (!match_guid)
+        info[12] ^= 0xFF;
 
     // DBI stream
     u8 *dbi = &pdb_blob[PDB_DBI_PAGE * PDB_BLOCK_SIZE];
@@ -247,17 +255,32 @@ static void build_pdb_blob(Zstr func_name, u32 func_rva) {
     wr_u16(&sym[0], rec_body);
     wr_u16(&sym[2], 0x110E);
     wr_u32(&sym[4], 0x2);
-    // Offset within section = func_rva - section.VirtualAddress (0x1000)
-    wr_u32(&sym[8], func_rva - 0x1000);
+    // Offset within section = func_rva - section.VirtualAddress (sec_va).
+    wr_u32(&sym[8], func_rva - sec_va);
     wr_u16(&sym[12], 1);
     MemCopy(&sym[14], func_name, name_len + 1);
 
-    // SectionHdr stream: one IMAGE_SECTION_HEADER with VA=0x1000.
+    // SectionHdr stream: one IMAGE_SECTION_HEADER with VA=sec_va.
     u8      *sec      = &pdb_blob[PDB_SECHDR_PAGE * PDB_BLOCK_SIZE];
     const u8 sname[8] = {'.', 't', 'e', 'x', 't', 0, 0, 0};
     MemCopy(sec, sname, 8);
     wr_u32(&sec[8], 0x2000);
-    wr_u32(&sec[12], 0x1000);
+    wr_u32(&sec[12], sec_va);
+}
+
+// Standard PDB: one function in a `.text` section based at RVA 0x1000,
+// GUID/age matching the PE built by `build_pe_blob`.
+static void build_pdb_blob(Zstr func_name, u32 func_rva) {
+    build_pdb_blob_va(func_name, 0x1000, func_rva, true);
+}
+
+// Write a matching PE+PDB pair to disk. The PE's CodeView record points at
+// `cv_path`: pass the on-disk `pdb_path` for the exact-path case, or a bogus
+// path whose basename equals the sidecar to exercise the basename fallback.
+static bool write_pe_pdb(Zstr pe_path, Zstr pdb_path, Zstr cv_path) {
+    build_pe_blob(cv_path);
+    build_pdb_blob("winproc", 0x1100);
+    return write_file(pe_path, pe_blob, sizeof(pe_blob)) && write_file(pdb_path, pdb_blob, sizeof(pdb_blob));
 }
 
 // -----------------------------------------------------------------------------
@@ -291,7 +314,7 @@ bool test_pdb_cache_resolves_via_codeview(void) {
     // RVA 0x1100, ip = module_base + 0x1100.
     const u64 module_base = 0x140000000ull;
     const u64 ip          = module_base + 0x1100;
-    Zstr name        = NULL;
+    Zstr      name        = NULL;
     u32       offset      = 0;
     bool      ok          = PdbCacheResolve(&cache, (Zstr)pe_path, module_base, ip, &name, &offset);
     ok                    = ok && name && ZstrCompare(name, "winproc") == 0 && offset == 0;
@@ -320,10 +343,211 @@ bool test_pdb_cache_rejects_unknown_module(void) {
     tmp_path_join(missing, sizeof(missing), "misra_pdbcache_missing_xyz.exe");
 
     PdbCache cache = PdbCacheInit(base);
-    Zstr name = NULL;
-    bool ok   = !PdbCacheResolve(&cache, (Zstr)missing, 0, 0x1000, &name, NULL);
+    Zstr     name  = NULL;
+    bool     ok    = !PdbCacheResolve(&cache, (Zstr)missing, 0, 0x1000, &name, NULL);
     PdbCacheDeinit(&cache);
     DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// -----------------------------------------------------------------------------
+// Basename fallback: the CodeView path is absent on disk, but a sidecar with
+// the same basename sits next to the PE. The cache must take the fallback and
+// still resolve. The PE+PDB are written under bare names in the cwd so the PE
+// path carries NO directory separator: that drives the empty-dirname branch in
+// the fallback (the composed path is the bare basename, not "/basename"), which
+// the exact-path-only and absolute-path mutants both get wrong.
+// -----------------------------------------------------------------------------
+bool test_pdb_cache_resolves_via_basename_fallback(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    // Bare names (no separator), resolved relative to cwd.
+    Zstr pe_name  = "misra_pdbcache_fb.exe";
+    Zstr pdb_name = "misra_pdbcache_fb.pdb";
+
+    // CodeView points at a path that does NOT exist; its basename matches the
+    // sidecar we drop next to the PE.
+    bool wrote = write_pe_pdb(pe_name, pdb_name, "Z:/no/such/dir/misra_pdbcache_fb.pdb");
+
+    bool ok = false;
+    if (wrote) {
+        PdbCache  cache = PdbCacheInit(base);
+        const u64 mbase = 0x140000000ull;
+        Zstr      name  = NULL;
+        u32       off   = 0;
+        ok              = PdbCacheResolve(&cache, pe_name, mbase, mbase + 0x1100, &name, &off);
+        ok              = ok && name && ZstrCompare(name, "winproc") == 0 && off == 0;
+        PdbCacheDeinit(&cache);
+    }
+
+    FileRemove(pe_name);
+    FileRemove(pdb_name);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// -----------------------------------------------------------------------------
+// Leak-freedom when no PDB is found: the PE opens but neither the CodeView path
+// nor a sidecar basename exists, so the lookup allocates a candidate path then
+// bails. A DebugAllocator confirms every allocation is released by teardown
+// (the dropped cleanup on the lookup-failure branch would leak the candidate).
+// -----------------------------------------------------------------------------
+bool test_pdb_cache_missing_pdb_no_leak(void) {
+    DebugAllocator alloc    = DebugAllocatorInit();
+    Allocator     *base     = ALLOCATOR_OF(&alloc);
+    size           baseline = DebugAllocatorLiveCount(&alloc);
+
+    char pe_path[1024];
+    tmp_path_join(pe_path, sizeof(pe_path), "misra_pdbcache_noleak.exe");
+
+    // CodeView names a non-existent path whose basename has no sidecar.
+    build_pe_blob("Z:/no/such/dir/misra_pdbcache_noleak_absent.pdb");
+    bool wrote = write_file(pe_path, pe_blob, sizeof(pe_blob));
+
+    bool ok = false;
+    if (wrote) {
+        PdbCache cache = PdbCacheInit(base);
+        Zstr     name  = NULL;
+        // PE opens, PDB lookup fails -> resolve returns false.
+        ok = !PdbCacheResolve(&cache, (Zstr)pe_path, 0x140000000ull, 0x140001100ull, &name, NULL);
+        PdbCacheDeinit(&cache);
+        // Teardown returns every allocation (the failed-lookup candidate too).
+        ok = ok && DebugAllocatorLiveCount(&alloc) == baseline;
+    }
+
+    FileRemove((Zstr)pe_path);
+    DebugAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// -----------------------------------------------------------------------------
+// GUID/age mismatch is rejected without leaking the opened PDB. The sidecar is
+// a valid PDB so PdbOpen succeeds, but its Info GUID disagrees with the PE's
+// CodeView record. The cache must reject the pairing AND release the PDB it
+// briefly opened; a DebugAllocator pins the leak-freedom (the dropped PdbDeinit
+// on the mismatch branch leaks the PDB's parsed tables).
+// -----------------------------------------------------------------------------
+bool test_pdb_cache_guid_mismatch_no_leak(void) {
+    DebugAllocator alloc    = DebugAllocatorInit();
+    Allocator     *base     = ALLOCATOR_OF(&alloc);
+    size           baseline = DebugAllocatorLiveCount(&alloc);
+
+    char pe_path[1024];
+    char pdb_path[1024];
+    tmp_path_join(pe_path, sizeof(pe_path), "misra_pdbcache_mismatch.exe");
+    tmp_path_join(pdb_path, sizeof(pdb_path), "misra_pdbcache_mismatch.pdb");
+
+    build_pe_blob(pdb_path);
+    // Valid PDB but with a corrupted Info GUID -> PdbOpen succeeds, pairing fails.
+    build_pdb_blob_va("winproc", 0x1000, 0x1100, false);
+    bool wrote = write_file(pe_path, pe_blob, sizeof(pe_blob)) && write_file(pdb_path, pdb_blob, sizeof(pdb_blob));
+
+    bool ok = false;
+    if (wrote) {
+        PdbCache cache = PdbCacheInit(base);
+        Zstr     name  = NULL;
+        // PDB opens but GUID/age disagree -> resolve rejects it.
+        ok = !PdbCacheResolve(&cache, (Zstr)pe_path, 0x140000000ull, 0x140001100ull, &name, NULL);
+        PdbCacheDeinit(&cache);
+        // The briefly-opened, then-rejected PDB must be freed.
+        ok = ok && DebugAllocatorLiveCount(&alloc) == baseline;
+    }
+
+    FileRemove((Zstr)pe_path);
+    FileRemove((Zstr)pdb_path);
+    DebugAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// -----------------------------------------------------------------------------
+// A second distinct module is cached at its own slot, and re-resolving it hits
+// that slot instead of re-opening. We resolve module A, then B (B lands behind
+// A in the entry list), snapshot the live-allocation count, then re-resolve B.
+// A genuine cache hit allocates nothing; a broken find-loop that fails to walk
+// past A would append a duplicate entry and re-open B's PE+PDB -> the live count
+// jumps. We assert the re-resolution is correct AND allocates nothing.
+// -----------------------------------------------------------------------------
+bool test_pdb_cache_second_module_hits_cache(void) {
+    DebugAllocator alloc = DebugAllocatorInit();
+    Allocator     *base  = ALLOCATOR_OF(&alloc);
+
+    char a_pe[1024], a_pdb[1024], b_pe[1024], b_pdb[1024];
+    tmp_path_join(a_pe, sizeof(a_pe), "misra_pdbcache_A.exe");
+    tmp_path_join(a_pdb, sizeof(a_pdb), "misra_pdbcache_A.pdb");
+    tmp_path_join(b_pe, sizeof(b_pe), "misra_pdbcache_B.exe");
+    tmp_path_join(b_pdb, sizeof(b_pdb), "misra_pdbcache_B.pdb");
+
+    bool wrote = write_pe_pdb(a_pe, a_pdb, a_pdb) && write_pe_pdb(b_pe, b_pdb, b_pdb);
+
+    bool ok = false;
+    if (wrote) {
+        PdbCache  cache = PdbCacheInit(base);
+        const u64 mbase = 0x140000000ull;
+        Zstr      name  = NULL;
+        u32       off   = 0;
+
+        bool ra = PdbCacheResolve(&cache, (Zstr)a_pe, mbase, mbase + 0x1100, &name, &off);
+        bool rb = PdbCacheResolve(&cache, (Zstr)b_pe, mbase, mbase + 0x1100, &name, &off);
+
+        // Both modules now open and cached; snapshot the live allocations.
+        size mid = DebugAllocatorLiveCount(&alloc);
+
+        // Re-resolve B at a different IP: must hit B's existing slot.
+        Zstr name2 = NULL;
+        bool rb2   = PdbCacheResolve(&cache, (Zstr)b_pe, mbase, mbase + 0x1108, &name2, &off);
+        size after = DebugAllocatorLiveCount(&alloc);
+
+        ok = ra && rb && rb2 && name2 && ZstrCompare(name2, "winproc") == 0 && after == mid;
+
+        PdbCacheDeinit(&cache);
+    }
+
+    FileRemove((Zstr)a_pe);
+    FileRemove((Zstr)a_pdb);
+    FileRemove((Zstr)b_pe);
+    FileRemove((Zstr)b_pdb);
+    DebugAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// -----------------------------------------------------------------------------
+// Teardown releases every cached resource. A resolve opens a PE and a PDB into
+// the single cache entry, lifting the live count above baseline; PdbCacheDeinit
+// must walk the entry list and free the PE, the PDB and the path of each entry,
+// returning to baseline. A skipped teardown loop, or a dropped PDB free, leaks.
+// -----------------------------------------------------------------------------
+bool test_pdb_cache_deinit_frees_all(void) {
+    DebugAllocator alloc    = DebugAllocatorInit();
+    Allocator     *base     = ALLOCATOR_OF(&alloc);
+    size           baseline = DebugAllocatorLiveCount(&alloc);
+
+    char pe_path[1024];
+    char pdb_path[1024];
+    tmp_path_join(pe_path, sizeof(pe_path), "misra_pdbcache_deinit.exe");
+    tmp_path_join(pdb_path, sizeof(pdb_path), "misra_pdbcache_deinit.pdb");
+
+    bool wrote = write_pe_pdb(pe_path, pdb_path, pdb_path);
+
+    bool ok = false;
+    if (wrote) {
+        PdbCache  cache = PdbCacheInit(base);
+        const u64 mbase = 0x140000000ull;
+        Zstr      name  = NULL;
+        u32       off   = 0;
+        bool      r     = PdbCacheResolve(&cache, (Zstr)pe_path, mbase, mbase + 0x1100, &name, &off);
+
+        // A populated cache with an opened PE+PDB sits strictly above baseline.
+        bool grew = r && DebugAllocatorLiveCount(&alloc) > baseline;
+
+        PdbCacheDeinit(&cache);
+        // Correct teardown releases every cached allocation.
+        ok = grew && DebugAllocatorLiveCount(&alloc) == baseline;
+    }
+
+    FileRemove((Zstr)pe_path);
+    FileRemove((Zstr)pdb_path);
+    DebugAllocatorDeinit(&alloc);
     return ok;
 }
 
@@ -333,6 +557,11 @@ int main(void) {
     TestFunction tests[] = {
         test_pdb_cache_resolves_via_codeview,
         test_pdb_cache_rejects_unknown_module,
+        test_pdb_cache_resolves_via_basename_fallback,
+        test_pdb_cache_missing_pdb_no_leak,
+        test_pdb_cache_guid_mismatch_no_leak,
+        test_pdb_cache_second_module_hits_cache,
+        test_pdb_cache_deinit_frees_all,
     };
 
     return run_test_suite(tests, sizeof(tests) / sizeof(tests[0]), NULL, 0, "PdbCache");
