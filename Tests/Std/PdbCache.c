@@ -551,6 +551,231 @@ bool test_pdb_cache_deinit_frees_all(void) {
     return ok;
 }
 
+// -----------------------------------------------------------------------------
+// DISPROOF (adversarial audit): the white-box PdbCache.Internal.c deleted by
+// f75d0c9 killed boundary/overload mutants in pdb_cache_resolve_* that the new
+// public tests do NOT reach. Each test below re-kills one such mutant through
+// the PUBLIC API only, proving the lost coverage was publicly recoverable and
+// was silently dropped by the conversion.
+// -----------------------------------------------------------------------------
+
+// Kills PdbCache.c:152 (`runtime_ip < module_base` -> `<=`). A function placed
+// at RVA 0 (section VA 0) means ip == module_base maps to RVA 0 and MUST
+// resolve: real `<` lets base==base through; the `<=` mutant rejects it.
+bool test_pdb_cache_resolve_at_module_base_boundary(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    char pe_path[1024];
+    char pdb_path[1024];
+    tmp_path_join(pe_path, sizeof(pe_path), "misra_pdbcache_baseb.exe");
+    tmp_path_join(pdb_path, sizeof(pdb_path), "misra_pdbcache_baseb.pdb");
+
+    build_pe_blob(pdb_path);
+    build_pdb_blob_va("winzero", 0, 0, true);
+    bool wrote = write_file(pe_path, pe_blob, sizeof(pe_blob)) && write_file(pdb_path, pdb_blob, sizeof(pdb_blob));
+
+    bool ok = false;
+    if (wrote) {
+        PdbCache  cache = PdbCacheInit(base);
+        const u64 mbase = 0x140000000ull;
+        Zstr      name  = NULL;
+        u32       off   = 0;
+        // ip exactly at module_base -> RVA 0 -> resolves under real `<`.
+        ok = PdbCacheResolve(&cache, (Zstr)pe_path, mbase, mbase, &name, &off);
+        ok = ok && name && ZstrCompare(name, "winzero") == 0 && off == 0;
+        PdbCacheDeinit(&cache);
+    }
+
+    FileRemove((Zstr)pe_path);
+    FileRemove((Zstr)pdb_path);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Kills PdbCache.c:155 (`rva64 > 0xFFFFFFFFu` -> `>=`). A function at the max
+// representable RVA (0xFFFFFFFF) MUST resolve when ip - module_base ==
+// 0xFFFFFFFF: real `>` admits it; the `>=` mutant wrongly rejects the max RVA.
+bool test_pdb_cache_resolve_max_rva_boundary(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    char pe_path[1024];
+    char pdb_path[1024];
+    tmp_path_join(pe_path, sizeof(pe_path), "misra_pdbcache_maxrva.exe");
+    tmp_path_join(pdb_path, sizeof(pdb_path), "misra_pdbcache_maxrva.pdb");
+
+    build_pe_blob(pdb_path);
+    build_pdb_blob_va("winmax", 0x1000, 0xFFFFFFFFu, true);
+    bool wrote = write_file(pe_path, pe_blob, sizeof(pe_blob)) && write_file(pdb_path, pdb_blob, sizeof(pdb_blob));
+
+    bool ok = false;
+    if (wrote) {
+        PdbCache  cache = PdbCacheInit(base);
+        const u64 mbase = 0x140000000ull;
+        Zstr      name  = NULL;
+        u32       off   = 0;
+        ok              = PdbCacheResolve(&cache, (Zstr)pe_path, mbase, mbase + 0xFFFFFFFFull, &name, &off);
+        ok              = ok && name && ZstrCompare(name, "winmax") == 0 && off == 0;
+        PdbCacheDeinit(&cache);
+    }
+
+    FileRemove((Zstr)pe_path);
+    FileRemove((Zstr)pdb_path);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Kills PdbCache.c:179 (the `Str` overload's delegated call replaced with 42).
+// Resolving a rejected case (ip below module_base) through the `Str *` arm of
+// PdbCacheResolve MUST return false; the scalar-call mutant returns 42 (truthy).
+bool test_pdb_cache_resolve_str_overload_rejects_below_base(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    char pe_path[1024];
+    char pdb_path[1024];
+    tmp_path_join(pe_path, sizeof(pe_path), "misra_pdbcache_strov.exe");
+    tmp_path_join(pdb_path, sizeof(pdb_path), "misra_pdbcache_strov.pdb");
+
+    build_pe_blob(pdb_path);
+    build_pdb_blob("winproc", 0x1100);
+    bool wrote = write_file(pe_path, pe_blob, sizeof(pe_blob)) && write_file(pdb_path, pdb_blob, sizeof(pdb_blob));
+
+    bool ok = false;
+    if (wrote) {
+        PdbCache  cache = PdbCacheInit(base);
+        const u64 mbase = 0x140000000ull;
+        StrInitStack(mod, 1100) {
+            StrPushBackMany(&mod, (Zstr)pe_path);
+            Zstr name = NULL;
+            u32  off  = 0;
+            // ip strictly below module_base -> delegated resolve returns false.
+            ok = !PdbCacheResolve(&cache, &mod, mbase, mbase - 1, &name, &off);
+        }
+        PdbCacheDeinit(&cache);
+    }
+
+    FileRemove((Zstr)pe_path);
+    FileRemove((Zstr)pdb_path);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Kills PdbCache.c:47 (`sys_append_dirname(out_path, pe_path)` removed). The PE
+// sits in the temp dir and the CodeView path is bogus but its basename matches
+// a sidecar dropped NEXT TO the PE (in the temp dir, not the cwd). The fallback
+// must compose `<dirname(pe)>/<basename>`; dropping the dirname yields a bare
+// basename that resolves against the cwd and is not found -> resolve fails.
+bool test_pdb_cache_basename_fallback_uses_pe_dirname(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    char pe_path[1024];
+    char pdb_path[1024];
+    tmp_path_join(pe_path, sizeof(pe_path), "misra_pdbcache_dir.exe");
+    tmp_path_join(pdb_path, sizeof(pdb_path), "misra_pdbcache_dir.pdb");
+
+    // CodeView path is non-existent; its basename equals the temp-dir sidecar.
+    build_pe_blob("Z:/no/such/dir/misra_pdbcache_dir.pdb");
+    build_pdb_blob("winproc", 0x1100);
+    bool wrote = write_file(pe_path, pe_blob, sizeof(pe_blob)) && write_file(pdb_path, pdb_blob, sizeof(pdb_blob));
+
+    bool ok = false;
+    if (wrote) {
+        PdbCache  cache = PdbCacheInit(base);
+        const u64 mbase = 0x140000000ull;
+        Zstr      name  = NULL;
+        u32       off   = 0;
+        ok              = PdbCacheResolve(&cache, (Zstr)pe_path, mbase, mbase + 0x1100, &name, &off);
+        ok              = ok && name && ZstrCompare(name, "winproc") == 0 && off == 0;
+        PdbCacheDeinit(&cache);
+    }
+
+    FileRemove((Zstr)pe_path);
+    FileRemove((Zstr)pdb_path);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Kills PdbCache.c:74 (`bool ok = PdbOpen(...)` initializer replaced by a
+// constant, skipping the call). A sidecar that EXISTS but is not a valid PDB
+// must make resolve fail cleanly (PdbOpen returns false). The init-const mutant
+// skips PdbOpen, leaving a zeroed Pdb that the GUID check then tears down ->
+// divergence. A DebugAllocator also pins leak-freedom on the open-failure path.
+bool test_pdb_cache_invalid_sidecar_pdb_rejected(void) {
+    DebugAllocator alloc    = DebugAllocatorInit();
+    Allocator     *a        = ALLOCATOR_OF(&alloc);
+    size           baseline = DebugAllocatorLiveCount(&alloc);
+
+    char pe_path[1024];
+    char pdb_path[1024];
+    tmp_path_join(pe_path, sizeof(pe_path), "misra_pdbcache_badpdb.exe");
+    tmp_path_join(pdb_path, sizeof(pdb_path), "misra_pdbcache_badpdb.pdb");
+
+    build_pe_blob(pdb_path);
+    // A sidecar that exists on disk but is NOT a valid PDB (no MSF magic).
+    u8 junk[256];
+    MemSet(junk, 0xAB, sizeof(junk));
+    bool wrote = write_file(pe_path, pe_blob, sizeof(pe_blob)) && write_file(pdb_path, junk, sizeof(junk));
+
+    bool ok = false;
+    if (wrote) {
+        PdbCache cache = PdbCacheInit(a);
+        Zstr     name  = NULL;
+        ok             = !PdbCacheResolve(&cache, (Zstr)pe_path, 0x140000000ull, 0x140001100ull, &name, NULL);
+        PdbCacheDeinit(&cache);
+        ok = ok && DebugAllocatorLiveCount(&alloc) == baseline;
+    }
+
+    FileRemove((Zstr)pe_path);
+    FileRemove((Zstr)pdb_path);
+    DebugAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Kills PdbCache.c:96 (`ZstrCompare(...) == 0` -> `!= 0`) in the cache-entry
+// match. Two distinct modules carry DISTINCT symbol names; resolving the second
+// must return ITS name. Under `!= 0` the lookup matches the wrong (first) entry
+// and returns the first module's symbol -> name mismatch.
+bool test_pdb_cache_distinct_modules_resolve_independently(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    char a_pe[1024], a_pdb[1024], b_pe[1024], b_pdb[1024];
+    tmp_path_join(a_pe, sizeof(a_pe), "misra_pdbcache_distA.exe");
+    tmp_path_join(a_pdb, sizeof(a_pdb), "misra_pdbcache_distA.pdb");
+    tmp_path_join(b_pe, sizeof(b_pe), "misra_pdbcache_distB.exe");
+    tmp_path_join(b_pdb, sizeof(b_pdb), "misra_pdbcache_distB.pdb");
+
+    build_pe_blob(a_pdb);
+    build_pdb_blob("aproc", 0x1100);
+    bool wrote = write_file(a_pe, pe_blob, sizeof(pe_blob)) && write_file(a_pdb, pdb_blob, sizeof(pdb_blob));
+    build_pe_blob(b_pdb);
+    build_pdb_blob("bproc", 0x1100);
+    wrote = wrote && write_file(b_pe, pe_blob, sizeof(pe_blob)) && write_file(b_pdb, pdb_blob, sizeof(pdb_blob));
+
+    bool ok = false;
+    if (wrote) {
+        PdbCache  cache = PdbCacheInit(base);
+        const u64 mbase = 0x140000000ull;
+        Zstr      na    = NULL;
+        Zstr      nb    = NULL;
+        u32       off   = 0;
+        bool      ra    = PdbCacheResolve(&cache, (Zstr)a_pe, mbase, mbase + 0x1100, &na, &off);
+        bool      rb    = PdbCacheResolve(&cache, (Zstr)b_pe, mbase, mbase + 0x1100, &nb, &off);
+        ok              = ra && rb && na && nb && ZstrCompare(na, "aproc") == 0 && ZstrCompare(nb, "bproc") == 0;
+        PdbCacheDeinit(&cache);
+    }
+
+    FileRemove((Zstr)a_pe);
+    FileRemove((Zstr)a_pdb);
+    FileRemove((Zstr)b_pe);
+    FileRemove((Zstr)b_pdb);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting PdbCache tests\n\n");
 
@@ -562,6 +787,12 @@ int main(void) {
         test_pdb_cache_guid_mismatch_no_leak,
         test_pdb_cache_second_module_hits_cache,
         test_pdb_cache_deinit_frees_all,
+        test_pdb_cache_resolve_at_module_base_boundary,
+        test_pdb_cache_resolve_max_rva_boundary,
+        test_pdb_cache_resolve_str_overload_rejects_below_base,
+        test_pdb_cache_basename_fallback_uses_pe_dirname,
+        test_pdb_cache_invalid_sidecar_pdb_rejected,
+        test_pdb_cache_distinct_modules_resolve_independently,
     };
 
     return run_test_suite(tests, sizeof(tests) / sizeof(tests[0]), NULL, 0, "PdbCache");
