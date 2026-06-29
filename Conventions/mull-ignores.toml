@@ -4477,3 +4477,763 @@ author      = "Siddharth Mishra"
 created     = "2026-06-28"
 region_hash = "sha256:22be62fa1213e2b68139ed5e6280a06ef271239e2bc142b7c811a0585ccf82c2"
 
+# --- DwarfUnwind CFI unwinder: equivalent-mutant residue (362->78 killed; remainder unobservable through the public API) ---
+
+[[ignore]]
+id          = "DWARFCFI-71-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [71, 71]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:adc583667345c5e314e86c5c23f36f115a698d0bc271bd046c3bc7560dc68bef"
+
+[[ignore]]
+id          = "DWARFCFI-72-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [72, 72]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:fb708adb695496b6982ef3adc21ed07888c488a5672490d5b22516a9690b1779"
+
+[[ignore]]
+id          = "DWARFCFI-88-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [88, 88]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:2324d849f740f31ae6cf446379f93269c4aea17b790fbca55deaf10e5bb2af0a"
+
+[[ignore]]
+id          = "DWARFCFI-95-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [95, 95]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:c146beb4858e974b28d429f2c25ea0f7ea7dc53989d6e018152fbb19a4cb6546"
+
+[[ignore]]
+id          = "DWARFCFI-109-ASSIGNCO"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [109, 109]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "Assigns a truthy constant in place of true; the flag is only tested for truthiness, so 42 is indistinguishable from true. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:6bcf938dd2d7c315c035c0e7161091a05fe6b8c0f56f6a25b56c407f78227a82"
+
+[[ignore]]
+id          = "DWARFCFI-113-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [113, 113]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:2324d849f740f31ae6cf446379f93269c4aea17b790fbca55deaf10e5bb2af0a"
+
+[[ignore]]
+id          = "DWARFCFI-117-ASSIGNCO"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [117, 117]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "Assigns a truthy constant in place of true; the flag is only tested for truthiness, so 42 is indistinguishable from true. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:6bcf938dd2d7c315c035c0e7161091a05fe6b8c0f56f6a25b56c407f78227a82"
+
+[[ignore]]
+id          = "DWARFCFI-121-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [121, 121]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:c146beb4858e974b28d429f2c25ea0f7ea7dc53989d6e018152fbb19a4cb6546"
+
+[[ignore]]
+id          = "DWARFCFI-125-ASSIGNCO"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [125, 125]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "Assigns a truthy constant in place of true; the flag is only tested for truthiness, so 42 is indistinguishable from true. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:6bcf938dd2d7c315c035c0e7161091a05fe6b8c0f56f6a25b56c407f78227a82"
+
+[[ignore]]
+id          = "DWARFCFI-129-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [129, 129]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:c86eb72ff53216e2ee779766c45465baac660c7fa4a268e98dd9217069cb6bb2"
+
+[[ignore]]
+id          = "DWARFCFI-133-ASSIGNCO"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [133, 133]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "Assigns a truthy constant in place of true; the flag is only tested for truthiness, so 42 is indistinguishable from true. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:6bcf938dd2d7c315c035c0e7161091a05fe6b8c0f56f6a25b56c407f78227a82"
+
+[[ignore]]
+id          = "DWARFCFI-148-EQTONE"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [148, 148]
+mutator     = "cxx_eq_to_ne"
+bucket      = "C"
+rationale   = "decode_eh_ptr `base_kind == 0` else-if whose taken branch and its `else` both compute the identical result = (u64)signed_val. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:6c555e10e0628defdf91c5637e5a3f45f6b4b136d123ca20d070af8e1206293f"
+
+[[ignore]]
+id          = "DWARFCFI-188-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [188, 188]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:86cd2077f716536da4719deae00a9ddd863699b3f70d30dc80d601a7cd3ae98c"
+
+[[ignore]]
+id          = "DWARFCFI-201-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [201, 201]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:3d13247175d40c1a58ff02eed16019f3f0a7a4561672232d328bf015c1bfa3f0"
+
+[[ignore]]
+id          = "DWARFCFI-211-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [211, 211]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:d30ad2debf1c02dc2ecd2922768d945bea549d91d270accfcff902bcaece1c27"
+
+[[ignore]]
+id          = "DWARFCFI-212-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [212, 212]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:a349ccdbc2a688835bbe54e8cd467bd3add98bb4329113c21f04b96b6f61de6f"
+
+[[ignore]]
+id          = "DWARFCFI-221-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [221, 221]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:a3a94aad0280daa73c5ea87b74e1ddb0b5904e9f1dcfc4f0dad354ac99d168a6"
+
+[[ignore]]
+id          = "DWARFCFI-226-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [226, 226]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:b400628f24996b812e62a1f07a228c28d73c49fe0c773e635e43fff75122b650"
+
+[[ignore]]
+id          = "DWARFCFI-236-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [236, 236]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:5b2cba515967ead01169d4d259022aa5bf9c247a8f9e217e9dc4ec99d9a20555"
+
+[[ignore]]
+id          = "DWARFCFI-248-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [248, 248]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:017a9083d3e8a390d87999eb806128ce00b8f403dc44c7faa58b80295348be72"
+
+[[ignore]]
+id          = "DWARFCFI-254-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [254, 254]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:1ff91f2d2e3ac55d7e4879a416aac81c2d2944767ea1c7a45b5e7834dbb65611"
+
+[[ignore]]
+id          = "DWARFCFI-258-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [258, 258]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:016b4fd174c779463421f9a0ca0f25cdb674644c86760895eba0c4b04d701d5f"
+
+[[ignore]]
+id          = "DWARFCFI-263-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [263, 263]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:b97b4cc7c1d93481d40a2719391db77d8def0295c17a9c2f4e191acce9397616"
+
+[[ignore]]
+id          = "DWARFCFI-307-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [307, 307]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:d890de9ce1b59be44d39802650fa30b511a3be1231eaf16be1ca2e5ca67a71a1"
+
+[[ignore]]
+id          = "DWARFCFI-318-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [318, 318]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:c3f6b21a4b6f79ee510d244b0a28d9f46dd7e1a8cde1daa6fa982cee98acf921"
+
+[[ignore]]
+id          = "DWARFCFI-320-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [320, 320]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:ca193f0ab56a64badc676f48f5282b977e06ff2388996c5185ca922e17b2277c"
+
+[[ignore]]
+id          = "DWARFCFI-320-REPLACES"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [320, 320]
+mutator     = "cxx_replace_scalar_call"
+bucket      = "C"
+rationale   = "Computes the `here` anchor used only by PCREL pc-range decoding, but pc_range carries no base relativity (value-kind only), so `here` is dead. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:ca193f0ab56a64badc676f48f5282b977e06ff2388996c5185ca922e17b2277c"
+
+[[ignore]]
+id          = "DWARFCFI-327-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [327, 327]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:5b2cba515967ead01169d4d259022aa5bf9c247a8f9e217e9dc4ec99d9a20555"
+
+[[ignore]]
+id          = "DWARFCFI-359-GTTOGE"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [359, 359]
+mutator     = "cxx_gt_to_ge"
+bucket      = "C"
+rationale   = "Section loop guard `remaining > 0` vs `>= 0`: at end-of-section remaining==0 the extra iteration immediately fails the length read and breaks -- identical outcome. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:25cc09b8b72b7208ecb49d89b389bfc9338f69ab1100e248c950fe8c18338369"
+
+[[ignore]]
+id          = "DWARFCFI-361-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [361, 361]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:0e085c4b57c49138ef900728f459559bdf7bdd46cb47567a5d889ca65f277bb3"
+
+[[ignore]]
+id          = "DWARFCFI-375-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [375, 375]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:ffb2ba88624e32aa7d3be73d03cdf00c1d6bc911c357d696fe58711807c5c921"
+
+[[ignore]]
+id          = "DWARFCFI-441-ASSIGNCO"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [441, 441]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "The cfi_parse_section call still executes (CIE/FDE vectors populated) and succeeds on valid input, so forcing its result truthy is identical to the real success path; only an allocation failure (no fault-injection harness) could differ. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:aa5c43c9bfcd300cf3a13611c116c4f877b371d64490e3d7c66a1a2ae6053e2c"
+
+[[ignore]]
+id          = "DWARFCFI-448-ASSIGNCO"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [448, 448]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "The cfi_parse_section call still executes (CIE/FDE vectors populated) and succeeds on valid input, so forcing its result truthy is identical to the real success path; only an allocation failure (no fault-injection harness) could differ. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:dd3855a7b64f1823fb1eac80e9acb5f3c7b852a07b178fa1d73e14f20a25869b"
+
+[[ignore]]
+id          = "DWARFCFI-451-REMOVEVO"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [451, 451]
+mutator     = "cxx_remove_void_call"
+bucket      = "C"
+rationale   = "DwarfCfiDeinit on the parse-failure cleanup branch; no fault-injection harness can drive a post-allocation parse failure, so the branch is untestable. Approved alloc/failure-cleanup ledger category."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:4b74726c8e7d497c589ef1fda773f8c777e4a9d5e9ceffef21cd1c3b7199a26c"
+
+[[ignore]]
+id          = "DWARFCFI-551-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [551, 551]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:d97b27f8896808be3fc912340c953337c4a02111e961a1589426886edb01aee1"
+
+[[ignore]]
+id          = "DWARFCFI-562-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [562, 562]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:cfadce42d6073f832e39d50037fa996f2bed2db0fe0bfc35c7ba050fb1676855"
+
+[[ignore]]
+id          = "DWARFCFI-567-ASSIGNCO"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [567, 567]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "Assigns a truthy constant in place of true; the flag is only tested for truthiness, so 42 is indistinguishable from true. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:96f932a269d85bd31f15fc45f7932fe25e68b1e45a7955ef8ae65f1611614c38"
+
+[[ignore]]
+id          = "DWARFCFI-575-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [575, 575]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:ec7f2aa5ba46bc097975a622f4afa37c2dbfb5f84af9306f1462f3babd2e3dec"
+
+[[ignore]]
+id          = "DWARFCFI-586-LTTOLE"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [586, 586]
+mutator     = "cxx_lt_to_le"
+bucket      = "C"
+rationale   = "restore/restore_extended reg-index bound: reg==MAX writes regs[MAX], which aliases the return-address register and copies initial.regs[MAX] (RA's own value), so the clobber writes the same value -- unobservable through the public row. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:e82a42631a91017d4620307be53656d18962ed38bcbd36db59246636fe2a1a7a"
+
+[[ignore]]
+id          = "DWARFCFI-597-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [597, 597]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:a688b605aaa347a4938d1245c3f964fd37cb23701e16d84a1ba92ce3e31adaef"
+
+[[ignore]]
+id          = "DWARFCFI-601-ASSIGNCO"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [601, 601]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "Assigns a truthy constant in place of true; the flag is only tested for truthiness, so 42 is indistinguishable from true. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:96f932a269d85bd31f15fc45f7932fe25e68b1e45a7955ef8ae65f1611614c38"
+
+[[ignore]]
+id          = "DWARFCFI-608-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [608, 608]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:c27feaf45487d666b3ea76fec10c9c89830c073fb848cd972ab53a500023a431"
+
+[[ignore]]
+id          = "DWARFCFI-611-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [611, 611]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:bf9f993a4d4c6a64c3fd4ff46b727ca138e9d58a0181fdd81d4cea412eb613a6"
+
+[[ignore]]
+id          = "DWARFCFI-616-ASSIGNCO"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [616, 616]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "Assigns a truthy constant in place of true; the flag is only tested for truthiness, so 42 is indistinguishable from true. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:96f932a269d85bd31f15fc45f7932fe25e68b1e45a7955ef8ae65f1611614c38"
+
+[[ignore]]
+id          = "DWARFCFI-623-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [623, 623]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:c1a70464403b4a00bfe396ab891392e9a6887a1f685105a45fcc7e2bce79ccba"
+
+[[ignore]]
+id          = "DWARFCFI-626-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [626, 626]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:bf9f993a4d4c6a64c3fd4ff46b727ca138e9d58a0181fdd81d4cea412eb613a6"
+
+[[ignore]]
+id          = "DWARFCFI-631-ASSIGNCO"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [631, 631]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "Assigns a truthy constant in place of true; the flag is only tested for truthiness, so 42 is indistinguishable from true. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:96f932a269d85bd31f15fc45f7932fe25e68b1e45a7955ef8ae65f1611614c38"
+
+[[ignore]]
+id          = "DWARFCFI-638-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [638, 638]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:34a334f74ccdaeb63ce9ef62759a2b3e42f80f3ce9dab2b2cbfc256f88924707"
+
+[[ignore]]
+id          = "DWARFCFI-641-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [641, 641]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:bf9f993a4d4c6a64c3fd4ff46b727ca138e9d58a0181fdd81d4cea412eb613a6"
+
+[[ignore]]
+id          = "DWARFCFI-646-ASSIGNCO"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [646, 646]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "Assigns a truthy constant in place of true; the flag is only tested for truthiness, so 42 is indistinguishable from true. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:96f932a269d85bd31f15fc45f7932fe25e68b1e45a7955ef8ae65f1611614c38"
+
+[[ignore]]
+id          = "DWARFCFI-654-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [654, 654]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:67a1bb9dcfb0d474ca7f07192560918d5c99470cb4fb099b73b6e1cc07120420"
+
+[[ignore]]
+id          = "DWARFCFI-666-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [666, 666]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:e8901a4b97d4b11f9fcd4be9479e29fc28d1b6a780c2dc38e7bc4c226add5987"
+
+[[ignore]]
+id          = "DWARFCFI-667-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [667, 667]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:2e246a6e57787e880a16d322ee5ba0ad58292feafdfe2f95d877a1b37bc7c62a"
+
+[[ignore]]
+id          = "DWARFCFI-679-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [679, 679]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:e8901a4b97d4b11f9fcd4be9479e29fc28d1b6a780c2dc38e7bc4c226add5987"
+
+[[ignore]]
+id          = "DWARFCFI-682-LTTOLE"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [682, 682]
+mutator     = "cxx_lt_to_le"
+bucket      = "C"
+rationale   = "restore/restore_extended reg-index bound: reg==MAX writes regs[MAX], which aliases the return-address register and copies initial.regs[MAX] (RA's own value), so the clobber writes the same value -- unobservable through the public row. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:36178bce06fa8434f0bbdc640aee72561cc6d937a6179b10ca20d4c250527ab8"
+
+[[ignore]]
+id          = "DWARFCFI-688-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [688, 688]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:e8901a4b97d4b11f9fcd4be9479e29fc28d1b6a780c2dc38e7bc4c226add5987"
+
+[[ignore]]
+id          = "DWARFCFI-697-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [697, 697]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:e8901a4b97d4b11f9fcd4be9479e29fc28d1b6a780c2dc38e7bc4c226add5987"
+
+[[ignore]]
+id          = "DWARFCFI-706-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [706, 706]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:4eee020e7d120bd0286c3aede4b90abe90bfdd0ce5b7a0c2a58014595f3bb91a"
+
+[[ignore]]
+id          = "DWARFCFI-732-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [732, 732]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:67a1bb9dcfb0d474ca7f07192560918d5c99470cb4fb099b73b6e1cc07120420"
+
+[[ignore]]
+id          = "DWARFCFI-743-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [743, 743]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:e8901a4b97d4b11f9fcd4be9479e29fc28d1b6a780c2dc38e7bc4c226add5987"
+
+[[ignore]]
+id          = "DWARFCFI-744-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [744, 744]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:2e246a6e57787e880a16d322ee5ba0ad58292feafdfe2f95d877a1b37bc7c62a"
+
+[[ignore]]
+id          = "DWARFCFI-755-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [755, 755]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:e8901a4b97d4b11f9fcd4be9479e29fc28d1b6a780c2dc38e7bc4c226add5987"
+
+[[ignore]]
+id          = "DWARFCFI-765-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [765, 765]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:b0b1efe3b16219513d2ea0f2cefe8ddafc9d60aff4ef05ec0a96ecc237ed9a89"
+
+[[ignore]]
+id          = "DWARFCFI-775-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [775, 775]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:2e246a6e57787e880a16d322ee5ba0ad58292feafdfe2f95d877a1b37bc7c62a"
+
+[[ignore]]
+id          = "DWARFCFI-792-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [792, 792]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:e8901a4b97d4b11f9fcd4be9479e29fc28d1b6a780c2dc38e7bc4c226add5987"
+
+[[ignore]]
+id          = "DWARFCFI-801-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [801, 801]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:52d0893d9b9679dd993f195af1501e04edca5cd4a89ecb13bbf95bdbe6fb10ff"
+
+[[ignore]]
+id          = "DWARFCFI-813-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [813, 813]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:67a1bb9dcfb0d474ca7f07192560918d5c99470cb4fb099b73b6e1cc07120420"
+
+[[ignore]]
+id          = "DWARFCFI-825-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [825, 825]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:e8901a4b97d4b11f9fcd4be9479e29fc28d1b6a780c2dc38e7bc4c226add5987"
+
+[[ignore]]
+id          = "DWARFCFI-826-INITCONS"
+file        = "Source/Misra/Parsers/DwarfUnwind.c"
+lines       = [826, 826]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*/decode read (or MulOverflow/AddOverflow out-param) before any use; the init value is never observed. Equivalent mutant."
+author      = "dwarfcfi-agent"
+created     = "2026-06-28"
+region_hash = "sha256:2e246a6e57787e880a16d322ee5ba0ad58292feafdfe2f95d877a1b37bc7c62a"

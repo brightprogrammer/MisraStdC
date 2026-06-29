@@ -77,6 +77,7 @@ elf_tests = [
 dwarf_tests = [
     ['Dwarf', 'Std/Dwarf.c'],
     ['Dwarf.Mut', 'Std/Dwarf.Mut.c'],
+    ['DwarfUnwind', 'Std/DwarfUnwind.c'],
 ]
 
 pe_tests = [
