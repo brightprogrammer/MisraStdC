@@ -5237,3 +5237,192 @@ rationale   = "Local initialised to 0 then unconditionally overwritten by a Buf*
 author      = "dwarfcfi-agent"
 created     = "2026-06-28"
 region_hash = "sha256:2e246a6e57787e880a16d322ee5ba0ad58292feafdfe2f95d877a1b37bc7c62a"
+
+# --- ProcMaps: equivalent + fault-only-cleanup residue after the LoadFrom seam (29->22 killed; 270 killed via the seam, remaining unkillable through the public API) ---
+
+[[ignore]]
+id          = "PROCMAPS-56-PREINCTO"
+file        = "Source/Misra/Parsers/ProcMaps.c"
+lines       = [56, 56]
+mutator     = "cxx_pre_inc_to_pre_dec"
+bucket      = "C"
+rationale   = "`consumed` only feeds `if(!consumed)`; plus/minus one per digit is nonzero either way (0 if none) -> identical control flow and return. Equivalent."
+author      = "procmaps-agent"
+created     = "2026-06-28"
+region_hash = "sha256:33b6a64fb4c771bfc4a4941b2aeb7bd5a1b48894c5f7d04ca0999a8a756d079a"
+
+[[ignore]]
+id          = "PROCMAPS-97-INITCONS"
+file        = "Source/Misra/Parsers/ProcMaps.c"
+lines       = [97, 97]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "start/ende/offset inits overwritten by parse_hex_u64 before use; the no-digit path returns false before the value is read. Equivalent."
+author      = "procmaps-agent"
+created     = "2026-06-28"
+region_hash = "sha256:a2d0c30af4ea2e8260f0673b1b512234e1666ad94dbdc4af23d74ea1f0aeaf7a"
+
+[[ignore]]
+id          = "PROCMAPS-107-LTTOLE"
+file        = "Source/Misra/Parsers/ProcMaps.c"
+lines       = [107, 107]
+mutator     = "cxx_lt_to_le"
+bucket      = "C"
+rationale   = "remaining<4 vs <=4 differ only at remaining==4, where the mandatory offset field after the 4 perms chars cannot parse, so parse_one_line rejects the line in both cases. Equivalent."
+author      = "procmaps-agent"
+created     = "2026-06-28"
+region_hash = "sha256:17ec2300c5c677d96b456f07ac2490a72e7b4d4fc869e10534687dad35022e5b"
+
+[[ignore]]
+id          = "PROCMAPS-110-INITCONS"
+file        = "Source/Misra/Parsers/ProcMaps.c"
+lines       = [110, 110]
+mutator     = "cxx_init_const"
+bucket      = "C"
+rationale   = "p0..p3 inits overwritten by StrIterMustPeekAt before the perms-bit tests. Equivalent."
+author      = "procmaps-agent"
+created     = "2026-06-28"
+region_hash = "sha256:e3d8ae2176bdd9e2503945183fedc849a9dfe19497e1dc3d3469ccf992321abf"
+
+[[ignore]]
+id          = "PROCMAPS-154-LTTOLE"
+file        = "Source/Misra/Parsers/ProcMaps.c"
+lines       = [154, 154]
+mutator     = "cxx_lt_to_le"
+bucket      = "C"
+rationale   = "pos<len vs <=len differ only when pos==len (final line with no trailing newline), where DataAt(len) is the one-past-end NUL sentinel which never equals a newline, so the && short-circuits and neither branch writes or advances. Equivalent."
+author      = "procmaps-agent"
+created     = "2026-06-28"
+region_hash = "sha256:d0435290ba4f7e4d385ed48f508a6617eb78e5b3925bd0dceda7d46c78e0a7a4"
+
+[[ignore]]
+id          = "PROCMAPS-197-LTTOLE"
+file        = "Source/Misra/Parsers/ProcMaps.c"
+lines       = [197, 197]
+mutator     = "cxx_lt_to_le"
+bucket      = "C"
+rationale   = "start<min vs <=min differ only when e->start==min, where the update is idempotent -> same minimum. Equivalent."
+author      = "procmaps-agent"
+created     = "2026-06-28"
+region_hash = "sha256:eb76b6e9fd933d50ca0661b2b222caa27e2e0d65ea1d507645705a0d728c6107"
+
+[[ignore]]
+id          = "PROCMAPS-212-ADDTOSUB"
+file        = "Source/Misra/Parsers/ProcMaps.c"
+lines       = [212, 212]
+mutator     = "cxx_add_to_sub"
+bucket      = "C"
+rationale   = "grown_to = StrLen+CHUNK+1 is sentinel-headroom slack; StrReserve over-allocates and StrResize re-grows to fit, so a smaller reservation hint causes no observable change (mull runs without ASan). Equivalent."
+author      = "procmaps-agent"
+created     = "2026-06-28"
+region_hash = "sha256:64faa1ea1f5fc18bcabf9fe7d068a38f1f399cd03b25241dd00468c1a3ec6066"
+
+[[ignore]]
+id          = "PROCMAPS-189-REMOVEVO"
+file        = "Source/Misra/Parsers/ProcMaps.c"
+lines       = [189, 189]
+mutator     = "cxx_remove_void_call"
+bucket      = "B"
+rationale   = "ProcMapsDeinit on the VecPushBackR allocation-failure arm; reachable only under allocator OOM with no fault-injection infra. Source frees correctly on that path."
+author      = "procmaps-agent"
+created     = "2026-06-28"
+region_hash = "sha256:55e795c037a0ada364ce56b65984342d8535d1acdcae8b9de320df99ea59aa6c"
+
+[[ignore]]
+id          = "PROCMAPS-236-REPLACES"
+file        = "Source/Misra/Parsers/ProcMaps.c"
+lines       = [236, 236]
+mutator     = "cxx_replace_scalar_call"
+bucket      = "B"
+rationale   = "FileIsOpen(&f) on the /proc/self/maps open; the kernel file always opens in a live process, so the failure direction is never taken. Fault-path."
+author      = "procmaps-agent"
+created     = "2026-06-28"
+region_hash = "sha256:1d490ec48a6d5a92ca6babf9e7b56bb41c45783d4f4bcf0c47793e17344a3d8e"
+
+[[ignore]]
+id          = "PROCMAPS-238-REMOVEVO"
+file        = "Source/Misra/Parsers/ProcMaps.c"
+lines       = [238, 238]
+mutator     = "cxx_remove_void_call"
+bucket      = "B"
+rationale   = "ProcMapsDeinit on the FileOpen-failure arm; /proc/self/maps always opens. Fault-cleanup, no fault injection."
+author      = "procmaps-agent"
+created     = "2026-06-28"
+region_hash = "sha256:55e795c037a0ada364ce56b65984342d8535d1acdcae8b9de320df99ea59aa6c"
+
+[[ignore]]
+id          = "PROCMAPS-241-INITCONS"
+file        = "Source/Misra/Parsers/ProcMaps.c"
+lines       = [241, 241]
+mutator     = "cxx_init_const"
+bucket      = "B"
+rationale   = "ok = proc_maps_read_all(...) forced truthy; the /proc read always succeeds so the failure direction is never taken. Fault-path."
+author      = "procmaps-agent"
+created     = "2026-06-28"
+region_hash = "sha256:05d5585d654654b38f6e3f0aa1d82bfcb5ffbc8c46a3e841a0f5312c5c9710e3"
+
+[[ignore]]
+id          = "PROCMAPS-242-REPLACES"
+file        = "Source/Misra/Parsers/ProcMaps.c"
+lines       = [242, 242]
+mutator     = "cxx_replace_scalar_call"
+bucket      = "B"
+rationale   = "FileClose(&f) on the /proc success path; a removed close leaks an OS fd (no allocator memory), invisible to the leak oracle and to the entry/result contract."
+author      = "procmaps-agent"
+created     = "2026-06-28"
+region_hash = "sha256:ba4368cc96fe4971787b7940473c673f8e4f80ff0991e1d6362b64b3de55d9c1"
+
+[[ignore]]
+id          = "PROCMAPS-245-REMOVEVO"
+file        = "Source/Misra/Parsers/ProcMaps.c"
+lines       = [245, 245]
+mutator     = "cxx_remove_void_call"
+bucket      = "B"
+rationale   = "ProcMapsDeinit on the FileRead-error arm; /proc reads do not error here. Fault-cleanup."
+author      = "procmaps-agent"
+created     = "2026-06-28"
+region_hash = "sha256:55e795c037a0ada364ce56b65984342d8535d1acdcae8b9de320df99ea59aa6c"
+
+[[ignore]]
+id          = "PROCMAPS-250-REMOVEVO"
+file        = "Source/Misra/Parsers/ProcMaps.c"
+lines       = [250, 250]
+mutator     = "cxx_remove_void_call"
+bucket      = "B"
+rationale   = "ProcMapsDeinit on the empty-/proc arm; a live map is never empty. Fault-cleanup."
+author      = "procmaps-agent"
+created     = "2026-06-28"
+region_hash = "sha256:55e795c037a0ada364ce56b65984342d8535d1acdcae8b9de320df99ea59aa6c"
+
+[[ignore]]
+id          = "PROCMAPS-263-REPLACES"
+file        = "Source/Misra/Parsers/ProcMaps.c"
+lines       = [263, 263]
+mutator     = "cxx_replace_scalar_call"
+bucket      = "B"
+rationale   = "FileIsOpen(f) in load_from_file forced truthy; a closed File then fails the subsequent read and returns false identically. Fault-path."
+author      = "procmaps-agent"
+created     = "2026-06-28"
+region_hash = "sha256:a371f821b60444861c5ff8c5be64ff481cf51ca04bacc884a571c3bf2a2ce1c3"
+
+[[ignore]]
+id          = "PROCMAPS-265-REMOVEVO"
+file        = "Source/Misra/Parsers/ProcMaps.c"
+lines       = [265, 265]
+mutator     = "cxx_remove_void_call"
+bucket      = "B"
+rationale   = "ProcMapsDeinit on the load_from_file not-open arm; StrInit/VecInitT have allocated nothing at that point, so removing the cleanup leaks nothing."
+author      = "procmaps-agent"
+created     = "2026-06-28"
+region_hash = "sha256:55e795c037a0ada364ce56b65984342d8535d1acdcae8b9de320df99ea59aa6c"
+
+[[ignore]]
+id          = "PROCMAPS-285-REMOVEVO"
+file        = "Source/Misra/Parsers/ProcMaps.c"
+lines       = [285, 285]
+mutator     = "cxx_remove_void_call"
+bucket      = "B"
+rationale   = "ProcMapsDeinit on the load_from_bytes StrReserve-OOM arm; reachable only under allocator OOM (no fault injection), and nothing is allocated yet."
+author      = "procmaps-agent"
+created     = "2026-06-28"
+region_hash = "sha256:55e795c037a0ada364ce56b65984342d8535d1acdcae8b9de320df99ea59aa6c"
