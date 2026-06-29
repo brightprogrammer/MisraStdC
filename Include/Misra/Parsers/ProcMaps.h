@@ -18,8 +18,10 @@
 #define MISRA_PARSERS_PROC_MAPS_H
 
 #include <Misra/Std/Allocator.h>
+#include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Container/Vec.h>
+#include <Misra/Std/File.h>
 #include <Misra/Types.h>
 
 typedef enum ProcMapPerms {
@@ -67,6 +69,54 @@ bool proc_maps_load(ProcMaps *out, Allocator *alloc);
 #define ProcMapsLoad(...)          OVERLOAD(ProcMapsLoad, __VA_ARGS__)
 #define ProcMapsLoad_1(out)        proc_maps_load((out), MisraScope)
 #define ProcMapsLoad_2(out, alloc) proc_maps_load((out), ALLOCATOR_OF(alloc))
+
+///
+/// Parse `/proc/self/maps`-format text from an in-memory source instead of the
+/// live kernel file. The bytes are COPIED into `out->raw`, so each entry's
+/// borrowed `path` stays valid for the ProcMaps lifetime. Lets callers parse
+/// crafted or captured maps text without a live `/proc` (tests, and future
+/// core-file / remote backends).
+///
+/// `ProcMapsLoadFrom(out, src[, alloc])` dispatches on the source type:
+///   - `File *` : read the open file to EOF (caller still owns/closes it)
+///   - `Str *`  : parse the string's bytes
+///   - `Buf *`  : parse the buffer's bytes
+///   - `(Zstr bytes, u64 len, alloc)` : parse `len` bytes at `bytes`
+/// The `File`/`Str`/`Buf` forms take an optional trailing allocator (defaulting
+/// to `MisraScope`); the raw `(bytes, len)` form takes an explicit allocator.
+///
+/// out[out]   : Populated on success; left zeroed on failure.
+/// alloc[in]  : Allocator for `out->raw` and the entries vector.
+///
+/// SUCCESS : Returns true; `out->entries` is populated (possibly empty).
+/// FAILURE : Returns false; logs the failing step. `out` is left zeroed.
+///
+/// TAGS: ProcMaps, Parse, API
+///
+bool proc_maps_load_from_bytes(ProcMaps *out, const u8 *bytes, u64 len, Allocator *alloc);
+bool proc_maps_load_from_file(ProcMaps *out, File *f, Allocator *alloc);
+#define ProcMapsLoadFrom(...) OVERLOAD(ProcMapsLoadFrom, __VA_ARGS__)
+#define ProcMapsLoadFrom_2(out, src)                                                                                   \
+    _Generic(                                                                                                          \
+        (src),                                                                                                         \
+        File *: proc_maps_load_from_file((out), (File *)(src), MisraScope),                                            \
+        Str *: proc_maps_load_from_bytes((out), (const u8 *)StrBegin((Str *)(src)), StrLen((Str *)(src)), MisraScope), \
+        Buf *: proc_maps_load_from_bytes((out), BufData((Buf *)(src)), BufLength((Buf *)(src)), MisraScope)            \
+    )
+#define ProcMapsLoadFrom_3(out, src, alloc)                                                                            \
+    _Generic(                                                                                                          \
+        (src),                                                                                                         \
+        File *: proc_maps_load_from_file((out), (File *)(src), ALLOCATOR_OF(alloc)),                                   \
+        Str *: proc_maps_load_from_bytes(                                                                              \
+                 (out),                                                                                                \
+                 (const u8 *)StrBegin((Str *)(src)),                                                                   \
+                 StrLen((Str *)(src)),                                                                                 \
+                 ALLOCATOR_OF(alloc)                                                                                   \
+             ),                                                                                                        \
+        Buf *: proc_maps_load_from_bytes((out), BufData((Buf *)(src)), BufLength((Buf *)(src)), ALLOCATOR_OF(alloc))   \
+    )
+#define ProcMapsLoadFrom_4(out, bytes, len, alloc)                                                                     \
+    proc_maps_load_from_bytes((out), (const u8 *)(bytes), (len), ALLOCATOR_OF(alloc))
 
 ///
 /// Release storage owned by a ProcMaps. Safe on a zeroed struct.

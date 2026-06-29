@@ -14,7 +14,6 @@
 #include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Zstr.h>
-#include <Misra/Sys.h>
 #include <Misra/Types.h>
 
 ///
@@ -204,17 +203,17 @@ i64 file_read_and_close_to_str(Zstr path, Str *out);
     _Generic(                                                                                                          \
         (out),                                                                                                         \
         Buf *: _Generic(                                                                                               \
-            (path),                                                                                                    \
-            Str *: file_read_and_close_to_buf((Zstr)StrBegin((Str *)(path)), (Buf *)(out)),                            \
-            Zstr: file_read_and_close_to_buf((Zstr)(path), (Buf *)(out)),                                              \
-            char *: file_read_and_close_to_buf((Zstr)(path), (Buf *)(out))                                             \
-        ),                                                                                                             \
+                 (path),                                                                                               \
+                Str *: file_read_and_close_to_buf((Zstr)StrBegin((Str *)(path)), (Buf *)(out)),                        \
+                Zstr: file_read_and_close_to_buf((Zstr)(path), (Buf *)(out)),                                          \
+                char *: file_read_and_close_to_buf((Zstr)(path), (Buf *)(out))                                         \
+             ),                                                                                                        \
         Str *: _Generic(                                                                                               \
-            (path),                                                                                                    \
-            Str *: file_read_and_close_to_str((Zstr)StrBegin((Str *)(path)), (Str *)(out)),                            \
-            Zstr: file_read_and_close_to_str((Zstr)(path), (Str *)(out)),                                              \
-            char *: file_read_and_close_to_str((Zstr)(path), (Str *)(out))                                             \
-        )                                                                                                              \
+                 (path),                                                                                               \
+                Str *: file_read_and_close_to_str((Zstr)StrBegin((Str *)(path)), (Str *)(out)),                        \
+                Zstr: file_read_and_close_to_str((Zstr)(path), (Str *)(out)),                                          \
+                char *: file_read_and_close_to_str((Zstr)(path), (Str *)(out))                                         \
+             )                                                                                                         \
     )
 
 // FileGetSize lives in `Sys/Dir.h` -- path-based size query that
@@ -255,17 +254,17 @@ i64 file_write_and_close_from_bytes(Zstr path, const void *buf, u64 n);
     _Generic(                                                                                                          \
         (container),                                                                                                   \
         Buf *: _Generic(                                                                                               \
-            (path),                                                                                                    \
-            Str *: file_write_and_close_from_buf((Zstr)StrBegin((Str *)(path)), (const Buf *)(container)),             \
-            Zstr: file_write_and_close_from_buf((Zstr)(path), (const Buf *)(container)),                               \
-            char *: file_write_and_close_from_buf((Zstr)(path), (const Buf *)(container))                              \
-        ),                                                                                                             \
+                 (path),                                                                                               \
+                Str *: file_write_and_close_from_buf((Zstr)StrBegin((Str *)(path)), (const Buf *)(container)),         \
+                Zstr: file_write_and_close_from_buf((Zstr)(path), (const Buf *)(container)),                           \
+                char *: file_write_and_close_from_buf((Zstr)(path), (const Buf *)(container))                          \
+             ),                                                                                                        \
         Str *: _Generic(                                                                                               \
-            (path),                                                                                                    \
-            Str *: file_write_and_close_from_str((Zstr)StrBegin((Str *)(path)), (const Str *)(container)),             \
-            Zstr: file_write_and_close_from_str((Zstr)(path), (const Str *)(container)),                               \
-            char *: file_write_and_close_from_str((Zstr)(path), (const Str *)(container))                              \
-        )                                                                                                              \
+                 (path),                                                                                               \
+                Str *: file_write_and_close_from_str((Zstr)StrBegin((Str *)(path)), (const Str *)(container)),         \
+                Zstr: file_write_and_close_from_str((Zstr)(path), (const Str *)(container)),                           \
+                char *: file_write_and_close_from_str((Zstr)(path), (const Str *)(container))                          \
+             )                                                                                                         \
     )
 #define FileWriteAndClose_3(path, buf, n)                                                                              \
     _Generic(                                                                                                          \

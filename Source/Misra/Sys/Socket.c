@@ -15,6 +15,7 @@
 /// require adding that fallback for failed `connect()` detection.
 
 #include <Misra/Config.h>
+#include <Misra/Sys.h>
 
 #include <Misra/Sys/Socket.h>
 
