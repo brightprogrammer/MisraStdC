@@ -776,6 +776,54 @@ bool test_pdb_cache_distinct_modules_resolve_independently(void) {
     return ok;
 }
 
+// Kills PdbCache.c:121 (`++i` -> `--i` in the deinit entry loop). Teardown
+// must free EVERY cache entry, not just the first. Two distinct modules are
+// resolved into two entries (each a fully opened PE+PDB+path), lifting the live
+// count above baseline; PdbCacheDeinit must walk the whole entry list back to
+// baseline. The `--i` mutant frees only entry[0] then wraps `i` to SIZE_MAX and
+// exits, leaking entry[1]'s PE/PDB/path -> the post-deinit live count stays
+// above baseline. (A one-entry teardown test cannot see this: with a single
+// entry `++i` and `--i` both free exactly entry[0].)
+bool test_pdb_cache_deinit_frees_all_entries(void) {
+    DebugAllocator alloc    = DebugAllocatorInit();
+    Allocator     *base     = ALLOCATOR_OF(&alloc);
+    size           baseline = DebugAllocatorLiveCount(&alloc);
+
+    char a_pe[1024], a_pdb[1024], b_pe[1024], b_pdb[1024];
+    tmp_path_join(a_pe, sizeof(a_pe), "misra_pdbcache_dfa_A.exe");
+    tmp_path_join(a_pdb, sizeof(a_pdb), "misra_pdbcache_dfa_A.pdb");
+    tmp_path_join(b_pe, sizeof(b_pe), "misra_pdbcache_dfa_B.exe");
+    tmp_path_join(b_pdb, sizeof(b_pdb), "misra_pdbcache_dfa_B.pdb");
+
+    bool wrote = write_pe_pdb(a_pe, a_pdb, a_pdb) && write_pe_pdb(b_pe, b_pdb, b_pdb);
+
+    bool ok = false;
+    if (wrote) {
+        PdbCache  cache = PdbCacheInit(base);
+        const u64 mbase = 0x140000000ull;
+        Zstr      name  = NULL;
+        u32       off   = 0;
+
+        // Two distinct modules -> two cache entries, each opening a PE+PDB.
+        bool ra = PdbCacheResolve(&cache, (Zstr)a_pe, mbase, mbase + 0x1100, &name, &off);
+        bool rb = PdbCacheResolve(&cache, (Zstr)b_pe, mbase, mbase + 0x1100, &name, &off);
+
+        // A populated two-entry cache sits strictly above baseline.
+        bool grew = ra && rb && DebugAllocatorLiveCount(&alloc) > baseline;
+
+        PdbCacheDeinit(&cache);
+        // Freeing EVERY entry (not just the first) returns to baseline.
+        ok = grew && DebugAllocatorLiveCount(&alloc) == baseline;
+    }
+
+    FileRemove((Zstr)a_pe);
+    FileRemove((Zstr)a_pdb);
+    FileRemove((Zstr)b_pe);
+    FileRemove((Zstr)b_pdb);
+    DebugAllocatorDeinit(&alloc);
+    return ok;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting PdbCache tests\n\n");
 
@@ -793,6 +841,7 @@ int main(void) {
         test_pdb_cache_basename_fallback_uses_pe_dirname,
         test_pdb_cache_invalid_sidecar_pdb_rejected,
         test_pdb_cache_distinct_modules_resolve_independently,
+        test_pdb_cache_deinit_frees_all_entries,
     };
 
     return run_test_suite(tests, sizeof(tests) / sizeof(tests[0]), NULL, 0, "PdbCache");
