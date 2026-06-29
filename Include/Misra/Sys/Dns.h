@@ -86,6 +86,73 @@ extern "C" {
 #define DnsResolverInit_2(out, alloc) dns_resolver_init((out), ALLOCATOR_OF(alloc))
 
     ///
+    /// Merge an additional `hosts` / `resolv.conf` file into an
+    /// already-initialised resolver, on top of the system defaults
+    /// `DnsResolverInit` loaded. The file is parsed with the same rules
+    /// as `/etc/hosts` and `/etc/resolv.conf` and entries are APPENDED
+    /// (the hosts table and/or nameserver list grow).
+    ///
+    /// The self-classifying forms (`DnsResolverAddPath` /
+    /// `DnsResolverAddPaths`) run BOTH parsers over each file: the two
+    /// line grammars are disjoint (a `hosts` row leads with an IP
+    /// literal, a `resolv.conf` directive leads with the `nameserver`
+    /// keyword), so a `hosts` file contributes only host rows and a
+    /// `resolv.conf` only nameservers. The typed forms
+    /// (`...HostsPath` / `...ResolvPath`) run a single parser when the
+    /// caller already knows the file kind.
+    ///
+    /// The `Str *` overload reads the path as-is; the `(Zstr, len)`
+    /// overload copies `[path, path+len)` and NUL-terminates it. The
+    /// plural forms apply the singular to each path in a `Strs`.
+    /// Missing/unreadable files are tolerated (that table just doesn't
+    /// grow).
+    ///
+    /// SUCCESS : Returns true. Parsed entries appended.
+    /// FAILURE : Returns false on NULL `self` / `path`.
+    ///
+    /// TAGS: Dns, Resolve, Init, Hosts
+    ///
+    bool dns_resolver_add_path_str(DnsResolver *self, const Str *path);
+    bool dns_resolver_add_path_zstr(DnsResolver *self, Zstr path, u64 len);
+#define DnsResolverAddPath(...)          OVERLOAD(DnsResolverAddPath, __VA_ARGS__)
+#define DnsResolverAddPath_2(self, p)    dns_resolver_add_path_str((self), (p))
+#define DnsResolverAddPath_3(self, p, n) dns_resolver_add_path_zstr((self), (p), (n))
+
+    bool dns_resolver_add_hosts_path_str(DnsResolver *self, const Str *path);
+    bool dns_resolver_add_hosts_path_zstr(DnsResolver *self, Zstr path, u64 len);
+#define DnsResolverAddHostsPath(...)          OVERLOAD(DnsResolverAddHostsPath, __VA_ARGS__)
+#define DnsResolverAddHostsPath_2(self, p)    dns_resolver_add_hosts_path_str((self), (p))
+#define DnsResolverAddHostsPath_3(self, p, n) dns_resolver_add_hosts_path_zstr((self), (p), (n))
+
+    bool dns_resolver_add_resolv_path_str(DnsResolver *self, const Str *path);
+    bool dns_resolver_add_resolv_path_zstr(DnsResolver *self, Zstr path, u64 len);
+#define DnsResolverAddResolvPath(...)          OVERLOAD(DnsResolverAddResolvPath, __VA_ARGS__)
+#define DnsResolverAddResolvPath_2(self, p)    dns_resolver_add_resolv_path_str((self), (p))
+#define DnsResolverAddResolvPath_3(self, p, n) dns_resolver_add_resolv_path_zstr((self), (p), (n))
+
+    bool dns_resolver_add_paths(DnsResolver *self, const Strs *paths);
+    bool dns_resolver_add_hosts_paths(DnsResolver *self, const Strs *paths);
+    bool dns_resolver_add_resolv_paths(DnsResolver *self, const Strs *paths);
+#define DnsResolverAddPaths(self, paths)       dns_resolver_add_paths((self), (paths))
+#define DnsResolverAddHostsPaths(self, paths)  dns_resolver_add_hosts_paths((self), (paths))
+#define DnsResolverAddResolvPaths(self, paths) dns_resolver_add_resolv_paths((self), (paths))
+
+    ///
+    /// Append a nameserver directly, bypassing `resolv.conf` parsing.
+    /// Unlike a `resolv.conf` `nameserver` line (always port 53), `ns`
+    /// carries its own port, so a caller can point the resolver at a
+    /// server on a non-standard port (a containerised or loopback
+    /// resolver, say). Appended to `self->nameservers`.
+    ///
+    /// SUCCESS : Returns true. `ns` appended.
+    /// FAILURE : Returns false on NULL `self` or allocator OOM.
+    ///
+    /// TAGS: Dns, Resolve, Init
+    ///
+    bool dns_resolver_add_nameserver(DnsResolver *self, SocketAddr ns);
+#define DnsResolverAddNameserver(self, ns) dns_resolver_add_nameserver((self), (ns))
+
+    ///
     /// Release every owned string / Vec. Safe on a partially-initialised
     /// resolver.
     ///
@@ -185,17 +252,17 @@ extern "C" {
     _Generic(                                                                                                          \
         (out),                                                                                                         \
         DnsAddrs *: _Generic(                                                                                          \
-            (spec),                                                                                                    \
-            Str *: dns_resolve_4_vec_str((self), (const Str *)(spec), (kind), (DnsAddrs *)(out)),                      \
-            Zstr: dns_resolve_4_vec_zstr((self), (Zstr)(spec), (kind), (DnsAddrs *)(out)),                             \
-            char *: dns_resolve_4_vec_zstr((self), (Zstr)(spec), (kind), (DnsAddrs *)(out))                            \
-        ),                                                                                                             \
+                      (spec),                                                                                          \
+                Str *: dns_resolve_4_vec_str((self), (const Str *)(spec), (kind), (DnsAddrs *)(out)),                  \
+                Zstr: dns_resolve_4_vec_zstr((self), (Zstr)(spec), (kind), (DnsAddrs *)(out)),                         \
+                char *: dns_resolve_4_vec_zstr((self), (Zstr)(spec), (kind), (DnsAddrs *)(out))                        \
+                  ),                                                                                                   \
         SocketAddr *: _Generic(                                                                                        \
-            (spec),                                                                                                    \
-            Str *: dns_resolve_4_one_str((self), (const Str *)(spec), (kind), (SocketAddr *)(out)),                    \
-            Zstr: dns_resolve_4_one_zstr((self), (Zstr)(spec), (kind), (SocketAddr *)(out)),                           \
-            char *: dns_resolve_4_one_zstr((self), (Zstr)(spec), (kind), (SocketAddr *)(out))                          \
-        )                                                                                                              \
+                        (spec),                                                                                        \
+                Str *: dns_resolve_4_one_str((self), (const Str *)(spec), (kind), (SocketAddr *)(out)),                \
+                Zstr: dns_resolve_4_one_zstr((self), (Zstr)(spec), (kind), (SocketAddr *)(out)),                       \
+                char *: dns_resolve_4_one_zstr((self), (Zstr)(spec), (kind), (SocketAddr *)(out))                      \
+                    )                                                                                                  \
     )
 
 #ifdef __cplusplus

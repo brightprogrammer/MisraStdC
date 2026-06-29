@@ -151,9 +151,9 @@ static void skip_to_eol_iter(StrIter *si) {
     }
 }
 
-static void parse_hosts_table(HostsTable *table, Allocator *alloc) {
+static void parse_hosts_path(HostsTable *table, Zstr path, Allocator *alloc) {
     Str buf = StrInit(alloc);
-    if (!slurp_file(HOSTS_FILE_PATH, &buf)) {
+    if (!slurp_file(path, &buf)) {
         StrDeinit(&buf);
         return;
     }
@@ -246,9 +246,9 @@ static void parse_hosts_table(HostsTable *table, Allocator *alloc) {
 // (`search`, `domain`, `options`, ...) is ignored for v1.
 // ---------------------------------------------------------------------------
 
-static void parse_resolv_conf(DnsAddrs *out, Allocator *alloc) {
+static void parse_resolv_path(DnsAddrs *out, Zstr path, Allocator *alloc) {
     Str buf = StrInit(alloc);
-    if (!slurp_file(RESOLV_CONF_FILE_PATH, &buf)) {
+    if (!slurp_file(path, &buf)) {
         StrDeinit(&buf);
         return;
     }
@@ -318,9 +318,90 @@ bool dns_resolver_init(DnsResolver *out, Allocator *alloc) {
     out->timeout_ms  = 5000;
     out->retries     = 2;
 
-    parse_hosts_table(&out->hosts, alloc);
-    parse_resolv_conf(&out->nameservers, alloc);
+    parse_hosts_path(&out->hosts, HOSTS_FILE_PATH, alloc);
+    parse_resolv_path(&out->nameservers, RESOLV_CONF_FILE_PATH, alloc);
     return true;
+}
+
+// ---------------------------------------------------------------------------
+// Additional config paths / nameservers
+// ---------------------------------------------------------------------------
+
+static bool dns_add_path(DnsResolver *self, Zstr path, bool do_hosts, bool do_resolv) {
+    if (!self || !path)
+        return false;
+    if (do_hosts)
+        parse_hosts_path(&self->hosts, path, self->allocator);
+    if (do_resolv)
+        parse_resolv_path(&self->nameservers, path, self->allocator);
+    return true;
+}
+
+static bool dns_add_path_len(DnsResolver *self, Zstr path, u64 len, bool do_hosts, bool do_resolv) {
+    if (!self || !path)
+        return false;
+    Str buf = StrInit(self->allocator);
+    StrPushBackMany(&buf, path, len);
+    bool ok = dns_add_path(self, StrBegin(&buf), do_hosts, do_resolv);
+    StrDeinit(&buf);
+    return ok;
+}
+
+bool dns_resolver_add_path_str(DnsResolver *self, const Str *path) {
+    if (!self || !path)
+        return false;
+    return dns_add_path(self, StrBegin(path), true, true);
+}
+
+bool dns_resolver_add_path_zstr(DnsResolver *self, Zstr path, u64 len) {
+    return dns_add_path_len(self, path, len, true, true);
+}
+
+bool dns_resolver_add_hosts_path_str(DnsResolver *self, const Str *path) {
+    if (!self || !path)
+        return false;
+    return dns_add_path(self, StrBegin(path), true, false);
+}
+
+bool dns_resolver_add_hosts_path_zstr(DnsResolver *self, Zstr path, u64 len) {
+    return dns_add_path_len(self, path, len, true, false);
+}
+
+bool dns_resolver_add_resolv_path_str(DnsResolver *self, const Str *path) {
+    if (!self || !path)
+        return false;
+    return dns_add_path(self, StrBegin(path), false, true);
+}
+
+bool dns_resolver_add_resolv_path_zstr(DnsResolver *self, Zstr path, u64 len) {
+    return dns_add_path_len(self, path, len, false, true);
+}
+
+bool dns_resolver_add_paths(DnsResolver *self, const Strs *paths) {
+    if (!self || !paths)
+        return false;
+    VecForeachPtr(paths, p) dns_resolver_add_path_str(self, p);
+    return true;
+}
+
+bool dns_resolver_add_hosts_paths(DnsResolver *self, const Strs *paths) {
+    if (!self || !paths)
+        return false;
+    VecForeachPtr(paths, p) dns_resolver_add_hosts_path_str(self, p);
+    return true;
+}
+
+bool dns_resolver_add_resolv_paths(DnsResolver *self, const Strs *paths) {
+    if (!self || !paths)
+        return false;
+    VecForeachPtr(paths, p) dns_resolver_add_resolv_path_str(self, p);
+    return true;
+}
+
+bool dns_resolver_add_nameserver(DnsResolver *self, SocketAddr ns) {
+    if (!self)
+        return false;
+    return VecPushBackR(&self->nameservers, ns);
 }
 
 void DnsResolverDeinit(DnsResolver *self) {

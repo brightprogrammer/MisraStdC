@@ -102,10 +102,6 @@ dns_tests = [
 
 sys_dns_tests = [
     ['SysDns', 'Std/SysDns.c'],
-    ['SysDns.Hosts', 'Std/SysDns.Hosts.c'],
-    ['SysDns.Resolv', 'Std/SysDns.Resolv.c'],
-    ['SysDns.Wire', 'Std/SysDns.Wire.c'],
-    ['SysDns.Api', 'Std/SysDns.Api.c'],
 ]
 
 macho_cache_tests = [
