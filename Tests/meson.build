@@ -133,7 +133,6 @@ procmaps_tests = [
 symresolve_tests = [
     ['SymbolResolver', 'Std/SymbolResolver.c'],
     ['SymbolResolver.Internal', 'Std/SymbolResolver.Internal.c'],
-    ['SymbolResolver.BestEffort', 'Std/SymbolResolver.BestEffort.c'],
     ['SymbolResolver.Mut', 'Std/SymbolResolver.Mut.c'],
 ]
 

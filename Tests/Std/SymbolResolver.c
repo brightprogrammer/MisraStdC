@@ -530,6 +530,7 @@ bool test_sr_deinit_frees_everything(void) {
     return ok;
 }
 
+
 int main(void) {
     WriteFmt("[INFO] Starting SymbolResolver tests\n\n");
 

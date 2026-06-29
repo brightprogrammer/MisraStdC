@@ -344,24 +344,18 @@ static bool parse_fde(
 // Public API
 // ---------------------------------------------------------------------------
 
-bool dwarf_cfi_build_from_elf(DwarfCfi *out, const Elf *elf, Allocator *alloc) {
-    if (!out || !elf || !alloc) {
-        LOG_FATAL("DwarfCfiBuildFromElf: NULL argument");
-    }
-    MemSet(out, 0, sizeof(*out));
-    out->allocator = alloc;
-    out->cies      = VecInitT(out->cies, alloc);
-    out->fdes      = VecInitT(out->fdes, alloc);
-
-    const ElfSection *eh = ElfFindSection(elf, ".eh_frame");
-    if (!eh || eh->size == 0) {
-        return true; // No CFI in this binary — still success, just empty.
-    }
-    out->eh_frame_addr = eh->addr;
-
-    const u8 *section_data = BufData(ElfBuf(elf)) + eh->offset;
-
-    BufIter section_cur = BufIterFromMemory(section_data, eh->size);
+// Parse one CFI section (.eh_frame or .debug_frame) into `out`'s CIE/FDE
+// vectors. The two formats share record framing and CFI bytecode; they differ
+// only in: the CIE-id sentinel (0 for .eh_frame, 0xffffffff for .debug_frame),
+// the FDE's CIE pointer (.eh_frame back-offset from the id field vs
+// .debug_frame absolute section offset), and FDE address encoding
+// (.eh_frame DW_EH_PE-encoded vs .debug_frame absolute -- the latter falls out
+// of parse_cie's DW_EH_PE_ABSPTR default since .debug_frame CIEs carry no 'z'
+// augmentation). Returns false only on allocation failure.
+static bool
+    cfi_parse_section(DwarfCfi *out, const u8 *section_data, u64 section_addr, u64 section_size, bool is_debug_frame) {
+    const u32 cie_id      = is_debug_frame ? 0xffffffffu : 0u;
+    BufIter   section_cur = BufIterFromMemory(section_data, section_size);
     while (IterRemainingLength(&section_cur) > 0) {
         const u8 *rec_start = IterDataAt(&section_cur, IterIndex(&section_cur));
         u32       length32  = 0;
@@ -387,50 +381,76 @@ bool dwarf_cfi_build_from_elf(DwarfCfi *out, const Elf *elf, Allocator *alloc) {
         // covers (id field's start) + length32 bytes.
         size body_pos_start = IterIndex(&section_cur) - 4;
 
-        // In .eh_frame, id==0 means CIE; nonzero is the CIE_pointer for FDE
-        // (back-offset from the start of *the id field*).
-        if (id == 0) {
+        if (id == cie_id) {
             u64      cie_offset = (u64)(rec_start - section_data);
             DwarfCie cie;
             // Body iter starts just after the id field (since parse_cie
             // doesn't re-read id) and spans the remainder of the record.
             BufIter body = BufIterFromMemory(IterDataAt(&section_cur, IterIndex(&section_cur)), length32 - 4);
             if (parse_cie(&body, cie_offset, &cie)) {
-                if (!VecPushBackR(&out->cies, cie)) {
-                    DwarfCfiDeinit(out);
+                if (!VecPushBackR(&out->cies, cie))
                     return false;
-                }
             }
         } else {
-            // CIE pointer = (offset of the id field) - id, points at the
-            // start of the CIE record (i.e. at the CIE's length field).
-            // `id` is attacker-controlled; if it exceeds id_field_off
-            // the subtraction wraps to a bogus offset that would either
-            // miss every CIE (best case) or alias one (worst case).
-            // Skip the FDE explicitly.
-            u64 id_field_off = (u64)(IterIndex(&section_cur) - 4);
-            if ((u64)id > id_field_off) {
-                // length32 bounds were validated against IterRemainingLength
-                // when we set body_pos_start; we are jumping forward by
-                // length32 - 4 bytes from the post-id cursor.
-                IterMustMove(&section_cur, (i64)(length32 - 4));
-                continue;
+            // .debug_frame: `id` is the CIE's absolute section offset.
+            // .eh_frame: CIE pointer = (offset of the id field) - id, the
+            // start of the CIE record. `id` is attacker-controlled; if it
+            // exceeds id_field_off the subtraction wraps to a bogus offset
+            // that would miss every CIE (best) or alias one (worst) -- skip.
+            u64 cie_offset;
+            if (is_debug_frame) {
+                cie_offset = (u64)id;
+            } else {
+                u64 id_field_off = (u64)(IterIndex(&section_cur) - 4);
+                if ((u64)id > id_field_off) {
+                    IterMustMove(&section_cur, (i64)(length32 - 4));
+                    continue;
+                }
+                cie_offset = id_field_off - (u64)id;
             }
-            u64      cie_offset = id_field_off - (u64)id;
             DwarfFde fde;
             BufIter  body = BufIterFromMemory(IterDataAt(&section_cur, IterIndex(&section_cur)), length32 - 4);
-            if (parse_fde(&body, rec_start, cie_offset, out, section_data, eh->addr, &fde)) {
-                if (!VecPushBackR(&out->fdes, fde)) {
-                    DwarfCfiDeinit(out);
+            if (parse_fde(&body, rec_start, cie_offset, out, section_data, section_addr, &fde)) {
+                if (!VecPushBackR(&out->fdes, fde))
                     return false;
-                }
             }
         }
 
         // Same bounds proof as above: jump past this record's body.
         IterMustMove(&section_cur, (i64)((body_pos_start + length32) - IterIndex(&section_cur)));
     }
+    return true;
+}
 
+bool dwarf_cfi_build_from_elf(DwarfCfi *out, const Elf *elf, Allocator *alloc) {
+    if (!out || !elf || !alloc) {
+        LOG_FATAL("DwarfCfiBuildFromElf: NULL argument");
+    }
+    MemSet(out, 0, sizeof(*out));
+    out->allocator = alloc;
+    out->cies      = VecInitT(out->cies, alloc);
+    out->fdes      = VecInitT(out->fdes, alloc);
+
+    // Prefer .eh_frame. Fall back to .debug_frame: clang under -g often emits
+    // CFI only there and leaves .eh_frame empty (the project's unwinder and
+    // Sys/Backtrace would otherwise find no frames on such binaries).
+    const ElfSection *eh = ElfFindSection(elf, ".eh_frame");
+    bool              ok;
+    if (eh && eh->size > 0) {
+        out->eh_frame_addr = eh->addr;
+        ok                 = cfi_parse_section(out, BufData(ElfBuf(elf)) + eh->offset, eh->addr, eh->size, false);
+    } else {
+        const ElfSection *df = ElfFindSection(elf, ".debug_frame");
+        if (!df || df->size == 0) {
+            return true; // No CFI in this binary — still success, just empty.
+        }
+        out->eh_frame_addr = df->addr;
+        ok                 = cfi_parse_section(out, BufData(ElfBuf(elf)) + df->offset, df->addr, df->size, true);
+    }
+    if (!ok) {
+        DwarfCfiDeinit(out);
+        return false;
+    }
     return true;
 }
 
@@ -506,7 +526,7 @@ enum {
 
 typedef struct CfiVm {
     DwarfUnwindRow row;
-    DwarfUnwindRow initial;  // snapshot after running the CIE's instructions
+    DwarfUnwindRow initial;    // snapshot after running the CIE's instructions
     DwarfUnwindRow saved_state_stack[CFI_STATE_STACK];
     u8             saved_state_top;
     u64            location;   // current PC inside the FDE's range

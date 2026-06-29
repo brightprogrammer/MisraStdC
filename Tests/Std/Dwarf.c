@@ -113,38 +113,29 @@ bool test_dwarf_cfi_finds_fde_for_self(void) {
 
     DwarfCfi cfi;
     bool     built = DwarfCfiBuildFromElf(&cfi, &elf, base);
-    // Contract: the parse itself must succeed (an absent or sparse
-    // `.eh_frame` is still success, just fewer FDEs). Whether *this*
-    // binary's `.eh_frame` happens to cover the marker is an environment
-    // detail -- some build configurations (e.g. a thin, statically
-    // linked, unoptimised test executable) emit FDEs only for CRT stubs
-    // and leave application functions uncovered. So the contract we
-    // assert is conditional: IF an FDE covers the marker, it must report
-    // a range that actually contains the address, and the CFI VM must
-    // produce a usable unwind row for it. A "no FDE here" outcome is the
-    // parser behaving correctly, not a failure.
-    bool ok = built;
-    if (built) {
-        const DwarfFde *fde = DwarfCfiFindFde(&cfi, file_relative);
-        if (fde != NULL) {
-            // The FDE handed back must genuinely cover the queried
-            // address -- a caller relies on the returned range.
-            ok = ok && fde->pc_range > 0 && file_relative >= fde->pc_begin &&
-                 file_relative < fde->pc_begin + fde->pc_range;
+    // Contract (strict): the parse must succeed AND an FDE must cover this
+    // function. A -g test build always carries CFI for it -- via .eh_frame
+    // (gcc) or .debug_frame (clang, which leaves .eh_frame empty). Both are
+    // parsed now, so a "no FDE" outcome means the unwinder is broken on this
+    // toolchain (the historic clang .debug_frame gap), not correct behaviour.
+    const DwarfFde *fde = built ? DwarfCfiFindFde(&cfi, file_relative) : NULL;
+    bool            ok  = built && fde != NULL;
+    if (ok) {
+        // The FDE handed back must genuinely cover the queried address --
+        // a caller relies on the returned range.
+        ok = ok && fde->pc_range > 0 && file_relative >= fde->pc_begin && file_relative < fde->pc_begin + fde->pc_range;
 
-            // Run the CFI VM and verify we get a usable row: the CFA must
-            // be computable as `register + offset` (RSP+N on x86-64,
-            // SP/x29+N on arm64) -- the cross-ABI unwind invariant. We do
-            // NOT assert a rule for the return address: at a function's
-            // entry its location is ABI-specific. x86-64's CALL has
-            // already pushed it (rule OFFSET), but arm64's BL leaves it in
-            // the link register x30 with no CFI rule yet (UNDEFINED, i.e.
-            // "still in the RA register"). Confirmed against this binary's
-            // .eh_frame: the CIE emits only `DW_CFA_def_cfa sp, 0`.
-            DwarfUnwindRow row;
-            ok = ok && DwarfCfiBuildRow(&cfi, fde, file_relative, &row);
-            ok = ok && row.cfa.kind == DWARF_CFA_RULE_REG_OFFSET;
-        }
+        // Run the CFI VM and verify a usable row: the CFA must be computable
+        // as `register + offset` (RSP+N on x86-64, SP/x29+N on arm64) -- the
+        // cross-ABI unwind invariant. We do NOT assert a rule for the return
+        // address: at a function's entry its location is ABI-specific.
+        // x86-64's CALL has already pushed it (rule OFFSET), but arm64's BL
+        // leaves it in x30 with no CFI rule yet (UNDEFINED).
+        DwarfUnwindRow row;
+        ok = ok && DwarfCfiBuildRow(&cfi, fde, file_relative, &row);
+        ok = ok && row.cfa.kind == DWARF_CFA_RULE_REG_OFFSET;
+    }
+    if (built) {
         DwarfCfiDeinit(&cfi);
     }
 
