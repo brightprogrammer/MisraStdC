@@ -338,9 +338,30 @@ static bool test_iteration_target_at_length_fails(void) {
     return false;
 }
 
+// Deadend for get_node_random_access upper relative-bounds guard (List.c:476):
+//   (ridx > 0 && nidx + (u64)ridx >= list->length)  ->  ge_to_gt makes it `>`.
+// With node@nidx=4 and ridx=+4 the absolute target is index 8 on a length-8
+// list -- one past the end. Real code's `>=` fires LOG_FATAL ("Relative node
+// index outside of list bounds"). The `>` mutant lets target==length through,
+// then computes dist_from_tail = length-1-8 (underflow) and walks off the end
+// instead of aborting. We assert the call aborts.
+static bool test_random_access_relative_target_at_length_fails(void) {
+    WriteFmt("Testing get_node_random_access relative target == length aborts\n");
+
+    List(int) list = ListInit(get_test_alloc());
+    FILL_EIGHT(&list);
+
+    GenericList     *g    = GENERIC_LIST(&list);
+    GenericListNode *base = node_at_list(g, sizeof(int), 4);
+    (void)get_node_random_access(g, base, 4, 4);
+
+    return false;
+}
+
 int main(void) {
     TestFunction deadend_tests[] = {
         test_iteration_target_at_length_fails,
+        test_random_access_relative_target_at_length_fails,
         test_validate_corrupt_empty_list_fails,
         test_validate_null_list_fails,
         test_validate_invalid_magic_fails,

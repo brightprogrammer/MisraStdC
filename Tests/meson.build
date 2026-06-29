@@ -177,7 +177,6 @@ vec_tests = [
     ['Vec.Foreach', 'Std/Vec.Foreach.c'],
     ['Vec.Ops', 'Std/Vec.Ops.c'],
     ['Vec.Complex', 'Std/Vec.Complex.c'],
-    ['Vec.Mut', 'Std/Vec.Mut.c'],
     ['Vec.Blind', 'Std/Vec.Blind.c'],
 ]
 
@@ -194,7 +193,6 @@ graph_tests = [
 
 list_tests = [
     ['List.Type', 'Std/List.Type.c'],
-    ['List.Mut', 'Std/List.Mut.c'],
     ['List.Blind', 'Std/List.Blind.c'],
     ['List.Init', 'Std/List.Init.c'],
     ['List.Access', 'Std/List.Access.c'],
@@ -214,7 +212,6 @@ map_tests = [
     ['Map.Foreach', 'Std/Map.Foreach.c'],
     ['Map.Ops', 'Std/Map.Ops.c'],
     ['Map.Deadend', 'Std/Map.Deadend.c'],
-    ['Map.Mut', 'Std/Map.Mut.c'],
     ['Map.Blind', 'Std/Map.Blind.c'],
 ]
 

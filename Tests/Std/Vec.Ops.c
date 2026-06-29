@@ -14,6 +14,9 @@ bool test_vec_sort(void);
 // ---- swap_vec upper-bound deadend (Vec.Mutants4) ------------------------
 bool test_swap_idx_equal_length_aborts(void);
 
+// ---- swap_vec first-index upper-bound deadend (Vec.Mut) -----------------
+bool test_swap_idx1_equal_length_aborts(void);
+
 // Comparison function for sorting integers in ascending order
 int compare_ints_asc(const void *a, const void *b) {
     int val_a = *(const int *)a;
@@ -175,6 +178,31 @@ bool test_swap_idx_equal_length_aborts(void) {
     return false;
 }
 
+// ---- 476:14 cxx_ge_to_gt -------------------------------------------------
+// swap_vec, lower bound on the FIRST index:
+//   if (idx1 >= vec->length || idx2 >= vec->length)  -- the `idx1 >=` becomes
+//   `idx1 >`. The existing Vec.Ops test covers the idx2 comparison (col 37) by
+//   passing idx1 == 0 (in range); it never exercises idx1's boundary, so the
+//   col-14 mutant survives it. Drive idx1 == length (the out-of-bounds sentinel
+//   slot) with idx2 == 0 (in range). Real: idx1 >= length aborts. Mutant:
+//   idx1 > length is false and idx2 >= length is false, so the guard passes and
+//   it swaps an out-of-bounds slot -- so the abort must come from real code.
+bool test_swap_idx1_equal_length_aborts(void) {
+    WriteFmt("Testing swap rejects idx1 == length (476:14)\n");
+
+    typedef Vec(u32) U32Vec;
+    U32Vec vec = VecInit(&alloc);
+    for (u32 i = 0; i < 3; i++) {
+        VecPushBackR(&vec, i);
+    }
+
+    VecSwapItems(&vec, 3, 0); // idx1 == length -> must abort
+
+    // Unreachable on real code.
+    VecDeinit(&vec);
+    return false;
+}
+
 // Main function that runs all tests
 int main(void) {
     alloc = DefaultAllocatorInit();
@@ -183,7 +211,7 @@ int main(void) {
     // Array of test functions
     TestFunction tests[] = {test_vec_swap_items, test_vec_reverse, test_vec_sort};
 
-    TestFunction deadend_tests[] = {test_swap_idx_equal_length_aborts};
+    TestFunction deadend_tests[] = {test_swap_idx_equal_length_aborts, test_swap_idx1_equal_length_aborts};
 
     int total_tests   = sizeof(tests) / sizeof(tests[0]);
     int deadend_count = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
