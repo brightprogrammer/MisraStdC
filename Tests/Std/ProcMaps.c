@@ -294,6 +294,46 @@ bool test_pm2_find_gap_returns_null(void) {
     return ok;
 }
 
+// The scan must stop at `length`, never read into spare capacity. We push 3
+// entries then shrink `length` to 2 by hand; the 3rd stays resident at index 2.
+// An address that only matches the stale slot must return NULL -- the original
+// scans i=0,1 and misses it, while the `i <= VecLen` overrun would read index 2
+// and wrongly match. Kills `i < VecLen` -> `i <= VecLen`.
+bool test_pm2_find_no_overrun_past_length(void) {
+    DebugAllocator alloc = DebugAllocatorInit();
+    ProcMaps       pm;
+    MemSet(&pm, 0, sizeof(pm));
+    pm.raw     = StrInit(ALLOCATOR_OF(&alloc));
+    pm.entries = VecInitT(pm.entries, ALLOCATOR_OF(&alloc));
+
+    ProcMapEntry e0 = {.start = 0x1000, .end = 0x2000, .perms = 0, .file_offset = 0, .path = ""};
+    ProcMapEntry e1 = {.start = 0x3000, .end = 0x4000, .perms = 0, .file_offset = 0, .path = ""};
+    ProcMapEntry e2 = {.start = 0x5000, .end = 0x6000, .perms = 0, .file_offset = 0, .path = ""};
+
+    bool pushed = VecPushBackR(&pm.entries, e0) && VecPushBackR(&pm.entries, e1) && VecPushBackR(&pm.entries, e2);
+    if (!pushed) {
+        ProcMapsDeinit(&pm);
+        DebugAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    // Logically drop the 3rd entry; its bytes stay at index 2 in capacity.
+    pm.entries.length = 2;
+
+    // 0x5500 is inside the stale e2 range only -- must be unreachable.
+    const ProcMapEntry *hit = ProcMapsFindByAddr(&pm, 0x5500);
+    bool                ok  = (hit == NULL);
+
+    // Sanity: live entries are still found at the right slots.
+    const ProcMapEntry *h0 = ProcMapsFindByAddr(&pm, 0x1500);
+    const ProcMapEntry *h1 = ProcMapsFindByAddr(&pm, 0x3500);
+    ok                     = ok && h0 != NULL && h0->start == 0x1000 && h1 != NULL && h1->start == 0x3000;
+
+    ProcMapsDeinit(&pm);
+    DebugAllocatorDeinit(&alloc);
+    return ok;
+}
+
 // --------------------------------------------------------------------------
 // ProcMapsDeinit: actually frees the raw buffer + entries vector.
 // --------------------------------------------------------------------------
@@ -371,6 +411,7 @@ int main(void) {
         test_pm2_find_end_boundary_excluded,
         test_pm2_find_below_all_returns_null,
         test_pm2_find_gap_returns_null,
+        test_pm2_find_no_overrun_past_length,
         test_pm2_deinit_releases_all,
         test_pm2_min_addr_is_lowest_start,
     };
