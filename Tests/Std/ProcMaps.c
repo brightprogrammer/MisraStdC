@@ -623,6 +623,43 @@ bool test_pm_parse_large_file_reads_all_chunks(void) {
     return ok;
 }
 
+// A File that opens but whose reads error out drives load_from_file's
+// read-failure arm. A directory opens read-only yet every read() returns an
+// error, so the chunked reader fails AFTER its first StrReserve has already
+// grown `raw` -- the failure arm must release that partially-grown buffer.
+// Under a DebugAllocator the live-allocation count must return to baseline;
+// if the arm's ProcMapsDeinit is removed the kilobyte raw buffer leaks and the
+// count stays elevated. Asserting baseline (and that the load reported failure)
+// kills the removed-Deinit mutation on the read-failure arm.
+bool test_pm_load_from_file_read_fail_frees_raw(void) {
+    DebugAllocator dbg  = DebugAllocatorInit();
+    Allocator     *base = ALLOCATOR_OF(&dbg);
+
+    // A directory: open(2) succeeds (FileIsOpen true) but read(2) returns -1.
+    File dir = FileOpen("/proc/self", "rb");
+    if (!FileIsOpen(&dir)) {
+        DebugAllocatorDeinit(&dbg);
+        return false;
+    }
+
+    size before = DebugAllocatorLiveCount(&dbg);
+
+    ProcMaps m;
+    bool     loaded = ProcMapsLoadFrom(&m, &dir, base);
+    FileClose(&dir);
+
+    // The unreadable directory makes the chunked read fail, so the loader
+    // takes the read-failure cleanup arm and reports failure.
+    bool ok = (loaded == false);
+
+    // That arm must have freed everything the partial read reserved.
+    size after = DebugAllocatorLiveCount(&dbg);
+    ok         = ok && (after == before);
+
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting ProcMaps tests\n\n");
 
@@ -647,6 +684,7 @@ int main(void) {
         test_pm_parse_min_addr_descending,
         test_pm_parse_skips_malformed_line,
         test_pm_parse_large_file_reads_all_chunks,
+        test_pm_load_from_file_read_fail_frees_raw,
     };
 
     return run_test_suite(tests, sizeof(tests) / sizeof(tests[0]), NULL, 0, "ProcMaps");
