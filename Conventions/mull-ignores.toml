@@ -5426,3 +5426,38 @@ rationale   = "ProcMapsDeinit on the load_from_bytes StrReserve-OOM arm; reachab
 author      = "procmaps-agent"
 created     = "2026-06-28"
 region_hash = "sha256:55e795c037a0ada364ce56b65984342d8535d1acdcae8b9de320df99ea59aa6c"
+
+# --- PdbCache: equivalent residue after de-white-boxing + recovery (12->3 killed incl. 108 via BudgetAllocator, 147 dead-code removed; these 3 unobservable via the public API) ---
+
+[[ignore]]
+id          = "PDBCACHE-51-REPLACES"
+file        = "Source/Misra/Sys/PdbCache.c"
+lines       = [51, 51]
+mutator     = "cxx_replace_scalar_call"
+bucket      = "C"
+rationale   = "Basename-branch sys_path_exists: forcing it truthy only diverges when the basename PDB is absent, where find_pdb would otherwise return false; the mutant instead returns the path and PdbOpen then fails on it -> identical resolve failure. sys_path_exists (FileOpen rb) and PdbOpen agree on openability, so no public input distinguishes. Equivalent."
+author      = "pdbcache-agent"
+created     = "2026-06-28"
+region_hash = "sha256:c37eb8c4507ee0813b62842444f0a4759a8d83b7c3c1fbfd2a24d95c3a583590"
+
+[[ignore]]
+id          = "PDBCACHE-64-ASSIGNCO"
+file        = "Source/Misra/Sys/PdbCache.c"
+lines       = [64, 64]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "entry->pe_open is _Bool; =42 normalizes to 1 and is read only for truthiness (if(!pe_open) / if(pe_open)), never compared to 1 or widened. Equivalent."
+author      = "pdbcache-agent"
+created     = "2026-06-28"
+region_hash = "sha256:7dfd1e7e3cc3ec7304ce7609d589f61c3f51e5ed560309679735093d8bbd9fb7"
+
+[[ignore]]
+id          = "PDBCACHE-88-ASSIGNCO"
+file        = "Source/Misra/Sys/PdbCache.c"
+lines       = [88, 88]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "entry->pdb_open is _Bool; =42 normalizes to 1 and is read only for truthiness. Equivalent."
+author      = "pdbcache-agent"
+created     = "2026-06-28"
+region_hash = "sha256:0651cbbf08bc81de9dbab909408cc6f3d7b1e703f9ad7a2f97f511f7f6271d02"
