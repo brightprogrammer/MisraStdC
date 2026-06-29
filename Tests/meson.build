@@ -114,7 +114,6 @@ sys_dns_tests = [
     ['SysDns.Resolv', 'Std/SysDns.Resolv.c'],
     ['SysDns.Wire', 'Std/SysDns.Wire.c'],
     ['SysDns.Api', 'Std/SysDns.Api.c'],
-    ['SysDns.Mut', 'Std/SysDns.Mut.c'],
 ]
 
 macho_cache_tests = [

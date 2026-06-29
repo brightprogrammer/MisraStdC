@@ -793,6 +793,32 @@ static bool test_sd4_deinit_no_leak(void) {
     return ok;
 }
 
+// A REAL init reads /etc/hosts and /etc/resolv.conf from disk, slurping
+// each into a transient `buf` inside the parser before tearing it down.
+// Driving init + deinit under a DebugAllocator and asserting the live
+// count returns to baseline pins those internal slurp-buffer teardowns:
+// if either parser's `StrDeinit(&buf)` is dropped, the file-sized buffer
+// leaks and the count stays elevated. The crafted-table deinit test above
+// cannot reach these buffers -- it never touches disk, so the parsers (and
+// their `buf`) never run. The run environment's /etc/hosts (always has
+// `localhost`) and /etc/resolv.conf (at least one `nameserver`) are both
+// non-empty here, so each `buf` genuinely allocates a backing store.
+static bool test_sd4_init_real_disk_no_leak(void) {
+    DebugAllocator alloc    = DebugAllocatorInit();
+    Allocator     *a        = ALLOCATOR_OF(&alloc);
+    size           baseline = DebugAllocatorLiveCount(&alloc);
+
+    DnsResolver r;
+    bool        ok = dns_resolver_init(&r, a);
+
+    DnsResolverDeinit(&r);
+
+    bool back = DebugAllocatorLiveCount(&alloc) == baseline;
+
+    DebugAllocatorDeinit(&alloc);
+    return ok && back;
+}
+
 // ---------------------------------------------------------------------------
 
 int main(void) {
@@ -829,6 +855,7 @@ int main(void) {
         test_sd4_init_loads_nameservers,
         test_sd4_init_null_alloc,
         test_sd4_deinit_no_leak,
+        test_sd4_init_real_disk_no_leak,
     };
 
     return run_test_suite(tests, sizeof(tests) / sizeof(tests[0]), NULL, 0, "SysDns.Api");
