@@ -2067,6 +2067,49 @@ static bool test_from_f64_exp_oom_returns_null(void) {
     return result;
 }
 
+// 533:51 cxx_eq_to_ne -- skip_prefix base-2 uppercase 'B' arm. col 51 is the
+// SECOND `==` (the 'B' arm). Feed an UPPERCASE "0B101" with explicit base 2:
+// real code recognises 'B' and skips the prefix, "101" base 2 == 5; the mutant
+// (`prefix_char != 'B'`) does not skip, then meets 'B' as a non-base-2 digit
+// and fails.
+static bool test_to_u64_base2_uppercase_prefix_skipped(void) {
+    WriteFmt("Testing StrToU64 skips 0B prefix on explicit base 2 (533:51)\n");
+
+    DefaultAllocator alloc  = DefaultAllocatorInit();
+    Str              s      = StrInitFromZstr("0B101", &alloc);
+    StrParseConfig   config = {.base = 2};
+    u64              value  = 0;
+    bool             ok     = StrToU64(&s, &value, &config);
+
+    // Real: uppercase prefix skipped, "101" base 2 == 5.
+    bool result = ok && (value == 5);
+
+    StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// 1108:14 cxx_init_const -- StrToF64 exponent block `bool have_exp_digits =
+// false` initialiser replaced with 42 (truthy), so the "Missing exponent
+// digits" guard never fires. Feed "1e" (an 'e' with no exponent digits): real
+// code keeps have_exp_digits false and fails the parse; the mutant reports
+// success with value 1.0.
+static bool test_to_f64_missing_exponent_digits_fails(void) {
+    WriteFmt("Testing StrToF64 rejects missing exponent digits (1108:14)\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              s     = StrInitFromZstr("1e", &alloc);
+    f64              value = 0.0;
+    bool             ok    = StrToF64(&s, &value, NULL);
+
+    // Real: "1e" has no exponent digits -> parse must fail.
+    bool result = (ok == false);
+
+    StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 // Main function that runs all tests
 int main(void) {
     WriteFmt("[INFO] Starting Str.Convert tests\n\n");
@@ -2157,7 +2200,10 @@ int main(void) {
         test_from_u64_success_returns_str,
         test_from_u64_oom_returns_null,
         test_from_f64_int_oom_returns_null,
-        test_from_f64_exp_oom_returns_null
+        test_from_f64_exp_oom_returns_null,
+        // skip_prefix uppercase 'B' arm + StrToF64 exponent init (Str.Mut)
+        test_to_u64_base2_uppercase_prefix_skipped,
+        test_to_f64_missing_exponent_digits_fails
     };
 
     // Array of deadend test functions

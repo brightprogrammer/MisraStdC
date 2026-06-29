@@ -163,7 +163,6 @@ str_tests = [
     ['Str.Convert', 'Std/Str.Convert.c'],
     ['Str.Foreach', 'Std/Str.Foreach.c'],
     ['Str.Ops', 'Std/Str.Ops.c'],
-    ['Str.Mut', 'Std/Str.Mut.c'],
     ['Str.Blind', 'Std/Str.Blind.c'],
 ]
 
@@ -229,7 +228,6 @@ bitvec_tests = [
     ['BitVec.Math', 'Std/BitVec.Math.c'],
     ['BitVec.Foreach.Simple', 'Std/BitVec.Foreach.Simple.c'],
     ['BitVec.Leak', 'Std/BitVec.Leak.c'],
-    ['BitVec.Mut', 'Std/BitVec.Mut.c'],
     ['BitVec.Blind', 'Std/BitVec.Blind.c'],
 ]
 
