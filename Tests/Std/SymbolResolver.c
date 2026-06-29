@@ -55,6 +55,20 @@ static __attribute__((noinline)) void sr1_marker_b(void) {
                              : "memory");
 }
 
+// A bare, global assembly label: no `.type` directive leaves it STT_NOTYPE
+// (the type hand-written assembly functions carry) and no `.size` leaves it
+// st_size == 0. The resolver keeps NOTYPE symbols and matches size-0 ones
+// only at their exact value, so resolving this label's own address exercises
+// both rules together.
+__asm__(
+    ".pushsection .text.sr_notype, \"ax\", @progbits\n"
+    ".globl sr_notype_marker\n"
+    "sr_notype_marker:\n"
+    "    ret\n"
+    ".popsection\n"
+);
+extern void sr_notype_marker(void);
+
 // ---------------------------------------------------------------------------
 // Helper mirroring Tests/Std/SymbolResolver.c idiom.
 // ---------------------------------------------------------------------------
@@ -531,6 +545,166 @@ bool test_sr_deinit_frees_everything(void) {
 }
 
 
+// === Symbol-table match rules (type filter, size-0 exact, range upper) =====
+
+// A bare NOTYPE, size-0 global symbol resolves to its own name at its exact
+// address. Pins the "keep NOTYPE" arm of the type filter and the "size-0
+// matches only at st_value" arm: dropping NOTYPE or matching size-0 away from
+// the exact address both collapse the name back to NULL.
+bool test_sr_notype_size0_resolves_at_exact(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    SymbolResolver   res;
+    if (!SymbolResolverInit(&res, ALLOCATOR_OF(&alloc))) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    ResolvedSymbol r;
+    bool           ok = SymbolResolverResolve(&res, (void *)&sr_notype_marker, &r);
+    ok                = ok && r.symbol_name && ZstrFindSubstring(r.symbol_name, "sr_notype_marker") != NULL;
+    // size-0 symbol: it matched at its exact value, so the offset is zero.
+    ok = ok && r.offset == 0;
+
+    SymbolResolverDeinit(&res);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// A data (OBJECT) symbol resolves to its name. Pins the "keep OBJECT" arm of
+// the type filter: dropping OBJECT renders the global as module+offset.
+bool test_sr_object_symbol_resolves(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    SymbolResolver   res;
+    if (!SymbolResolverInit(&res, ALLOCATOR_OF(&alloc))) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    ResolvedSymbol r;
+    bool           ok = SymbolResolverResolve(&res, (void *)&sr_cache_data_marker, &r);
+    ok                = ok && r.symbol_name && ZstrFindSubstring(r.symbol_name, "sr_cache_data_marker") != NULL;
+
+    SymbolResolverDeinit(&res);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// One past the end of a sized symbol is NOT inside it. Resolving base+size
+// must not report the same symbol at offset==size: pins the strict `<` upper
+// bound of the range test against a `<=` that would swallow the next byte.
+bool test_sr_range_upper_excludes_end(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    SymbolResolver   res;
+    if (!SymbolResolverInit(&res, ALLOCATOR_OF(&alloc))) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    ResolvedSymbol r0;
+    bool           ok = SymbolResolverResolve(&res, (void *)&sr1_marker_a, &r0);
+    ok                = ok && r0.symbol_name && r0.symbol_size > 0;
+    if (ok) {
+        u64            base = (u64)(void *)&sr1_marker_a;
+        ResolvedSymbol re;
+        if (SymbolResolverResolve(&res, (void *)(base + r0.symbol_size), &re)) {
+            // The one-past-end address must not land back inside marker_a:
+            // either no name, or a different enclosing symbol.
+            ok = ok && !(re.symbol_name && re.symbol_value == r0.symbol_value && re.offset == r0.symbol_size);
+        }
+    }
+
+    SymbolResolverDeinit(&res);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Teardown with TWO modules cached: the deinit loop must walk forward across
+// both entries. A backward step frees only the first and leaks the second,
+// which the DebugAllocator live count catches.
+bool test_sr_deinit_two_modules_frees_all(void) {
+    DebugAllocator alloc    = DebugAllocatorInit();
+    size           baseline = DebugAllocatorLiveCount(&alloc);
+
+    SymbolResolver res;
+    if (!SymbolResolverInit(&res, ALLOCATOR_OF(&alloc))) {
+        DebugAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    ResolvedSymbol ra;
+    bool           ok = SymbolResolverResolve(&res, (void *)&sr1_marker_a, &ra) && ra.module_path;
+
+    u64 other = 0;
+    ok        = ok && find_other_module_addr(ra.module_path, &other);
+
+    ResolvedSymbol ro;
+    ok = ok && SymbolResolverResolve(&res, (void *)other, &ro) && ro.module_path;
+    ok = ok && ZstrCompare(ra.module_path, ro.module_path) != 0; // two distinct cache entries
+
+    SymbolResolverDeinit(&res);
+    ok = ok && DebugAllocatorLiveCount(&alloc) == baseline;
+
+    DebugAllocatorDeinit(&alloc);
+    return ok;
+}
+
+#if FEATURE_PARSER_DWARF
+// === FindFde: .eh_frame FDE lookup + module base ===========================
+
+// FindFde locates the FDE covering a known function and reports the module's
+// load base. The base must equal what Resolve reports for the same module:
+// pins the addr/load_base/file_relative arithmetic and the *out_module_base
+// assignment, all of which steer the FDE search and the returned base.
+bool test_sr_findfde_locates_fde_and_base(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    SymbolResolver   res;
+    if (!SymbolResolverInit(&res, ALLOCATOR_OF(&alloc))) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    ResolvedSymbol r;
+    bool           ok = SymbolResolverResolve(&res, (void *)&sr1_marker_a, &r) && r.module_base != 0;
+
+    const DwarfCfi *cfi  = NULL;
+    const DwarfFde *fde  = NULL;
+    u64             base = 0;
+    ok                   = ok && SymbolResolverFindFde(&res, (void *)&sr1_marker_a, &cfi, &fde, &base);
+    ok                   = ok && cfi != NULL && fde != NULL;
+    // Same module => the FDE-side base equals the Resolve-side base.
+    ok = ok && base == r.module_base;
+
+    SymbolResolverDeinit(&res);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Teardown after a FindFde call frees the lazily-built CFI. Dropping the
+// DwarfCfiDeinit arm leaks it; the live count fails to return to baseline.
+bool test_sr_findfde_teardown_frees_cfi(void) {
+    DebugAllocator alloc    = DebugAllocatorInit();
+    size           baseline = DebugAllocatorLiveCount(&alloc);
+
+    SymbolResolver res;
+    if (!SymbolResolverInit(&res, ALLOCATOR_OF(&alloc))) {
+        DebugAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    const DwarfCfi *cfi  = NULL;
+    const DwarfFde *fde  = NULL;
+    u64             base = 0;
+    bool            ok   = SymbolResolverFindFde(&res, (void *)&sr1_marker_a, &cfi, &fde, &base);
+    ok                   = ok && DebugAllocatorLiveCount(&alloc) > baseline; // CFI was built
+
+    SymbolResolverDeinit(&res);
+    ok = ok && DebugAllocatorLiveCount(&alloc) == baseline;
+
+    DebugAllocatorDeinit(&alloc);
+    return ok;
+}
+#endif
+
 int main(void) {
     WriteFmt("[INFO] Starting SymbolResolver tests\n\n");
 
@@ -551,6 +725,14 @@ int main(void) {
         test_sr_cache_cross_module_distinct,
         test_sr_cache_other_module_rehit,
         test_sr_deinit_frees_everything,
+        test_sr_notype_size0_resolves_at_exact,
+        test_sr_object_symbol_resolves,
+        test_sr_range_upper_excludes_end,
+        test_sr_deinit_two_modules_frees_all,
+#if FEATURE_PARSER_DWARF
+        test_sr_findfde_locates_fde_and_base,
+        test_sr_findfde_teardown_frees_cfi,
+#endif
     };
 
     return run_test_suite(tests, sizeof(tests) / sizeof(tests[0]), NULL, 0, "SymbolResolver");

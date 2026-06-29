@@ -764,6 +764,75 @@ if opt_sys_symresolve and tests_need_posix_exe
         test('SymbolResolver.Sidecar', sidecar_main,
             depends: [sidecar_debug],
             timeout: 120)
+
+        # Sidecar discovery via the `{dir}/.debug/{name}` search arm (path #3).
+        # The sidecar is placed ONLY under a `.debug/` subdir next to the
+        # stripped binary -- never adjacent -- so the resolver must fall past
+        # path #2 to find it. A meson custom_target output can't contain `/`,
+        # so a small shell step splits the debug info, drops it under `.debug/`,
+        # and links the stripped image to that basename in one build action.
+        bash = find_program('bash', required: false)
+        if bash.found()
+            sidecarsub_image = executable(
+                'SymbolResolver.SidecarSub.image',
+                files('Std/SymbolResolver.SidecarSub.c'),
+                link_with: [misra_std_no_backtrace],
+                dependencies: [test_util_dep_no_backtrace],
+                c_args: test_args + ['-gdwarf-4'],
+                include_directories: inc_misra,
+                link_args: ['-Wl,--build-id=none'],
+                install: false
+            )
+
+            sidecarsub_main = custom_target(
+                'SymbolResolver.SidecarSub',
+                input: sidecarsub_image,
+                output: 'SymbolResolver.SidecarSub',
+                command: [
+                    bash, '-c',
+                    'set -e; in="$1"; out="$2"; oc="$3"; d="$(dirname "$out")"; ' +
+                    'mkdir -p "$d/.debug"; ' +
+                    '"$oc" --only-keep-debug "$in" "$d/.debug/subdir.debug"; ' +
+                    '"$oc" --strip-all --add-gnu-debuglink="$d/.debug/subdir.debug" "$in" "$out"',
+                    'bash', '@INPUT@', '@OUTPUT@', objcopy.full_path()
+                ],
+                build_by_default: true
+            )
+
+            test('SymbolResolver.SidecarSub', sidecarsub_main, timeout: 120)
+        endif
+
+        # `.debug_info` name + `.debug_line` fallback for stripped symbols.
+        # Built DWARF-4 (the parser's only version) with column info off, then
+        # `objcopy -N` deletes the marker symbols from `.symtab` while keeping
+        # the debug sections. The stripped copy runs and resolves its own
+        # markers purely through DWARF.
+        dwarffallback_image = executable(
+            'SymbolResolver.DwarfFallback.image',
+            files('Std/SymbolResolver.DwarfFallback.c'),
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
+            c_args: test_args + ['-gdwarf-4', '-gno-column-info'],
+            include_directories: inc_misra,
+            link_args: ['-Wl,--build-id=none'],
+            install: false
+        )
+
+        dwarffallback_main = custom_target(
+            'SymbolResolver.DwarfFallback',
+            input: dwarffallback_image,
+            output: 'SymbolResolver.DwarfFallback',
+            command: [
+                objcopy,
+                '-N', 'df_marker_a',
+                '-N', 'df_marker_b',
+                '@INPUT@',
+                '@OUTPUT@',
+            ],
+            build_by_default: true
+        )
+
+        test('SymbolResolver.DwarfFallback', dwarffallback_main, timeout: 120)
     endif
 endif
 
