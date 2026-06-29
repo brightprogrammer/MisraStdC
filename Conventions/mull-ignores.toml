@@ -5461,3 +5461,465 @@ rationale   = "entry->pdb_open is _Bool; =42 normalizes to 1 and is read only fo
 author      = "pdbcache-agent"
 created     = "2026-06-28"
 region_hash = "sha256:0651cbbf08bc81de9dbab909408cc6f3d7b1e703f9ad7a2f97f511f7f6271d02"
+
+[[ignore]]
+id          = "SYMRES-35-EQNE"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [35, 35]
+mutator     = "cxx_eq_to_ne"
+bucket      = "B"
+rationale   = "append_build_id_path `if (n == 0) return` guard. Its hex output is consumed only by the build-id sidecar probe (try_open_sidecar path 1), which opens /usr/lib/debug/.build-id/<hex>.debug -- a root-owned tree absent/unwritable on CI runners (Tests/meson.build), so that success block never fires and the rendered string is unobservable through the public API."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:675b180d04364625cfba79c9f6a6a1d85d9ef8a2ddc4833f48201013f27689ca"
+
+[[ignore]]
+id          = "SYMRES-40-INIT"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [40, 40]
+mutator     = "cxx_init_const"
+bucket      = "B"
+rationale   = "Loop init of append_build_id_path's hex-rendering loop; output feeds only the unreachable build-id probe (see SYMRES-35-EQNE)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:ba7c3a4c3752c50cbda71e88fb0f0754af04a374621427043284d6fbe43a75db"
+
+[[ignore]]
+id          = "SYMRES-40-LTGE"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [40, 40]
+mutator     = "cxx_lt_to_ge"
+bucket      = "B"
+rationale   = "Loop bound of append_build_id_path's hex-rendering loop; output feeds only the unreachable build-id probe (see SYMRES-35-EQNE)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:ba7c3a4c3752c50cbda71e88fb0f0754af04a374621427043284d6fbe43a75db"
+
+[[ignore]]
+id          = "SYMRES-40-LTLE"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [40, 40]
+mutator     = "cxx_lt_to_le"
+bucket      = "B"
+rationale   = "Loop bound of append_build_id_path's hex-rendering loop; output feeds only the unreachable build-id probe (see SYMRES-35-EQNE)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:ba7c3a4c3752c50cbda71e88fb0f0754af04a374621427043284d6fbe43a75db"
+
+[[ignore]]
+id          = "SYMRES-40-INC"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [40, 40]
+mutator     = "cxx_pre_inc_to_pre_dec"
+bucket      = "B"
+rationale   = "Loop increment of append_build_id_path's hex-rendering loop; output feeds only the unreachable build-id probe (see SYMRES-35-EQNE)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:ba7c3a4c3752c50cbda71e88fb0f0754af04a374621427043284d6fbe43a75db"
+
+[[ignore]]
+id          = "SYMRES-58-NEEQ"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [58, 58]
+mutator     = "cxx_ne_to_eq"
+bucket      = "B"
+rationale   = "sidecar_matches build-id branch (build_id_size compare). Reached only from try_open_sidecar path 1 (by_build_id=true), the unreachable build-id probe (see SYMRES-35-EQNE)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:a6cc3a4eea76e0d02ad49b54f6b6bed3d406581d027f2d7cd502b65d364fd2b6"
+
+[[ignore]]
+id          = "SYMRES-60-CALL"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [60, 60]
+mutator     = "cxx_replace_scalar_call"
+bucket      = "B"
+rationale   = "sidecar_matches build-id MemCompare; build-id arm unreachable (see SYMRES-58-NEEQ)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:9e15fc85847b9cd896a22c9377817f9c298074c3ca061ccae9f825f794f44049"
+
+[[ignore]]
+id          = "SYMRES-60-EQNE"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [60, 60]
+mutator     = "cxx_eq_to_ne"
+bucket      = "B"
+rationale   = "sidecar_matches build-id MemCompare result test; build-id arm unreachable (see SYMRES-58-NEEQ)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:9e15fc85847b9cd896a22c9377817f9c298074c3ca061ccae9f825f794f44049"
+
+[[ignore]]
+id          = "SYMRES-76-GTGE"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [76, 76]
+mutator     = "cxx_gt_to_ge"
+bucket      = "B"
+rationale   = "`build_id_size > 0` guard on the build-id probe branch; the branch needs the unreachable /usr/lib/debug/.build-id tree (see SYMRES-35-EQNE)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:d444f5f0d4166cbcf3b43fa5ca315bf24081131dd48b8fbf6fc143588d11f7c0"
+
+[[ignore]]
+id          = "SYMRES-76-GTLE"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [76, 76]
+mutator     = "cxx_gt_to_le"
+bucket      = "B"
+rationale   = "`build_id_size > 0` guard on the build-id probe branch; unreachable (see SYMRES-35-EQNE)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:d444f5f0d4166cbcf3b43fa5ca315bf24081131dd48b8fbf6fc143588d11f7c0"
+
+[[ignore]]
+id          = "SYMRES-79-CALL"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [79, 79]
+mutator     = "cxx_remove_void_call"
+bucket      = "B"
+rationale   = "append_build_id_path call inside the unreachable build-id branch (see SYMRES-35-EQNE)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:bfd8d52bc36963daf729ce66e9aae2913137bb7f33400f8ecafe8841d8cd5506"
+
+[[ignore]]
+id          = "SYMRES-81-CALL"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [81, 81]
+mutator     = "cxx_replace_scalar_call"
+bucket      = "B"
+rationale   = "sys_path_exists in the build-id branch; unreachable (no writable /usr/lib/debug/.build-id)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:f7ea199a6b9669ce9d0bd0483b6b4cdfa685648a49085a7ab3b9e697159b217c"
+
+[[ignore]]
+id          = "SYMRES-82-CALL"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [82, 82]
+mutator     = "cxx_replace_scalar_call"
+bucket      = "B"
+rationale   = "sidecar_matches call in the build-id branch; unreachable (see SYMRES-35-EQNE)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:91820377c79fc180dbe62ddf0a163a5dadff823a5d13e6129e9ce5af8da96ffa"
+
+[[ignore]]
+id          = "SYMRES-83-CALL"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [83, 83]
+mutator     = "cxx_remove_void_call"
+bucket      = "B"
+rationale   = "StrDeinit on build-id-match success; unreachable branch (see SYMRES-35-EQNE)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:bd783615693bc783e159dffcd58a5c45c28e0078be5c697b3fc5f3d81ade7df2"
+
+[[ignore]]
+id          = "SYMRES-86-CALL"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [86, 86]
+mutator     = "cxx_remove_void_call"
+bucket      = "B"
+rationale   = "ElfDeinit on build-id mismatch; unreachable branch (see SYMRES-35-EQNE)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:5da16a18d4a5a45e8f680a5dc24bc3e7bcb52bf21245c87b995dd3bff5774b39"
+
+[[ignore]]
+id          = "SYMRES-99-CALL"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [99, 99]
+mutator     = "cxx_replace_scalar_call"
+bucket      = "C"
+rationale   = "path-2 sys_path_exists. Replacing it with a truthy constant still gates on the immediately-following ElfOpen, which re-checks existence, so a missing file still fails the open. Equivalent."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:f7ea199a6b9669ce9d0bd0483b6b4cdfa685648a49085a7ab3b9e697159b217c"
+
+[[ignore]]
+id          = "SYMRES-100-CALL"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [100, 100]
+mutator     = "cxx_replace_scalar_call"
+bucket      = "C"
+rationale   = "path-2 sidecar_matches(...,by_build_id=false). The debuglink arm currently returns true unconditionally (the CRC cross-check is unimplemented), so ->42 is identical. Equivalent given the present code (reflects an unfinished feature, not a contract gap)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:a517c223604c84fb1abafc1174b11164b07a0027ce694417bf4d64cc832f1ca6"
+
+[[ignore]]
+id          = "SYMRES-112-CALL"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [112, 112]
+mutator     = "cxx_replace_scalar_call"
+bucket      = "C"
+rationale   = "path-3 sys_path_exists; redundant with the following ElfOpen (see SYMRES-99-CALL). Equivalent."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:f7ea199a6b9669ce9d0bd0483b6b4cdfa685648a49085a7ab3b9e697159b217c"
+
+[[ignore]]
+id          = "SYMRES-113-CALL"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [113, 113]
+mutator     = "cxx_replace_scalar_call"
+bucket      = "C"
+rationale   = "path-3 sidecar_matches debuglink arm; returns true unconditionally (see SYMRES-100-CALL). Equivalent."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:a517c223604c84fb1abafc1174b11164b07a0027ce694417bf4d64cc832f1ca6"
+
+[[ignore]]
+id          = "SYMRES-104-CALL"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [104, 104]
+mutator     = "cxx_remove_void_call"
+bucket      = "B"
+rationale   = "path-2 ElfDeinit runs only when sidecar_matches returns false, which the debuglink arm never does (see SYMRES-100-CALL); dead branch."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:5da16a18d4a5a45e8f680a5dc24bc3e7bcb52bf21245c87b995dd3bff5774b39"
+
+[[ignore]]
+id          = "SYMRES-117-CALL"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [117, 117]
+mutator     = "cxx_remove_void_call"
+bucket      = "B"
+rationale   = "path-3 ElfDeinit mismatch cleanup; dead for the same reason (see SYMRES-104-CALL)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:5da16a18d4a5a45e8f680a5dc24bc3e7bcb52bf21245c87b995dd3bff5774b39"
+
+[[ignore]]
+id          = "SYMRES-123-CALL"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [123, 123]
+mutator     = "cxx_remove_void_call"
+bucket      = "B"
+rationale   = "path-4 (/usr/lib/debug{dir}/{name}) sys_append_dirname; path-4 success needs a writable /usr/lib/debug, absent on CI runners. Unreachable."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:14b26f1aeebd0da13ffd02175202d190be552f53669d611286a2acd4a94b3b82"
+
+[[ignore]]
+id          = "SYMRES-126-CALL"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [126, 126]
+mutator     = "cxx_replace_scalar_call"
+bucket      = "B"
+rationale   = "path-4 sys_path_exists; unreachable (see SYMRES-123-CALL)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:f7ea199a6b9669ce9d0bd0483b6b4cdfa685648a49085a7ab3b9e697159b217c"
+
+[[ignore]]
+id          = "SYMRES-127-CALL"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [127, 127]
+mutator     = "cxx_replace_scalar_call"
+bucket      = "B"
+rationale   = "path-4 sidecar_matches; unreachable (see SYMRES-123-CALL)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:a517c223604c84fb1abafc1174b11164b07a0027ce694417bf4d64cc832f1ca6"
+
+[[ignore]]
+id          = "SYMRES-128-CALL"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [128, 128]
+mutator     = "cxx_remove_void_call"
+bucket      = "B"
+rationale   = "path-4 StrDeinit on success; unreachable (see SYMRES-123-CALL)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:bd783615693bc783e159dffcd58a5c45c28e0078be5c697b3fc5f3d81ade7df2"
+
+[[ignore]]
+id          = "SYMRES-131-CALL"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [131, 131]
+mutator     = "cxx_remove_void_call"
+bucket      = "B"
+rationale   = "path-4 ElfDeinit on mismatch; unreachable (see SYMRES-123-CALL)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:5da16a18d4a5a45e8f680a5dc24bc3e7bcb52bf21245c87b995dd3bff5774b39"
+
+[[ignore]]
+id          = "SYMRES-166-ASGN"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [166, 166]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "entry.has_sidecar = true -> 42; has_sidecar is _Bool, read only for truthiness (cache_entry->has_sidecar in Resolve/FindFde), never compared to 1 or widened. Equivalent."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:4ce58dac162fa78fccb6ad46182cf1fa372d797e18c09df16e05d77a8ce8129c"
+
+[[ignore]]
+id          = "SYMRES-170-CALL"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [170, 170]
+mutator     = "cxx_remove_void_call"
+bucket      = "B"
+rationale   = "ElfDeinit(&entry.sidecar) on the VecPushBackR allocation-failure cleanup arm; no fault-injection harness reaches this path and the source frees correctly (approved alloc-failure-cleanup ignore)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:1f1a1f1616d1ea968a8c1eb995c4e847e266cc8c36074a6570ec97277ca43462"
+
+[[ignore]]
+id          = "SYMRES-171-CALL"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [171, 171]
+mutator     = "cxx_remove_void_call"
+bucket      = "B"
+rationale   = "ElfDeinit(&entry.elf) on the same VecPushBackR allocation-failure cleanup arm (see SYMRES-170-CALL)."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:a5b415c5343ffbea1e7a6ed3c876946fb99cd76150d59e71510dcc0a298449c5"
+
+[[ignore]]
+id          = "SYMRES-248-GEGT"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [248, 248]
+mutator     = "cxx_ge_to_gt"
+bucket      = "B"
+rationale   = "`addr_file_offset >= seg->offset`; the companion ge_to_lt at this site was killed. ge_to_gt differs only when addr_file_offset == seg->offset exactly -- a resolved address whose file offset equals a PT_LOAD's sub-page segment start. ProcMaps reports page-aligned file offsets, so no public-API resolve can place an address at that exact byte. Unreachable via public API."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:357060d45be734a8b52d988d8425b4b92500a546c71ddfa35d2379b5a2b5776c"
+
+[[ignore]]
+id          = "SYMRES-278-ASGN"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [278, 278]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "cfi_built = true -> 42; _Bool memoization flag read only as `if (!cfi_built)`. Equivalent."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:2319e858f41a30f7e8196146e597e6bb008db38329021937756d8cc73bb32f78"
+
+[[ignore]]
+id          = "SYMRES-302-NEEQ"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [302, 302]
+mutator     = "cxx_ne_to_eq"
+bucket      = "B"
+rationale   = "machine != ELF_MACHINE_AARCH64 guard; on x86-64 fixtures the predicate is true and the flip yields the same false, and the $x/$d test below is AArch64-only. Killing needs an AArch64 image mapped into the running process (Resolve is driven from /proc/self/maps via ProcMaps), unreachable on the x86-64 sandbox; the native arm64 mull run is where this dies."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:da89b0c9839248dddfd8ee8d83fdba8dc74223d25df30a3d09a9109dbfb88db8"
+
+[[ignore]]
+id          = "SYMRES-304-EQNE"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [304, 304]
+mutator     = "cxx_eq_to_ne"
+bucket      = "B"
+rationale   = "$x/$d mapping-symbol name test (all three column-variants on this line), reached only for AArch64 machine (see SYMRES-302-NEEQ); unreachable on x86-64."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:5b6438a29aee6b5bdd44c4b55c694753ffd456e9980ecd63c8dd0a9ce8187327"
+
+[[ignore]]
+id          = "SYMRES-392-ASGN"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [392, 392]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "functions_built = true -> 42; _Bool memoization flag, truthiness only. Equivalent."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:d33ee7c312078b1b9ff64c2570b2d818d6235797bf740e866a3489be33a486f5"
+
+[[ignore]]
+id          = "SYMRES-393-ASGN"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [393, 393]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "functions_ok = DwarfFunctionsBuildFromElf(...) -> 42. On Build failure DwarfFunctionsBuildFromSlices MemSets its output to zero (DwarfInfo.c), so functions_ok=42 resolves against an empty table -> DwarfFunctionsResolve returns NULL -> no fallback name, identical to functions_ok=false. Equivalent."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:931f07c88ba181a4e444d98a2a678654069a19b9801bf353dc5d1e2cf4c4231c"
+
+[[ignore]]
+id          = "SYMRES-402-ASGN"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [402, 402]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "sidecar_functions_built = true -> 42; truthy memoization flag. Equivalent."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:2ca587945e6875c434e4b9283110ec2e1877f1bf542ff40bd5e6a1e4d679d0bd"
+
+[[ignore]]
+id          = "SYMRES-403-ASGN"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [403, 403]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "sidecar_functions_ok = DwarfFunctionsBuildFromElf(...) -> 42; empty-on-failure (see SYMRES-393-ASGN). Equivalent."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:dbcb928bcadeb6bd1c02a5c5c01458d7f5a4d1f7a44eb46885bb510ec261beff"
+
+[[ignore]]
+id          = "SYMRES-421-ASGN"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [421, 421]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "dwarf_built = true -> 42; truthy memoization flag. Equivalent."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:c4ae46ee355a102b82e074cf8d5cbf537e14ef442d9e17847409ab24947d8158"
+
+[[ignore]]
+id          = "SYMRES-430-ASGN"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [430, 430]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "sidecar_dwarf_built = true -> 42; truthy memoization flag. Equivalent."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:c7c9496aa46ded1c30e9fbd8a629ba8d84a07412ed5ae0bbe468dae215b99d26"
+[[ignore]]
+id          = "SYMRES-279-ASGN"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [279, 279]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "cfi_ok = DwarfCfiBuildFromElf(...) -> 42. On Build failure DwarfCfiBuildFromElf calls DwarfCfiDeinit(out) (DwarfUnwind.c:450-452), which MemSets the struct to zero, so cfi_ok=42 makes FindFde scan an empty fdes vec -> DwarfCfiFindFde returns NULL -> FindFde returns false, identical to cfi_ok=false. Equivalent."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:d80fd9c908765214e4a255922e1442151a6fe8b2c4e6c0147268a188baf7fdc2"
+
+[[ignore]]
+id          = "SYMRES-422-ASGN"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [422, 422]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "dwarf_ok = DwarfLinesBuildFromElf(...) -> 42. On Build failure DwarfLinesBuildFromElf calls DwarfLinesDeinit(out) (Dwarf.c:651-653), MemSetting it to zero, so dwarf_ok=42 resolves against an empty entries vec -> DwarfLinesResolve returns NULL -> no source line, identical to dwarf_ok=false. Equivalent."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:f3d42751d3962ef8e9b84aa6d09f2332d7a0d42c9afc2dd2baf9273236075e2f"
+
+[[ignore]]
+id          = "SYMRES-431-ASGN"
+file        = "Source/Misra/Sys/SymbolResolver.c"
+lines       = [431, 431]
+mutator     = "cxx_assign_const"
+bucket      = "C"
+rationale   = "sidecar_dwarf_ok = DwarfLinesBuildFromElf(...) -> 42; empty-on-failure via DwarfLinesDeinit (see SYMRES-422-ASGN). Equivalent."
+author      = "symres-converge"
+created     = "2026-06-29"
+region_hash = "sha256:7f3d021401cb3243877c14f345e680e065fb728341d4c486703a040b262efb01"
+
