@@ -210,3 +210,9 @@ The intent is simple: the convenience of an LLM for the mechanical work, none of
 the abdication of judgement. The author remains responsible for every design
 decision that goes in; granular, line-by-line knowledge of the code is not 100%
 guaranteed, but a high-level understanding of it is assured.
+
+## Sponsors
+
+<a href="https://zulip.com"><img src="https://raw.githubusercontent.com/zulip/zulip/main/static/images/logo/zulip-icon-circle.svg" alt="Zulip" width="72" height="72"></a>
+
+Zulip is an organized team chat app designed for efficient communication.
