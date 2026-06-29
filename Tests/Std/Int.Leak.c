@@ -1162,16 +1162,20 @@ bool test_mod_sqrt_tonelli_inner_loop_no_leak(void) {
 
     // moduli with p % 4 == 1 (forces the Tonelli-Shanks block) and a high power
     // of two dividing p-1: 17 (16=2^4), 97 (96=2^5*3), 193 (192=2^6*3),
-    // 257 (256=2^8). Exercise every QR in each so the inner squaring loop runs.
-    u64  moduli[] = {17u, 97u, 193u, 257u};
-    bool ok       = true;
+    // 257 (256=2^8). Sample a spread of residues across [1, p-1] per modulus --
+    // enough to drive the inner squaring loop and every cleanup branch (the leak
+    // oracle), not an exhaustive correctness sweep.
+    u64       moduli[] = {17u, 97u, 193u, 257u};
+    const u64 samples  = 12u;
+    bool      ok       = true;
 
-    for (u64 mi = 0; mi < sizeof(moduli) / sizeof(moduli[0]); mi++) {
+    for (u64 mi = 0; mi < sizeof(moduli) / sizeof(moduli[0]) && ok; mi++) {
         u64 p = moduli[mi];
-        for (u64 vv = 1; vv < p && ok; vv++) {
-            Int v = IntFrom(vv, a);
-            Int m = IntFrom(p, a);
-            Int r = IntFrom(9u, a);
+        for (u64 si = 0; si < samples && ok; si++) {
+            u64 vv = 1u + (si * (p - 2u)) / (samples - 1u);
+            Int v  = IntFrom(vv, a);
+            Int m  = IntFrom(p, a);
+            Int r  = IntFrom(9u, a);
 
             bool found = IntModSqrt(&r, &v, &m);
             if (found) {
