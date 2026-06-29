@@ -183,7 +183,7 @@ for comp in "${COMPONENTS[@]}"; do
     # ~1500 mutants) never finishes. Let baseline*10 govern; 8s is just a floor
     # for suites whose baseline is tiny. Override via env.
     set +e
-    "$MULL_RUNNER" --workers "$(nproc)" \
+    "$MULL_RUNNER" --workers "${MULL_WORKERS:-1}" \
       --timeout "${MULL_TIMEOUT:-120000}" \
       --minimum-timeout "${MULL_MIN_TIMEOUT:-8000}" \
       "$bin" 2>&1 | tee "$report"
