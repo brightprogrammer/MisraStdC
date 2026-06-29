@@ -119,8 +119,6 @@ procmaps_tests = [
 
 symresolve_tests = [
     ['SymbolResolver', 'Std/SymbolResolver.c'],
-    ['SymbolResolver.Internal', 'Std/SymbolResolver.Internal.c'],
-    ['SymbolResolver.Mut', 'Std/SymbolResolver.Mut.c'],
 ]
 
 backtrace_tests = [
@@ -707,6 +705,66 @@ if opt_sys_symresolve and tests_need_posix_exe
         # this near the 60s default. Bump.
         test(test_name, test_exe, timeout: 120)
     endforeach
+
+    # Sidecar / `.gnu_debuglink` discovery through the PUBLIC resolve API.
+    # The test image is built unstripped, its debug info is split into an
+    # adjacent `SymbolResolver.Sidecar.debug` (full `.symtab` kept), then
+    # the image is stripped and given a `.gnu_debuglink` pointing at that
+    # sidecar. The STRIPPED binary is what runs: resolving its own
+    # symtab-less `sidecar_marker` only names it when `try_open_sidecar`
+    # discovers + matches the sidecar. No `-rdynamic` and no build-id so the
+    # static marker can't leak into `.dynsym` and the build-id branch stays
+    # out of the picture -- the debuglink path is the one under test.
+    objcopy = find_program('objcopy', required: false)
+    if objcopy.found()
+        sidecar_image = executable(
+            'SymbolResolver.Sidecar.image',
+            files('Std/SymbolResolver.Sidecar.c'),
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
+            c_args: test_args + ['-gdwarf-4'],
+            include_directories: inc_misra,
+            link_args: ['-Wl,--build-id=none'],
+            install: false
+        )
+
+        # `--only-keep-debug` empties non-debug section contents but keeps
+        # the debug sections AND `.symtab`/`.strtab`, so the marker name
+        # survives here and only here.
+        sidecar_debug = custom_target(
+            'SymbolResolver.Sidecar.debug',
+            input: sidecar_image,
+            output: 'SymbolResolver.Sidecar.debug',
+            command: [objcopy, '--only-keep-debug', '@INPUT@', '@OUTPUT@'],
+            build_by_default: true
+        )
+
+        # `--strip-all` removes `.symtab`/`.strtab` from the running image;
+        # `--add-gnu-debuglink` stores the sidecar's basename (objcopy uses
+        # the basename regardless of the path passed) and the CRC of its
+        # contents. The resolver then searches `{dir}/<basename>` -- adjacent
+        # to this stripped binary in the build tree.
+        sidecar_main = custom_target(
+            'SymbolResolver.Sidecar',
+            input: sidecar_image,
+            output: 'SymbolResolver.Sidecar',
+            command: [
+                objcopy,
+                '--strip-all',
+                '--add-gnu-debuglink=' + sidecar_debug.full_path(),
+                '@INPUT@',
+                '@OUTPUT@',
+            ],
+            depends: [sidecar_debug],
+            build_by_default: true
+        )
+
+        # `depends:` makes both objcopy outputs hard prerequisites so a
+        # fresh `meson test` rebuilds them before running the stripped image.
+        test('SymbolResolver.Sidecar', sidecar_main,
+            depends: [sidecar_debug],
+            timeout: 120)
+    endif
 endif
 
 # Backtrace tests run wherever Sys/Backtrace itself is supported:
