@@ -124,7 +124,6 @@ macho_cache_tests = [
 
 procmaps_tests = [
     ['ProcMaps', 'Std/ProcMaps.c'],
-    ['ProcMaps.Parse', 'Std/ProcMaps.Parse.c'],
 ]
 
 symresolve_tests = [

@@ -1,13 +1,26 @@
 #include <Misra.h>
 #include <Misra/Std/Allocator/Debug.h>
 #include <Misra/Std/Allocator/Default.h>
+#include <Misra/Std/Container/Str.h>
+#include <Misra/Std/File.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Parsers/ProcMaps.h>
+#include <Misra/Sys/Dir.h>
 
 #include "../Util/TestRunner.h"
 
 // A real function whose address must live in an executable mapping.
 static int pm2_marker_fn(int x) {
     return x + 1;
+}
+
+// Parse crafted `/proc/self/maps`-format TEXT through the public LoadFrom
+// seam. The bytes are copied into `m->raw`, so we can feed string literals
+// and still assert exact parsed fields -- no live `/proc` involved. Returns
+// the loader's own success flag (true even when a line is malformed: a bad
+// line is skipped, not a hard failure).
+static bool pm_load_text(ProcMaps *m, Zstr text, DefaultAllocator *alloc) {
+    return ProcMapsLoadFrom(m, text, ZstrLen(text), alloc);
 }
 
 bool test_procmaps_load(void) {
@@ -398,6 +411,218 @@ bool test_pm2_min_addr_is_lowest_start(void) {
     return ok;
 }
 
+// --------------------------------------------------------------------------
+// Line parsing via the public LoadFrom seam. Crafted maps-text exercises the
+// hex / perms / token / path decode that the live `/proc/self/maps` loader
+// can't pin (its content is non-deterministic). Each test asserts EXACT
+// parsed fields so any digit-table, accumulation, perms-bit, token-skip, or
+// in-place NUL mutation diverges observably.
+// --------------------------------------------------------------------------
+
+// A single well-formed line decodes to EXACTLY these fields. Distinctive,
+// non-overlapping values mean any field/shift/perms-bit mutation shows up.
+// The `dead` offset carries lowercase a/d/e hex; r-xp pins three perms bits
+// set and one clear; the path proves the dev+inode tokens were skipped and
+// the trailing '\n' was turned into the path's NUL terminator.
+bool test_pm_parse_full_line_fields(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    ProcMaps         m;
+    if (!pm_load_text(&m, "1000-2000 r-xp 0000dead 08:01 12345 /x/y\n", &alloc)) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    bool ok = VecLen(&m.entries) == 1;
+    if (ok) {
+        const ProcMapEntry *e = VecPtrAt(&m.entries, 0);
+        ok                    = e->start == 0x1000ULL && e->end == 0x2000ULL && e->file_offset == 0xdeadULL &&
+             e->perms == (u32)(PROC_MAP_PERM_READ | PROC_MAP_PERM_EXEC | PROC_MAP_PERM_PRIVATE) &&
+             ZstrCompare(e->path, "/x/y") == 0;
+    }
+
+    ProcMapsDeinit(&m);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Uppercase A-F hex digits decode to the same values as lowercase. Pins the
+// `'A'..'F'` arm of the digit table: without it an uppercase address is
+// rejected or mis-valued, so a crafted uppercase start/end/offset is the only
+// way to reach that branch (the kernel only ever emits lowercase).
+bool test_pm_parse_uppercase_hex_addr(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    ProcMaps         m;
+    if (!pm_load_text(&m, "ABCDEF-FEDCBA r-xp 0000CA00 00:00 0 /u\n", &alloc)) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    bool ok = VecLen(&m.entries) == 1;
+    if (ok) {
+        const ProcMapEntry *e = VecPtrAt(&m.entries, 0);
+        ok                    = e->start == 0xABCDEFULL && e->end == 0xFEDCBAULL && e->file_offset == 0xCA00ULL;
+    }
+
+    ProcMapsDeinit(&m);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// The digit '9' sits on the upper edge of the `'0'..'9'` table arm. A start
+// and end that hinge on '9' decoding to 9 (not being rejected) pin that
+// boundary: drop it and the address parse stops early or skips the line.
+bool test_pm_parse_addr_with_nine(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    ProcMaps         m;
+    if (!pm_load_text(&m, "9-1990 r-xp 0 0:0 0 /n\n", &alloc)) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    bool ok = VecLen(&m.entries) == 1;
+    if (ok) {
+        const ProcMapEntry *e = VecPtrAt(&m.entries, 0);
+        ok                    = e->start == 0x9ULL && e->end == 0x1990ULL;
+    }
+
+    ProcMapsDeinit(&m);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// An address field with NO hex digits (here an empty start, the line opening
+// straight on the '-') is malformed and the whole line is skipped. Pins the
+// "no digits consumed -> reject" guard in the hex reader: a reader that
+// reports success on an empty run would accept the line and emit a bogus
+// zero-based entry, so asserting ZERO entries is the kill.
+bool test_pm_parse_rejects_empty_start_field(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    ProcMaps         m;
+    if (!pm_load_text(&m, "-2000 r-xp 0 0:0 0 /x\n", &alloc)) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    bool ok = VecLen(&m.entries) == 0;
+
+    ProcMapsDeinit(&m);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// min_addr is the lowest start across ALL entries, regardless of file order.
+// Two entries in DESCENDING address order force the cache loop to scan past
+// entry 0: a loop that only ever sees the first entry (or runs backwards)
+// would cache the higher start and miss the true minimum.
+bool test_pm_parse_min_addr_descending(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    ProcMaps         m;
+    if (!pm_load_text(&m, "5000-6000 r-xp 0 0:0 0 /a\n1000-2000 r-xp 0 0:0 0 /b\n", &alloc)) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    bool ok = VecLen(&m.entries) == 2;
+    if (ok) {
+        const ProcMapEntry *e0 = VecPtrAt(&m.entries, 0);
+        const ProcMapEntry *e1 = VecPtrAt(&m.entries, 1);
+        ok                     = e0->start == 0x5000ULL && e1->start == 0x1000ULL && m.min_addr == 0x1000ULL;
+    }
+
+    ProcMapsDeinit(&m);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// A line that fails to parse is skipped whole, and the NEXT valid line still
+// decodes correctly from its true start. If the skip-to-newline scan stops
+// short, the recovery resumes mid-garbage and the following entry comes out
+// with the wrong start (e.g. a dropped leading digit) -- so pinning the
+// recovered entry's exact start proves the bad line was consumed cleanly.
+bool test_pm_parse_skips_malformed_line(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    ProcMaps         m;
+    if (!pm_load_text(&m, "garbage line here\n3000-4000 r-xp 0 0:0 0 /good\n", &alloc)) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    bool ok = VecLen(&m.entries) == 1;
+    if (ok) {
+        const ProcMapEntry *e = VecPtrAt(&m.entries, 0);
+        ok                    = e->start == 0x3000ULL && e->end == 0x4000ULL && ZstrCompare(e->path, "/good") == 0;
+    }
+
+    ProcMapsDeinit(&m);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// The File loader must read to TRUE EOF, not stop at the first chunk. We write
+// a maps file larger than one read chunk whose LAST line is a distinctive high
+// mapping, then load it through the File seam: a loader that breaks after the
+// first short read drops every entry past the chunk boundary, so the high
+// entry would be missing.
+bool test_pm_parse_large_file_reads_all_chunks(void) {
+    DefaultAllocator alloc      = DefaultAllocatorInit();
+    Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
+
+    Str  path;
+    File f = FileOpenTemp(&path, alloc_base);
+    if (!FileIsOpen(&f)) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    // 200 * 26 bytes = 5200 bytes of filler, comfortably past one 4096 chunk,
+    // before the distinctive trailing entry lands.
+    Zstr filler   = "1000-1001 ---p 0 0:0 0 /f\n";
+    bool wrote_ok = true;
+    for (int i = 0; i < 200 && wrote_ok; ++i) {
+        i64 w    = FileWrite(&f, filler, (u64)ZstrLen(filler));
+        wrote_ok = (w == (i64)ZstrLen(filler));
+    }
+    Zstr late = "deadbeef000-deadbeef100 r-xp 0 0:0 0 /late\n";
+    if (wrote_ok) {
+        i64 w    = FileWrite(&f, late, (u64)ZstrLen(late));
+        wrote_ok = (w == (i64)ZstrLen(late));
+    }
+    FileClose(&f);
+    if (!wrote_ok) {
+        FileRemove(&path);
+        StrDeinit(&path);
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    File rf = FileOpen(&path, "rb");
+    if (!FileIsOpen(&rf)) {
+        FileRemove(&path);
+        StrDeinit(&path);
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    ProcMaps m;
+    bool     loaded = ProcMapsLoadFrom(&m, &rf, &alloc);
+    FileClose(&rf);
+
+    bool ok = loaded;
+    if (ok) {
+        // The trailing high mapping lives past the first read chunk; a loader
+        // that stopped early would never have parsed it.
+        const ProcMapEntry *e = ProcMapsFindByAddr(&m, 0xdeadbeef050ULL);
+        ok                    = e != NULL && e->start == 0xdeadbeef000ULL && e->end == 0xdeadbeef100ULL &&
+             ZstrCompare(e->path, "/late") == 0;
+        ProcMapsDeinit(&m);
+    }
+
+    FileRemove(&path);
+    StrDeinit(&path);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting ProcMaps tests\n\n");
 
@@ -414,6 +639,14 @@ int main(void) {
         test_pm2_find_no_overrun_past_length,
         test_pm2_deinit_releases_all,
         test_pm2_min_addr_is_lowest_start,
+
+        test_pm_parse_full_line_fields,
+        test_pm_parse_uppercase_hex_addr,
+        test_pm_parse_addr_with_nine,
+        test_pm_parse_rejects_empty_start_field,
+        test_pm_parse_min_addr_descending,
+        test_pm_parse_skips_malformed_line,
+        test_pm_parse_large_file_reads_all_chunks,
     };
 
     return run_test_suite(tests, sizeof(tests) / sizeof(tests[0]), NULL, 0, "ProcMaps");
