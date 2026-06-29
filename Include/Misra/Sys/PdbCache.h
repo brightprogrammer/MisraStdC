@@ -32,7 +32,6 @@
 
 typedef struct PdbCacheEntry {
     Str  module_path; // owned; cleaned via StrDeinit
-    u64  module_base; // last-seen runtime load base
     Pe   pe;
     Pdb  pdb;
     bool pe_open;
@@ -57,8 +56,8 @@ typedef struct PdbCache {
 ///
 /// TAGS: Sys, PDB, Cache, Init, Lifecycle
 ///
-#define PdbCacheInit(...)        OVERLOAD(PdbCacheInit, __VA_ARGS__)
-#define PdbCacheInit_0()         PdbCacheInit_1(MisraScope)
+#define PdbCacheInit(...)         OVERLOAD(PdbCacheInit, __VA_ARGS__)
+#define PdbCacheInit_0()          PdbCacheInit_1(MisraScope)
 #define PdbCacheInit_1(alloc_ptr) ((PdbCache) {.allocator = ALLOCATOR_OF(alloc_ptr), .entries = VecInit_1(alloc_ptr)})
 
 ///
@@ -96,10 +95,10 @@ void PdbCacheDeinit(PdbCache *self);
 ///
 bool pdb_cache_resolve_zstr(
     PdbCache *self,
-    Zstr module_path,
+    Zstr      module_path,
     u64       module_base,
     u64       runtime_ip,
-    Zstr *out_name,
+    Zstr     *out_name,
     u32      *out_offset
 );
 bool pdb_cache_resolve_str(
@@ -107,15 +106,36 @@ bool pdb_cache_resolve_str(
     const Str *module_path,
     u64        module_base,
     u64        runtime_ip,
-    Zstr *out_name,
+    Zstr      *out_name,
     u32       *out_offset
 );
 #define PdbCacheResolve(self, module_path, module_base, runtime_ip, out_name, out_offset)                              \
     _Generic(                                                                                                          \
         (module_path),                                                                                                 \
-        Str *: pdb_cache_resolve_str((self), (const Str *)(module_path), (module_base), (runtime_ip), (out_name), (out_offset)),  \
-        Zstr: pdb_cache_resolve_zstr((self), (Zstr)(module_path), (module_base), (runtime_ip), (out_name), (out_offset)),         \
-        char *: pdb_cache_resolve_zstr((self), (Zstr)(module_path), (module_base), (runtime_ip), (out_name), (out_offset))        \
+        Str *: pdb_cache_resolve_str(                                                                                  \
+                 (self),                                                                                               \
+                 (const Str *)(module_path),                                                                           \
+                 (module_base),                                                                                        \
+                 (runtime_ip),                                                                                         \
+                 (out_name),                                                                                           \
+                 (out_offset)                                                                                          \
+             ),                                                                                                        \
+        Zstr: pdb_cache_resolve_zstr(                                                                                  \
+            (self),                                                                                                    \
+            (Zstr)(module_path),                                                                                       \
+            (module_base),                                                                                             \
+            (runtime_ip),                                                                                              \
+            (out_name),                                                                                                \
+            (out_offset)                                                                                               \
+        ),                                                                                                             \
+        char *: pdb_cache_resolve_zstr(                                                                                \
+            (self),                                                                                                    \
+            (Zstr)(module_path),                                                                                       \
+            (module_base),                                                                                             \
+            (runtime_ip),                                                                                              \
+            (out_name),                                                                                                \
+            (out_offset)                                                                                               \
+        )                                                                                                              \
     )
 
 #endif // MISRA_SYS_PDB_CACHE_H

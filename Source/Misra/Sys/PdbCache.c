@@ -144,7 +144,6 @@ bool pdb_cache_resolve_zstr(
     PdbCacheEntry *entry = cache_find_or_open(self, module_path);
     if (!entry)
         return false;
-    entry->module_base = module_base;
 
     if (!entry_open(entry, self->allocator))
         return false;
