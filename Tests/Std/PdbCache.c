@@ -8,6 +8,7 @@
 // the OS calls that find `(module_path, module_base)` from a raw IP.
 
 #include <Misra.h>
+#include <Misra/Std/Allocator/Budget.h>
 #include <Misra/Std/Allocator/Debug.h>
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Zstr.h>
@@ -824,6 +825,32 @@ bool test_pdb_cache_deinit_frees_all_entries(void) {
     return ok;
 }
 
+// cache_find_or_open's VecPushBackR-failure arm must free the just-copied
+// module_path. Drive it with a BudgetAllocator carved to exactly one 16-byte
+// slot: the Str copy of "/x" takes the slot, the entries-Vec growth (~1 KiB)
+// then fails -> the cleanup arm runs. Probe afterwards: real code freed the
+// slot (probe succeeds); the mutant that drops StrDeinit leaks it (probe fails).
+static bool test_pdb_pushback_failure_frees_module_path(void) {
+    u64             buf[4] = {0}; // 32 bytes -> exactly one 16-byte slot
+    BudgetAllocator bp     = BudgetAllocatorInit((u8 *)buf, sizeof(buf), 16);
+    if (BudgetAllocatorSlotCount(&bp) != 1)
+        return false;             // precondition: the targeting needs a single slot
+
+    PdbCache cache = PdbCacheInit(&bp);
+    Zstr     name  = NULL;
+    if (PdbCacheResolve(&cache, (char *)"/x", 0, 0x1000, &name, NULL))
+        return false; // the entry must have failed to allocate
+
+    void *probe = AllocatorAlloc(&bp, 8, 1);
+    bool  freed = (probe != NULL);
+    if (probe)
+        AllocatorFree(&bp, probe);
+
+    PdbCacheDeinit(&cache);
+    BudgetAllocatorDeinit(&bp);
+    return freed;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting PdbCache tests\n\n");
 
@@ -842,6 +869,7 @@ int main(void) {
         test_pdb_cache_invalid_sidecar_pdb_rejected,
         test_pdb_cache_distinct_modules_resolve_independently,
         test_pdb_cache_deinit_frees_all_entries,
+        test_pdb_pushback_failure_frees_module_path,
     };
 
     return run_test_suite(tests, sizeof(tests) / sizeof(tests[0]), NULL, 0, "PdbCache");
