@@ -1764,14 +1764,12 @@ bool test_m15_sub_borrow_propagates(void) {
 }
 
 // Kills the cxx_remove_void_call mutant on ValidateInt(result) at the top of
-// int_sub (Int.c:1135). With a >= b the function proceeds past the int_compare
-// guard and reaches int_try_init_with_capacity(&temp, a_bits,
-// IntAllocator(result)); IntAllocator dereferences result. Real code aborts
-// cleanly via LOG_FATAL at the validation. With the validation removed, the
-// NULL result reaches IntAllocator(NULL) and crashes -- a different, killing
-// outcome. (The a/b validations at 1136/1137 are redundant: int_compare(a,b)
-// on the very next line re-runs ValidateInt on both, so only the result
-// validation is uniquely observable here.)
+// int_sub. With a >= b the function proceeds past the int_compare guard and
+// dereferences result through INT_BITS(result) (BitVecResize). Real code aborts
+// cleanly via LOG_FATAL at the validation; with it removed, the NULL result
+// reaches INT_BITS(NULL) and crashes -- a different, killing outcome. (The a/b
+// validations are redundant: int_compare(a, b) on the next line re-runs
+// ValidateInt on both, so only the result validation is uniquely observable.)
 bool test_m15_sub_null_result(void) {
     WriteFmt("Testing IntSub NULL result handling\n");
 

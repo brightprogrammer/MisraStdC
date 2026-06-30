@@ -25,25 +25,9 @@ static void       int_normalize(Int *value);
 static inline u64 int_load_le8(const u8 *data, u64 bit_len, u64 off);
 static bool       int_validate_radix(u8 radix);
 static bool int_try_from_str_radix_impl(Int *out, Zstr digits, u64 length, u64 start, u8 radix, bool allow_underscores);
-static bool int_try_init_with_capacity(Int *out, u64 capacity, Allocator *alloc);
 static bool int_try_from_i64_with_allocator(Int *out, i64 value, Allocator *alloc);
 static bool int_try_clone_value(Int *out, const Int *value);
 static u64  int_u64_bits(u64 value);
-
-static bool int_try_init_with_capacity(Int *out, u64 capacity, Allocator *alloc) {
-    if (!out) {
-        LOG_FATAL("Invalid arguments");
-    }
-
-    *out = IntInit(alloc);
-    if (capacity != 0 && !BitVecReserve(INT_BITS(out), capacity)) {
-        IntDeinit(out);
-        *out = IntInit(alloc);
-        return false;
-    }
-
-    return true;
-}
 
 bool int_try_from_u64(Int *out, u64 value, Allocator *alloc) {
     u64 bits = int_u64_bits(value);
@@ -1280,16 +1264,14 @@ bool int_mul(Int *result, const Int *a, const Int *b) {
         return true;
     }
 
-    u64 a_bits = IntBitLength(a);
-    u64 b_bits = IntBitLength(b);
-    Int acc;
-    Int partial;
+    u64 a_bits  = IntBitLength(a);
+    u64 b_bits  = IntBitLength(b);
+    Int acc     = IntInit(IntAllocator(result));
+    Int partial = IntInit(IntAllocator(result));
 
-    if (!int_try_init_with_capacity(&acc, a_bits + b_bits + 1, IntAllocator(result))) {
-        return false;
-    }
-    if (!int_try_init_with_capacity(&partial, a_bits + b_bits, IntAllocator(result))) {
+    if (!IntReserve(&acc, a_bits + b_bits + 1) || !IntReserve(&partial, a_bits + b_bits)) {
         IntDeinit(&acc);
+        IntDeinit(&partial);
         return false;
     }
 
@@ -1458,8 +1440,7 @@ bool int_div_mod(Int *quotient, Int *remainder, const Int *dividend, const Int *
     Int  r             = IntInit(IntAllocator(remainder));
     bool ok            = false;
 
-    if (!int_try_init_with_capacity(&q, dividend_bits, IntAllocator(quotient)) ||
-        !int_try_init_with_capacity(&r, divisor_bits + 1, IntAllocator(remainder))) {
+    if (!IntReserve(&q, dividend_bits) || !IntReserve(&r, divisor_bits + 1)) {
         goto cleanup;
     }
 

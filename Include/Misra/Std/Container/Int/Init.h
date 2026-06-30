@@ -62,4 +62,17 @@ static inline void IntClear(Int *value) {
     BitVecClear(&value->bits);
 }
 
+///
+/// Ensure `value` can hold at least `capacity` bits without reallocating.
+///
+/// SUCCESS : Returns true; the magnitude's capacity is at least `capacity`.
+/// FAILURE : Returns false on allocator OOM; `value` is left unchanged.
+///
+/// TAGS: Int, Reserve, Capacity
+///
+static inline bool IntReserve(Int *value, u64 capacity) {
+    ValidateInt(value);
+    return BitVecReserve(&value->bits, capacity);
+}
+
 #endif // MISRA_STD_CONTAINER_INT_INIT_H
