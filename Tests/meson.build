@@ -753,7 +753,8 @@ if opt_sys_symresolve and tests_need_posix_exe
 
         # `depends:` makes both objcopy outputs hard prerequisites so a
         # fresh `meson test` rebuilds them before running the stripped image.
-        test('SymbolResolver.Sidecar', sidecar_main,
+        test('SymbolResolver.Sidecar', find_program('sh'),
+            args: ['-c', 'exec "$1"', 'sh', sidecar_main],
             depends: [sidecar_debug],
             timeout: 120)
 
@@ -791,7 +792,9 @@ if opt_sys_symresolve and tests_need_posix_exe
                 build_by_default: true
             )
 
-            test('SymbolResolver.SidecarSub', sidecarsub_main, timeout: 120)
+            test('SymbolResolver.SidecarSub', find_program('sh'),
+                args: ['-c', 'exec "$1"', 'sh', sidecarsub_main],
+                timeout: 120)
         endif
 
         # `.debug_info` name + `.debug_line` fallback for stripped symbols.
@@ -824,7 +827,9 @@ if opt_sys_symresolve and tests_need_posix_exe
             build_by_default: true
         )
 
-        test('SymbolResolver.DwarfFallback', dwarffallback_main, timeout: 120)
+        test('SymbolResolver.DwarfFallback', find_program('sh'),
+            args: ['-c', 'exec "$1"', 'sh', dwarffallback_main],
+            timeout: 120)
 
         # `.debug_info` name fallback sourced from a SIDECAR rather than the
         # running image. The image is built DWARF-4, its debug info split into a
@@ -861,7 +866,9 @@ if opt_sys_symresolve and tests_need_posix_exe
                 build_by_default: true
             )
 
-            test('SymbolResolver.SidecarDwarf', sidecardwarf_main, timeout: 120)
+            test('SymbolResolver.SidecarDwarf', find_program('sh'),
+                args: ['-c', 'exec "$1"', 'sh', sidecardwarf_main],
+                timeout: 120)
         endif
     endif
 endif
