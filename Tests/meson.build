@@ -677,11 +677,17 @@ if opt_sys_symresolve and tests_need_posix_exe
     # and applies the p_vaddr-space formula; the historical `start -
     # file_offset` shortcut biases the file-relative address by a page and the
     # symbol search misses.
+    # Build the fixture WITHOUT sanitizers: ASan instruments globals with
+    # redzones and adds sections, which shifts symbol sizes and the gapped RW
+    # segment layout this test asserts against (the past-the-end / fallback-base
+    # cases). The covered ASan binary still links and exercises it; the fixture's
+    # on-disk ELF layout just stays the un-instrumented one the test expects.
     bias_lib = shared_library(
         'symres_bias',
         files('Std/SymbolResolver.BiasLib.c'),
         c_args: test_args,
         link_args: ['-Wl,-z,max-page-size=0x10000', '-Wl,-z,noseparate-code'],
+        override_options: ['b_sanitize=none'],
         install: false
     )
 
