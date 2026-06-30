@@ -16,7 +16,7 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Memory.h>
 
-#include "../Util/TestRunner.h"
+#include "../../Util/TestRunner.h"
 
 // --- little-endian scalar writers ------------------------------------------
 static void put_u16(u8 *p, u16 v) {

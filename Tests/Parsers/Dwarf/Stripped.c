@@ -20,7 +20,7 @@
 #include <Misra/Std/Log.h>
 #include <Misra/Sys/SymbolResolver.h>
 
-#include "../Util/TestRunner.h"
+#include "../../Util/TestRunner.h"
 
 // Named, static, noinline so the compiler can't fold or hide them.
 // The `volatile` write defeats DCE without needing an external linkage.

@@ -8,7 +8,7 @@
 #include <Misra/Std/Memory.h>
 #include <Misra/Sys/SymbolResolver.h>
 
-#include "../Util/TestRunner.h"
+#include "../../Util/TestRunner.h"
 
 static __attribute__((noinline)) void dwarf_marker_helper(void) {
     __asm__ __volatile__("" ::

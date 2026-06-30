@@ -63,8 +63,8 @@ elf_tests = [
 ]
 
 dwarf_tests = [
-    ['Dwarf', 'Parsers/Dwarf.c'],
-    ['DwarfUnwind', 'Parsers/DwarfUnwind.c'],
+    ['Dwarf', 'Parsers/Dwarf/Dwarf.c'],
+    ['DwarfUnwind', 'Parsers/Dwarf/DwarfUnwind.c'],
 ]
 
 pe_tests = [
@@ -582,7 +582,7 @@ if opt_parser_dwarf and tests_need_posix_exe
     if objcopy.found()
         stripped_driver = executable(
             'Dwarf.Stripped',
-            files('Parsers/StrippedResolve.c'),
+            files('Parsers/Dwarf/Stripped.c'),
             link_with: [misra_std_no_backtrace],
             dependencies: [test_util_dep_no_backtrace],
             c_args: test_args + ['-gdwarf-4'],
