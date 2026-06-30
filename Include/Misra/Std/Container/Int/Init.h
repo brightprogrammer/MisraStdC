@@ -42,10 +42,7 @@
 ///
 /// TAGS: Int, Deinit, Memory
 ///
-static inline void IntDeinit(Int *value) {
-    ValidateInt(value);
-    BitVecDeinit(&value->bits);
-}
+#define IntDeinit(value) BitVecDeinit(&(value)->bits)
 
 ///
 /// Reset an integer back to zero while preserving the object itself.
@@ -57,10 +54,7 @@ static inline void IntDeinit(Int *value) {
 ///
 /// TAGS: Int, Clear, Zero, Reset
 ///
-static inline void IntClear(Int *value) {
-    ValidateInt(value);
-    BitVecClear(&value->bits);
-}
+#define IntClear(value) BitVecClear(&(value)->bits)
 
 ///
 /// Ensure `value` can hold at least `capacity` bits without reallocating.
@@ -70,9 +64,6 @@ static inline void IntClear(Int *value) {
 ///
 /// TAGS: Int, Reserve, Capacity
 ///
-static inline bool IntReserve(Int *value, u64 capacity) {
-    ValidateInt(value);
-    return BitVecReserve(&value->bits, capacity);
-}
+#define IntReserve(value, capacity) BitVecReserve(&(value)->bits, (capacity))
 
 #endif // MISRA_STD_CONTAINER_INT_INIT_H
