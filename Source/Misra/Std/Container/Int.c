@@ -1732,17 +1732,16 @@ cleanup:
 }
 
 bool int_div(Int *result, const Int *dividend, const Int *divisor) {
-    Int quotient  = IntInit(IntAllocator(result));
     Int remainder = IntInit(IntAllocator(result));
 
-    if (!int_div_mod(&quotient, &remainder, dividend, divisor)) {
-        IntDeinit(&quotient);
+    // Quotient written straight into result (int_div_mod is in-place and clones
+    // any input that aliases an output), so result's buffer is reused.
+    if (!int_div_mod(result, &remainder, dividend, divisor)) {
         IntDeinit(&remainder);
         return false;
     }
 
     IntDeinit(&remainder);
-    int_replace(result, &quotient);
     return true;
 }
 
@@ -1885,17 +1884,16 @@ u64 int_div_u64_rem(Int *quotient, const Int *dividend, u64 divisor) {
 }
 
 bool int_mod(Int *result, const Int *dividend, const Int *divisor) {
-    Int quotient  = IntInit(IntAllocator(result));
-    Int remainder = IntInit(IntAllocator(result));
+    Int quotient = IntInit(IntAllocator(result));
 
-    if (!int_div_mod(&quotient, &remainder, dividend, divisor)) {
+    // Remainder written straight into result (int_div_mod is in-place and clones
+    // any input that aliases an output), so result's buffer is reused.
+    if (!int_div_mod(&quotient, result, dividend, divisor)) {
         IntDeinit(&quotient);
-        IntDeinit(&remainder);
         return false;
     }
 
     IntDeinit(&quotient);
-    int_replace(result, &remainder);
     return true;
 }
 
@@ -2487,35 +2485,32 @@ bool int_pow_u64_mod(Int *result, const Int *base, u64 exponent, const Int *modu
         return false;
     }
 
+    Int scratch = IntInit(IntAllocator(result));
+
     while (exponent > 0) {
         if (exponent & 1u) {
-            Int next = IntInit(IntAllocator(result));
-
-            if (!IntModMul(&next, &acc, &base_mod, modulus)) {
+            if (!IntModMul(&scratch, &acc, &base_mod, modulus)) {
                 IntDeinit(&acc);
                 IntDeinit(&base_mod);
-                IntDeinit(&next);
+                IntDeinit(&scratch);
                 return false;
             }
-            IntDeinit(&acc);
-            acc = next;
+            int_swap(&acc, &scratch);
         }
 
         exponent >>= 1u;
         if (exponent > 0) {
-            Int next = IntInit(IntAllocator(result));
-
-            if (!IntModMul(&next, &base_mod, &base_mod, modulus)) {
+            if (!IntModMul(&scratch, &base_mod, &base_mod, modulus)) {
                 IntDeinit(&acc);
                 IntDeinit(&base_mod);
-                IntDeinit(&next);
+                IntDeinit(&scratch);
                 return false;
             }
-            IntDeinit(&base_mod);
-            base_mod = next;
+            int_swap(&base_mod, &scratch);
         }
     }
 
+    IntDeinit(&scratch);
     IntDeinit(&base_mod);
     int_replace(result, &acc);
     return true;
@@ -2544,42 +2539,40 @@ bool int_pow_mod(Int *result, const Int *base, const Int *exponent, const Int *m
         return false;
     }
 
+    Int scratch = IntInit(IntAllocator(result));
+
     while (!IntIsZero(&exp)) {
         if (int_is_odd(&exp)) {
-            Int next = IntInit(IntAllocator(result));
-
-            if (!IntModMul(&next, &acc, &base_mod, modulus)) {
+            if (!IntModMul(&scratch, &acc, &base_mod, modulus)) {
                 IntDeinit(&acc);
                 IntDeinit(&base_mod);
                 IntDeinit(&exp);
-                IntDeinit(&next);
+                IntDeinit(&scratch);
                 return false;
             }
-            IntDeinit(&acc);
-            acc = next;
+            int_swap(&acc, &scratch);
         }
 
         if (!IntShiftRight(&exp, 1)) {
             IntDeinit(&acc);
             IntDeinit(&base_mod);
             IntDeinit(&exp);
+            IntDeinit(&scratch);
             return false;
         }
         if (!IntIsZero(&exp)) {
-            Int next = IntInit(IntAllocator(result));
-
-            if (!IntModMul(&next, &base_mod, &base_mod, modulus)) {
+            if (!IntModMul(&scratch, &base_mod, &base_mod, modulus)) {
                 IntDeinit(&acc);
                 IntDeinit(&base_mod);
                 IntDeinit(&exp);
-                IntDeinit(&next);
+                IntDeinit(&scratch);
                 return false;
             }
-            IntDeinit(&base_mod);
-            base_mod = next;
+            int_swap(&base_mod, &scratch);
         }
     }
 
+    IntDeinit(&scratch);
     IntDeinit(&exp);
     IntDeinit(&base_mod);
     int_replace(result, &acc);
@@ -2892,11 +2885,11 @@ bool IntModSqrt(Int *result, const Int *value, const Int *modulus) {
                 return false;
             }
 
-            for (i = 1; i < m; i++) {
-                Int next = IntInit(IntAllocator(result));
+            Int scratch = IntInit(IntAllocator(result));
 
-                if (!IntSquareMod(&next, &t_power, modulus)) {
-                    IntDeinit(&next);
+            for (i = 1; i < m; i++) {
+                if (!IntSquareMod(&scratch, &t_power, modulus)) {
+                    IntDeinit(&scratch);
                     IntDeinit(&t_power);
                     IntDeinit(&q);
                     IntDeinit(&z);
@@ -2907,13 +2900,14 @@ bool IntModSqrt(Int *result, const Int *value, const Int *modulus) {
                     IntDeinit(&a);
                     return false;
                 }
-                IntDeinit(&t_power);
-                t_power = next;
+                int_swap(&t_power, &scratch);
 
                 if (int_compare_u64(&t_power, 1) == 0) {
                     break;
                 }
             }
+
+            IntDeinit(&scratch);
 
             if (i == m) {
                 IntDeinit(&t_power);
