@@ -1426,60 +1426,81 @@ bool int_mul(Int *result, const Int *a, const Int *b) {
         return true;
     }
 
-    u64 a_bits  = IntBitLength(a);
-    u64 b_bits  = IntBitLength(b);
-    u64 a_words = (a_bits + 63u) / 64u;
-    u64 b_words = (b_bits + 63u) / 64u;
-    u64 r_words = a_words + b_words;
-    Int acc     = IntInit(IntAllocator(result));
+    // The accumulator is built directly in result, reusing its buffer. result is
+    // read back limb-by-limb during accumulation, so it must stay independent of
+    // the operands: clone a/b only if they alias result.
+    Int  a_copy = IntInit(IntAllocator(result));
+    Int  b_copy = IntInit(IntAllocator(result));
+    bool ok     = false;
 
-    // Allocate whole 64-bit limbs (a_words + b_words holds any product) and
-    // zero-fill, so every limb store below is in bounds and starts clean.
-    if (!BitVecResize(INT_BITS(&acc), r_words * 64u)) {
-        IntDeinit(&acc);
-        return false;
+    if (a == result) {
+        if (!int_try_clone_value(&a_copy, a)) {
+            goto cleanup;
+        }
+        a = &a_copy;
+    }
+    if (b == result) {
+        if (!int_try_clone_value(&b_copy, b)) {
+            goto cleanup;
+        }
+        b = &b_copy;
     }
 
-    // Schoolbook multiply over 64-bit limbs: each a-limb times the whole of b,
-    // accumulating 64x64->128 products with a running carry. a/b are read only,
-    // so it is safe when result aliases a or b (acc is a separate buffer).
-    u8       *rd  = BitVecData(INT_BITS(&acc));
-    const u8 *ad  = BitVecData(INT_BITS(a));
-    const u8 *bd  = BitVecData(INT_BITS(b));
-    u64       n_r = r_words * 8u;
+    {
+        u64 a_bits  = IntBitLength(a);
+        u64 b_bits  = IntBitLength(b);
+        u64 a_words = (a_bits + 63u) / 64u;
+        u64 b_words = (b_bits + 63u) / 64u;
+        u64 r_words = a_words + b_words;
 
-    for (u64 ia = 0; ia < a_words; ia++) {
-        u64 ai    = int_load_le8(ad, a_bits, ia * 8u);
-        u64 carry = 0;
-
-        for (u64 jb = 0; jb < b_words; jb++) {
-            u64 bj  = int_load_le8(bd, b_bits, jb * 8u);
-            u64 off = (ia + jb) * 8u;
-            u64 hi  = 0;
-            u64 lo  = int_mul_wide_u64(ai, bj, &hi);
-            u64 cur = int_load_le8(rd, r_words * 64u, off);
-            u64 s1  = 0;
-            u64 s2  = 0;
-            u64 k1  = int_add_carry_u64(cur, lo, 0, &s1);
-            u64 k2  = int_add_carry_u64(s1, carry, 0, &s2);
-
-            int_store_le8(rd, n_r, off, s2);
-            carry = hi + k1 + k2;
+        // Whole 64-bit limbs (a_words + b_words holds any product), zero-filled,
+        // so every limb store is in bounds and accumulation starts clean.
+        IntClear(result);
+        if (!BitVecResize(INT_BITS(result), r_words * 64u)) {
+            goto cleanup;
         }
 
-        for (u64 off = (ia + b_words) * 8u; carry != 0; off += 8u) {
-            u64 cur = int_load_le8(rd, r_words * 64u, off);
-            u64 t   = 0;
+        u8       *rd  = BitVecData(INT_BITS(result));
+        const u8 *ad  = BitVecData(INT_BITS(a));
+        const u8 *bd  = BitVecData(INT_BITS(b));
+        u64       n_r = r_words * 8u;
 
-            carry = int_add_carry_u64(cur, carry, 0, &t);
-            int_store_le8(rd, n_r, off, t);
+        for (u64 ia = 0; ia < a_words; ia++) {
+            u64 ai    = int_load_le8(ad, a_bits, ia * 8u);
+            u64 carry = 0;
+
+            for (u64 jb = 0; jb < b_words; jb++) {
+                u64 bj  = int_load_le8(bd, b_bits, jb * 8u);
+                u64 off = (ia + jb) * 8u;
+                u64 hi  = 0;
+                u64 lo  = int_mul_wide_u64(ai, bj, &hi);
+                u64 cur = int_load_le8(rd, r_words * 64u, off);
+                u64 s1  = 0;
+                u64 s2  = 0;
+                u64 k1  = int_add_carry_u64(cur, lo, 0, &s1);
+                u64 k2  = int_add_carry_u64(s1, carry, 0, &s2);
+
+                int_store_le8(rd, n_r, off, s2);
+                carry = hi + k1 + k2;
+            }
+
+            for (u64 off = (ia + b_words) * 8u; carry != 0; off += 8u) {
+                u64 cur = int_load_le8(rd, r_words * 64u, off);
+                u64 t   = 0;
+
+                carry = int_add_carry_u64(cur, carry, 0, &t);
+                int_store_le8(rd, n_r, off, t);
+            }
         }
+
+        int_normalize(result);
+        ok = true;
     }
 
-    int_normalize(&acc);
-    IntDeinit(result);
-    *result = acc;
-    return true;
+cleanup:
+    IntDeinit(&a_copy);
+    IntDeinit(&b_copy);
+    return ok;
 }
 
 bool int_mul_u64(Int *result, const Int *value, u64 factor) {
@@ -1539,35 +1560,35 @@ bool int_pow_u64(Int *result, const Int *base, u64 exponent) {
         return false;
     }
 
+    // One scratch buffer, reserved once and reused each iteration via swap: with
+    // int_mul writing in place, scratch keeps its capacity across iterations
+    // instead of a fresh Init per multiply.
+    Int scratch = IntInit(IntAllocator(result));
+
     while (exponent > 0) {
         if (exponent & 1u) {
-            Int next = IntInit(IntAllocator(result));
-
-            if (!int_mul(&next, &acc, &current)) {
+            if (!int_mul(&scratch, &acc, &current)) {
                 IntDeinit(&acc);
                 IntDeinit(&current);
-                IntDeinit(&next);
+                IntDeinit(&scratch);
                 return false;
             }
-            IntDeinit(&acc);
-            acc = next;
+            int_swap(&acc, &scratch);
         }
 
         exponent >>= 1u;
         if (exponent > 0) {
-            Int next = IntInit(IntAllocator(result));
-
-            if (!IntSquare(&next, &current)) {
+            if (!IntSquare(&scratch, &current)) {
                 IntDeinit(&acc);
                 IntDeinit(&current);
-                IntDeinit(&next);
+                IntDeinit(&scratch);
                 return false;
             }
-            IntDeinit(&current);
-            current = next;
+            int_swap(&current, &scratch);
         }
     }
 
+    IntDeinit(&scratch);
     IntDeinit(&current);
     int_replace(result, &acc);
     return true;
