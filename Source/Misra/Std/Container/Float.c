@@ -227,23 +227,29 @@ static bool float_try_abs_compare(int *out, const Float *lhs, const Float *rhs) 
         return true;
     }
 
-    {
-        i64   target_exponent = lhs->exponent < rhs->exponent ? lhs->exponent : rhs->exponent;
-        Float lhs_scaled      = FloatInit(FloatAllocator(lhs));
-        Float rhs_scaled      = FloatInit(FloatAllocator(rhs));
-
-        if (!FloatTryClone(&lhs_scaled, lhs) || !FloatTryClone(&rhs_scaled, rhs) ||
-            !float_scale_to_exponent(&lhs_scaled, target_exponent) ||
-            !float_scale_to_exponent(&rhs_scaled, target_exponent)) {
-            FloatDeinit(&lhs_scaled);
-            FloatDeinit(&rhs_scaled);
-            return false;
-        }
-        *out = int_compare(&lhs_scaled.significand, &rhs_scaled.significand);
-
-        FloatDeinit(&lhs_scaled);
-        FloatDeinit(&rhs_scaled);
+    // Equal exponents: compare significands directly, no clone needed.
+    if (lhs->exponent == rhs->exponent) {
+        *out = int_compare(&lhs->significand, &rhs->significand);
         return true;
+    }
+
+    // Otherwise only the higher-exponent operand needs scaling down to the lower
+    // exponent; clone just that one and compare against the other's significand.
+    {
+        const Float *low    = lhs->exponent < rhs->exponent ? lhs : rhs;
+        const Float *high   = lhs->exponent < rhs->exponent ? rhs : lhs;
+        Float        scaled = FloatInit(FloatAllocator(high));
+        bool         ok     = false;
+
+        if (FloatTryClone(&scaled, high) && float_scale_to_exponent(&scaled, low->exponent)) {
+            int cmp = int_compare(&scaled.significand, &low->significand);
+
+            *out = (high == lhs) ? cmp : -cmp;
+            ok   = true;
+        }
+
+        FloatDeinit(&scaled);
+        return ok;
     }
 }
 
