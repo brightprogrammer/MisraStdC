@@ -1512,55 +1512,71 @@ bool int_div_mod(Int *quotient, Int *remainder, const Int *dividend, const Int *
         return true;
     }
 
-    // Shift-the-remainder long division: r accumulates the dividend MSB-first;
-    // at each step r <<= 1, pull in the next dividend bit, and if r >= divisor
-    // subtract it (in place) and set the quotient bit. No per-position clone or
-    // shifted-divisor, so the loop does O(1) allocations.
-    u64  dividend_bits = IntBitLength(dividend);
-    u64  divisor_bits  = IntBitLength(divisor);
-    Int  q             = IntInit(IntAllocator(quotient));
-    Int  r             = IntInit(IntAllocator(remainder));
+    // Shift-the-remainder long division, built directly in the output objects so
+    // their existing capacity is reused (no per-call output allocation). The
+    // remainder accumulates the dividend MSB-first; at each step remainder <<= 1,
+    // pull in the next dividend bit, and if remainder >= divisor subtract it in
+    // place and set the quotient bit. The loop reads dividend and divisor while
+    // mutating the outputs, so any input that aliases an output is cloned first.
+    Int  dividend_copy = IntInit(IntAllocator(quotient));
+    Int  divisor_copy  = IntInit(IntAllocator(quotient));
     bool ok            = false;
 
-    if (!IntReserve(&q, dividend_bits) || !IntReserve(&r, divisor_bits + 1)) {
-        goto cleanup;
-    }
-
-    for (u64 bit = dividend_bits; bit > 0; bit--) {
-        u64 i = bit - 1;
-
-        if (!IntShiftLeft(&r, 1)) {
+    if (dividend == quotient || dividend == remainder) {
+        if (!int_try_clone_value(&dividend_copy, dividend)) {
             goto cleanup;
         }
-        if (BitVecGet(INT_BITS(dividend), i)) {
-            if (IntBitLength(&r) == 0 && !BitVecResize(INT_BITS(&r), 1)) {
-                goto cleanup;
-            }
-            BitVecSet(INT_BITS(&r), 0, true);
+        dividend = &dividend_copy;
+    }
+    if (divisor == quotient || divisor == remainder) {
+        if (!int_try_clone_value(&divisor_copy, divisor)) {
+            goto cleanup;
         }
-
-        if (int_compare(&r, divisor) >= 0) {
-            if (!int_sub(&r, &r, divisor)) {
-                goto cleanup;
-            }
-            if (IntBitLength(&q) < i + 1 && !BitVecResize(INT_BITS(&q), i + 1)) {
-                goto cleanup;
-            }
-            BitVecSet(INT_BITS(&q), i, true);
-        }
+        divisor = &divisor_copy;
     }
 
-    int_normalize(&q);
-    int_normalize(&r);
-    int_replace(quotient, &q);
-    int_replace(remainder, &r);
-    ok = true;
+    {
+        u64 dividend_bits = IntBitLength(dividend);
+        u64 divisor_bits  = IntBitLength(divisor);
+
+        IntClear(quotient);
+        IntClear(remainder);
+        if (!IntReserve(quotient, dividend_bits) || !IntReserve(remainder, divisor_bits + 1)) {
+            goto cleanup;
+        }
+
+        for (u64 bit = dividend_bits; bit > 0; bit--) {
+            u64 i = bit - 1;
+
+            if (!IntShiftLeft(remainder, 1)) {
+                goto cleanup;
+            }
+            if (BitVecGet(INT_BITS(dividend), i)) {
+                if (IntBitLength(remainder) == 0 && !BitVecResize(INT_BITS(remainder), 1)) {
+                    goto cleanup;
+                }
+                BitVecSet(INT_BITS(remainder), 0, true);
+            }
+
+            if (int_compare(remainder, divisor) >= 0) {
+                if (!int_sub(remainder, remainder, divisor)) {
+                    goto cleanup;
+                }
+                if (IntBitLength(quotient) < i + 1 && !BitVecResize(INT_BITS(quotient), i + 1)) {
+                    goto cleanup;
+                }
+                BitVecSet(INT_BITS(quotient), i, true);
+            }
+        }
+
+        int_normalize(quotient);
+        int_normalize(remainder);
+        ok = true;
+    }
 
 cleanup:
-    if (!ok) {
-        IntDeinit(&q);
-        IntDeinit(&r);
-    }
+    IntDeinit(&dividend_copy);
+    IntDeinit(&divisor_copy);
     return ok;
 }
 
