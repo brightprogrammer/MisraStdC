@@ -37,9 +37,9 @@ test(
 
 #Group tests by module
 io_tests = [
-    ['Io.Write', 'Std/Io.Write.c'],
-    ['Io.Read', 'Std/Io.Read.c'],
-    ['Io.UserTypes', 'Std/Io.UserTypes.c'],
+    ['Io.Write', 'Std/Io/Write.c'],
+    ['Io.Read', 'Std/Io/Read.c'],
+    ['Io.UserTypes', 'Std/Io/UserTypes.c'],
 ]
 
 file_tests = [
@@ -51,7 +51,7 @@ argparse_tests = [
 ]
 
 socket_tests = [
-    ['Socket', 'Std/Socket.c'],
+    ['Socket', 'Sys/Socket.c'],
 ]
 
 http_tests = [
@@ -76,7 +76,7 @@ pdb_tests = [
 ]
 
 pdb_cache_tests = [
-    ['PdbCache', 'Std/PdbCache.c'],
+    ['PdbCache', 'Sys/PdbCache.c'],
 ]
 
 macho_tests = [
@@ -88,11 +88,11 @@ dns_tests = [
 ]
 
 sys_dns_tests = [
-    ['SysDns', 'Std/SysDns.c'],
+    ['SysDns', 'Sys/SysDns.c'],
 ]
 
 macho_cache_tests = [
-    ['MachoCache', 'Std/MachoCache.c'],
+    ['MachoCache', 'Sys/MachoCache.c'],
 ]
 
 procmaps_tests = [
@@ -100,12 +100,12 @@ procmaps_tests = [
 ]
 
 symresolve_tests = [
-    ['SymbolResolver', 'Std/SymbolResolver.c'],
-    ['SymbolResolver.SymBind', 'Std/SymbolResolver.SymBind.c'],
+    ['SymbolResolver', 'Sys/SymbolResolver/SymbolResolver.c'],
+    ['SymbolResolver.SymBind', 'Sys/SymbolResolver/SymBind.c'],
 ]
 
 backtrace_tests = [
-    ['Backtrace', 'Std/Backtrace.c'],
+    ['Backtrace', 'Sys/Backtrace.c'],
 ]
 
 page_protect_tests = [
@@ -117,11 +117,11 @@ alloc_debug_tests = [
 ]
 
 iter_tests = [
-    ['Iter', 'Std/Iter.c'],
+    ['Iter', 'Std/Iter/Iter.c'],
 ]
 
 iter_deadend_tests = [
-    ['Iter.Deadend', 'Std/Iter.Deadend.c'],
+    ['Iter.Deadend', 'Std/Iter/Deadend.c'],
 ]
 
 buf_tests = [
@@ -129,100 +129,100 @@ buf_tests = [
 ]
 
 str_tests = [
-    ['Str.Type', 'Std/Str.Type.c'],
-    ['Str.Init', 'Std/Str.Init.c'],
-    ['Str.Insert', 'Std/Str.Insert.c'],
-    ['Str.Remove', 'Std/Str.Remove.c'],
-    ['Str.Access', 'Std/Str.Access.c'],
-    ['Str.Memory', 'Std/Str.Memory.c'],
-    ['Str.Convert', 'Std/Str.Convert.c'],
-    ['Str.Foreach', 'Std/Str.Foreach.c'],
-    ['Str.Ops', 'Std/Str.Ops.c'],
+    ['Str.Type', 'Std/Str/Type.c'],
+    ['Str.Init', 'Std/Str/Init.c'],
+    ['Str.Insert', 'Std/Str/Insert.c'],
+    ['Str.Remove', 'Std/Str/Remove.c'],
+    ['Str.Access', 'Std/Str/Access.c'],
+    ['Str.Memory', 'Std/Str/Memory.c'],
+    ['Str.Convert', 'Std/Str/Convert.c'],
+    ['Str.Foreach', 'Std/Str/Foreach.c'],
+    ['Str.Ops', 'Std/Str/Ops.c'],
 ]
 
 vec_tests = [
-    ['Vec.Type', 'Std/Vec.Type.c'],
-    ['Vec.Init', 'Std/Vec.Init.c'],
-    ['Vec.Access', 'Std/Vec.Access.c'],
-    ['Vec.Memory', 'Std/Vec.Memory.c'],
-    ['Vec.Insert', 'Std/Vec.Insert.c'],
-    ['Vec.Remove', 'Std/Vec.Remove.c'],
-    ['Vec.Foreach', 'Std/Vec.Foreach.c'],
-    ['Vec.Ops', 'Std/Vec.Ops.c'],
-    ['Vec.Complex', 'Std/Vec.Complex.c'],
+    ['Vec.Type', 'Std/Vec/Type.c'],
+    ['Vec.Init', 'Std/Vec/Init.c'],
+    ['Vec.Access', 'Std/Vec/Access.c'],
+    ['Vec.Memory', 'Std/Vec/Memory.c'],
+    ['Vec.Insert', 'Std/Vec/Insert.c'],
+    ['Vec.Remove', 'Std/Vec/Remove.c'],
+    ['Vec.Foreach', 'Std/Vec/Foreach.c'],
+    ['Vec.Ops', 'Std/Vec/Ops.c'],
+    ['Vec.Complex', 'Std/Vec/Complex.c'],
 ]
 
 graph_tests = [
-    ['Graph.Type', 'Std/Graph.Type.c'],
-    ['Graph.Init', 'Std/Graph.Init.c'],
-    ['Graph.Access', 'Std/Graph.Access.c'],
-    ['Graph.Insert', 'Std/Graph.Insert.c'],
-    ['Graph.Foreach', 'Std/Graph.Foreach.c'],
-    ['Graph.Ops', 'Std/Graph.Ops.c'],
+    ['Graph.Type', 'Std/Graph/Type.c'],
+    ['Graph.Init', 'Std/Graph/Init.c'],
+    ['Graph.Access', 'Std/Graph/Access.c'],
+    ['Graph.Insert', 'Std/Graph/Insert.c'],
+    ['Graph.Foreach', 'Std/Graph/Foreach.c'],
+    ['Graph.Ops', 'Std/Graph/Ops.c'],
 ]
 
 list_tests = [
-    ['List.Type', 'Std/List.Type.c'],
-    ['List.Init', 'Std/List.Init.c'],
-    ['List.Access', 'Std/List.Access.c'],
-    ['List.Insert', 'Std/List.Insert.c'],
-    ['List.Remove', 'Std/List.Remove.c'],
-    ['List.Foreach', 'Std/List.Foreach.c'],
-    ['List.Ops', 'Std/List.Ops.c'],
-    ['List.Deadend', 'Std/List.Deadend.c'],
+    ['List.Type', 'Std/List/Type.c'],
+    ['List.Init', 'Std/List/Init.c'],
+    ['List.Access', 'Std/List/Access.c'],
+    ['List.Insert', 'Std/List/Insert.c'],
+    ['List.Remove', 'Std/List/Remove.c'],
+    ['List.Foreach', 'Std/List/Foreach.c'],
+    ['List.Ops', 'Std/List/Ops.c'],
+    ['List.Deadend', 'Std/List/Deadend.c'],
 ]
 
 map_tests = [
-    ['Map.Type', 'Std/Map.Type.c'],
-    ['Map.Init', 'Std/Map.Init.c'],
-    ['Map.Access', 'Std/Map.Access.c'],
-    ['Map.Insert', 'Std/Map.Insert.c'],
-    ['Map.Remove', 'Std/Map.Remove.c'],
-    ['Map.Foreach', 'Std/Map.Foreach.c'],
-    ['Map.Ops', 'Std/Map.Ops.c'],
-    ['Map.Deadend', 'Std/Map.Deadend.c'],
+    ['Map.Type', 'Std/Map/Type.c'],
+    ['Map.Init', 'Std/Map/Init.c'],
+    ['Map.Access', 'Std/Map/Access.c'],
+    ['Map.Insert', 'Std/Map/Insert.c'],
+    ['Map.Remove', 'Std/Map/Remove.c'],
+    ['Map.Foreach', 'Std/Map/Foreach.c'],
+    ['Map.Ops', 'Std/Map/Ops.c'],
+    ['Map.Deadend', 'Std/Map/Deadend.c'],
 ]
 
 bitvec_tests = [
-    ['BitVec.Type', 'Std/BitVec.Type.c'],
-    ['BitVec.Init', 'Std/BitVec.Init.c'],
-    ['BitVec.Access.Simple', 'Std/BitVec.Access.Simple.c'],
-    ['BitVec.Insert', 'Std/BitVec.Insert.c'],
-    ['BitVec.Remove', 'Std/BitVec.Remove.c'],
-    ['BitVec.Memory', 'Std/BitVec.Memory.c'],
-    ['BitVec.BitWise.Simple', 'Std/BitVec.BitWise.Simple.c'],
-    ['BitVec.Compare', 'Std/BitVec.Compare.c'],
-    ['BitVec.Convert', 'Std/BitVec.Convert.c'],
-    ['BitVec.Pattern.Simple', 'Std/BitVec.Pattern.Simple.c'],
-    ['BitVec.Math', 'Std/BitVec.Math.c'],
-    ['BitVec.Foreach.Simple', 'Std/BitVec.Foreach.Simple.c'],
+    ['BitVec.Type', 'Std/BitVec/Type.c'],
+    ['BitVec.Init', 'Std/BitVec/Init.c'],
+    ['BitVec.Access.Simple', 'Std/BitVec/Access.Simple.c'],
+    ['BitVec.Insert', 'Std/BitVec/Insert.c'],
+    ['BitVec.Remove', 'Std/BitVec/Remove.c'],
+    ['BitVec.Memory', 'Std/BitVec/Memory.c'],
+    ['BitVec.BitWise.Simple', 'Std/BitVec/BitWise.Simple.c'],
+    ['BitVec.Compare', 'Std/BitVec/Compare.c'],
+    ['BitVec.Convert', 'Std/BitVec/Convert.c'],
+    ['BitVec.Pattern.Simple', 'Std/BitVec/Pattern.Simple.c'],
+    ['BitVec.Math', 'Std/BitVec/Math.c'],
+    ['BitVec.Foreach.Simple', 'Std/BitVec/Foreach.Simple.c'],
 ]
 
 int_tests = [
-    ['Int.Type', 'Std/Int.Type.c'],
-    ['Int.Access', 'Std/Int.Access.c'],
-    ['Int.Compare', 'Std/Int.Compare.c'],
-    ['Int.Convert', 'Std/Int.Convert.c'],
-    ['Int.Math', 'Std/Int.Math.c'],
+    ['Int.Type', 'Std/Int/Type.c'],
+    ['Int.Access', 'Std/Int/Access.c'],
+    ['Int.Compare', 'Std/Int/Compare.c'],
+    ['Int.Convert', 'Std/Int/Convert.c'],
+    ['Int.Math', 'Std/Int/Math.c'],
 ]
 
 float_tests = [
-    ['Float.Type', 'Std/Float.Type.c'],
-    ['Float.Access', 'Std/Float.Access.c'],
-    ['Float.Compare', 'Std/Float.Compare.c'],
-    ['Float.Convert', 'Std/Float.Convert.c'],
-    ['Float.Math', 'Std/Float.Math.c'],
+    ['Float.Type', 'Std/Float/Type.c'],
+    ['Float.Access', 'Std/Float/Access.c'],
+    ['Float.Compare', 'Std/Float/Compare.c'],
+    ['Float.Convert', 'Std/Float/Convert.c'],
+    ['Float.Math', 'Std/Float/Math.c'],
 ]
 
 bitvec_deadend_tests = [
-    ['BitVec.Access.Deadend', 'Std/BitVec.Access.Deadend.c'],
-    ['BitVec.BitWise.Deadend', 'Std/BitVec.BitWise.Deadend.c'],
-    ['BitVec.Pattern.Deadend', 'Std/BitVec.Pattern.Deadend.c'],
+    ['BitVec.Access.Deadend', 'Std/BitVec/Access.Deadend.c'],
+    ['BitVec.BitWise.Deadend', 'Std/BitVec/BitWise.Deadend.c'],
+    ['BitVec.Pattern.Deadend', 'Std/BitVec/Pattern.Deadend.c'],
 ]
 if opt_list
     # Foreach.Deadend touches List runtime helpers to assert iterator
     # type mismatches, so it needs the optional `list` feature.
-    bitvec_deadend_tests += [['BitVec.Foreach.Deadend', 'Std/BitVec.Foreach.Deadend.c']]
+    bitvec_deadend_tests += [['BitVec.Foreach.Deadend', 'Std/BitVec/Foreach.Deadend.c']]
 endif
 
 json_tests = [
@@ -242,18 +242,18 @@ kvconfig_tests = [
 
 allocator_tests = [
     # Page and Heap are foundation.
-    ['Allocator.Page', 'Std/Allocator.Page.c'],
-    ['Allocator.Heap', 'Std/Allocator.Heap.c'],
-    ['Allocator.Dispatch', 'Std/Allocator.Dispatch.c'],
+    ['Allocator.Page', 'Std/Allocator/Page.c'],
+    ['Allocator.Heap', 'Std/Allocator/Heap.c'],
+    ['Allocator.Dispatch', 'Std/Allocator/Dispatch.c'],
 ]
 if opt_alloc_arena
-    allocator_tests += [['Allocator.Arena', 'Std/Allocator.Arena.c']]
+    allocator_tests += [['Allocator.Arena', 'Std/Allocator/Arena.c']]
 endif
 if opt_alloc_slab
-    allocator_tests += [['Allocator.Slab', 'Std/Allocator.Slab.c']]
+    allocator_tests += [['Allocator.Slab', 'Std/Allocator/Slab.c']]
 endif
 if opt_alloc_budget
-    allocator_tests += [['Allocator.Budget', 'Std/Allocator.Budget.c']]
+    allocator_tests += [['Allocator.Budget', 'Std/Allocator/Budget.c']]
 endif
 
 #Io tests exercise format specifiers for every supported type
@@ -684,7 +684,7 @@ if opt_sys_symresolve and tests_need_posix_exe
     # on-disk ELF layout just stays the un-instrumented one the test expects.
     bias_lib = shared_library(
         'symres_bias',
-        files('Std/SymbolResolver.BiasLib.c'),
+        files('Sys/SymbolResolver/BiasLib.c'),
         c_args: test_args,
         link_args: ['-Wl,-z,max-page-size=0x10000', '-Wl,-z,noseparate-code'],
         override_options: ['b_sanitize=none'],
@@ -693,7 +693,7 @@ if opt_sys_symresolve and tests_need_posix_exe
 
     bias_exe = executable(
         'SymbolResolver.Bias',
-        files('Std/SymbolResolver.Bias.c'),
+        files('Sys/SymbolResolver/Bias.c'),
         link_with: [misra_std_no_backtrace, bias_lib],
         dependencies: [test_util_dep_no_backtrace],
         c_args: test_args,
@@ -717,7 +717,7 @@ if opt_sys_symresolve and tests_need_posix_exe
     if objcopy.found()
         sidecar_image = executable(
             'SymbolResolver.Sidecar.image',
-            files('Std/SymbolResolver.Sidecar.c'),
+            files('Sys/SymbolResolver/Sidecar.c'),
             link_with: [misra_std_no_backtrace],
             dependencies: [test_util_dep_no_backtrace],
             c_args: test_args + ['-gdwarf-4'],
@@ -774,7 +774,7 @@ if opt_sys_symresolve and tests_need_posix_exe
         if bash.found()
             sidecarsub_image = executable(
                 'SymbolResolver.SidecarSub.image',
-                files('Std/SymbolResolver.SidecarSub.c'),
+                files('Sys/SymbolResolver/SidecarSub.c'),
                 link_with: [misra_std_no_backtrace],
                 dependencies: [test_util_dep_no_backtrace],
                 c_args: test_args + ['-gdwarf-4'],
@@ -810,7 +810,7 @@ if opt_sys_symresolve and tests_need_posix_exe
         # markers purely through DWARF.
         dwarffallback_image = executable(
             'SymbolResolver.DwarfFallback.image',
-            files('Std/SymbolResolver.DwarfFallback.c'),
+            files('Sys/SymbolResolver/DwarfFallback.c'),
             link_with: [misra_std_no_backtrace],
             dependencies: [test_util_dep_no_backtrace],
             c_args: test_args + ['-gdwarf-4', '-gno-column-info'],
@@ -847,7 +847,7 @@ if opt_sys_symresolve and tests_need_posix_exe
         if bash.found()
             sidecardwarf_image = executable(
                 'SymbolResolver.SidecarDwarf.image',
-                files('Std/SymbolResolver.SidecarDwarf.c'),
+                files('Sys/SymbolResolver/SidecarDwarf.c'),
                 link_with: [misra_std_no_backtrace],
                 dependencies: [test_util_dep_no_backtrace],
                 c_args: test_args + ['-gdwarf-4', '-gno-column-info'],
@@ -975,7 +975,7 @@ endforeach
 
 clock_tests = [
     ['DateTime', 'Std/DateTime.c'],
-    ['Clock', 'Std/Clock.c'],
+    ['Clock', 'Sys/Clock.c'],
 ]
 foreach test_info : clock_tests
     test_name = test_info[0]
