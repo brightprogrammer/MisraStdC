@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 
@@ -640,6 +641,15 @@ bool test_suffix_match_null_bv_empty_patterns(void) {
     return true;
 }
 
+// 1871:5 cxx_remove_void_call -- bitvec_regex_match_str validates bv.
+bool test_blind_regex_match_str_validates(void);
+bool test_blind_regex_match_str_validates(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              p     = StrInitFromZstr("1", &alloc);
+    bitvec_regex_match_str(NULL, &p);
+    return false;
+}
+
 // Main function that runs all deadend tests
 int main(void) {
     WriteFmt("[INFO] Starting BitVec.Pattern.Deadend tests\n\n");
@@ -684,7 +694,8 @@ int main(void) {
         test_fuzzy_null_source_aborts,
         test_fuzzy_null_pattern_aborts,
         test_prefix_match_null_bv_empty_patterns,
-        test_suffix_match_null_bv_empty_patterns
+        test_suffix_match_null_bv_empty_patterns,
+        test_blind_regex_match_str_validates
     };
 
     int total_deadend_tests = sizeof(deadend_tests) / sizeof(deadend_tests[0]);

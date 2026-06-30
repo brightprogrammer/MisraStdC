@@ -69,6 +69,10 @@ bool test_insert_one_l_inserts_value(void);
 bool test_insert_range_fast_l_reports_failure(void);
 bool test_insert_one_l_reports_failure(void);
 
+// ---- insert failure tail-zeroing prototypes (from Vec.Blind) -----------
+bool test_insert_fail_tail_zeroed(void);
+bool test_fast_insert_fail_tail_zeroed(void);
+
 // Test VecPushBack function
 static DefaultAllocator alloc;
 
@@ -1879,6 +1883,109 @@ bool test_insert_one_l_reports_failure(void) {
     return result;
 }
 
+// ===========================================================================
+// insert failure tail-zeroing mutation-hardening (from Vec.Blind)
+// ===========================================================================
+
+// ---- 268:78 cxx_mul_to_div ------------------------------------------------
+// insert_range_into_vec failure cleanup. On a copy_init failure during a middle
+// insert (idx < length), the originals are shifted right (pre-loop), then on
+// failure shifted back, leaving stale copies of the tail in the top `count`
+// slots [length, length+count). Real code zeros that region with
+// `count * aligned_size`. The mutant `count / aligned_size` (8 -> 0 bytes for
+// count < 8) zeros nothing, so the stale non-zero tail copies survive at
+// VecAt(vec, length .. length+count). The vector length is restored, so those
+// slots sit one-past-end and are observable.
+bool test_insert_fail_tail_zeroed(void) {
+    WriteFmt("Testing insert failure zeroes vacated tail slots\n");
+
+    ElemVec vec = VecInitWithDeepCopy(elem_copy_init, elem_copy_deinit, &alloc);
+
+    // Fill 4 live originals (10..13). copy_init must not fail during prefill.
+    g_fail_at = 0;
+    for (u64 i = 0; i < 4; i++) {
+        Elem e = {.value = 10 + (int)i};
+        VecPushBackR(&vec, e);
+    }
+
+    size length_before = VecLen(&vec); // 4
+
+    // Middle insert at idx 1 of 2 elements; fail on the very first copy_init of
+    // this insert so the failure cleanup runs with the originals shifted.
+    g_init_calls = 0;
+    g_fail_at    = 1;
+    Elem add[2]  = {{.value = 1000}, {.value = 2000}};
+    bool ok      = VecInsertRangeR(&vec, add, 1, 2);
+
+    bool result = (ok == false) && (VecLen(&vec) == length_before);
+
+    // Originals fully intact after rollback.
+    result = result && (VecAt(&vec, 0).value == 10);
+    result = result && (VecAt(&vec, 1).value == 11);
+    result = result && (VecAt(&vec, 2).value == 12);
+    result = result && (VecAt(&vec, 3).value == 13);
+
+    // The two slots one-past-end (the vacated tail) must be zeroed. Under the
+    // mutant they retain stale copies of the shifted originals (non-zero).
+    result = result && (VecAt(&vec, 4).value == 0);
+    result = result && (VecAt(&vec, 5).value == 0);
+
+    g_fail_at = 0; // let VecDeinit run copy_deinit on the live originals
+    VecDeinit(&vec);
+    return result;
+}
+
+// ---- 344:81 cxx_mul_to_div ------------------------------------------------
+// insert_range_fast_into_vec failure cleanup. A front/middle insert parks the
+// displaced originals at the very end [length+count-displaced, length+count).
+// On failure the parked block is moved back to [idx, idx+displaced), leaving
+// stale copies in [length, length+count). Real code zeros that region with
+// `aligned_size * count`; the mutant `aligned_size / count` (8/count -> 0 for
+// count >= 2) leaves the stale parked copies. Observable one-past-end.
+bool test_fast_insert_fail_tail_zeroed(void) {
+    WriteFmt("Testing fast-insert failure zeroes parked tail slots\n");
+
+    ElemVec vec = VecInitWithDeepCopy(elem_copy_init, elem_copy_deinit, &alloc);
+
+    g_fail_at = 0;
+    for (u64 i = 0; i < 4; i++) {
+        Elem e = {.value = 100 + (int)i}; // 100..103
+        VecPushBackR(&vec, e);
+    }
+
+    size length_before = VecLen(&vec); // 4
+
+    // Front insert at idx 0 of 2 elements -> displaced = min(length-idx,count)
+    // = min(4,2) = 2, so the displacement MemMove runs. Fail on first copy.
+    g_init_calls = 0;
+    g_fail_at    = 1;
+    Elem add[2]  = {{.value = 7000}, {.value = 8000}};
+    bool ok      = VecInsertRangeFastR(&vec, add, 0, 2);
+
+    bool result = (ok == false) && (VecLen(&vec) == length_before);
+
+    // Originals must all still be present (order may differ for the fast path,
+    // but a front-insert with displaced==count restores them in place).
+    bool found100 = false, found101 = false, found102 = false, found103 = false;
+    for (size i = 0; i < VecLen(&vec); i++) {
+        u64 v    = (u64)VecAt(&vec, i).value;
+        found100 = found100 || (v == 100);
+        found101 = found101 || (v == 101);
+        found102 = found102 || (v == 102);
+        found103 = found103 || (v == 103);
+    }
+    result = result && found100 && found101 && found102 && found103;
+
+    // The two parked slots one-past-end must be zeroed; the mutant leaves
+    // stale displaced copies there.
+    result = result && (VecAt(&vec, 4).value == 0);
+    result = result && (VecAt(&vec, 5).value == 0);
+
+    g_fail_at = 0;
+    VecDeinit(&vec);
+    return result;
+}
+
 // Main function that runs all tests
 int main(void) {
     alloc = DefaultAllocatorInit();
@@ -1941,7 +2048,10 @@ int main(void) {
         test_insert_one_l_inserts_value,
         // L-insert copy_init failure reporting (Vec.Mut)
         test_insert_range_fast_l_reports_failure,
-        test_insert_one_l_reports_failure
+        test_insert_one_l_reports_failure,
+        // insert failure tail-zeroing (Vec.Blind)
+        test_insert_fail_tail_zeroed,
+        test_fast_insert_fail_tail_zeroed
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);

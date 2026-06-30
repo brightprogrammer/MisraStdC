@@ -464,6 +464,41 @@ static bool test_relative_back_to_head_returns_head(void) {
     return result;
 }
 
+// ---------------------------------------------------------------------------
+// 493:22 cxx_gt_to_ge  in get_node_random_access node-origin forward walk:
+//   while (steps > 0 && cur)  ->  while (steps >= 0 && cur)
+//
+// A non-zero overshoot is silently corrected by the symmetric backward loop
+// that follows (a forward overshoot of one is pulled back by one). The one
+// case the correction CANNOT undo is when the node origin is the TAIL and
+// ridx == 0: real code skips both loops and returns the tail. The mutant's
+// forward loop runs once (0 >= 0), steps off the tail to NULL and sets
+// steps = -1; the backward loop then sees cur == NULL and cannot step back,
+// so the mutant returns NULL.
+//
+// nidx = length-1 (tail), ridx = 0 -> abs target = tail.
+// dist_from_node=0, dist_from_tail=0 -> node origin selected.
+// Real returns the tail node (value 80); mutant returns NULL.
+// ---------------------------------------------------------------------------
+static bool test_node_origin_tail_zero_step(void) {
+    WriteFmt("Testing get_node_random_access node-origin tail zero-step\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    List(int) list         = ListInit(&alloc);
+    fill_decades(GENERIC_LIST(&list), 9); // indices 0..8, tail value 80
+
+    GenericList     *g    = GENERIC_LIST(&list);
+    GenericListNode *tail = node_at_list(g, sizeof(int), 8);
+    GenericListNode *got  = get_node_random_access(g, tail, 8, 0);
+
+    // Real: tail node, value 80. Mutant (steps >= 0): NULL.
+    bool result = got && (node_value(got) == 80);
+
+    ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_list_len_empty,
@@ -480,6 +515,7 @@ int main(void) {
         test_iteration_head_walk_lands_on_target,
         test_iteration_tail_walk_lands_on_target,
         test_relative_back_to_head_returns_head,
+        test_node_origin_tail_zero_step,
     };
 
     WriteFmt("[INFO] Starting List.Access tests\n\n");

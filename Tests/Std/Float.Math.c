@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Debug.h>
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Std/Container/Float.h>
@@ -6,6 +7,16 @@
 
 #include "../Util/FloatTestData.h"
 #include "../Util/TestRunner.h"
+
+// Convenience: a test passes iff `ok` held AND the DebugAllocator has no
+// outstanding allocations after the test released everything it owns.
+#define LEAK_CLEAN(dbg) (DebugAllocatorLiveCount(&(dbg)) == 0 && DebugAllocatorLiveBytes(&(dbg)) == 0)
+
+// Leak-only config: live-count tracking, NO per-alloc stack-trace / canary /
+// freed-history -- avoids the backtrace-per-alloc cost under mull. Leak
+// detection (LiveCount / LiveBytes) is unchanged.
+#define LEAK_CFG                                                                                                       \
+    ((DebugAllocatorConfig) {.capture_traces = false, .detect_overflow = false, .track_freed_history = false})
 
 bool test_float_negate_abs(void);
 bool test_float_add_small_small(void);
@@ -21,6 +32,33 @@ bool test_float_div_small_small(void);
 bool test_float_div_very_large_small(void);
 bool test_float_div_generic(void);
 bool test_float_div_by_zero(void);
+bool test_add_scaling_no_leak(void);
+bool test_add_replace_prepopulated_no_leak(void);
+bool test_add_cancel_to_zero_no_leak(void);
+bool test_div_success_no_leak(void);
+bool test_div_zero_dividend_no_leak(void);
+bool test_mul_replace_prepopulated_no_leak(void);
+bool test_add_int_rhs_no_leak(void);
+bool test_add_u64_rhs_no_leak(void);
+bool test_add_i64_rhs_no_leak(void);
+bool test_add_f32_rhs_no_leak(void);
+bool test_add_f64_rhs_no_leak(void);
+bool test_sub_float_rhs_no_leak(void);
+bool test_sub_int_rhs_no_leak(void);
+bool test_sub_u64_rhs_no_leak(void);
+bool test_sub_i64_rhs_no_leak(void);
+bool test_sub_f32_rhs_no_leak(void);
+bool test_sub_f64_rhs_no_leak(void);
+bool test_mul_int_rhs_no_leak(void);
+bool test_mul_u64_rhs_no_leak(void);
+bool test_mul_i64_rhs_no_leak(void);
+bool test_mul_f32_rhs_no_leak(void);
+bool test_mul_f64_rhs_no_leak(void);
+bool test_div_int_rhs_no_leak(void);
+bool test_div_u64_rhs_no_leak(void);
+bool test_div_i64_rhs_no_leak(void);
+bool test_div_f32_rhs_no_leak(void);
+bool test_div_f64_rhs_no_leak(void);
 
 // INT64 half-points chosen so that a sum/difference of two parsed exponents
 // lands *exactly* on the i64 limit. This makes the overflow guard's `a`
@@ -943,6 +981,481 @@ bool test_m9_div_u64_exact(void) {
     return ok;
 }
 
+// =============================================================================
+// float_scale_to_exponent success path:
+//   IntDeinit(&factor)              [208:9]
+//   IntDeinit(&value->significand)  [209:9]
+// Reached via float_add of two floats with different exponents, forcing the
+// smaller-magnitude operand to be scaled.
+
+bool test_add_scaling_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+
+    Float a = FloatFromStr("1.5", &dbg.base);   // exp -1
+    Float b = FloatFromStr("0.025", &dbg.base); // exp -3 -> scaling occurs
+    Float r = FloatInit(&dbg.base);
+
+    bool ok = FloatAdd(&r, &a, &b);
+
+    FloatDeinit(&a);
+    FloatDeinit(&b);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// =============================================================================
+// float_add final cleanup + float_replace (success path):
+//   FloatDeinit(&lhs)  [957:5]
+//   FloatDeinit(&rhs)  [958:5]
+//   float_replace: FloatDeinit(dst) before *dst = *src  [157:5]
+// Reached by float_add into a result that already holds an allocated value
+// (so float_replace's FloatDeinit(dst) frees real storage).
+
+bool test_add_replace_prepopulated_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+
+    Float a = FloatFromStr("2.5", &dbg.base);
+    Float b = FloatFromStr("3.5", &dbg.base);
+    Float r = FloatFromStr("123456789", &dbg.base); // pre-populated dest
+
+    bool ok = FloatAdd(&r, &a, &b);
+
+    FloatDeinit(&a);
+    FloatDeinit(&b);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// =============================================================================
+// float_add equal-magnitude opposite-sign branch:
+//   FloatClear(&temp)  [952:13]
+// Reached by adding x + (-x); cmp == 0 path. (temp.significand is freshly
+// zero here so this is leak-neutral, but the test still exercises the branch.)
+
+bool test_add_cancel_to_zero_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+
+    Float a = FloatFromStr("7.25", &dbg.base);
+    Float b = FloatFromStr("-7.25", &dbg.base);
+    Float r = FloatInit(&dbg.base);
+
+    bool ok = FloatAdd(&r, &a, &b);
+    ok      = ok && FloatIsZero(&r);
+
+    FloatDeinit(&a);
+    FloatDeinit(&b);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// =============================================================================
+// float_div success path:
+//   IntDeinit(&scale)   [1200:5]
+//   IntDeinit(&scaled)  [1201:5]
+//   (plus float_replace into a pre-populated result)
+// Reached by FloatDiv of two non-zero floats with precision into a populated
+// result.
+
+bool test_div_success_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+
+    Float a = FloatFromStr("1", &dbg.base);
+    Float b = FloatFromStr("3", &dbg.base);
+    Float r = FloatFromStr("987654321", &dbg.base); // pre-populated dest
+
+    bool ok = FloatDiv(&r, &a, &b, 8u);
+
+    FloatDeinit(&a);
+    FloatDeinit(&b);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// =============================================================================
+// float_div a == 0 short-circuit success path:
+//   FloatDeinit(result) before *result = zero  [1179:9]
+// Reached by FloatDiv where the dividend is zero into a pre-populated result.
+
+bool test_div_zero_dividend_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+
+    Float a = FloatFrom(0u, &dbg.base);
+    Float b = FloatFromStr("4", &dbg.base);
+    Float r = FloatFromStr("55555", &dbg.base); // pre-populated dest
+
+    bool ok = FloatDiv(&r, &a, &b, 4u);
+    ok      = ok && FloatIsZero(&r);
+
+    FloatDeinit(&a);
+    FloatDeinit(&b);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// =============================================================================
+// float_mul success path drives float_replace into a pre-populated result.
+//   float_replace FloatDeinit(dst)  [157:5] (also via mul)
+// (FloatMul itself has no rhs-temp on the Float*Float overload; the scalar
+// overloads carry the FloatDeinit(&rhs) tested below.)
+
+bool test_mul_replace_prepopulated_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+
+    Float a = FloatFromStr("2.5", &dbg.base);
+    Float b = FloatFromStr("4", &dbg.base);
+    Float r = FloatFromStr("314159265", &dbg.base); // pre-populated dest
+
+    bool ok = FloatMul(&r, &a, &b);
+
+    FloatDeinit(&a);
+    FloatDeinit(&b);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// =============================================================================
+// Scalar-operand temporaries: FloatDeinit(&rhs) on the success path of every
+// float_<op>_<scalar> wrapper. Each wrapper builds an internal `rhs` Float from
+// the scalar and frees it before returning. Removing that FloatDeinit(&rhs)
+// leaks the rhs significand. One leak-guard per distinct wrapper line.
+
+// float_add_int  [970:5]
+bool test_add_int_rhs_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          a   = FloatFromStr("1.5", &dbg.base);
+    Float          r   = FloatInit(&dbg.base);
+    Int            b   = IntFrom(2, &dbg.base);
+
+    bool ok = FloatAdd(&r, &a, &b);
+
+    FloatDeinit(&a);
+    FloatDeinit(&r);
+    IntDeinit(&b);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// float_add_u64  [981:5]
+bool test_add_u64_rhs_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          a   = FloatFromStr("1.5", &dbg.base);
+    Float          r   = FloatInit(&dbg.base);
+
+    bool ok = FloatAdd(&r, &a, 2u);
+
+    FloatDeinit(&a);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// float_add_i64  [992:5]
+bool test_add_i64_rhs_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          a   = FloatFromStr("1.5", &dbg.base);
+    Float          r   = FloatInit(&dbg.base);
+
+    bool ok = FloatAdd(&r, &a, -2);
+
+    FloatDeinit(&a);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// float_add_f32  [1003:5]
+bool test_add_f32_rhs_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          a   = FloatFromStr("1.5", &dbg.base);
+    Float          r   = FloatInit(&dbg.base);
+
+    bool ok = FloatAdd(&r, &a, 0.5f);
+
+    FloatDeinit(&a);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// float_add_f64  [1014:5]
+bool test_add_f64_rhs_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          a   = FloatFromStr("1.5", &dbg.base);
+    Float          r   = FloatInit(&dbg.base);
+
+    bool ok = FloatAdd(&r, &a, 0.25);
+
+    FloatDeinit(&a);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// float_sub (Float*Float): FloatDeinit(&rhs) negated clone  [1030:5]
+bool test_sub_float_rhs_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          a   = FloatFromStr("5.5", &dbg.base);
+    Float          b   = FloatFromStr("1.25", &dbg.base);
+    Float          r   = FloatInit(&dbg.base);
+
+    bool ok = FloatSub(&r, &a, &b);
+
+    FloatDeinit(&a);
+    FloatDeinit(&b);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// float_sub_int  [1041:5]
+bool test_sub_int_rhs_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          a   = FloatFromStr("5.5", &dbg.base);
+    Float          r   = FloatInit(&dbg.base);
+    Int            b   = IntFrom(2, &dbg.base);
+
+    bool ok = FloatSub(&r, &a, &b);
+
+    FloatDeinit(&a);
+    FloatDeinit(&r);
+    IntDeinit(&b);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// float_sub_u64  [1052:5]
+bool test_sub_u64_rhs_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          a   = FloatFromStr("5.5", &dbg.base);
+    Float          r   = FloatInit(&dbg.base);
+
+    bool ok = FloatSub(&r, &a, 2u);
+
+    FloatDeinit(&a);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// float_sub_i64  [1063:5]
+bool test_sub_i64_rhs_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          a   = FloatFromStr("5.5", &dbg.base);
+    Float          r   = FloatInit(&dbg.base);
+
+    bool ok = FloatSub(&r, &a, -2);
+
+    FloatDeinit(&a);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// float_sub_f32  [1074:5]
+bool test_sub_f32_rhs_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          a   = FloatFromStr("5.5", &dbg.base);
+    Float          r   = FloatInit(&dbg.base);
+
+    bool ok = FloatSub(&r, &a, 0.5f);
+
+    FloatDeinit(&a);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// float_sub_f64  [1085:5]
+bool test_sub_f64_rhs_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          a   = FloatFromStr("5.5", &dbg.base);
+    Float          r   = FloatInit(&dbg.base);
+
+    bool ok = FloatSub(&r, &a, 0.25);
+
+    FloatDeinit(&a);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// float_mul_int  [1115:5]
+bool test_mul_int_rhs_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          a   = FloatFromStr("1.5", &dbg.base);
+    Float          r   = FloatInit(&dbg.base);
+    Int            b   = IntFrom(4, &dbg.base);
+
+    bool ok = FloatMul(&r, &a, &b);
+
+    FloatDeinit(&a);
+    FloatDeinit(&r);
+    IntDeinit(&b);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// float_mul_u64  [1126:5]
+bool test_mul_u64_rhs_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          a   = FloatFromStr("1.5", &dbg.base);
+    Float          r   = FloatInit(&dbg.base);
+
+    bool ok = FloatMul(&r, &a, 4u);
+
+    FloatDeinit(&a);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// float_mul_i64  [1137:5]
+bool test_mul_i64_rhs_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          a   = FloatFromStr("1.5", &dbg.base);
+    Float          r   = FloatInit(&dbg.base);
+
+    bool ok = FloatMul(&r, &a, -4);
+
+    FloatDeinit(&a);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// float_mul_f32  [1148:5]
+bool test_mul_f32_rhs_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          a   = FloatFromStr("1.5", &dbg.base);
+    Float          r   = FloatInit(&dbg.base);
+
+    bool ok = FloatMul(&r, &a, 0.5f);
+
+    FloatDeinit(&a);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// float_mul_f64  [1159:5]
+bool test_mul_f64_rhs_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          a   = FloatFromStr("1.5", &dbg.base);
+    Float          r   = FloatInit(&dbg.base);
+
+    bool ok = FloatMul(&r, &a, 0.25);
+
+    FloatDeinit(&a);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// float_div_int  [1216:5]
+bool test_div_int_rhs_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          a   = FloatFromStr("1", &dbg.base);
+    Float          r   = FloatInit(&dbg.base);
+    Int            b   = IntFrom(4, &dbg.base);
+
+    bool ok = FloatDiv(&r, &a, &b, 6u);
+
+    FloatDeinit(&a);
+    FloatDeinit(&r);
+    IntDeinit(&b);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// float_div_u64  [1228:5]
+bool test_div_u64_rhs_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          a   = FloatFromStr("1", &dbg.base);
+    Float          r   = FloatInit(&dbg.base);
+
+    bool ok = FloatDiv(&r, &a, 4u, 6u);
+
+    FloatDeinit(&a);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// float_div_i64  [1240:5]
+bool test_div_i64_rhs_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          a   = FloatFromStr("1", &dbg.base);
+    Float          r   = FloatInit(&dbg.base);
+
+    bool ok = FloatDiv(&r, &a, -4, 6u);
+
+    FloatDeinit(&a);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// float_div_f32  [1252:5]
+bool test_div_f32_rhs_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          a   = FloatFromStr("1", &dbg.base);
+    Float          r   = FloatInit(&dbg.base);
+
+    bool ok = FloatDiv(&r, &a, 4.0f, 6u);
+
+    FloatDeinit(&a);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// float_div_f64  [1264:5]
+bool test_div_f64_rhs_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          a   = FloatFromStr("1", &dbg.base);
+    Float          r   = FloatInit(&dbg.base);
+
+    bool ok = FloatDiv(&r, &a, 4.0, 6u);
+
+    FloatDeinit(&a);
+    FloatDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting Float.Math tests\n\n");
 
@@ -984,6 +1497,33 @@ int main(void) {
         test_m9_div_u64_by_zero_returns_false,
         test_m9_div_u64_by_zero_leaves_result_unchanged,
         test_m9_div_u64_exact,
+        test_add_scaling_no_leak,
+        test_add_replace_prepopulated_no_leak,
+        test_add_cancel_to_zero_no_leak,
+        test_div_success_no_leak,
+        test_div_zero_dividend_no_leak,
+        test_mul_replace_prepopulated_no_leak,
+        test_add_int_rhs_no_leak,
+        test_add_u64_rhs_no_leak,
+        test_add_i64_rhs_no_leak,
+        test_add_f32_rhs_no_leak,
+        test_add_f64_rhs_no_leak,
+        test_sub_float_rhs_no_leak,
+        test_sub_int_rhs_no_leak,
+        test_sub_u64_rhs_no_leak,
+        test_sub_i64_rhs_no_leak,
+        test_sub_f32_rhs_no_leak,
+        test_sub_f64_rhs_no_leak,
+        test_mul_int_rhs_no_leak,
+        test_mul_u64_rhs_no_leak,
+        test_mul_i64_rhs_no_leak,
+        test_mul_f32_rhs_no_leak,
+        test_mul_f64_rhs_no_leak,
+        test_div_int_rhs_no_leak,
+        test_div_u64_rhs_no_leak,
+        test_div_i64_rhs_no_leak,
+        test_div_f32_rhs_no_leak,
+        test_div_f64_rhs_no_leak,
     };
 
     TestFunction deadend_tests[1] = {0};

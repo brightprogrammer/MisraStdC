@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Debug.h>
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Std/Container/Float.h>
@@ -6,6 +7,16 @@
 
 #include "../Util/FloatTestData.h"
 #include "../Util/TestRunner.h"
+
+// Convenience: a test passes iff `ok` held AND the DebugAllocator has no
+// outstanding allocations after the test released everything it owns.
+#define LEAK_CLEAN(dbg) (DebugAllocatorLiveCount(&(dbg)) == 0 && DebugAllocatorLiveBytes(&(dbg)) == 0)
+
+// Leak-only config: live-count tracking, NO per-alloc stack-trace / canary /
+// freed-history -- avoids the backtrace-per-alloc cost under mull. Leak
+// detection (LiveCount / LiveBytes) is unchanged.
+#define LEAK_CFG                                                                                                       \
+    ((DebugAllocatorConfig) {.capture_traces = false, .detect_overflow = false, .track_freed_history = false})
 
 bool test_float_from_unsigned_integer(void);
 bool test_float_from_signed_integer(void);
@@ -20,6 +31,19 @@ bool test_float_scientific_parse(void);
 bool test_float_from_str_invalid(void);
 bool test_float_from_str_null(void);
 bool test_float_try_from_str_null(void);
+bool test_blind_93_ieee_binexp_zero_exponent(void);
+bool test_blind_93_ieee_binexp_zero_render(void);
+bool test_from_f64_negative_binexp_no_leak(void);
+bool test_from_f32_negative_binexp_no_leak(void);
+bool test_normalize_trailing_zeros_no_leak(void);
+bool test_pow10_success_no_leak(void);
+bool test_to_int_positive_exponent_no_leak(void);
+bool test_to_int_negative_exponent_no_leak(void);
+bool test_to_int_negative_exponent_factor_no_leak(void);
+bool test_to_int_zero_no_leak(void);
+bool test_to_str_fractional_no_leak(void);
+bool test_to_str_integer_no_leak(void);
+bool test_from_str_prepopulated_no_leak(void);
 
 bool test_float_from_unsigned_integer(void) {
     WriteFmt("Testing FloatFrom with unsigned integer\n");
@@ -588,6 +612,264 @@ static bool test_fg_465_with_digit_accepted(void) {
     return ok;
 }
 
+// Kills 93:23 cxx_assign_const. In float_try_from_ieee_bits the final `else`
+// (binexp == 0) sets `out->exponent = 0`. The IEEE value 2^52 = 4503599627370496
+// decodes to mantissa = 2^52, e = 1075, binexp = 1075 - 1023 - 52 = 0, so it
+// lands in exactly that branch. Real exponent is 0 (the integer 2^52, whose
+// trailing digit 6 means normalize does not move the exponent). The mutant sets
+// exponent = 42, i.e. 2^52 * 10^42 -- a wildly different value. Comparing the
+// constructed Float against the Int 2^52 distinguishes them.
+bool test_blind_93_ieee_binexp_zero_exponent(void) {
+    WriteFmt("Testing float_try_from_ieee_bits binexp==0 exponent (2^52)\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float value = FloatFrom(4503599627370496.0, &alloc.base); // 2^52, binexp == 0
+    Int   whole = IntFromStr("4503599627370496", &alloc.base);
+
+    bool result = (FloatExponent(&value) == 0);
+    result      = result && (FloatCompare(&value, &whole) == 0);
+
+    IntDeinit(&whole);
+    FloatDeinit(&value);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Companion render check for 93:23: the same 2^52 value prints as its exact
+// integer form. Under the exponent=42 mutant it would gain 42 trailing zeros.
+bool test_blind_93_ieee_binexp_zero_render(void) {
+    WriteFmt("Testing float_try_from_ieee_bits binexp==0 render (2^52)\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float value = FloatFrom(4503599627370496.0, &alloc.base);
+    Str   text  = FloatToStr(&value);
+
+    bool result = (ZstrCompare(StrBegin(&text), "4503599627370496") == 0) && (StrLen(&text) == 16);
+
+    StrDeinit(&text);
+    FloatDeinit(&value);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// =============================================================================
+// float_try_from_ieee_bits success path (binexp < 0):
+//   IntDeinit(&five)  [87:9]
+//   IntDeinit(&pow5)  [88:9]
+//   IntDeinit(&out->significand) before significand = sig  [89:9]
+// Reached by FloatFrom(f32/f64) of a value whose binary exponent is negative
+// (any fractional value with a set mantissa), e.g. 0.5, 0.25, 1.5.
+
+bool test_from_f64_negative_binexp_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+
+    Float v = FloatFrom(0.5, &dbg.base); // binexp < 0 -> 5^|binexp| path
+    FloatDeinit(&v);
+
+    bool ok = LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+bool test_from_f32_negative_binexp_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+
+    Float v = FloatFrom(1.5f, &dbg.base); // binexp < 0 -> 5^|binexp| path
+    FloatDeinit(&v);
+
+    bool ok = LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// =============================================================================
+// float_normalize trailing-zero loop body:
+//   IntDeinit(&value->significand) before significand = quotient  [263:9]
+// Reached by constructing a value whose significand is divisible by 10 so the
+// while loop iterates at least once (FloatFrom of 100 normalizes 100 -> 1e2).
+
+bool test_normalize_trailing_zeros_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+
+    Float v = FloatFrom(1000u, &dbg.base); // 1000 -> significand 1, exp 3
+    FloatDeinit(&v);
+
+    bool ok = LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// =============================================================================
+// float_pow10 success path:
+//   IntDeinit(&base) before *out = result  [179:5]
+// Reached by any op that calls float_pow10 with success: FloatToInt of an
+// integer-valued float with exponent > 0 (e.g. "1e3").
+
+bool test_pow10_success_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+
+    Float v = FloatFromStr("1e3", &dbg.base); // exponent 3 > 0 -> pow10
+    Int   r = IntInit(&dbg.base);
+
+    bool ok = FloatToInt(&r, &v);             // drives float_pow10 + success path
+
+    FloatDeinit(&v);
+    IntDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// =============================================================================
+// FloatToInt exponent >= 0 success path:
+//   IntDeinit(&factor) after successful mul  [432:9]
+//   IntDeinit(result) before *result = temp  [433:9]
+// Reached by FloatToInt where the destination Int already holds an allocated
+// value (so IntDeinit(result) actually frees something) and exponent > 0.
+
+bool test_to_int_positive_exponent_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+
+    Float v = FloatFromStr("12e4", &dbg.base); // significand 12, exp 4
+    Int   r = IntFrom(999999999u, &dbg.base);  // pre-populated dest
+
+    bool ok = FloatToInt(&r, &v);
+
+    FloatDeinit(&v);
+    IntDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// =============================================================================
+// FloatToInt exponent < 0 success path:
+//   IntDeinit(&factor) after int_div_exact  [448:9]
+//   IntDeinit(result) before final *result = temp  [455:5]
+// Reached by FloatToInt of a value with negative exponent that divides exactly
+// (e.g. "150e-1" == 15) into a pre-populated destination.
+
+bool test_to_int_negative_exponent_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+
+    Float v = FloatFromStr("150e-1", &dbg.base); // 15.0, exact integer 15
+    Int   r = IntFrom(777u, &dbg.base);          // pre-populated dest
+
+    bool ok = FloatToInt(&r, &v);
+
+    FloatDeinit(&v);
+    IntDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// =============================================================================
+// FloatToInt negative-exponent branch, factor cleanup:
+//   IntDeinit(&factor) after int_div_exact  [448:9]
+// The earlier test_to_int_negative_exponent_no_leak passes an input that
+// normalizes to a non-negative exponent, so it never enters this block. A value
+// that keeps a negative exponent (1.5 -> significand 15, exponent -1) DOES enter
+// it: float_pow10 allocates `factor` (= 10), int_div_exact then fails because
+// 1.5 is not an exact integer, and `factor` is freed at [448] before the false
+// return. FloatToInt returns false here, so this test gates purely on the leak
+// state -- removing IntDeinit(&factor) leaves `factor` (10) outstanding.
+
+bool test_to_int_negative_exponent_factor_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+
+    Float v = FloatFromStr("1.5", &dbg.base); // significand 15, exponent -1
+    Int   r = IntFrom(777u, &dbg.base);       // pre-populated dest
+
+    // Non-integer -> FloatToInt returns false, but the negative-exponent block
+    // is still entered and `factor` is allocated then freed at [448].
+    (void)FloatToInt(&r, &v);
+
+    FloatDeinit(&v);
+    IntDeinit(&r);
+    bool ok = LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// =============================================================================
+// FloatToInt zero-value success path:
+//   IntDeinit(result) before *result = temp  [417:9]
+// Reached by FloatToInt of zero into a pre-populated destination.
+
+bool test_to_int_zero_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+
+    Float v = FloatFrom(0u, &dbg.base);
+    Int   r = IntFrom(424242u, &dbg.base); // pre-populated dest
+
+    bool ok = FloatToInt(&r, &v);
+
+    FloatDeinit(&v);
+    IntDeinit(&r);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// =============================================================================
+// float_to_str success paths:
+//   StrDeinit(&digits) before *out = result  [681:5]
+// Reached by FloatToStr of a non-zero value with a fractional part (exercises
+// the digits buffer + result assembly + final StrDeinit(&digits)).
+
+bool test_to_str_fractional_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+
+    Float v   = FloatFromStr("12.5", &dbg.base);
+    Str   out = StrInit(&dbg.base);
+
+    bool ok = FloatTryToStr(&out, &v);
+
+    FloatDeinit(&v);
+    StrDeinit(&out);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+bool test_to_str_integer_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+
+    Float v   = FloatFromStr("1200", &dbg.base); // exponent >= 0 arm
+    Str   out = StrInit(&dbg.base);
+
+    bool ok = FloatTryToStr(&out, &v);
+
+    FloatDeinit(&v);
+    StrDeinit(&out);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// =============================================================================
+// float_try_from_str_impl success path:
+//   StrDeinit(&digits) before *out = result  [568:5]
+//   FloatDeinit(out) before *out = result    [570:5]
+// Reached by FloatTryFromStr into a pre-populated Float (so the FloatDeinit(out)
+// before the swap frees real storage).
+
+bool test_from_str_prepopulated_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+
+    Float v = FloatFromStr("99999", &dbg.base); // pre-populated target
+
+    bool ok = FloatTryFromStr(&v, "3.14159");
+
+    FloatDeinit(&v);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting Float.Convert tests\n\n");
 
@@ -621,6 +903,19 @@ int main(void) {
         test_fg_465_digitless_dot_rejected,
         test_fg_465_digitless_sign_dot_rejected,
         test_fg_465_with_digit_accepted,
+        test_blind_93_ieee_binexp_zero_exponent,
+        test_blind_93_ieee_binexp_zero_render,
+        test_from_f64_negative_binexp_no_leak,
+        test_from_f32_negative_binexp_no_leak,
+        test_normalize_trailing_zeros_no_leak,
+        test_pow10_success_no_leak,
+        test_to_int_positive_exponent_no_leak,
+        test_to_int_negative_exponent_no_leak,
+        test_to_int_negative_exponent_factor_no_leak,
+        test_to_int_zero_no_leak,
+        test_to_str_fractional_no_leak,
+        test_to_str_integer_no_leak,
+        test_from_str_prepopulated_no_leak,
     };
 
     // NULL-input: strict contract = LOG_FATAL; deadend driver catches.

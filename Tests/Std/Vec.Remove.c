@@ -50,6 +50,10 @@ bool test_remove_tail_clear_dest(void);
 bool test_remove_tail_clear_len(void);
 bool test_remove_tail_clear_stride(void);
 
+// ---- remove compaction size prototypes (from Vec.Blind) -----------------
+bool test_remove_compaction_size_first_term(void);
+bool test_remove_compaction_size_second_term(void);
+
 // Test VecPopBack function
 static DefaultAllocator alloc;
 
@@ -1371,6 +1375,90 @@ bool test_remove_tail_clear_stride(void) {
     return result;
 }
 
+// ===========================================================================
+// remove compaction size mutation-hardening (from Vec.Blind)
+// ===========================================================================
+
+// ---- 395:22 cxx_sub_to_add (length - start -> length + start) -------------
+// remove_range_vec compacts the surviving tail with a MemMove of
+// `(vec->length - start - count) * aligned_size` bytes. The element count is a
+// pure size argument: every element inside the new logical length is correct
+// regardless of an over-large move (it merely copies extra), and the
+// always-zeroed capacity tail makes any in-bounds surplus read back as zero, so
+// the corruption is NOT observable as logical data. The only reachable effect
+// of `vec->length + start` is a gross over-read/over-write: the move balloons to
+// `length + start - count` elements. Sizing the buffer to exactly `length + 1`
+// (via VecTryReduceSpace) and removing the final element (start == length-1,
+// count == 1 -> real move size 0) makes the mutant relocate ~2*length elements
+// from a `length+1`-element allocation, running far past the buffer and
+// trapping -- the same overrun-fault detection the behavioural displacement
+// over-copy test relies on. Real code moves 0 bytes and returns cleanly.
+bool test_remove_compaction_size_first_term(void) {
+    WriteFmt("Testing remove compaction size (length - start term)\n");
+
+    typedef Vec(u64) U64Vec;
+    U64Vec vec = VecInit(&alloc);
+
+    // Large, tightly-allocated buffer: capacity == length so the only slack is
+    // the single sentinel slot. A few-element overrun would hide in heap slack;
+    // a ~2*length-element overrun runs far past the allocation and faults.
+    const size N = 100000;
+    for (u64 i = 0; i < N; i++) {
+        VecPushBackR(&vec, i + 1); // all non-zero
+    }
+    VecTryReduceSpace(&vec);       // capacity := length, buffer := length + 1
+
+    size old_len = VecLen(&vec);
+
+    // Remove the final element. Real move size = length - (length-1) - 1 = 0.
+    // Mutant size = length + (length-1) - 1 = 2*length - 2 elements -> overrun.
+    VecDeleteRange(&vec, old_len - 1, 1);
+
+    bool result = (VecLen(&vec) == old_len - 1);
+    // Surviving prefix is intact (the real path moved nothing).
+    result = result && (VecAt(&vec, 0) == 1);
+    result = result && (VecAt(&vec, old_len - 2) == (u64)(old_len - 1));
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// ---- 395:30 cxx_sub_to_add ((..) - count -> (..) + count) -----------------
+// Same MemMove element count; flipping the second `- count` to `+ count` blows
+// the move up to `length - start + count` elements. As above the in-bounds
+// surplus is unobservable (zeroed capacity tail), so detection is via the gross
+// over-read/over-write. Removing `length - 1` elements from the front
+// (start == 0, count == length-1 -> real move size 1) makes the mutant relocate
+// `length - 0 + (length-1)` = 2*length - 1 elements from a `length+1`-element
+// buffer -> far overrun and trap. Real code moves exactly the one surviving
+// tail element and compacts correctly.
+bool test_remove_compaction_size_second_term(void) {
+    WriteFmt("Testing remove compaction size (- count term)\n");
+
+    typedef Vec(u64) U64Vec;
+    U64Vec vec = VecInit(&alloc);
+
+    const size N = 100000;
+    for (u64 i = 0; i < N; i++) {
+        VecPushBackR(&vec, i + 1); // all non-zero
+    }
+    VecTryReduceSpace(&vec);       // capacity := length, buffer := length + 1
+
+    size old_len = VecLen(&vec);
+
+    // Remove all but the last element from the front. Real move size =
+    // length - 0 - (length-1) = 1. Mutant size = length - 0 + (length-1) =
+    // 2*length - 1 elements -> overrun far past the buffer.
+    VecDeleteRange(&vec, 0, old_len - 1);
+
+    bool result = (VecLen(&vec) == 1);
+    // The single survivor is the original last element.
+    result = result && (VecAt(&vec, 0) == (u64)old_len);
+
+    VecDeinit(&vec);
+    return result;
+}
+
 // Main function that runs all tests
 int main(void) {
     // Array of normal test functions
@@ -1413,7 +1501,10 @@ int main(void) {
         test_remove_compaction_stride,
         test_remove_tail_clear_dest,
         test_remove_tail_clear_len,
-        test_remove_tail_clear_stride
+        test_remove_tail_clear_stride,
+        // remove compaction size (Vec.Blind)
+        test_remove_compaction_size_first_term,
+        test_remove_compaction_size_second_term
     };
 
     int normal_count = sizeof(normal_tests) / sizeof(normal_tests[0]);

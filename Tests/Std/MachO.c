@@ -1508,6 +1508,53 @@ bool test_mh2_fail_path_frees_buffer(void) {
     return ok;
 }
 
+// 287:24 cxx_assign_const -- `ctx->out->has_uuid = true;` -> `= 42`.
+//
+// `bool` is `i8` on this project (no _Bool normalization), so a mutated
+// `has_uuid = 42` literally stores 42 in the public struct field. Every
+// existing UUID test reads `has_uuid` only in a truthy context
+// (`m.has_uuid && ...`), where 42 and 1 are indistinguishable. This test
+// pins the field to its canonical boolean value: `has_uuid == true`
+// (i.e. == 1) holds on real code and fails when the field is 42.
+//
+// The image is a minimal header + LC_UUID load command carrying kUuid.
+bool test_mhb_has_uuid_is_canonical_true(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    enum {
+        BUF = HDR_SIZE + UUID_SIZE
+    };
+    u8 b[BUF];
+    MemSet(b, 0, sizeof(b));
+
+    // mach_header_64: one load command (the LC_UUID), sizeofcmds = 24.
+    wr_u32(&b[0], MH_MAGIC_64);
+    wr_u32(&b[4], 0x01000007u); // cputype x86_64
+    wr_u32(&b[8], 3);           // cpusubtype
+    wr_u32(&b[12], 0x2);        // filetype MH_EXECUTE
+    wr_u32(&b[16], 1);          // ncmds
+    wr_u32(&b[20], UUID_SIZE);  // sizeofcmds
+    wr_u32(&b[24], 0);
+    wr_u32(&b[28], 0);
+
+    // LC_UUID.
+    u8 *uc = &b[HDR_SIZE];
+    wr_u32(&uc[0], LC_UUID);
+    wr_u32(&uc[4], UUID_SIZE);
+    MemCopy(&uc[8], kUuid, 16);
+
+    Macho m;
+    bool  ok = MachoOpenFromMemoryCopy(&m, b, BUF, base);
+    // Canonical-true check: real code stores exactly `true` (== 1); the
+    // mutant stores 42, so `== true` is false under the mutation.
+    ok = ok && m.has_uuid == true && MemCompare(m.uuid, kUuid, 16) == 0;
+    if (ok)
+        MachoDeinit(&m);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting MachO tests\n\n");
 
@@ -1546,6 +1593,7 @@ int main(void) {
         test_mh2_open_valid_file,
         test_mh2_open_invalid_file,
         test_mh2_fail_path_frees_buffer,
+        test_mhb_has_uuid_is_canonical_true,
 #if PLATFORM_DARWIN
         test_macho_parses_running_binary,
         test_macho_resolves_running_binary_symbol,

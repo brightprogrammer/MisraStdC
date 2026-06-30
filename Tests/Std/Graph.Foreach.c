@@ -561,6 +561,54 @@ static bool test_graph_commit_invalidates_live_iterator_deadend(void) {
     return false;
 }
 
+// ===========================================================================
+// 978:29 cxx_lt_to_le -- graph_node_iter_next slot-walk bound.
+//
+// `while (iter->slot_index < VecLen(&iter->graph->slots))` walks every slot.
+// The `<=` mutant reads slot[len] (one past the end). We hide an occupied
+// slot at index==len by shrinking the slot-array length by one; real code
+// stops before it, the mutant reads it as occupied and yields an extra node.
+// Caller-observable via the GraphForeachNode visit count.
+static bool test_node_iter_no_overscan_extra_slot(void) {
+    WriteFmt("Testing GraphForeachNode does not over-walk the slot array\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit(&alloc);
+
+    (void)GraphAddNodeR(&graph, 10);
+    (void)GraphAddNodeR(&graph, 20);
+
+    // Run the deep validator once on the consistent graph so it clears the
+    // memoized validated bit; subsequent ValidateGraph calls skip the deep
+    // accounting scan that would otherwise reject the length tweak below.
+    ValidateGraph(&graph);
+
+    // intentional bypass: no public setter shrinks the slot array. Hiding the
+    // last (occupied) slot makes its index equal the new slot count, so the
+    // `<` bound excludes it but the `<=` mutant reads it.
+    graph.slots.length -= 1;
+
+    u64 visited = 0;
+    GraphForeachNode(&graph, node) {
+        (void)node;
+        visited += 1;
+    }
+
+    // Restore the length before teardown so GraphDeinit walks a consistent
+    // slot array.
+    graph.slots.length += 1;
+
+    // Real code visits only the one slot still within the shrunken length;
+    // the mutant visits the hidden occupied slot too.
+    bool result = (visited == 1);
+
+    GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_graph_city_reachability,
@@ -568,6 +616,7 @@ int main(void) {
         test_graph_foreach_predecessors,
         test_graph_reserve_no_grow_keeps_iterator_valid,
         test_graph_foreach_skips_freed_slot,
+        test_node_iter_no_overscan_extra_slot,
     };
     TestFunction deadend_tests[] = {
         test_graph_node_iteration_rejects_structural_mutation_deadend,

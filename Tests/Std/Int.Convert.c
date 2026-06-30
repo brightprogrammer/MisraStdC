@@ -1,11 +1,21 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Zstr.h>
+#include <Misra/Std/Allocator/Debug.h>
 #include <Misra/Std/Container/Int.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 #include <Misra/Types.h>
 
 #include "../Util/TestRunner.h"
+
+static DebugAllocatorConfig blind_cfg(void) {
+    return (DebugAllocatorConfig) {.capture_traces = false, .detect_overflow = false, .track_freed_history = false};
+}
+
+#define LEAK_CLEAN(dbg) (DebugAllocatorLiveCount(&(dbg)) == 0 && DebugAllocatorLiveBytes(&(dbg)) == 0)
+
+#define LEAK_CFG                                                                                                       \
+    ((DebugAllocatorConfig) {.capture_traces = false, .detect_overflow = false, .track_freed_history = false})
 
 bool        test_int_from_unsigned_integer(void);
 bool        test_int_bytes_le_round_trip(void);
@@ -1553,6 +1563,79 @@ bool test_fe_603_to_bytes_be_content(void) {
     return result;
 }
 
+bool test_to_str_radix_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Allocator     *a   = ALLOCATOR_OF(&dbg);
+
+    // Drives int_try_to_str_radix loop (760, 772) and int_div_u64_rem
+    // (1583/1584) and int_mod_u64 (1630).
+    Int  v   = IntFrom(1234567u, a);
+    Str  s   = IntToStrRadix(&v, 10, false, a);
+    bool ok  = StrLen(&s) == 7;
+    u64  rem = 0;
+    {
+        Int q = IntInit(a);
+        rem   = int_div_u64_rem(&q, &v, 1000u);
+        IntDeinit(&q);
+    }
+    ok = ok && rem == 567u;
+    ok = ok && int_mod_u64(&v, 100u) == 67u;
+
+    StrDeinit(&s);
+    IntDeinit(&v);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+bool test_from_bytes_be_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+
+    u8  bytes[] = {0x01, 0x02, 0x03, 0x04};
+    Int v       = IntFromBytesBE(bytes, sizeof(bytes), &dbg);
+
+    bool ok = IntToU64(&v) == 0x01020304u;
+
+    IntDeinit(&v);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+bool test_from_str_nonempty_out_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Allocator     *a   = ALLOCATOR_OF(&dbg);
+
+    Int out = IntFrom(987654321u, a); // pre-populated: holds a live buffer
+
+    bool ok = IntTryFromStr(&out, "123456789");
+    ok      = ok && IntToU64(&out) == 123456789u;
+
+    IntDeinit(&out);
+    ok = ok && LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+bool test_blind_to_str_radix_big(void) {
+    DebugAllocator dbg   = DebugAllocatorInitWith(blind_cfg());
+    Allocator     *alloc = ALLOCATOR_OF(&dbg);
+
+    Int value  = IntFromStr("123456789012345678901234567890", alloc);
+    Str hex    = IntToStrRadix(&value, 16, false, alloc);
+    Int parsed = IntFromStrRadix(&hex, 16, alloc);
+
+    bool ok = IntCompare(&value, &parsed) == 0;
+
+    StrDeinit(&hex);
+    IntDeinit(&value);
+    IntDeinit(&parsed);
+
+    ok = ok && DebugAllocatorLiveCount(&dbg) == 0;
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting Int.Convert tests\n\n");
 
@@ -1616,6 +1699,10 @@ int main(void) {
         test_m29_hex_str_str_return_valid_and_value,
         test_m29_hex_str_str_return_invalid,
         test_fe_603_to_bytes_be_content,
+        test_to_str_radix_no_leak,
+        test_from_bytes_be_no_leak,
+        test_from_str_nonempty_out_no_leak,
+        test_blind_to_str_radix_big,
     };
 
     // NULL-input tests: now expected to LOG_FATAL via the strict-

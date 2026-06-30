@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Allocator/Debug.h>
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 
@@ -6,6 +7,12 @@
 
 // Include test utilities
 #include "../Util/TestRunner.h"
+
+// Lean DebugAllocator config -- leak detection only, no trace capture, to
+// keep the leak tests fast.
+static DebugAllocatorConfig lean_dbg_cfg(void) {
+    return (DebugAllocatorConfig) {.capture_traces = false, .detect_overflow = false, .track_freed_history = false};
+}
 
 // Function prototypes
 bool test_bitvec_and(void);
@@ -1083,6 +1090,114 @@ static bool test_shift_right_carries_source_bits(void) {
     return result;
 }
 
+// 1152:27 cxx_add_to_sub -- BitVecRotateRight `src_idx = (i + bv->length -
+// positions) % bv->length` -> `(i - bv->length - positions)`. Pins the exact
+// rotated content.
+bool test_blind_rotate_right_exact(void);
+bool test_blind_rotate_right_exact(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    BitVec           bv    = BitVecInit(ALLOCATOR_OF(&alloc));
+
+    bool pat[5] = {true, false, false, true, true};
+    for (int i = 0; i < 5; i++) {
+        BitVecPush(&bv, pat[i]);
+    }
+    BitVecRotateRight(&bv, 2);
+
+    bool result = true;
+    for (int i = 0; i < 5; i++) {
+        result = result && (BitVecGet(&bv, i) == pat[(i + 5 - 2) % 5]);
+    }
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// ---- 1157:5 cxx_remove_void_call ----------------------------------------
+// BitVecRotateRight clones the source into a temp BitVec (line 1145) and
+// BitVecDeinit's it at line 1157 on the success path before returning.
+// Removing that Deinit leaks the clone's backing on EVERY successful
+// rotate. Init the bitvec with a DebugAllocator (the clone inherits that
+// allocator), drive a real rotate, and require live_count back to its
+// pre-rotate value after the bitvec itself is freed.
+bool test_rotate_right_frees_temp_clone(void);
+bool test_rotate_right_frees_temp_clone(void) {
+    WriteFmt("Testing BitVecRotateRight frees its temp clone (1157:5)\n");
+
+    DebugAllocator dbg  = DebugAllocatorInit();
+    Allocator     *adbg = ALLOCATOR_OF(&dbg);
+
+    BitVec bv = BitVecInit(adbg);
+
+    // 1011 -- length > 1 and positions % length != 0 so the rotate body
+    // (clone + copy-back) actually runs.
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, false);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, true);
+
+    BitVecRotateRight(&bv, 1);
+
+    // Correctness sanity: 1011 rotated right by 1 -> 1101.
+    bool ok = (BitVecLen(&bv) == 4);
+    ok      = ok && (BitVecGet(&bv, 0) == true);
+    ok      = ok && (BitVecGet(&bv, 1) == true);
+    ok      = ok && (BitVecGet(&bv, 2) == false);
+    ok      = ok && (BitVecGet(&bv, 3) == true);
+
+    BitVecDeinit(&bv);
+
+    // Real code frees the temp clone inside rotate; with the Deinit
+    // removed it survives as a live allocation after bv is torn down.
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
+
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// ---- 1131:5 cxx_remove_void_call ----------------------------------------
+// BitVecRotateLeft clones the source into a temp BitVec (line 1119) and
+// BitVecDeinit's it at line 1131 on the success path before returning.
+// Removing that Deinit leaks the clone's backing on EVERY successful
+// rotate-left (mirror of the already-covered RotateRight at 1157, which
+// this does NOT cover). Init through a DebugAllocator (the clone inherits
+// it), rotate, and require the live count back to zero after teardown.
+bool test_rotate_left_frees_temp_clone(void);
+bool test_rotate_left_frees_temp_clone(void) {
+    WriteFmt("Testing BitVecRotateLeft frees its temp clone (1131:5)\n");
+
+    DebugAllocator dbg  = DebugAllocatorInitWith(lean_dbg_cfg());
+    Allocator     *adbg = ALLOCATOR_OF(&dbg);
+
+    BitVec bv = BitVecInit(adbg);
+
+    // length > 1 and positions % length != 0 so the rotate body
+    // (clone + copy-back) actually runs.
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, false);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, true);
+
+    BitVecRotateLeft(&bv, 2);
+
+    // Correctness sanity: 1011 rotated left by 2 -> 1110.
+    bool ok = (BitVecLen(&bv) == 4);
+    ok      = ok && (BitVecGet(&bv, 0) == true);
+    ok      = ok && (BitVecGet(&bv, 1) == true);
+    ok      = ok && (BitVecGet(&bv, 2) == true);
+    ok      = ok && (BitVecGet(&bv, 3) == false);
+
+    BitVecDeinit(&bv);
+
+    // Real code frees the temp clone inside rotate; with the Deinit
+    // removed it survives as a live allocation after bv is torn down.
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
+
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
 // Main function that runs all tests
 int main(void) {
     WriteFmt("[INFO] Starting BitVec.BitWise tests\n\n");
@@ -1111,7 +1226,10 @@ int main(void) {
         test_or_widens_without_reading_past_shorter_operand,
         test_xor_widens_without_reading_past_shorter_operand,
         test_shift_right_by_length_clears_length,
-        test_shift_right_carries_source_bits
+        test_shift_right_carries_source_bits,
+        test_blind_rotate_right_exact,
+        test_rotate_right_frees_temp_clone,
+        test_rotate_left_frees_temp_clone
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);

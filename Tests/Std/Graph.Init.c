@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Debug.h>
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Std/Allocator/Heap.h>
@@ -6,6 +7,10 @@
 #include <Misra/Std/Log.h>
 
 #include "../Util/TestRunner.h"
+
+// A test passes iff `ok` held AND the DebugAllocator has no outstanding
+// allocations after the test released everything it owns.
+#define LEAK_CLEAN(dbg) (DebugAllocatorLiveCount(&(dbg)) == 0 && DebugAllocatorLiveBytes(&(dbg)) == 0)
 
 static bool test_graph_reserve_clear(void) {
     WriteFmt("Testing GraphReserve and GraphClear\n");
@@ -201,6 +206,33 @@ static bool test_graph_reserve_grows_capacity(void) {
     return result;
 }
 
+// deinit_graph, line 463: deinit_vec(&graph->pending_edge_removals, ...)
+//
+// The pending_edge_removals Vec gains heap backing when an edge is marked for
+// removal. clear_graph clears it (keeping the backing via clear_vec), so at line
+// 463 the backing is still outstanding. Removing the line-463 deinit leaks it.
+// Mark (but do not commit) an edge removal so a backing exists at teardown.
+static bool test_deinit_frees_pending_edge_removals_backing_no_leak(void) {
+    WriteFmt("Testing GraphDeinit frees the pending-edge-removals backing (no leak)\n");
+
+    DebugAllocator dbg = DebugAllocatorInit();
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit(&dbg);
+
+    GraphNodeId a = GraphAddNodeR(&graph, 10);
+    GraphNodeId b = GraphAddNodeR(&graph, 20);
+
+    GraphAddEdge(&graph, a, b);
+    GraphMarkEdgeForRemoval(&graph, a, b); // pending_edge_removals gains backing
+
+    GraphDeinit(&graph);                   // deinit_vec(pending_edge_removals) frees the array
+
+    bool ok = LEAK_CLEAN(dbg);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_graph_reserve_clear,
@@ -208,6 +240,7 @@ int main(void) {
         test_graph_node_owned_str_rvalue,
         test_graph_init_optional_allocator,
         test_graph_reserve_grows_capacity,
+        test_deinit_frees_pending_edge_removals_backing_no_leak,
     };
 
     WriteFmt("[INFO] Starting Graph.Init tests\n\n");

@@ -1,6 +1,10 @@
+#include <Misra.h>
 #include <Misra/Parsers/KvConfig.h>
+#include <Misra/Std/Allocator/Debug.h>
 #include <Misra/Std/Allocator/Default.h>
+#include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Io.h>
+#include <Misra/Std/Utility/StrIter.h>
 
 #include "../Util/TestRunner.h"
 
@@ -618,6 +622,207 @@ static bool test_kvconfig_crlf_line_endings(void) {
     return result;
 }
 
+// Lean DebugAllocator config: no trace capture / overflow guards / freed
+// history. We only need the live-allocation round-trip count.
+static DebugAllocator kv_lean_debug_allocator(void) {
+    DebugAllocatorConfig cfg = {.capture_traces = false, .detect_overflow = false, .track_freed_history = false};
+    return DebugAllocatorInitWith(cfg);
+}
+
+// Drive a full parse of `src` through a DebugAllocator and confirm every
+// allocation made during parsing is released by MapDeinit + the text's
+// StrDeinit. A surviving `StrDeinit(&key)` / `StrDeinit(&value)` on a
+// KvConfigParse branch where that Str actually holds a heap buffer leaks
+// it, leaving DebugAllocatorLiveCount > 0.
+static bool kv_parse_is_leak_free(Zstr src) {
+    DebugAllocator dbg  = kv_lean_debug_allocator();
+    Allocator     *base = ALLOCATOR_OF(&dbg);
+    bool           ok   = true;
+
+    KvConfig cfg   = KvConfigInit(base);
+    Str      text  = StrInitFromZstr(src, base);
+    StrIter  input = StrIterFromStr(text);
+
+    (void)KvConfigParse(input, &cfg);
+
+    StrDeinit(&text);
+    MapDeinit(&cfg);
+
+    ok = DebugAllocatorLiveCount(&dbg) == 0;
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// KvConfigParse line 320 (StrDeinit(&key)): an invalid line makes
+// KvConfigReadPair return its original iterator (read_si == si at 319), so
+// KvConfigParse frees key/value and bails with saved_si. "broken line" is
+// rejected at the missing-separator check AFTER KvConfigReadKey already
+// pushed "broken" into `key` -- so `key` owns a heap buffer that StrClear
+// keeps and that the 320 StrDeinit must free. Removing it leaks the buffer.
+static bool test_kv_invalid_pair_key_buffer_no_leak(void) {
+    bool result = true;
+    // ReadKey populates `key` (a real buffer); no separator -> failure
+    // branch frees it at 320.
+    result = result && kv_parse_is_leak_free("broken line\n");
+    // A valid pair first (stored + freed by MapDeinit), then the broken
+    // line exercising the failure free path after prior insertions.
+    result = result && kv_parse_is_leak_free("ok = 1\nbroken line\n");
+    return result;
+}
+
+// KvConfigParse line 321 (StrDeinit(&value)): the failure branch must also
+// free `value` when it carries a buffer. A quoted value followed by junk
+// makes KvConfigReadValue fill `value` ("v") before KvConfigReadPair detects
+// the trailing junk at line 260, StrClears (keeping the buffer) and returns
+// saved_si. Back in KvConfigParse the 319 failure branch frees key/value;
+// removing the 321 StrDeinit leaks the value buffer.
+static bool test_kv_trailing_junk_value_buffer_no_leak(void) {
+    bool result = true;
+    // Double-quoted value with a real buffer, then trailing junk -> fail.
+    result = result && kv_parse_is_leak_free("k = \"v\" junk\n");
+    // Single-quoted form, longer value buffer.
+    result = result && kv_parse_is_leak_free("key = 'value' trailing\n");
+    return result;
+}
+
+// KvConfigReadValue L215: StrDeinit(value) before `*value = stripped`.
+//
+// An unquoted value with leading/trailing whitespace takes the strip path:
+//   Str stripped = StrStrip(value, NULL);
+//   StrDeinit(value);          <-- survivor
+//   *value = stripped;
+// The pre-strip `value` buffer is a distinct heap allocation; without the
+// Deinit it leaks. Routed through the DebugAllocator, the leak survives the
+// config teardown and pushes LiveCount above 0.
+static bool test_kv_leak_value_strip_frees_old_buffer(void) {
+    DebugAllocator dbg  = DebugAllocatorInit();
+    Allocator     *adbg = ALLOCATOR_OF(&dbg);
+
+    KvConfig cfg = KvConfigInit(adbg);
+    // Trailing whitespace before the newline forces StrStrip to produce a
+    // NEW buffer and the old one to be released at L215. A long-ish value
+    // keeps both buffers off any small-string fast path.
+    Str     text  = StrInitFromZstr("key =   spaced-out-value-here   \n", adbg);
+    StrIter input = StrIterFromStr(text);
+
+    (void)KvConfigParse(input, &cfg);
+
+    Str *got = KvConfigGetPtr(&cfg, "key");
+    bool ok  = got && (StrCmp(got, "spaced-out-value-here") == 0);
+
+    StrDeinit(&text);
+    MapDeinit(&cfg);
+
+    // The stripped-away old value buffer must already be freed.
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
+    ok = ok && (DebugAllocatorLiveBytes(&dbg) == 0);
+
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// KvConfigParse L326: StrDeinit(&key) after MapSetOnlyL deep-copies key.
+//
+// MapSetOnlyL deep-copies (str_init_copy) the local `key` into the map's
+// own storage, so the parser's local `key` Str is the parser's to free.
+// Dropping L326 leaks that local key copy. A single accepted pair already
+// reaches this line; we use a key long enough that the leak is a real
+// heap buffer the live count must account for.
+static bool test_kv_leak_parse_frees_local_key(void) {
+    DebugAllocator dbg  = DebugAllocatorInit();
+    Allocator     *adbg = ALLOCATOR_OF(&dbg);
+
+    KvConfig cfg   = KvConfigInit(adbg);
+    Str      text  = StrInitFromZstr("a-reasonably-long-config-key = v\n", adbg);
+    StrIter  input = StrIterFromStr(text);
+
+    (void)KvConfigParse(input, &cfg);
+
+    Str *got = KvConfigGetPtr(&cfg, "a-reasonably-long-config-key");
+    bool ok  = got && (StrCmp(got, "v") == 0);
+
+    StrDeinit(&text);
+    MapDeinit(&cfg);
+
+    // The parser's local key copy must already be freed.
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
+    ok = ok && (DebugAllocatorLiveBytes(&dbg) == 0);
+
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// KvConfigParse L327: StrDeinit(&value) after MapSetOnlyL deep-copies value.
+//
+// Symmetric to the key case: the map deep-copies the value, so the local
+// `value` Str belongs to the parser. Dropping L327 leaks it. Use a long
+// value so the local copy is a real heap allocation; a short key keeps the
+// key-side buffer from masking the value-side leak.
+static bool test_kv_leak_parse_frees_local_value(void) {
+    DebugAllocator dbg  = DebugAllocatorInit();
+    Allocator     *adbg = ALLOCATOR_OF(&dbg);
+
+    KvConfig cfg   = KvConfigInit(adbg);
+    Str      text  = StrInitFromZstr("k = a-reasonably-long-config-value\n", adbg);
+    StrIter  input = StrIterFromStr(text);
+
+    (void)KvConfigParse(input, &cfg);
+
+    Str *got = KvConfigGetPtr(&cfg, "k");
+    bool ok  = got && (StrCmp(got, "a-reasonably-long-config-value") == 0);
+
+    StrDeinit(&text);
+    MapDeinit(&cfg);
+
+    // The parser's local value copy must already be freed.
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
+    ok = ok && (DebugAllocatorLiveBytes(&dbg) == 0);
+
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// kvconfig_get_ptr_zstr L351: StrDeinit(&lookup) after the map lookup.
+//
+// A Zstr lookup builds a temporary `lookup` Str (StrInitFromCstr) to key
+// the map, then frees it at L351; the returned Str* points INTO the map,
+// not into `lookup`, so freeing it is safe. Dropping L351 leaks the temp
+// key on EVERY Zstr get. Drive several Zstr lookups (hits and misses) so
+// the accumulated leak is unmistakable, then assert nothing outlives
+// teardown. A long lookup key keeps the temp off any inline fast path.
+static bool test_kv_leak_get_ptr_zstr_frees_lookup(void) {
+    DebugAllocator dbg  = DebugAllocatorInit();
+    Allocator     *adbg = ALLOCATOR_OF(&dbg);
+
+    KvConfig cfg   = KvConfigInit(adbg);
+    Str      text  = StrInitFromZstr("present-config-key = value\n", adbg);
+    StrIter  input = StrIterFromStr(text);
+
+    (void)KvConfigParse(input, &cfg);
+
+    bool ok = true;
+    // Each KvConfigGetPtr with a Zstr key routes through kvconfig_get_ptr_zstr,
+    // building and (at L351) freeing a temp lookup Str.
+    Str *hit = KvConfigGetPtr(&cfg, "present-config-key");
+    ok       = ok && (hit != NULL) && (StrCmp(hit, "value") == 0);
+
+    // Misses also build + free a lookup; pile several on so a dropped L351
+    // leaks multiple buffers.
+    ok = ok && (KvConfigGetPtr(&cfg, "absent-config-key-0001") == NULL);
+    ok = ok && (KvConfigGetPtr(&cfg, "absent-config-key-0002") == NULL);
+    ok = ok && (KvConfigGetPtr(&cfg, "absent-config-key-0003") == NULL);
+
+    StrDeinit(&text);
+    MapDeinit(&cfg);
+
+    // Every transient lookup key must already be freed.
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
+    ok = ok && (DebugAllocatorLiveBytes(&dbg) == 0);
+
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_kvconfig_basic_parse,
@@ -642,6 +847,12 @@ int main(void) {
         test_kv_leading_space_before_pair,
         test_kv_whitespace_only_line_skipped,
         test_kv_trailing_whitespace_line_at_eof,
+        test_kv_invalid_pair_key_buffer_no_leak,
+        test_kv_trailing_junk_value_buffer_no_leak,
+        test_kv_leak_value_strip_frees_old_buffer,
+        test_kv_leak_parse_frees_local_key,
+        test_kv_leak_parse_frees_local_value,
+        test_kv_leak_get_ptr_zstr_frees_lookup,
     };
 
     WriteFmt("[INFO] Starting KvConfig.Parse tests\n\n");

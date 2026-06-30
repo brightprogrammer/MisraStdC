@@ -1,4 +1,5 @@
 #include <Misra/Std/Allocator/Default.h>
+#include <Misra/Std/Allocator/Debug.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Container/BitVec.h>
@@ -4764,6 +4765,966 @@ static bool test_deadend_bufread_too_few_args(void) {
     return true;
 }
 
+// --- leak-guard / scratch-leak helpers relocated from Io.Blind.c + Io.Leak.c ---
+#define DBG_BEGIN(dbg, out)                                                                                            \
+    DebugAllocator dbg = DebugAllocatorInit();                                                                         \
+    Str            out = StrInit(&dbg)
+
+#define LEAK_CFG                                                                                                       \
+    ((DebugAllocatorConfig) {.capture_traces = false, .detect_overflow = false, .track_freed_history = false})
+
+#define LEAK_WRITE_PRELUDE()                                                                                           \
+    DebugAllocator dbg  = DebugAllocatorInitWith(LEAK_CFG);                                                            \
+    Allocator     *adbg = ALLOCATOR_OF(&dbg);                                                                          \
+    Str            out  = StrInit(adbg);                                                                               \
+    bool           ok   = true
+
+#define LEAK_WRITE_EPILOGUE()                                                                                          \
+    StrDeinit(&out);                                                                                                   \
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);                           \
+    DebugAllocatorDeinit(&dbg);                                                                                        \
+    return ok
+
+
+// ===========================================================================
+// Mutation-hardening write / scratch-leak tests relocated from Io.Blind.c.
+// ===========================================================================
+// Tear down `out`, then assert no scratch leaked, then deinit the allocator.
+static bool dbg_no_leak(DebugAllocator *dbg, Str *out) {
+    StrDeinit(out);
+    bool ok = (DebugAllocatorLiveCount(dbg) == 0);
+    DebugAllocatorDeinit(dbg);
+    return ok;
+}
+
+// 144:17 lt_to_le `pos + 1 < len`: the zero-pad detector needs at least one
+// digit AFTER the '0'. Spec "{05}" (len 2 of body "05"): pos+1==1 < 2 true ->
+// zero-pad of width 5. lt_to_le makes pos+1<=len read spec[2] out of body.
+// We pin the zero-pad behaviour: u32 7 with {05} -> "00007".
+static bool test_pfs_zero_pad_detect(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    u32              v     = 7;
+    StrAppendFmt(&out, "{05}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "00007") == 0);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 150:13 lt_to_le `pos < len` (width digit gate) and 151:20 lt_to_le (width
+// loop). Spec "{3}" width 3: 42 -> "   42" with width-3? No: width 3, "42" ->
+// " 42". Pin width parse: {4} of "ab" -> "  ab".
+static bool test_pfs_width_parse(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    Zstr             s     = "ab";
+    StrAppendFmt(&out, "{4}", s);
+    bool ok = (ZstrCompare(StrBegin(&out), "  ab") == 0);
+    StrClear(&out);
+    // Two-digit width exercises the width loop (151) more than once.
+    StrAppendFmt(&out, "{12}", s);
+    ok = ok && (ZstrCompare(StrBegin(&out), "          ab") == 0);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 158:13 lt_to_le `pos < len` (precision '.' gate): "{.2}" on float 3.14159 ->
+// "3.14". A le swap would read one past the body. 160:17 ge_to_gt
+// `pos >= len` (precision must have a trailing digit): "{.}" is malformed and
+// must be rejected -> output stays empty.  165:20 lt_to_le precision loop.
+static bool test_pfs_precision_parse(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    f64              v     = 3.14159;
+    StrAppendFmt(&out, "{.2}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "3.14") == 0);
+    StrClear(&out);
+    // multi-digit precision exercises the precision loop body (165).
+    StrAppendFmt(&out, "{.4}", v);
+    ok = ok && (ZstrCompare(StrBegin(&out), "3.1416") == 0);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 160:17 ge_to_gt: a lone '.' with no digit must be rejected. Real:
+// parse_format_spec returns false -> StrAppendFmt fails, output untouched.
+static bool test_pfs_dot_no_digit_rejected(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    StrAppendFmt(&out, "literal");
+    i32  v  = 5;
+    bool rc = StrAppendFmt(&out, "{.}", v);
+    // Real: false; output keeps only the prior "literal" (append stopped).
+    bool ok = (rc == false) && (ZstrCompare(StrBegin(&out), "literal") == 0);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 245:21 gt_to_ge `content_len > 0` (sign detection inserts '0' AFTER sign):
+// i32 -7 with {05} -> "-0007" (sign kept, 3 zeros). A ge swap is a no-op here
+// (content_len is 2), so to make col-21 observable we need content_len==0?
+// content_len is always >0 for a rendered number; the kill is that the sign
+// branch must fire: pin "-0007".
+static bool test_pad_zeros_signed(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    i32              v     = -7;
+    StrAppendFmt(&out, "{05}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "-0007") == 0);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 238:21 ge_to_gt `content_len >= width` (pad_numeric_zeros early-out): when
+// content already meets width, NO padding. {02} of 123 (3 digits) -> "123".
+// ge_to_gt makes 3>2 still true so identical; the distinguishing case is
+// content_len == width: {03} of 123 -> "123" (no extra zero). ge_to_gt: 3>3
+// false -> would try to pad by 0 anyway (pad_len 0) -> identical. So col-238
+// is pinned by exact-fit + under-fit together.
+static bool test_pad_zeros_exact_and_under(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    u32              v     = 123;
+    StrAppendFmt(&out, "{03}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "123") == 0);
+    StrClear(&out);
+    StrAppendFmt(&out, "{05}", v);
+    ok = ok && (ZstrCompare(StrBegin(&out), "00123") == 0);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 257:21 ge_to_gt `content_len >= width` (StrPad early-out): exact-fit width
+// must NOT pad, under-fit must. {3} of "abc" (len 3) -> "abc"; {5} -> "  abc".
+static bool test_strpad_exact_and_under(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    Zstr             s     = "abc";
+    StrAppendFmt(&out, "{3}", s);
+    bool ok = (ZstrCompare(StrBegin(&out), "abc") == 0);
+    StrClear(&out);
+    StrAppendFmt(&out, "{5}", s);
+    ok = ok && (ZstrCompare(StrBegin(&out), "  abc") == 0);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 307:23 lt_to_le `i + 1 < fmt_len` ('{{' escape look-ahead): a trailing single
+// '{' at end-of-string is an unclosed spec; '{{' mid-string is a literal '{'.
+static bool test_brace_escape_open(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    StrAppendFmt(&out, "a{{b");
+    bool ok = (ZstrCompare(StrBegin(&out), "a{b") == 0);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 456:23 lt_to_le `i + 1 < fmt_len` ('}}' escape look-ahead): '}}' -> '}'.
+static bool test_brace_escape_close(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    StrAppendFmt(&out, "a}}b");
+    bool ok = (ZstrCompare(StrBegin(&out), "a}b") == 0);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 317:30 lt_to_le `brace_end < fmt_len` (scan to closing '}'): a normal spec
+// "{x}" must find its '}' and render hex. A le swap reads one past end.
+static bool test_brace_scan_close(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    u32              v     = 0xAB;
+    StrAppendFmt(&out, "{x}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "0xab") == 0);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 363:36 init_const var_width=0, 390:21 init_const x=0: str_append_fmt's raw
+// branch recovers var_width from the writer identity, reads the value into x,
+// then re-dispatches to _write_uN (which renders DECIMAL -- the RAW flag is
+// ignored downstream). {<2r} of u16 0x1234 -> "4660". x=42 -> "42";
+// var_width=42 -> switch default LOG_ERROR + return false -> empty output.
+static bool test_raw_write_u16_value(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    u16              v     = 0x1234; // 4660
+    bool             rc    = StrAppendFmt(&out, "{<2r}", v);
+    bool             ok    = rc && (ZstrCompare(StrBegin(&out), "4660") == 0);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Same raw path, width-8 u64 -> decimal of 0x0102030405060708. var_width via
+// 363 mis-selects the pickup (and aborts via default); x via 390 corrupts.
+static bool test_raw_write_u64_value(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    u64              v     = 0x0102030405060708ULL; // 72623859790382856
+    bool             rc    = StrAppendFmt(&out, "{>8r}", v);
+    bool             ok    = rc && (ZstrCompare(StrBegin(&out), "72623859790382856") == 0);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Write a formatted line to a temp file with newline appended, read it back.
+// Pins 521:10 ok init, 533:9 ok assign (the append result must gate the
+// write), 543:28 gt_to_ge (StrLen>0 write guard), 545/550 ok=false on failure
+// paths (those only matter on failure -> see notes), and the void calls.
+static bool test_fwrite_roundtrip(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              path  = StrInit(&alloc);
+    File             f     = FileOpenTemp(&path, &alloc);
+    bool             ok    = FileIsOpen(&f);
+    if (ok) {
+        ok = ok && FWriteFmtLn(&f, "n={}", LVAL((i32)42));
+        FileClose(&f);
+        File r = FileOpen(StrBegin(&path), "r");
+        if (FileIsOpen(&r)) {
+            Str back = StrInit(&alloc);
+            FileRead(&r, &back);
+            ok = ok && (ZstrCompare(StrBegin(&back), "n=42\n") == 0);
+            StrDeinit(&back);
+            FileClose(&r);
+        } else {
+            ok = false;
+        }
+        FileRemove(&path);
+    }
+    StrDeinit(&path);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 543:28 gt_to_ge `StrLen(&out) > 0`: an EMPTY format with no newline produces
+// a zero-length line, which must NOT be written (and FileWrite of 0 bytes must
+// not be attempted with a mismatched return). Write empty (no newline) then a
+// real line; the file must contain only the real line.
+static bool test_fwrite_empty_skipped(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              path  = StrInit(&alloc);
+    File             f     = FileOpenTemp(&path, &alloc);
+    bool             ok    = FileIsOpen(&f);
+    if (ok) {
+        // FWriteFmt (no newline) of empty string: nothing to write.
+        ok = ok && FWriteFmt(&f, "");
+        ok = ok && FWriteFmt(&f, "X");
+        FileClose(&f);
+        File r = FileOpen(StrBegin(&path), "r");
+        if (FileIsOpen(&r)) {
+            Str back = StrInit(&alloc);
+            FileRead(&r, &back);
+            ok = ok && (ZstrCompare(StrBegin(&back), "X") == 0);
+            StrDeinit(&back);
+            FileClose(&r);
+        } else {
+            ok = false;
+        }
+        FileRemove(&path);
+    }
+    StrDeinit(&path);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 956:11 init_const (var_width=0 in render_one_raw_field), 1004:13 / 1012:17
+// init_const (fc/sc), 1031:23 ge_to_gt (arg_index>=argc), 1035:65 sub_to_add
+// (render_one_raw_field arg_index-1): a multi-field buf write round-trip.
+static bool test_buf_write_multi(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Buf              b     = BufInit(&alloc);
+    bool             ok    = BufWriteFmt(&b, "{<2r}{>4r}", (u16)0x1234, (u32)0xAABBCCDD);
+    ok                     = ok && (BufLength(&b) == 6);
+    BufIter it             = BufIterFromBuf(&b);
+    u16     a              = 0;
+    u32     c              = 0;
+    ok                     = ok && BufReadFmt(&it, "{<2r}{>4r}", a, c) && a == 0x1234 && c == 0xAABBCCDD;
+    BufDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 1653/1663/1666 (and the 1658 push-front-fail dtor): {x} of a 2-byte Str
+// allocates two hex scratch Strs through the output allocator. With any
+// StrDeinit(&hex) removed, LiveCount > 0 after teardown.
+static bool test_str_hex_no_leak(void) {
+    DBG_BEGIN(dbg, out);
+    Str s = StrInit(&dbg);
+    StrPushBackR(&s, (char)0x01);
+    StrPushBackR(&s, (char)0x4F); // multi-digit so StrLen(&hex)!=1 path
+    StrAppendFmt(&out, "{x}", s);
+    bool ok = (ZstrCompare(StrBegin(&out), "0x01 0x4f") == 0);
+    StrDeinit(&s);
+    return ok && dbg_no_leak(&dbg, &out);
+}
+
+// 1658 specifically: the zero-pad-nibble path (StrLen(&hex)==1) takes a
+// StrPushFrontR; the StrDeinit after it must still run. Single 0x05 byte.
+static bool test_str_hex_nibble_no_leak(void) {
+    DBG_BEGIN(dbg, out);
+    Str s = StrInit(&dbg);
+    StrPushBackR(&s, (char)0x05);
+    StrAppendFmt(&out, "{x}", s);
+    bool ok = (ZstrCompare(StrBegin(&out), "0x05") == 0);
+    StrDeinit(&s);
+    return ok && dbg_no_leak(&dbg, &out);
+}
+
+// 1741/1746/1751/1754: same hex scratch leak for the Zstr path.
+static bool test_zstr_hex_no_leak(void) {
+    DBG_BEGIN(dbg, out);
+    Zstr s = "\x01\x4f";
+    StrAppendFmt(&out, "{x}", s);
+    bool ok = (ZstrCompare(StrBegin(&out), "0x01 0x4f") == 0);
+    return ok && dbg_no_leak(&dbg, &out);
+}
+
+static bool test_zstr_hex_nibble_no_leak(void) {
+    DBG_BEGIN(dbg, out);
+    Zstr s = "\x05";
+    StrAppendFmt(&out, "{x}", s);
+    bool ok = (ZstrCompare(StrBegin(&out), "0x05") == 0);
+    return ok && dbg_no_leak(&dbg, &out);
+}
+
+// 1703:25 / 1791:25 gt_to_ge `fmt_info->width > 0` (Str/Zstr width gate): width
+// 0 must NOT pad, width > 0 must. {0} (width 0) of "hi" -> "hi"; {5} -> "   hi".
+static bool test_str_width_gate(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    Str              s     = StrInitFromZstr("hi", &alloc);
+    StrAppendFmt(&out, "{}", s); // width 0 default
+    bool ok = (ZstrCompare(StrBegin(&out), "hi") == 0);
+    StrClear(&out);
+    StrAppendFmt(&out, "{5}", s);
+    ok = ok && (ZstrCompare(StrBegin(&out), "   hi") == 0);
+    StrDeinit(&s);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+static bool test_zstr_width_gate(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    Zstr             s     = "hi";
+    StrAppendFmt(&out, "{}", s);
+    bool ok = (ZstrCompare(StrBegin(&out), "hi") == 0);
+    StrClear(&out);
+    StrAppendFmt(&out, "{5}", s);
+    ok = ok && (ZstrCompare(StrBegin(&out), "   hi") == 0);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// ===========================================================================
+// _write_u64 / _write_i64 scratch temp LEAK + width gate (1847, 1852, 1855,
+// 1857, 1947, 1952, 1955, 1957). `Str temp` is StrAllocator(o)-backed.
+// ===========================================================================
+static bool test_u64_no_leak(void) {
+    DBG_BEGIN(dbg, out);
+    u64 v = 1234567890ULL;
+    StrAppendFmt(&out, "{}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "1234567890") == 0);
+    return ok && dbg_no_leak(&dbg, &out);
+}
+
+static bool test_i64_no_leak(void) {
+    DBG_BEGIN(dbg, out);
+    i64 v = -1234567890LL;
+    StrAppendFmt(&out, "{}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "-1234567890") == 0);
+    return ok && dbg_no_leak(&dbg, &out);
+}
+
+// 1857:25 / 1957:25 gt_to_ge width gate for u64/i64.
+static bool test_u64_width_gate(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    u64              v     = 42;
+    StrAppendFmt(&out, "{}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "42") == 0);
+    StrClear(&out);
+    StrAppendFmt(&out, "{6}", v);
+    ok = ok && (ZstrCompare(StrBegin(&out), "    42") == 0);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+static bool test_i64_width_gate(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    i64              v     = -42;
+    StrAppendFmt(&out, "{}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "-42") == 0);
+    StrClear(&out);
+    StrAppendFmt(&out, "{6}", v);
+    ok = ok && (ZstrCompare(StrBegin(&out), "   -42") == 0);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 2025:16 replace_scalar_call `write_int_as_chars(o,flags,bits,8)` for {c} on
+// f64: the 8 IEEE bytes are rendered. Force a known bit pattern via memcpy.
+static bool test_f64_char_bytes(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    // Build a double whose 8 BE bytes are all printable ASCII: "ABCDEFGH".
+    f64 v;
+    u64 bits = ((u64)'A' << 56) | ((u64)'B' << 48) | ((u64)'C' << 40) | ((u64)'D' << 32) | ((u64)'E' << 24) |
+               ((u64)'F' << 16) | ((u64)'G' << 8) | (u64)'H';
+    MemCopy(&v, &bits, sizeof(v));
+    StrAppendFmt(&out, "{c}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "ABCDEFGH") == 0);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 2046:16 lt_to_le `*v < 0` (negative-inf sign): -inf -> "-inf", +inf -> "inf".
+static bool test_f64_inf_sign(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    f64              ninf  = -F64_INFINITY;
+    StrAppendFmt(&out, "{}", ninf);
+    bool ok = (ZstrCompare(StrBegin(&out), "-inf") == 0);
+    StrClear(&out);
+    f64 pinf = F64_INFINITY;
+    StrAppendFmt(&out, "{}", pinf);
+    ok = ok && (ZstrCompare(StrBegin(&out), "inf") == 0);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 2067:52 and_to_or (`flags & FMT_FLAG_HAS_PRECISION ? precision : 6`): the
+// default precision is 6 when no precision flag. {} of 1.5 -> "1.500000"
+// (6 zeros). With and->or the predicate is always truthy and uses precision
+// (uninitialised / 6 from FmtInfo default... pin the default-6 output).
+static bool test_f64_default_precision(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    f64              v     = 1.5;
+    StrAppendFmt(&out, "{}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "1.500000") == 0);
+    StrClear(&out);
+    // explicit precision 2 to contrast.
+    StrAppendFmt(&out, "{.2}", v);
+    ok = ok && (ZstrCompare(StrBegin(&out), "1.50") == 0);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 2074/2079/2082 scratch temp leak in the normal-number branch of _write_f64.
+static bool test_f64_no_leak(void) {
+    DBG_BEGIN(dbg, out);
+    f64 v = 2.71828;
+    StrAppendFmt(&out, "{}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "2.718280") == 0);
+    return ok && dbg_no_leak(&dbg, &out);
+}
+
+// 2085:25 gt_to_ge width gate for f64.
+static bool test_f64_width_gate(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              out   = StrInit(&alloc);
+    f64              v     = 1.5;
+    StrAppendFmt(&out, "{.1}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "1.5") == 0);
+    StrClear(&out);
+    StrAppendFmt(&out, "{6.1}", v);
+    ok = ok && (ZstrCompare(StrBegin(&out), "   1.5") == 0);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 1285:31 lt_to_le `exponent < 0` (exponent sign/magnitude): a positive and a
+// negative exponent must render with '+' / '-'. 1.5e2 -> "...e+02"; 1.5e-3 ...
+static bool test_float_sci_exponent_sign(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *ab    = ALLOCATOR_OF(&alloc);
+    Str              out   = StrInit(&alloc);
+    Float            v     = FloatFromStr("12345.67", ab);
+    StrAppendFmt(&out, "{e}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "1.234567e+04") == 0);
+    StrClear(&out);
+    Float w = FloatFromStr("0.001234", ab);
+    StrAppendFmt(&out, "{e}", w);
+    ok = ok && (ZstrCompare(StrBegin(&out), "1.234e-03") == 0);
+    FloatDeinit(&v);
+    FloatDeinit(&w);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 1312:20 / 1319:20 assign_const (ok=false on push fail -- only on failure) and
+// 1306:16 likewise. 1291:10 init ok=true. The exponent two-digit minimum (1310
+// digit_count<2 -> leading '0') is pinned by an e+04 (two digits) vs a single
+// digit exponent. e+04 already has 2 digits; use 1e+100 path? exponent 100 has
+// 3 digits (no pad). Use exponent 4 -> "+04" (pad). Already covered above.
+// This test pins the 2-digit-min padding directly: 1.0 -> "1e+00".
+static bool test_float_sci_exponent_pad(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *ab    = ALLOCATOR_OF(&alloc);
+    Str              out   = StrInit(&alloc);
+    Float            v     = FloatFromStr("1.0", ab);
+    StrAppendFmt(&out, "{e}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "1e+00") == 0);
+    FloatDeinit(&v);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 1478:64 gt_to_ge `StrLen(&digits) > 0` (frac_digits default when no
+// precision): a single-digit significand yields frac_digits 0 -> no point.
+static bool test_float_sci_single_digit(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *ab    = ALLOCATOR_OF(&alloc);
+    Str              out   = StrInit(&alloc);
+    Float            v     = FloatFromStr("2.0", ab);
+    StrAppendFmt(&out, "{e}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "2e+00") == 0);
+    FloatDeinit(&v);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 1350/1351 init_const prefix/frac and 1410/1411/1504/1505 scratch dtor leaks:
+// decimal + scientific Float render through a DebugAllocator output must not
+// leak the canonical/result/digits scratch.
+static bool test_float_decimal_no_leak(void) {
+    DBG_BEGIN(dbg, out);
+    Float v = FloatFromStr("1234567890.012345", &dbg.base);
+    StrAppendFmt(&out, "{}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "1234567890.012345") == 0);
+    FloatDeinit(&v);
+    return ok && dbg_no_leak(&dbg, &out);
+}
+
+// decimal with precision exercises the dot/frac branch (1350/1351 prefix/frac).
+static bool test_float_decimal_precision(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *ab    = ALLOCATOR_OF(&alloc);
+    Str              out   = StrInit(&alloc);
+    Float            v     = FloatFromStr("3.14159", ab);
+    StrAppendFmt(&out, "{.2}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "3.14") == 0);
+    StrClear(&out);
+    // precision longer than frac pads with zeros.
+    StrAppendFmt(&out, "{.8}", v);
+    ok = ok && (ZstrCompare(StrBegin(&out), "3.14159000") == 0);
+    FloatDeinit(&v);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// decimal with no fractional dot but a precision: integer-valued Float with
+// precision adds ".000". Pins the no-dot branch (1363) prefix handling.
+static bool test_float_decimal_int_with_precision(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *ab    = ALLOCATOR_OF(&alloc);
+    Str              out   = StrInit(&alloc);
+    Float            v     = FloatFromStr("5", ab);
+    StrAppendFmt(&out, "{.3}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "5.000") == 0);
+    FloatDeinit(&v);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+static bool test_float_sci_no_leak(void) {
+    DBG_BEGIN(dbg, out);
+    Float v = FloatFromStr("12345.67", &dbg.base);
+    StrAppendFmt(&out, "{e}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "1.234567e+04") == 0);
+    FloatDeinit(&v);
+    return ok && dbg_no_leak(&dbg, &out);
+}
+
+// 2115:10 init_const start_len, 2155:9 scratch dtor leak, 2160:25 width gate
+// in _write_Float.
+static bool test_float_width_gate(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *ab    = ALLOCATOR_OF(&alloc);
+    Str              out   = StrInit(&alloc);
+    Float            v     = FloatFromStr("1.5", ab);
+    StrAppendFmt(&out, "{}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "1.5") == 0);
+    StrClear(&out);
+    StrAppendFmt(&out, "{6}", v);
+    ok = ok && (ZstrCompare(StrBegin(&out), "   1.5") == 0);
+    FloatDeinit(&v);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 2115:10 init_const start_len: pad after a prefix so start_len must be
+// non-zero. "AB" + {6} of Float 1.5 -> "AB" then 3 leading pad chars on the
+// whole buffer with ALIGN_RIGHT default: "   AB1.5".
+static bool test_float_width_after_prefix(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *ab    = ALLOCATOR_OF(&alloc);
+    Str              out   = StrInit(&alloc);
+    Float            v     = FloatFromStr("1.5", ab);
+    StrAppendFmt(&out, "AB");
+    StrAppendFmt(&out, "{>6}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "   AB1.5") == 0);
+    FloatDeinit(&v);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// ===========================================================================
+// _write_BitVec (2968, 2971, 2975) -- bit_str scratch via StrAllocator(o).
+// ===========================================================================
+static bool test_bitvec_write_no_leak(void) {
+    DBG_BEGIN(dbg, out);
+    BitVec bv = BitVecFromStr("10110", &dbg.base);
+    StrAppendFmt(&out, "{}", bv);
+    bool ok = (ZstrCompare(StrBegin(&out), "10110") == 0);
+    BitVecDeinit(&bv);
+    return ok && dbg_no_leak(&dbg, &out);
+}
+
+// 2975:25 gt_to_ge width gate for BitVec.
+static bool test_bitvec_width_gate(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *ab    = ALLOCATOR_OF(&alloc);
+    Str              out   = StrInit(&alloc);
+    BitVec           bv    = BitVecFromStr("101", ab);
+    StrAppendFmt(&out, "{}", bv);
+    bool ok = (ZstrCompare(StrBegin(&out), "101") == 0);
+    StrClear(&out);
+    StrAppendFmt(&out, "{6}", bv);
+    ok = ok && (ZstrCompare(StrBegin(&out), "   101") == 0);
+    BitVecDeinit(&bv);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// ===========================================================================
+// _write_Int (3034, 3037, 3039) -- temp scratch via StrAllocator(o).
+// ===========================================================================
+static bool test_int_write_no_leak(void) {
+    DBG_BEGIN(dbg, out);
+    Int v = IntFromStr("123456789012345678901234567890", &dbg.base);
+    StrAppendFmt(&out, "{}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "123456789012345678901234567890") == 0);
+    IntDeinit(&v);
+    return ok && dbg_no_leak(&dbg, &out);
+}
+
+// 3039:25 gt_to_ge width gate for Int.
+static bool test_int_width_gate(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *ab    = ALLOCATOR_OF(&alloc);
+    Str              out   = StrInit(&alloc);
+    Int              v     = IntFrom(42, ab);
+    StrAppendFmt(&out, "{}", v);
+    bool ok = (ZstrCompare(StrBegin(&out), "42") == 0);
+    StrClear(&out);
+    StrAppendFmt(&out, "{6}", v);
+    ok = ok && (ZstrCompare(StrBegin(&out), "    42") == 0);
+    IntDeinit(&v);
+    StrDeinit(&out);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// ===========================================================================
+// Write-side leak-guard tests relocated from Io.Leak.c.
+// ===========================================================================
+
+// 1794: _write_Str `{x}` (FMT_FLAG_HEX) per-byte `hex` scratch.
+bool test_leak_write_str_hex_per_byte_freed(void) {
+    HeapAllocator sa = HeapAllocatorInit();
+    Str           s  = StrInit(ALLOCATOR_OF(&sa));
+    for (int i = 0; i < 8; ++i)
+        StrPushBackR(&s, (char)0xAB);
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Str            out = StrInit(ALLOCATOR_OF(&dbg));
+    bool           ok  = StrAppendFmt(&out, "{x}", s) && (StrLen(&out) > 0);
+    StrDeinit(&out);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    StrDeinit(&s);
+    HeapAllocatorDeinit(&sa);
+    return ok;
+}
+
+// 2210: _write_f64 finite default-decimal `temp` scratch.
+bool test_leak_write_f64_default_freed(void) {
+    LEAK_WRITE_PRELUDE();
+    ok = ok && StrAppendFmt(&out, "{}", 1e300) && (StrLen(&out) > 0);
+    LEAK_WRITE_EPILOGUE();
+}
+
+// 2286: _write_Float default-decimal `temp` (via float_try_to_decimal_str).
+bool test_leak_write_float_default_freed(void) {
+    HeapAllocator fa = HeapAllocatorInit();
+    Float         f  = FloatFromStr("12345678901234567890123456789012345678901234567890.5", ALLOCATOR_OF(&fa));
+    LEAK_WRITE_PRELUDE();
+    ok = ok && StrAppendFmt(&out, "{}", f) && (StrLen(&out) > 0);
+    StrDeinit(&out);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    FloatDeinit(&f);
+    HeapAllocatorDeinit(&fa);
+    return ok;
+}
+
+// ---------------------------------------------------------------------------
+// float_try_to_scientific_str: nonzero success path abandons `digits`
+// (int_try_to_str scratch) and does `*out = result` (Io.c:1499 StrDeinit).
+// `{e}` of a nonzero Float renders through this path; with the output Str
+// backed by a DebugAllocator, a removed StrDeinit(&digits) leaks the
+// significand-string scratch -> live count != 0 after cleanup.
+// ---------------------------------------------------------------------------
+bool test_leak_sci_nonzero_digits_freed(void) {
+    DebugAllocator dbg  = DebugAllocatorInitWith(LEAK_CFG);
+    Allocator     *adbg = ALLOCATOR_OF(&dbg);
+
+    // Float backed by a SEPARATE heap so only the formatter scratch shows
+    // up in dbg's live count.
+    HeapAllocator fa = HeapAllocatorInit();
+    Float         v  = FloatFromStr("12345.67", ALLOCATOR_OF(&fa));
+
+    Str  out = StrInit(adbg);
+    bool ok  = StrAppendFmt(&out, "{e}", v);
+    ok       = ok && (StrLen(&out) > 0);
+
+    StrDeinit(&out);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
+    ok = ok && (DebugAllocatorLiveBytes(&dbg) == 0);
+
+    FloatDeinit(&v);
+    HeapAllocatorDeinit(&fa);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// ---------------------------------------------------------------------------
+// float_try_to_scientific_str: zero-value success path also abandons
+// `digits` (Io.c:1462 StrDeinit) before `*out = result`. `{.3e}` of 0.0
+// reaches the FloatIsZero branch.
+// ---------------------------------------------------------------------------
+bool test_leak_sci_zero_digits_freed(void) {
+    DebugAllocator dbg  = DebugAllocatorInitWith(LEAK_CFG);
+    Allocator     *adbg = ALLOCATOR_OF(&dbg);
+
+    HeapAllocator fa = HeapAllocatorInit();
+    Float         v  = FloatFromStr("0.0", ALLOCATOR_OF(&fa));
+
+    Str  out = StrInit(adbg);
+    bool ok  = StrAppendFmt(&out, "{.3e}", v);
+    ok       = ok && (StrLen(&out) > 0);
+
+    StrDeinit(&out);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
+    ok = ok && (DebugAllocatorLiveBytes(&dbg) == 0);
+
+    FloatDeinit(&v);
+    HeapAllocatorDeinit(&fa);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// ---------------------------------------------------------------------------
+// float_try_to_decimal_str: with-dot success path abandons `canonical`
+// (float_try_to_str scratch) and does `*out = result` (Io.c:1404 StrDeinit).
+// `{.2}` of a value whose canonical form HAS a '.' takes the dot branch.
+// ---------------------------------------------------------------------------
+bool test_leak_decimal_withdot_canonical_freed(void) {
+    DebugAllocator dbg  = DebugAllocatorInitWith(LEAK_CFG);
+    Allocator     *adbg = ALLOCATOR_OF(&dbg);
+
+    HeapAllocator fa = HeapAllocatorInit();
+    Float         v  = FloatFromStr("3.14159", ALLOCATOR_OF(&fa));
+
+    Str  out = StrInit(adbg);
+    bool ok  = StrAppendFmt(&out, "{.2}", v);
+    ok       = ok && (StrLen(&out) > 0);
+
+    StrDeinit(&out);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
+    ok = ok && (DebugAllocatorLiveBytes(&dbg) == 0);
+
+    FloatDeinit(&v);
+    HeapAllocatorDeinit(&fa);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// ---------------------------------------------------------------------------
+// float_try_to_decimal_str: no-dot success path abandons `canonical` and
+// does `*out = result` (Io.c:1379 StrDeinit). An integer-valued Float whose
+// canonical form has NO '.' but with an explicit precision takes the
+// `if (!dot)` branch.
+// ---------------------------------------------------------------------------
+bool test_leak_decimal_nodot_canonical_freed(void) {
+    DebugAllocator dbg  = DebugAllocatorInitWith(LEAK_CFG);
+    Allocator     *adbg = ALLOCATOR_OF(&dbg);
+
+    HeapAllocator fa = HeapAllocatorInit();
+    Float         v  = FloatFromStr("42", ALLOCATOR_OF(&fa));
+
+    Str  out = StrInit(adbg);
+    bool ok  = StrAppendFmt(&out, "{.2}", v);
+    ok       = ok && (StrLen(&out) > 0);
+
+    StrDeinit(&out);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
+    ok = ok && (DebugAllocatorLiveBytes(&dbg) == 0);
+
+    FloatDeinit(&v);
+    HeapAllocatorDeinit(&fa);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// ---------------------------------------------------------------------------
+// WRITE side, _write_Zstr HEX path: each loop iteration builds a per-byte
+// `hex` Str through `StrAllocator(o)` (StrFromU64 allocates the nibble
+// string), merges it into `o`, then `StrDeinit(&hex)` (Io.c:1754). A
+// multi-char Zstr formatted with `{x}` drives the loop >=2 times; with the
+// output Str backed by a DebugAllocator, a removed StrDeinit(&hex) leaks the
+// per-byte scratch -> live count != 0 after cleanup.
+// ---------------------------------------------------------------------------
+bool test_leak_write_zstr_hex_per_byte_freed(void) {
+    DebugAllocator dbg  = DebugAllocatorInitWith(LEAK_CFG);
+    Allocator     *adbg = ALLOCATOR_OF(&dbg);
+
+    Zstr s   = "AB"; // multi-byte Zstr -> hex loop runs per byte
+    Str  out = StrInit(adbg);
+    bool ok  = StrAppendFmt(&out, "{x}", s);
+    ok       = ok && (StrLen(&out) > 0);
+
+    StrDeinit(&out);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
+    ok = ok && (DebugAllocatorLiveBytes(&dbg) == 0);
+
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// ---------------------------------------------------------------------------
+// WRITE side, _write_i64 success path: the value is rendered into a scratch
+// `temp` Str built through `StrAllocator(o)` (StrFromI64 allocates), merged
+// into `o`, then `StrDeinit(&temp)` (Io.c:1955). `{}` of a signed integer
+// reaches this; with the output Str backed by a DebugAllocator, a removed
+// StrDeinit(&temp) leaks the formatting scratch -> live count != 0.
+// ---------------------------------------------------------------------------
+bool test_leak_write_i64_temp_freed(void) {
+    DebugAllocator dbg  = DebugAllocatorInitWith(LEAK_CFG);
+    Allocator     *adbg = ALLOCATOR_OF(&dbg);
+
+    i32  v   = -123456;
+    Str  out = StrInit(adbg);
+    bool ok  = StrAppendFmt(&out, "{}", v);
+    ok       = ok && (StrLen(&out) > 0);
+
+    StrDeinit(&out);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
+    ok = ok && (DebugAllocatorLiveBytes(&dbg) == 0);
+
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+bool test_leak_write_u64_temp_freed(void) {
+    LEAK_WRITE_PRELUDE();
+    ok = ok && StrAppendFmt(&out, "{}", (u64)12345678901234ull) && (StrLen(&out) > 0);
+    LEAK_WRITE_EPILOGUE();
+}
+
+bool test_leak_write_f64_temp_freed(void) {
+    LEAK_WRITE_PRELUDE();
+    ok = ok && StrAppendFmt(&out, "{}", (f64)3.14159) && (StrLen(&out) > 0);
+    LEAK_WRITE_EPILOGUE();
+}
+
+bool test_leak_write_str_freed(void) {
+    HeapAllocator va = HeapAllocatorInit();
+    Str           s  = StrInit(ALLOCATOR_OF(&va));
+    StrAppendFmt(&s, "payload");
+    LEAK_WRITE_PRELUDE();
+    ok = ok && StrAppendFmt(&out, "{}", s) && (StrLen(&out) > 0);
+    StrDeinit(&out);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    StrDeinit(&s);
+    HeapAllocatorDeinit(&va);
+    return ok;
+}
+
+bool test_leak_write_int_freed(void) {
+    HeapAllocator va = HeapAllocatorInit();
+    Int           v  = IntFromStr("123456789012345678901234567890", ALLOCATOR_OF(&va));
+    LEAK_WRITE_PRELUDE();
+    ok = ok && StrAppendFmt(&out, "{}", v) && (StrLen(&out) > 0);
+    StrDeinit(&out);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    IntDeinit(&v);
+    HeapAllocatorDeinit(&va);
+    return ok;
+}
+
+bool test_leak_write_float_freed(void) {
+    HeapAllocator va = HeapAllocatorInit();
+    Float         v  = FloatFromStr("2.718281828", ALLOCATOR_OF(&va));
+    LEAK_WRITE_PRELUDE();
+    ok = ok && StrAppendFmt(&out, "{}", v) && (StrLen(&out) > 0);
+    StrDeinit(&out);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    FloatDeinit(&v);
+    HeapAllocatorDeinit(&va);
+    return ok;
+}
+
+bool test_leak_write_bitvec_freed(void) {
+    HeapAllocator va = HeapAllocatorInit();
+    BitVec        v  = BitVecInit(ALLOCATOR_OF(&va));
+    BitVecResize(&v, 12);
+    LEAK_WRITE_PRELUDE();
+    ok = ok && StrAppendFmt(&out, "{}", v) && (StrLen(&out) > 0);
+    StrDeinit(&out);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    BitVecDeinit(&v);
+    HeapAllocatorDeinit(&va);
+    return ok;
+}
+
+
 int main(void) {
     WriteFmt("[INFO] Starting format writer tests\n\n");
 
@@ -5005,6 +5966,64 @@ int main(void) {
         test_m8_zero_pad_width9,
         test_m8_width9_space_pad,
         test_m8_precision9_string,
+        test_pfs_zero_pad_detect,
+        test_pfs_width_parse,
+        test_pfs_precision_parse,
+        test_pfs_dot_no_digit_rejected,
+        test_pad_zeros_signed,
+        test_pad_zeros_exact_and_under,
+        test_strpad_exact_and_under,
+        test_brace_escape_open,
+        test_brace_escape_close,
+        test_brace_scan_close,
+        test_raw_write_u16_value,
+        test_raw_write_u64_value,
+        test_fwrite_roundtrip,
+        test_fwrite_empty_skipped,
+        test_buf_write_multi,
+        test_str_hex_no_leak,
+        test_str_hex_nibble_no_leak,
+        test_zstr_hex_no_leak,
+        test_zstr_hex_nibble_no_leak,
+        test_str_width_gate,
+        test_zstr_width_gate,
+        test_u64_no_leak,
+        test_i64_no_leak,
+        test_u64_width_gate,
+        test_i64_width_gate,
+        test_f64_char_bytes,
+        test_f64_inf_sign,
+        test_f64_default_precision,
+        test_f64_no_leak,
+        test_f64_width_gate,
+        test_float_sci_exponent_sign,
+        test_float_sci_exponent_pad,
+        test_float_sci_single_digit,
+        test_float_decimal_no_leak,
+        test_float_decimal_precision,
+        test_float_decimal_int_with_precision,
+        test_float_sci_no_leak,
+        test_float_width_gate,
+        test_float_width_after_prefix,
+        test_bitvec_write_no_leak,
+        test_bitvec_width_gate,
+        test_int_write_no_leak,
+        test_int_width_gate,
+        test_leak_write_str_hex_per_byte_freed,
+        test_leak_write_f64_default_freed,
+        test_leak_write_float_default_freed,
+        test_leak_sci_nonzero_digits_freed,
+        test_leak_sci_zero_digits_freed,
+        test_leak_decimal_withdot_canonical_freed,
+        test_leak_decimal_nodot_canonical_freed,
+        test_leak_write_zstr_hex_per_byte_freed,
+        test_leak_write_i64_temp_freed,
+        test_leak_write_u64_temp_freed,
+        test_leak_write_f64_temp_freed,
+        test_leak_write_str_freed,
+        test_leak_write_int_freed,
+        test_leak_write_float_freed,
+        test_leak_write_bitvec_freed,
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);

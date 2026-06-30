@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Debug.h>
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Graph.h>
 #include <Misra/Std/Log.h>
@@ -18,6 +19,13 @@ static bool flaky_int_copy(void *dst, const void *src, const Allocator *alloc) {
     }
     *(int *)dst = *(const int *)src;
     return true;
+}
+
+// Lean DebugAllocator config used by the leak-detecting tests: no trace
+// capture / overflow / freed-history bookkeeping, just live-count tracking.
+static DebugAllocator make_lean_debug_allocator(void) {
+    DebugAllocatorConfig cfg = {.capture_traces = false, .detect_overflow = false, .track_freed_history = false};
+    return DebugAllocatorInitWith(cfg);
 }
 
 static bool test_graph_add_node_semantics(void) {
@@ -232,6 +240,88 @@ static bool test_graph_failed_reuse_resets_visit_count(void) {
     return result;
 }
 
+// ===========================================================================
+// 583:9 cxx_remove_void_call -- graph_push_node GROW-path copy-failure
+// cleanup must free the freshly-allocated node-data buffer.
+//
+// On the slot-grow path, when copy_init fails, line 583
+// graph_free_node_data(slot.data) releases the payload buffer before the add
+// returns 0. Removing it leaks that buffer. We pre-reserve so the failing add
+// does NOT reallocate slot storage, isolating the node-data alloc/free as the
+// only allocator activity, and assert the live count is net-zero across the
+// failing add. Routed through a DebugAllocator.
+static bool test_push_grow_copy_failure_frees_node_data(void) {
+    WriteFmt("Testing grow-path copy failure frees the node-data buffer (no leak)\n");
+
+    DebugAllocator dbg = make_lean_debug_allocator();
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInitWithDeepCopy(flaky_int_copy, NULL, &dbg);
+
+    // Pre-reserve so the failing add appends a slot WITHOUT reallocating the
+    // slot vector; the node-data buffer is then the only allocation in flight.
+    bool result = GraphReserve(&graph, 8);
+
+    size before = DebugAllocatorLiveCount(&dbg);
+
+    g_fail_copy           = true;
+    GraphNodeId failed_id = GraphAddNodeR(&graph, 42);
+    g_fail_copy           = false;
+
+    size after = DebugAllocatorLiveCount(&dbg);
+
+    result = result && (failed_id == 0);
+    // Real code frees the node-data buffer on the failure path; mutant leaks it.
+    result = result && (after == before);
+    result = result && (GraphNodeCount(&graph) == 0);
+
+    GraphDeinit(&graph);
+    DebugAllocatorDeinit(&dbg);
+    return result;
+}
+
+// ===========================================================================
+// 551:13 cxx_remove_void_call -- graph_push_node REUSE-path copy-failure
+// cleanup must free the freshly-allocated node-data buffer.
+//
+// On the slot-reuse path, when copy_init fails, line 551
+// graph_free_node_data(slot_ptr->data) releases the payload before returning
+// 0. Removing it leaks the buffer. We delete+commit a node to seed a free
+// slot, then drive a failing reuse add and assert the live count is net-zero.
+static bool test_push_reuse_copy_failure_frees_node_data(void) {
+    WriteFmt("Testing reuse-path copy failure frees the node-data buffer (no leak)\n");
+
+    DebugAllocator dbg = make_lean_debug_allocator();
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInitWithDeepCopy(flaky_int_copy, NULL, &dbg);
+
+    GraphNodeId a = GraphAddNodeR(&graph, 10);
+    GraphNodeId b = GraphAddNodeR(&graph, 20);
+    (void)a;
+
+    // Delete + commit b so its slot lands on the free list (reuse target).
+    bool result = GraphMarkNodeForDeletion(GraphGetNode(&graph, b));
+    result      = result && (GraphCommitChanges(&graph) == 1);
+
+    size before = DebugAllocatorLiveCount(&dbg);
+
+    g_fail_copy           = true;
+    GraphNodeId failed_id = GraphAddNodeR(&graph, 30); // reuses b's slot, copy fails
+    g_fail_copy           = false;
+
+    size after = DebugAllocatorLiveCount(&dbg);
+
+    result = result && (failed_id == 0);
+    // Real code frees the node-data buffer; mutant leaks it.
+    result = result && (after == before);
+    result = result && (GraphNodeCount(&graph) == 1);
+
+    GraphDeinit(&graph);
+    DebugAllocatorDeinit(&dbg);
+    return result;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_graph_add_node_semantics,
@@ -241,6 +331,8 @@ int main(void) {
         test_graph_reuse_add_bumps_epoch,
         test_graph_failed_reuse_returns_slot_to_free_list,
         test_graph_failed_reuse_resets_visit_count,
+        test_push_grow_copy_failure_frees_node_data,
+        test_push_reuse_copy_failure_frees_node_data,
     };
 
     WriteFmt("[INFO] Starting Graph.Insert tests\n\n");

@@ -326,6 +326,41 @@ static bool test_node_at_stale_id_deadend(void) {
     return false;
 }
 
+// ===========================================================================
+// 79:10 cxx_replace_scalar_call -- graph_validate_node_id occupancy guard.
+//
+// `if (!graph_slot_is_occupied(slot))` rejects an id that points at a FREE
+// slot. The mutant replaces the occupancy call value with a truthy constant,
+// so `!42` is false and the "free slot" abort never fires. We craft an id
+// that targets a freed slot but whose generation MATCHES the freed slot's
+// current (bumped) generation, so the only guard that can reject it is the
+// occupancy check at line 79 (the later generation check at 83 would pass).
+// Real code aborts; mutant proceeds. DEADEND.
+static bool test_validate_node_id_rejects_free_slot_matching_generation_deadend(void) {
+    WriteFmt("Testing graph_validate_node_id rejects a free slot whose generation matches (abort)\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit(&alloc);
+
+    GraphNodeId a = GraphAddNodeR(&graph, 10);
+
+    (void)GraphMarkNodeForDeletion(GraphGetNode(&graph, a));
+    (void)GraphCommitChanges(&graph);
+
+    // Slot a's index is now free with generation bumped to gen(a)+1. Build an
+    // id with that exact generation: index in bounds, generation nonzero and
+    // matching, slot unoccupied -> only the occupancy guard rejects it.
+    GraphNodeId free_match = make_raw_node_id(GraphNodeIdIndex(a), GraphNodeIdGeneration(a) + 1);
+
+    (void)GraphGetNode(&graph, free_match);
+
+    GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
+    return false;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_graph_access_helpers,
@@ -341,6 +376,7 @@ int main(void) {
         test_get_node_rejects_stale_id_deadend,
         test_has_edge_rejects_invalid_destination_deadend,
         test_node_at_stale_id_deadend,
+        test_validate_node_id_rejects_free_slot_matching_generation_deadend,
     };
 
     WriteFmt("[INFO] Starting Graph.Access tests\n\n");

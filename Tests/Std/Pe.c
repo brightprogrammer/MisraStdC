@@ -10,6 +10,7 @@
 #include <Misra.h>
 #include <Misra/Parsers/Pe.h>
 #include <Misra/Std/Zstr.h>
+#include <Misra/Std/Allocator/Debug.h>
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/File.h>
@@ -1550,6 +1551,49 @@ static bool test_pe2_find_second_section(void) {
     return ok;
 }
 
+// 580:24 cxx_lt_to_le. The search loop runs `for (i = 0; i < VecLen; ++i)`.
+// A lt->le mutant (`i <= VecLen`) executes one extra iteration at
+// i == VecLen, reading the slack slot one past the last section. The
+// sections Vec always keeps a spare, ZERO-FILLED slot at index VecLen
+// (Vec grows pow2 with a +1 sentinel that reserve_vec MemSets to 0), so
+// that slot's `name` reads as the empty string "".
+//
+// We search for "" against sections whose real names are all non-empty.
+// Real code: no section matches "" -> returns NULL after VecLen
+// iterations. The mutant reads the zero slack slot at i == VecLen, where
+// ZstrCompare(name, "") == 0, and wrongly returns a non-NULL pointer.
+// Asserting NULL kills the mutant.
+static bool test_pe_blind_find_empty_name_returns_null(void) {
+    DebugAllocator alloc = DebugAllocatorInit();
+    Allocator     *base  = ALLOCATOR_OF(&alloc);
+
+    SecDesc secs[2];
+    MemSet(secs, 0, sizeof(secs));
+    MemCopy(secs[0].name, ".text\0\0\0", 8);
+    secs[0].va = 0x1000;
+    MemCopy(secs[1].name, ".rdata\0\0", 8);
+    secs[1].va = 0x2000;
+
+    u8 blob[BLOB_SIZE];
+    MemSet(blob, 0, sizeof(blob));
+    build_blob(blob, secs, 2);
+
+    Pe pe;
+    if (!PeOpenFromMemoryCopy(&pe, blob, sizeof(blob), base)) {
+        DebugAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    // The named sections resolve (sanity), but the empty name does not.
+    bool ok = PeFindSection(&pe, ".text") != NULL;
+    ok      = ok && PeFindSection(&pe, ".rdata") != NULL;
+    ok      = ok && PeFindSection(&pe, "") == NULL; // L580 upper bound
+
+    PeDeinit(&pe);
+    DebugAllocatorDeinit(&alloc);
+    return ok;
+}
+
 // ---------------------------------------------------------------------------
 // PeOpenFromMemory: failed parse zeroes `out`.
 // ---------------------------------------------------------------------------
@@ -1765,6 +1809,7 @@ int main(void) {
         test_pe2_rva_offset_at_buflen_rejected,
         test_pe2_rva_no_section,
         test_pe2_find_second_section,
+        test_pe_blind_find_empty_name_returns_null,
         test_pe2_failed_parse_zeroes_out,
         test_pe2_open_valid_file,
         test_pe2_open_nonpe_file_rejected,

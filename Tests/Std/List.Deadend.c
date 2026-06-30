@@ -29,6 +29,14 @@ static i32 compare_ints(const void *lhs, const void *rhs) {
     return (a > b) - (a < b);
 }
 
+// Build [0, 10, 20, ... ] so value == index * 10 -> data identifies the node.
+static void fill_decades(GenericList *list, u64 count) {
+    for (u64 i = 0; i < count; i++) {
+        int v = (int)(i * 10);
+        ListPushBackR((List(int) *)list, v);
+    }
+}
+
 static bool test_validate_corrupt_empty_list_fails(void) {
     WriteFmt("Testing ValidateList on corrupt empty list\n");
 
@@ -358,10 +366,38 @@ static bool test_random_access_relative_target_at_length_fails(void) {
     return false;
 }
 
+// ---------------------------------------------------------------------------
+// 472:14 cxx_ge_to_gt  in get_node_random_access node-index bound guard:
+//   if (nidx >= list->length) LOG_FATAL(...);  ->  if (nidx > list->length)
+// `nidx == list->length` is one past the end and must abort. The mutant
+// loosens the bound so nidx == length is wrongly accepted. Real code aborts
+// (deadend: expected). The mutant does NOT abort, so the deadend test fails
+// under the mutation.
+// ---------------------------------------------------------------------------
+static bool deadend_random_access_nidx_equals_length(void) {
+    WriteFmt("Testing get_node_random_access nidx==length is rejected\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    List(int) list         = ListInit(&alloc);
+    fill_decades(GENERIC_LIST(&list), 4);
+
+    GenericList *g = GENERIC_LIST(&list);
+    // nidx == length (4) with ridx 0. Real aborts at the bound guard. The
+    // node pointer is the head (valid) so only the guard distinguishes.
+    get_node_random_access(g, g->head, ListLen(&list), 0);
+
+    // Unreachable on real code (LOG_FATAL longjmps out). If the mutant
+    // swallows the guard we fall through here; clean up and return.
+    ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
+    return true;
+}
+
 int main(void) {
     TestFunction deadend_tests[] = {
         test_iteration_target_at_length_fails,
         test_random_access_relative_target_at_length_fails,
+        deadend_random_access_nidx_equals_length,
         test_validate_corrupt_empty_list_fails,
         test_validate_null_list_fails,
         test_validate_invalid_magic_fails,

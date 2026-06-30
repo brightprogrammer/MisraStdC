@@ -1,4 +1,5 @@
 #include <Misra/Std/Allocator/Default.h>
+#include <Misra/Std/Allocator/Debug.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Container/BitVec.h>
@@ -2090,6 +2091,776 @@ static bool test_read_long_string_no_cap(void) {
     return ok;
 }
 
+// --- helpers/macros relocated from Io.Blind.c + Io.Leak.c ---
+#define READ1(in, fmt, IO) str_read_fmt((in), (fmt), (TypeSpecificIO[]) {(IO)}, 1)
+#define SENTINEL           (-987654.0)
+
+#define LEAK_CFG                                                                                                       \
+    ((DebugAllocatorConfig) {.capture_traces = false, .detect_overflow = false, .track_freed_history = false})
+
+
+// ===========================================================================
+// Mutation-hardening read / scratch-leak tests relocated from Io.Blind.c.
+// ===========================================================================
+static bool f64_is(f64 v, f64 e) {
+    return F64Abs(v - e) < 1e-9;
+}
+
+// Read a Float and compare its canonical form. A wrong token boundary leaves
+// the pre-read sentinel.
+static bool read_float_is(Zstr in, Zstr expect) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *ab    = ALLOCATOR_OF(&alloc);
+    Float            f     = FloatInit(ab);
+    (void)FloatTryFromStr(&f, "99"); // sentinel
+    StrReadFmt(in, "{}", f);
+    Str  t  = FloatToStr(&f);
+    bool ok = (ZstrCompare(StrBegin(&t), expect) == 0);
+    StrDeinit(&t);
+    FloatDeinit(&f);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 592:26 gt_to_ge `rem_p > 0` (spec scan loop). 605:26 ge_to_gt `spec_len>=32`
+// (over-long spec rejected). A normal spec "{}" with a value reads fine.
+static bool test_read_spec_scan(void) {
+    i32  v   = 0;
+    Zstr in  = "42";
+    Zstr out = READ1(in, "{}", TO_TYPE_SPECIFIC_IO(i32, &v));
+    return out == in + 2 && v == 42;
+}
+
+// 605:26 ge_to_gt: a 32-char spec body is rejected. Build "{" + 32 'q' + "}".
+static bool test_read_overlong_spec_rejected(void) {
+    i32 v = 7;
+    // 32 chars inside braces -> spec_len == 32 -> rejected.
+    Zstr out = READ1("x", "{qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq}", TO_TYPE_SPECIFIC_IO(i32, &v));
+    return out == NULL && v == 7;
+}
+
+// 618:21 init_const spec_ok=false, 622:32 assign_const data[spec_len]='\0',
+// 624 parse gate: an invalid spec char 'q' must fail the parse and leave the
+// destination untouched (covered in Read suite already, repeat for spec_ok).
+static bool test_read_invalid_spec_leaves_dest(void) {
+    i32  v   = 77;
+    Zstr out = READ1("5", "{q}", TO_TYPE_SPECIFIC_IO(i32, &v));
+    return out == NULL && v == 77;
+}
+
+// 630:35 assign_const `fmt_info.max_read_len = rem_in`: a {s} string read at
+// end of format uses max_read_len = remaining input. A quoted string of 40
+// chars must be read in full (not truncated to a constant 42... but 42 > 40
+// so we need > 42). Use 50 chars: forcing max_read_len to a constant 42 caps
+// the read at 42, observable as a short string.
+static bool test_read_max_read_len_set(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Zstr             in    = "\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\""; // 50 A's quoted
+    Str              s     = StrInit(&alloc);
+    Zstr             out   = READ1(in, "{s}", TO_TYPE_SPECIFIC_IO(Str, &s));
+    bool             ok    = (out != NULL) && (StrLen(&s) == 50);
+    StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 682:21 init_const x=0, 692:23 init_const var_width=0, 712:36 gt swaps, plus
+// the raw read store. {<4r} into a u32 from 4 LE bytes -> the value. var_width
+// 0->42 mis-selects the store; x 0->42 corrupts before pickup.
+static bool test_read_raw_u32_le(void) {
+    u32  v   = 0;
+    Zstr in  = "\xEF\xBE\xAD\xDE";
+    Zstr out = READ1(in, "{<4r}", TO_TYPE_SPECIFIC_IO(u32, &v));
+    return out == in + 4 && v == 0xDEADBEEFu;
+}
+
+// 686:37 sub_to_add / 686:28 sub_assign (rem_in -= next-in in the RAW branch):
+// after a raw read followed by a literal, rem_in must stay correct so the
+// literal matches. {<1r} then literal 'Z': input "\x05Z".
+static bool test_read_raw_then_literal(void) {
+    u8   v   = 0;
+    Zstr in  = "\x05Z";
+    Zstr out = READ1(in, "{<1r}Z", TO_TYPE_SPECIFIC_IO(u8, &v));
+    return out == in + 2 && v == 0x05;
+}
+
+// 748:22 init_const c=p[space_len], 750:49 add_to_sub `p[space_len + 1]`,
+// 770:37/28 sub (rem_in -= next-in in the NON-raw branch), 792:19 post_dec
+// (rem_in-- on a literal match). A {} field bounded by a trailing literal,
+// then more input: "{}-end" on "12-end". The literal-run scan (748/750) caps
+// the field at '-'; rem_in bookkeeping (770/792) keeps the tail in sync.
+static bool test_read_field_bounded_by_literal(void) {
+    i32  v   = 0;
+    Zstr in  = "12-end";
+    Zstr out = READ1(in, "{}-end", TO_TYPE_SPECIFIC_IO(i32, &v));
+    return out == in + 6 && v == 12;
+}
+
+// 750:49 add_to_sub specifically: the literal run's escape check reads
+// `p[space_len + 1]`. Use a non-numeric separator '!' so the field stops
+// cleanly, then an escaped '{{' in the literal run. "{}!{{y" on "5!{y": field
+// "5", literal run "!{{y" matches "!{y" -> consumes all 4 bytes. A +1 -> -1
+// swap mis-reads the escape look-ahead and breaks the literal match.
+static bool test_read_field_literal_with_escape(void) {
+    i32  v   = 0;
+    Zstr in  = "5!{y";
+    Zstr out = READ1(in, "{}!{{y", TO_TYPE_SPECIFIC_IO(i32, &v));
+    return out == in + 4 && v == 5;
+}
+
+// 820:13 / 829:17 init_const (fc/sc = 0), 854:23 ge_to_gt (arg_index>=argc),
+// 864:14 init_const (x=0), 901:15 init_const (var_width=0): a clean buf read
+// round-trip. 909:92 eq_to_ne (read_fn == _read_f64 in the u64/i64/f64 OR):
+// covered by f64 below.
+static bool test_buf_read_u16(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Buf              b     = BufInit(&alloc);
+    bool             ok    = BufWriteFmt(&b, "{<2r}", (u16)0xBEEF);
+    BufIter          it    = BufIterFromBuf(&b);
+    u16              v     = 0;
+    ok                     = ok && BufReadFmt(&it, "{<2r}", v) && (v == 0xBEEF);
+    BufDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 909:92 eq_to_ne (the `read_fn == _read_f64` clause): an f64 raw read must
+// resolve var_width 8. A != swap drops f64 into the unsupported-type LOG_FATAL.
+static bool test_buf_read_f64(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Buf              b     = BufInit(&alloc);
+    union {
+        f64 f;
+        u64 u;
+    } got      = {0};
+    bool    ok = BufWriteFmt(&b, "{<8r}", (u64)0x0102030405060708ULL);
+    BufIter it = BufIterFromBuf(&b);
+    ok         = ok && BufReadFmt(&it, "{<8r}", got.f) && (got.u == 0x0102030405060708ULL);
+    BufDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 1511/1525 saw_digit, 1533 allow_sign after digit: a plain integer token.
+static bool test_tokenlen_plain_digit(void) {
+    return read_float_is("7 x", "7");
+}
+
+// 1539 saw_decimal: a decimal token "3.5".
+static bool test_tokenlen_decimal(void) {
+    return read_float_is("3.5 x", "3.5");
+}
+
+// 1515/1533 allow_sign (leading sign): "-2.5".
+static bool test_tokenlen_signed(void) {
+    return read_float_is("-2.5 x", "-2.5");
+}
+
+// 1546/1547/1548 exponent introducer (saw_exponent/need_exp_digit/allow_sign):
+// "1.5e2" -> 150; "1.5e+2" sign after exponent.
+static bool test_tokenlen_exponent(void) {
+    return read_float_is("1.5e2 x", "150") && read_float_is("1.5e+2 x", "150") && read_float_is("2.5e-1 y", "0.25");
+}
+
+// 1514 need_exp_digit: "1.5e" with no exponent digit must FAIL (token_len 0),
+// leaving the sentinel "99".
+static bool test_tokenlen_incomplete_exponent(void) {
+    // "1.5e" then space: float_fmt_token_length requires an exp digit, returns
+    // 0 -> _read_Float fails -> sentinel kept.
+    return read_float_is("1.5e ", "99");
+}
+
+// 2395:17 eq_to_ne `len == 3` (inf/nan short-circuit gate): "inf" (len 3) is a
+// valid float; a !=3 swap rejects it.
+static bool test_vns_inf_len3(void) {
+    f64  v = SENTINEL;
+    Zstr z = "inf";
+    StrReadFmt(z, "{}", v);
+    return F64IsInf(v) && v > 0;
+}
+
+// 2396 (4 eq) / 2397 (2 eq): each char of "inf" / "nan" checked both cases.
+// "INF" upper, "nan" lower, "NaN" mixed all parse.
+static bool test_vns_inf_nan_cases(void) {
+    f64  a = SENTINEL, b = SENTINEL, c = SENTINEL;
+    Zstr za = "INF", zb = "nan", zc = "NaN";
+    StrReadFmt(za, "{}", a);
+    StrReadFmt(zb, "{}", b);
+    StrReadFmt(zc, "{}", c);
+    return F64IsInf(a) && F64IsNan(b) && F64IsNan(c);
+}
+
+// 2400/2401 nan letters; 2406/2407/2408 the "-inf" (len 4) branch.
+static bool test_vns_neg_inf_len4(void) {
+    f64  a = SENTINEL, b = SENTINEL;
+    Zstr za = "-inf", zb = "-INF";
+    StrReadFmt(za, "{}", a);
+    StrReadFmt(zb, "{}", b);
+    return F64IsInf(a) && a < 0 && F64IsInf(b) && b < 0;
+}
+
+// 2406:33 eq_to_ne `data[0] == '-'`: a len-4 token that is NOT -inf, e.g.
+// "1234", must NOT be hijacked by the -inf branch -> parses as 1234.
+static bool test_vns_len4_not_neginf(void) {
+    f64  v = SENTINEL;
+    Zstr z = "1234";
+    StrReadFmt(z, "{}", v);
+    return f64_is(v, 1234.0);
+}
+
+// 2420/2422/2424 assign_const (is_hex/is_bin/is_oct true): a "0x1f" hex float
+// slice must be ACCEPTED (StrToF64 parses leading 0 -> 0.0). 2418-detection
+// then digit-walk. Also the upper-case 'X'/'B'/'O' variants (2419/2421/2423
+// are killed by Write suite, but reinforce). Here pin is_hex assignment: "0x"
+// alone (bare) is rejected; "0x1f" accepted (value 0.0 since StrToF64 of
+// "0x1f" reads only the 0).
+static bool test_vns_hex_slice_accepted(void) {
+    f64  v = SENTINEL;
+    Zstr z = "0x1f";
+    StrReadFmt(z, "{}", v);
+    // accepted -> StrToF64("0x1f") parses leading 0 -> 0.0.
+    return f64_is(v, 0.0);
+}
+
+static bool test_vns_bin_slice_accepted(void) {
+    f64  v = SENTINEL;
+    Zstr z = "0b11";
+    StrReadFmt(z, "{}", v);
+    return f64_is(v, 0.0);
+}
+
+static bool test_vns_oct_slice_accepted(void) {
+    f64  v = SENTINEL;
+    Zstr z = "0o7";
+    StrReadFmt(z, "{}", v);
+    return f64_is(v, 0.0);
+}
+
+// 2436:48 eq_to_ne `i == 0 || i == 1` (prefix-skip). 2472 (binary digit set),
+// 2476 (octal digit range): a binary slice "0b101" must accept 0/1 digits; an
+// octal "0o17" must accept 0-7. The slice acceptance is observable as 0.0.
+static bool test_vns_bin_digits(void) {
+    f64  v = SENTINEL;
+    Zstr z = "0b101";
+    StrReadFmt(z, "{}", v);
+    return f64_is(v, 0.0);
+}
+
+static bool test_vns_oct_digits(void) {
+    f64  v = SENTINEL;
+    Zstr z = "0o17";
+    StrReadFmt(z, "{}", v);
+    return f64_is(v, 0.0);
+}
+
+// 2476:38 le_to_lt / le_to_gt and 2476:26 ge variants: octal digit '7' is the
+// upper boundary, '0' the lower. "0o70" must be accepted (both bounds).
+static bool test_vns_oct_boundary_digits(void) {
+    f64  v = SENTINEL;
+    Zstr z = "0o70";
+    StrReadFmt(z, "{}", v);
+    return f64_is(v, 0.0);
+}
+
+// 2443:54 gt_to_ge `i > 0` (sign-after-exponent position guard): a normal
+// "1e+5" has '+' at i==2 after 'e' -> accepted. The guard `i > 0` differs from
+// `i >= 0` only at i==0; a leading sign at i==0 is handled by the i==0 clause,
+// so to expose col-54 we need has_exp true and i>0; "1e+5" exercises it.
+static bool test_vns_exp_sign(void) {
+    f64  v = SENTINEL;
+    Zstr z = "1e+5";
+    StrReadFmt(z, "{}", v);
+    return f64_is(v, 100000.0);
+}
+
+// 2452:25 has_decimal, 2460:21 has_exp assign_const, 2486 trailing-exp guard
+// (1.2e is incomplete). 2486:39 sub `data[len-1]`, 2486:18 init last_char.
+// A trailing 'e' makes the token invalid -> rejected.
+static bool test_vns_double_decimal_rejected(void) {
+    f64  v = SENTINEL;
+    Zstr z = "1.2.3";
+    StrReadFmt(z, "{}", v);
+    // The f64 scanner stops the token at the 2nd '.', so the slice is "1.2" and
+    // parses to 1.2, leaving ".3" unconsumed.  has_decimal must gate so a
+    // double-dot inside one slice is rejected; here the token boundary handles
+    // it. Pin the parsed prefix 1.2 (mutant on has_decimal assign would let the
+    // 2nd dot through and corrupt).
+    return f64_is(v, 1.2);
+}
+
+// 2486 trailing exponent guard: "12e" alone (whole input) -> incomplete -> the
+// f64 reader's own exponent scan rewinds, slice "12", value 12.
+static bool test_vns_trailing_exp(void) {
+    f64  v = SENTINEL;
+    Zstr z = "12e";
+    StrReadFmt(z, "{}", v);
+    return f64_is(v, 12.0);
+}
+
+// 2523:14 init_const temp=0 ({c} on f64 reads 8 bytes into temp): {c} read of
+// 8 chars "ABCDEFGH" -> the f64 reinterpret. temp 0->42 corrupts the low byte.
+static bool test_read_f64_char(void) {
+    f64  v   = 0;
+    Zstr in  = "ABCDEFGH";
+    Zstr out = READ1(in, "{c}", TO_TYPE_SPECIFIC_IO(f64, &v));
+    union {
+        f64 f;
+        u64 u;
+    } got;
+    got.f = v;
+    // read_chars_internal stores bytes in order; the low 8 bytes are the chars.
+    u64 expect = ((u64)'H' << 56) | ((u64)'G' << 48) | ((u64)'F' << 40) | ((u64)'E' << 32) | ((u64)'D' << 24) |
+                 ((u64)'C' << 16) | ((u64)'B' << 8) | (u64)'A';
+    // value is (f64)temp where temp holds the 8 bytes little-end first.
+    (void)got;
+    (void)expect;
+    return out == in + 8 && v == (f64)expect;
+}
+
+// 2531:13 init_const c=0, 2586:57 gt_to_ge `StrIterIndex(&si) > StrIterIndex
+// (&saved)` (exponent only after a digit): "1e5" -> 100000; a leading "e5"
+// must NOT be treated as exponent.
+static bool test_read_f64_exponent(void) {
+    f64  v   = 0;
+    Zstr in  = "1e5";
+    Zstr out = READ1(in, "{}", TO_TYPE_SPECIFIC_IO(f64, &v));
+    return out == in + 3 && f64_is(v, 100000.0);
+}
+
+// 2546:10 init_const c1=0 (peek-ahead for the leading-'-' inf clause): "-inf".
+static bool test_read_f64_neg_inf(void) {
+    f64  v   = 0;
+    Zstr in  = "-inf";
+    Zstr out = READ1(in, "{}", TO_TYPE_SPECIFIC_IO(f64, &v));
+    return out == in + 4 && F64IsInf(v) && v < 0;
+}
+
+// 2580:25 has_decimal assign_const in _read_f64: "1.5.6" -> token "1.5", v=1.5,
+// ".6" unconsumed. A mutant forcing has_decimal=42(true) at start would stop at
+// the FIRST scan iteration. Pin v=1.5 and the cursor at the 2nd '.'.
+static bool test_read_f64_double_dot(void) {
+    f64  v   = 0;
+    Zstr in  = "1.5.6";
+    Zstr out = READ1(in, "{}", TO_TYPE_SPECIFIC_IO(f64, &v));
+    return out == in + 3 && f64_is(v, 1.5) && (*out == '.');
+}
+
+// 2644:13 init_const c=0 in _read_u8: a plain u8 parse.
+static bool test_read_u8(void) {
+    u8   v   = 0;
+    Zstr in  = "200";
+    Zstr out = READ1(in, "{}", TO_TYPE_SPECIFIC_IO(u8, &v));
+    return out == in + 3 && v == 200;
+}
+
+// 2680:50 eq_to_ne `StrLen(&temp) == 2` (bare-prefix guard) in _read_u8: a
+// real "0xff" (len 4) must parse to 255 (guard does not fire). A != swap fires
+// the guard for len 4 and rejects.
+static bool test_blind_read_u8_hex(void) {
+    u8   v   = 0;
+    Zstr in  = "0xff";
+    Zstr out = READ1(in, "{}", TO_TYPE_SPECIFIC_IO(u8, &v));
+    return out == in + 4 && v == 255;
+}
+
+// 2689:10 replace_scalar_call `is_valid_numeric_string(&temp, false)` in
+// _read_u8: input "1f" (lenient scan accepts 'f') must be REJECTED by the
+// validator (trailing non-decimal) -> v untouched. Forcing the call truthy
+// (42) bypasses rejection and parses "1" -> v=1.
+static bool test_read_u8_invalid_rejected(void) {
+    u8   v   = 7;
+    Zstr in  = "1f";
+    Zstr out = READ1(in, "{}", TO_TYPE_SPECIFIC_IO(u8, &v));
+    // _read_u8 returns `start` (no advance) -> str_read_fmt sees next==in ->
+    // returns NULL; v untouched.
+    return out == NULL && v == 7;
+}
+
+// Bare prefix "0x" (len 2) IS rejected by the 2680 guard -> read does not
+// advance -> str_read_fmt returns NULL; v untouched.
+static bool test_read_u8_bare_prefix(void) {
+    u8   v   = 7;
+    Zstr in  = "0x";
+    Zstr out = READ1(in, "{}", TO_TYPE_SPECIFIC_IO(u8, &v));
+    return out == NULL && v == 7;
+}
+
+// ===========================================================================
+// _read_Zstr (2889, 2899, 2908) -- _read_ZstrAlloc allocates the result and
+// frees the previous through arg->allocator (a DebugAllocator -> observable).
+// 2889/2899/2908 StrDeinit(&temp) removals leak the scratch temp.
+// ===========================================================================
+static bool test_read_zstr_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInit();
+    char          *s   = NULL;
+    Zstr           in  = "hello world";
+    Zstr           out = str_read_fmt(in, "{}", (TypeSpecificIO[]) {ZstrIO(s, &dbg.base)}, 1);
+    // Unquoted, non-{s} read takes the whole input (whitespace only ends an
+    // is_string field), so s is the full "hello world".
+    bool ok = (out != NULL) && s && (ZstrCompare(s, "hello world") == 0);
+    if (s)
+        AllocatorFree(&dbg.base, s);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// 3061:13 init c=0, 3074/3075 init c0/c1=0 (prefix peek), 3112:21 lt_to_le
+// `bit_len < 4` (hex min width), value/width round-trip. 3104/3116 scratch
+// dtor leak.
+static bool test_read_bitvec_hex(void) {
+    DebugAllocator dbg = DebugAllocatorInit();
+    BitVec         bv  = BitVecInit(&dbg.base);
+    Zstr           z   = "0x1";
+    StrReadFmt(z, "{}", bv);
+    bool ok = (BitVecToInteger(&bv) == 1) && (BitVecLen(&bv) == 4); // min-width clamp
+    BitVecDeinit(&bv);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// hex with more bits so the clamp does NOT apply (3112 lt distinguishes).
+static bool test_read_bitvec_hex_wide(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    BitVec           bv    = BitVecInit(&alloc.base);
+    Zstr             z     = "0xDEAD";
+    StrReadFmt(z, "{}", bv);
+    bool ok = (BitVecToInteger(&bv) == 0xDEAD) && (BitVecLen(&bv) == 16);
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 3145/3154 scratch leak, 3150:21 lt_to_le `bit_len < 3` (octal min width).
+static bool test_read_bitvec_octal(void) {
+    DebugAllocator dbg = DebugAllocatorInit();
+    BitVec         bv  = BitVecInit(&dbg.base);
+    Zstr           z   = "0o1";
+    StrReadFmt(z, "{}", bv);
+    bool ok = (BitVecToInteger(&bv) == 1) && (BitVecLen(&bv) == 3);
+    BitVecDeinit(&bv);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// 3178 scratch leak for the binary path.
+static bool test_read_bitvec_binary(void) {
+    DebugAllocator dbg = DebugAllocatorInit();
+    BitVec         bv  = BitVecInit(&dbg.base);
+    Zstr           z   = "10110";
+    StrReadFmt(z, "{}", bv);
+    bool ok = (BitVecLen(&bv) == 5) && (BitVecToInteger(&bv) == 13);
+    BitVecDeinit(&bv);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// 3197:13 init c=0, 3213:10 init d0=0 (leading '+'), 3255:10 init ok, 3258
+// scratch leak, value round-trip.
+static bool test_read_int_plain(void) {
+    DebugAllocator dbg = DebugAllocatorInit();
+    Int            v   = IntInit(&dbg.base);
+    Zstr           z   = "12345";
+    StrReadFmt(z, "{}", v);
+    Str  t  = IntToStr(&v);
+    bool ok = (ZstrCompare(StrBegin(&t), "12345") == 0);
+    StrDeinit(&t);
+    IntDeinit(&v);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// 3213/3215 leading '+' skip (digits_saved). "+99" -> 99.
+static bool test_read_int_leading_plus(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Int              v     = IntInit(&alloc.base);
+    Zstr             z     = "+99";
+    StrReadFmt(z, "{}", v);
+    Str  t  = IntToStr(&v);
+    bool ok = (ZstrCompare(StrBegin(&t), "99") == 0);
+    StrDeinit(&t);
+    IntDeinit(&v);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 3220:10 / 3221:10 init p0/p1 (prefix peek), 3225 hex-prefix rejection: an
+// Int hex read "{x}" of "ff" parses 255 but "0xff" is rejected (no 0x prefix
+// allowed for Int). Pin the plain-hex accept.
+static bool test_read_int_hex_plain(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Int              v     = IntInit(&alloc.base);
+    Zstr             z     = "ff";
+    StrReadFmt(z, "{x}", v);
+    Str  t  = IntToStr(&v);
+    bool ok = (ZstrCompare(StrBegin(&t), "255") == 0);
+    StrDeinit(&t);
+    IntDeinit(&v);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 3247:10 init trailing=0 (digit-separator rejection): "12_3" must be rejected
+// at the '_' -> the Int reader returns `start`, value untouched. Use a fresh
+// Int with a sentinel value.
+static bool test_read_int_underscore_rejected(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Int              v     = IntFrom(777, &alloc.base);
+    Zstr             z     = "12_3";
+    Zstr             out   = str_read_fmt(z, "{}", (TypeSpecificIO[]) {TO_TYPE_SPECIFIC_IO(Int, &v)}, 1);
+    // Real: '_' rejected -> returns start (==z) -> str_read_fmt sees next==in ->
+    // NULL; v unchanged (still 777).
+    Str  t  = IntToStr(&v);
+    bool ok = (out == NULL) && (ZstrCompare(StrBegin(&t), "777") == 0);
+    StrDeinit(&t);
+    IntDeinit(&v);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// ===========================================================================
+// _read_Float (3272, 3286, 3287, 3291, 3294, 3302, 3303, 3312, 3313, 3317,
+// 3320, 3321). Dest Float written through FloatAllocator -> scratch leaks +
+// value observable.
+// ===========================================================================
+static bool test_read_float_value(void) {
+    DebugAllocator dbg = DebugAllocatorInit();
+    Float          f   = FloatInit(&dbg.base);
+    Zstr           z   = "3.14159";
+    StrReadFmt(z, "{}", f);
+    Str  t  = FloatToStr(&f);
+    bool ok = (ZstrCompare(StrBegin(&t), "3.14159") == 0);
+    StrDeinit(&t);
+    FloatDeinit(&f);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// 3272:11 init token_len, 3310 token_len==0 reject: a non-float input leaves
+// the sentinel and frees scratch.
+static bool test_read_float_reject_no_leak(void) {
+    DebugAllocator dbg = DebugAllocatorInit();
+    Float          f   = FloatInit(&dbg.base);
+    (void)FloatTryFromStr(&f, "42");
+    Zstr z   = "xyz"; // no float token
+    Zstr out = str_read_fmt(z, "{}", (TypeSpecificIO[]) {TO_TYPE_SPECIFIC_IO(Float, &f)}, 1);
+    Str  t   = FloatToStr(&f);
+    bool ok  = (out == NULL) && (ZstrCompare(StrBegin(&t), "42") == 0);
+    StrDeinit(&t);
+    FloatDeinit(&f);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// 3350:13 init c=0, 3398:25 has_decimal assign in _read_f32: a decimal token.
+static bool test_read_f32_decimal(void) {
+    f32  v   = 0;
+    Zstr in  = "2.5";
+    Zstr out = READ1(in, "{}", TO_TYPE_SPECIFIC_IO(f32, &v));
+    return out == in + 3 && F64Abs((f64)v - 2.5) < 1e-4;
+}
+
+// 3365:10 init c1=0 (peek for leading-'-' inf): "-inf" as f32.
+static bool test_read_f32_neg_inf(void) {
+    f32  v   = 0;
+    Zstr in  = "-inf";
+    Zstr out = READ1(in, "{}", TO_TYPE_SPECIFIC_IO(f32, &v));
+    return out == in + 4 && F64IsInf((f64)v) && v < 0;
+}
+
+// Write "42 hello" to a temp file, read an i32 then a literal+string. Pins
+// 1128 file_len = end-cur (sub), 1131 file_len>0 (gt_to_ge), 1134 got<0
+// (lt_to_le), 1147 rollback FileSeek.
+static bool test_fread_seekable(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              path  = StrInit(&alloc);
+    File             f     = FileOpenTemp(&path, &alloc);
+    bool             ok    = FileIsOpen(&f);
+    if (ok) {
+        FileWrite(&f, "42", 2);
+        FileSeek(&f, 0, FILE_SEEK_SET);
+        i32 v = 0;
+        FReadFmt(&f, "{}", v);
+        ok = (v == 42);
+        FileClose(&f);
+        FileRemove(&path);
+    }
+    StrDeinit(&path);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 1147 rollback: a parse that FAILS must rewind the file position. Write "xx"
+// (not a number) then attempt an i32 read; the cursor must be unchanged so a
+// following raw byte read still sees 'x'.
+static bool test_fread_rollback(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              path  = StrInit(&alloc);
+    File             f     = FileOpenTemp(&path, &alloc);
+    bool             ok    = FileIsOpen(&f);
+    if (ok) {
+        FileWrite(&f, "xx", 2);
+        FileSeek(&f, 0, FILE_SEEK_SET);
+        i32 v = 123;
+        FReadFmt(&f, "{}", v); // fails -> rollback
+        // position must still be 0: read the first raw byte.
+        char c   = 0;
+        i64  got = FileRead(&f, &c, 1);
+        ok       = (v == 123) && (got == 1) && (c == 'x');
+        FileClose(&f);
+        FileRemove(&path);
+    }
+    StrDeinit(&path);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// ===========================================================================
+// Read-side leak-guard tests + helpers relocated from Io.Leak.c.
+// ===========================================================================
+// 2408 / 2421 / 2466: quoted-string read whose budget saturates before the
+// closing quote -> unterminated-quote branch frees the destination Str.
+static bool leak_quoted_unterminated(Zstr input, Zstr fmt) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Str            s   = StrInit(ALLOCATOR_OF(&dbg));
+    Zstr           p   = input;
+    StrReadFmt(p, fmt, s); // reader frees s on the unterminated/error branch
+    bool ok = (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// 3232 / 3273: BitVec hex/oct read overflow error path frees the internal
+// scratch (allocated through the destination BitVec's allocator).
+static bool leak_bitvec_overflow(Zstr input) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    BitVec         bv  = BitVecInit(ALLOCATOR_OF(&dbg));
+    Zstr           p   = input;
+    StrReadFmt(p, "{}", bv);
+    BitVecDeinit(&bv);
+    bool ok = (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+bool test_leak_read_quoted_budget_escape_freed(void) {
+    // open-quote + 24 \n escapes + 'E' + close-quote, fmt "{s}E".
+    return leak_quoted_unterminated(
+        "\"\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\nE\"",
+        "{s}E"
+    );
+}
+
+bool test_leak_read_quoted_budget_plain_freed(void) {
+    return leak_quoted_unterminated("\"aaaaaaaaaaaaaaaaaaaaaaaa#\"", "{s}#");
+}
+
+bool test_leak_read_quoted_unterminated_freed(void) {
+    return leak_quoted_unterminated("\"aaaaaaaaaaaaaaaaaaaaaaaa", "{s}");
+}
+
+// 2439: unquoted invalid-escape error path frees the destination Str.
+bool test_leak_read_unquoted_bad_escape_freed(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Str            s   = StrInit(ALLOCATOR_OF(&dbg));
+    Zstr           p   = "aaaaaaaaaaaaaaaaaaaaaaaa\\q"; // 24 'a' + invalid \q
+    StrReadFmt(p, "{}", s);
+    bool ok = (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+bool test_leak_read_bitvec_hex_overflow_freed(void) {
+    return leak_bitvec_overflow("0xFFFFFFFFFFFFFFFFF"); // 17 hex digits > 64 bits
+}
+
+bool test_leak_read_bitvec_oct_overflow_freed(void) {
+    return leak_bitvec_overflow("0o7777777777777777777777"); // 22 oct digits > 64 bits
+}
+
+// 3448: Float read whose token passes length-scan but FloatTryFromStr fails on
+// exponent overflow -> fail branch frees the internal `temp` scratch.
+bool test_leak_read_float_exp_overflow_freed(void) {
+    DebugAllocator dbg = DebugAllocatorInitWith(LEAK_CFG);
+    Float          fv  = FloatInit(ALLOCATOR_OF(&dbg));
+    Zstr           p   = "1e99999999999999999999999999999999999999999999999999";
+    StrReadFmt(p, "{}", fv);
+    FloatDeinit(&fv);
+    bool ok = (DebugAllocatorLiveCount(&dbg) == 0) && (DebugAllocatorLiveBytes(&dbg) == 0);
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// ---------------------------------------------------------------------------
+// READ side, typed-container reader exception to the "all reads use internal
+// DefaultAllocator scratch" rule documented in the header above. _read_Int /
+// _read_Float allocate their parse scratch -- and overwrite `*value` -- through
+// the DESTINATION container's OWN allocator (IntAllocator(value) /
+// FloatAllocator(value)), which the caller supplies. So a removed internal
+// *Deinit on the read success path IS observable when the destination is backed
+// by a DebugAllocator, unlike the scalar readers (_read_u8 / _read_f64 /
+// f_read_fmt) which truly use an uninjectable DefaultAllocatorInit() scratch.
+//
+// _read_Int success path: `IntDeinit(value)` then `*value = parsed`
+// (Io.c:3262). The destination Int is pre-seeded with a heap-backed value, so
+// dropping that IntDeinit leaks the PRIOR significand limbs -> live count != 0
+// after the final IntDeinit.
+// ---------------------------------------------------------------------------
+bool test_leak_read_int_prior_value_freed(void) {
+    DebugAllocator dbg  = DebugAllocatorInitWith(LEAK_CFG);
+    Allocator     *adbg = ALLOCATOR_OF(&dbg);
+
+    // Seed the destination with a heap-backed Int (multi-limb) so the old
+    // storage is visible in dbg's live count before the reassignment.
+    Int value = IntFromStr("123456789012345678901234567890", adbg);
+
+    Zstr input = "42";
+    Zstr start = input;
+    StrReadFmt(input, "{}", value);
+    bool ok = (input != start); // pointer advanced => read succeeded
+
+    IntDeinit(&value);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
+    ok = ok && (DebugAllocatorLiveBytes(&dbg) == 0);
+
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+// ---------------------------------------------------------------------------
+// _read_Float success path: `FloatDeinit(value)` then `*value = parsed`
+// (Io.c:3325). The destination Float is pre-seeded with a heap-backed
+// significand, so dropping that FloatDeinit leaks the PRIOR significand
+// storage -> live count != 0 after the final FloatDeinit.
+// ---------------------------------------------------------------------------
+bool test_leak_read_float_prior_value_freed(void) {
+    DebugAllocator dbg  = DebugAllocatorInitWith(LEAK_CFG);
+    Allocator     *adbg = ALLOCATOR_OF(&dbg);
+
+    // Seed with a heap-backed Float (wide significand) so the old significand
+    // storage is visible in dbg's live count before the reassignment.
+    Float value = FloatFromStr("987654321098765432109876543210.5", adbg);
+
+    Zstr input = "2.5";
+    Zstr start = input;
+    StrReadFmt(input, "{}", value);
+    bool ok = (input != start); // pointer advanced => read succeeded
+
+    FloatDeinit(&value);
+    ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
+    ok = ok && (DebugAllocatorLiveBytes(&dbg) == 0);
+
+    DebugAllocatorDeinit(&dbg);
+    return ok;
+}
+
+
 int main(void) {
     WriteFmt("[INFO] Starting format reader tests\n\n");
 
@@ -2170,7 +2941,67 @@ int main(void) {
         test_m9_escape_letter_above_boundary_lowercase,
         test_m9_escape_letter_boundary_uppercase,
         test_m9_escape_letter_above_boundary_uppercase,
-        test_m9_escape_mixed_nibbles
+        test_m9_escape_mixed_nibbles,
+        test_read_spec_scan,
+        test_read_overlong_spec_rejected,
+        test_read_invalid_spec_leaves_dest,
+        test_read_max_read_len_set,
+        test_read_raw_u32_le,
+        test_read_raw_then_literal,
+        test_read_field_bounded_by_literal,
+        test_read_field_literal_with_escape,
+        test_buf_read_u16,
+        test_buf_read_f64,
+        test_tokenlen_plain_digit,
+        test_tokenlen_decimal,
+        test_tokenlen_signed,
+        test_tokenlen_exponent,
+        test_tokenlen_incomplete_exponent,
+        test_vns_inf_len3,
+        test_vns_inf_nan_cases,
+        test_vns_neg_inf_len4,
+        test_vns_len4_not_neginf,
+        test_vns_hex_slice_accepted,
+        test_vns_bin_slice_accepted,
+        test_vns_oct_slice_accepted,
+        test_vns_bin_digits,
+        test_vns_oct_digits,
+        test_vns_oct_boundary_digits,
+        test_vns_exp_sign,
+        test_vns_double_decimal_rejected,
+        test_vns_trailing_exp,
+        test_read_f64_char,
+        test_read_f64_exponent,
+        test_read_f64_neg_inf,
+        test_read_f64_double_dot,
+        test_read_u8,
+        test_blind_read_u8_hex,
+        test_read_u8_invalid_rejected,
+        test_read_u8_bare_prefix,
+        test_read_zstr_no_leak,
+        test_read_bitvec_hex,
+        test_read_bitvec_hex_wide,
+        test_read_bitvec_octal,
+        test_read_bitvec_binary,
+        test_read_int_plain,
+        test_read_int_leading_plus,
+        test_read_int_hex_plain,
+        test_read_int_underscore_rejected,
+        test_read_float_value,
+        test_read_float_reject_no_leak,
+        test_read_f32_decimal,
+        test_read_f32_neg_inf,
+        test_fread_seekable,
+        test_fread_rollback,
+        test_leak_read_quoted_budget_escape_freed,
+        test_leak_read_quoted_budget_plain_freed,
+        test_leak_read_quoted_unterminated_freed,
+        test_leak_read_unquoted_bad_escape_freed,
+        test_leak_read_bitvec_hex_overflow_freed,
+        test_leak_read_bitvec_oct_overflow_freed,
+        test_leak_read_float_exp_overflow_freed,
+        test_leak_read_int_prior_value_freed,
+        test_leak_read_float_prior_value_freed,
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);

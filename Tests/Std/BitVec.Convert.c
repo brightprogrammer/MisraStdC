@@ -891,6 +891,24 @@ bool test_tobytes_zeroed_bitvec_aborts(void) {
     return false;
 }
 
+// 932:10 cxx_replace_scalar_call -- bitvec_from_str_str wrapper must return the
+// decoded vector via the success branch.
+static bool test_blind_from_str_str_wrapper_content(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str    s      = StrInitFromZstr("111000111", &alloc);
+    BitVec bv     = bitvec_from_str_str(&s, ALLOCATOR_OF(&alloc));
+    bool   result = (BitVecLen(&bv) == 9) && (BitVecCountOnes(&bv) == 6);
+    for (int i = 0; i < 9; i++) {
+        result = result && (BitVecGet(&bv, i) == ((i / 3) % 2 == 0));
+    }
+
+    BitVecDeinit(&bv);
+    StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting BitVec.Convert tests\n\n");
 
@@ -914,7 +932,8 @@ int main(void) {
         test_bitvec_large_scale_conversions,
         test_try_from_integer_caps_at_64,
         test_tobytes_no_overrun_read_on_non_byte_aligned,
-        test_tobytes_truncation_does_not_write_past_max_len
+        test_tobytes_truncation_does_not_write_past_max_len,
+        test_blind_from_str_str_wrapper_content
     };
 
     // Array of deadend test functions

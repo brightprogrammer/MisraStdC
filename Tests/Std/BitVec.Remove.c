@@ -653,6 +653,12 @@ bool test_clear_null_aborts(void) {
     return false;
 }
 
+bool test_blind_remove_all_validates(void);
+bool test_blind_remove_all_validates(void) {
+    BitVecRemoveAll(NULL, true);
+    return false;
+}
+
 // Main function that runs all tests
 int main(void) {
     WriteFmt("[INFO] Starting BitVec.Remove tests\n\n");
@@ -686,7 +692,8 @@ int main(void) {
         test_remove_null_aborts,
         test_remove_at_length_aborts,
         test_remove_first_null_aborts,
-        test_clear_null_aborts
+        test_clear_null_aborts,
+        test_blind_remove_all_validates
     };
 
     int total_tests         = sizeof(tests) / sizeof(tests[0]);

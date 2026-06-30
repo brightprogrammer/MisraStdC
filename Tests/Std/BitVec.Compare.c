@@ -1735,6 +1735,59 @@ bool test_disjoint_null_bv2_aborts(void) {
     return false;
 }
 
+// 645:28 cxx_rshift_to_lshift -- `bit_count >> (i*8)` -> `<<`. For lengths that
+// fit in one byte the high bytes are zero either way, so it only diverges when
+// bit_count spans multiple bytes. Use a length of 256 (0x100): real reads
+// byte0=0x00, byte1=0x01, ...; the left-shift mutant reads `(256 << (i*8)) &
+// 0xFF == 0` for every i, dropping the length signal entirely. So a length-256
+// all-zero vec and a length-512 all-zero vec must hash DIFFERENTLY (real); the
+// `<<` mutant collapses both to the same value.
+static bool test_blind_hash_multibyte_length_shift(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    BitVec a = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec b = BitVecInit(ALLOCATOR_OF(&alloc));
+    for (int i = 0; i < 256; i++) {
+        BitVecPush(&a, false);
+    }
+    for (int i = 0; i < 512; i++) {
+        BitVecPush(&b, false);
+    }
+    // Byte content differs (32 vs 64 zero bytes), so this alone is not a pure
+    // length test. Compute the real expected hashes by replay and require the
+    // implementation to match them exactly -- the `<<` mutant cannot, since it
+    // zeroes every length byte beyond the lowest.
+    u64 ha = bitvec_hash(&a, 0);
+    u64 hb = bitvec_hash(&b, 0);
+
+    u64 seed  = 1469598103934665603ULL;
+    u64 prime = 1099511628211ULL;
+    u64 exp_a = seed, exp_b = seed;
+    for (int i = 0; i < 32; i++) { // 256 bits -> 32 bytes
+        exp_a ^= 0u;
+        exp_a *= prime;
+    }
+    for (u64 i = 0, bc = 256; i < sizeof(bc); i++) {
+        exp_a ^= (bc >> (i * 8u)) & 0xFFu;
+        exp_a *= prime;
+    }
+    for (int i = 0; i < 64; i++) { // 512 bits -> 64 bytes
+        exp_b ^= 0u;
+        exp_b *= prime;
+    }
+    for (u64 i = 0, bc = 512; i < sizeof(bc); i++) {
+        exp_b ^= (bc >> (i * 8u)) & 0xFFu;
+        exp_b *= prime;
+    }
+
+    bool result = (ha == exp_a) && (hb == exp_b);
+
+    BitVecDeinit(&a);
+    BitVecDeinit(&b);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting BitVec.Compare tests\n\n");
 
@@ -1776,7 +1829,8 @@ int main(void) {
         test_subset_skips_high_positions,
         test_subset_bv1_short_no_abort,
         test_subset_bv2_short_no_abort,
-        test_disjoint_scans_all_positions
+        test_disjoint_scans_all_positions,
+        test_blind_hash_multibyte_length_shift
     };
 
     // Array of deadend test functions
