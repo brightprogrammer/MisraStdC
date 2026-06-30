@@ -256,13 +256,28 @@ static void float_normalize(Float *value) {
         return;
     }
 
-    while (int_mod_u64(&value->significand, 10) == 0) {
-        Int quotient = IntInit(FloatAllocator(value));
+    // Strip trailing decimal zeros. The divisor 10 is built once and each step
+    // is a single int_div_mod (quotient and remainder together) instead of a
+    // mod-check division followed by a second division. The quotient buffer is
+    // swapped in rather than reallocated per digit.
+    {
+        Allocator *alloc = FloatAllocator(value);
+        Int        ten   = IntInit(alloc);
+        Int        q     = IntInit(alloc);
+        Int        r     = IntInit(alloc);
 
-        (void)int_div_u64_rem(&quotient, &value->significand, 10);
-        IntDeinit(&value->significand);
-        value->significand = quotient;
-        value->exponent    = float_add_i64_checked(value->exponent, 1);
+        if (int_try_from_u64(&ten, 10, alloc)) {
+            while (int_div_mod(&q, &r, &value->significand, &ten) && IntIsZero(&r)) {
+                Int tmp            = value->significand;
+                value->significand = q;
+                q                  = tmp;
+                value->exponent    = float_add_i64_checked(value->exponent, 1);
+            }
+        }
+
+        IntDeinit(&ten);
+        IntDeinit(&q);
+        IntDeinit(&r);
     }
 }
 
