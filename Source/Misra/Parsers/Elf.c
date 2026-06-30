@@ -406,30 +406,25 @@ static void elf_decode_build_id(Elf *self, const ElfSection *note) {
     if (!elf_range_ok(self, note->offset, note->size) || note->size < 16) {
         return;
     }
-    const u8 *p   = BufData(&self->data) + note->offset;
-    const u8 *end = p + note->size;
-    if ((u64)(end - p) < 12)
-        return;
 
-    BufIter hdr = BufIterFromMemory(p, 12);
-    u32     namesz, descsz, type;
-    if (!BufReadU32LE(&hdr, &namesz) || !BufReadU32LE(&hdr, &descsz) || !BufReadU32LE(&hdr, &type)) {
+    BufIter it = BufIterFromMemory(BufData(&self->data) + note->offset, note->size);
+
+    u32 namesz = 0, descsz = 0, type = 0;
+    if (!BufReadU32LE(&it, &namesz) || !BufReadU32LE(&it, &descsz) || !BufReadU32LE(&it, &type)) {
         return;
     }
-    p += 12;
 
     if (type != NT_GNU_BUILD_ID)
         return;
 
-    // name + (round up to 4)
     u64 name_padded = ((u64)namesz + 3u) & ~(u64)3u;
-    if ((u64)(end - p) < name_padded + descsz)
-        return;
-    p += name_padded;
-    if ((u64)(end - p) < descsz)
+    if (!IterMove(&it, (i64)name_padded))
         return;
 
-    self->build_id      = p;
+    if ((u64)IterRemainingLength(&it) < descsz)
+        return;
+
+    self->build_id      = IterDataAt(&it, IterIndex(&it));
     self->build_id_size = descsz;
 }
 
