@@ -21,9 +21,10 @@ typedef struct {
 
 #define INT_BITS(value) (&(value)->bits)
 
-static void       int_normalize(Int *value);
-static inline u64 int_load_le8(const u8 *data, u64 bit_len, u64 off);
-static bool       int_validate_radix(u8 radix);
+static void        int_normalize(Int *value);
+static inline u64  int_load_le8(const u8 *data, u64 bit_len, u64 off);
+static inline void int_store_le8(u8 *data, u64 byte_len, u64 off, u64 value);
+static bool        int_validate_radix(u8 radix);
 static bool int_try_from_str_radix_impl(Int *out, Zstr digits, u64 length, u64 start, u8 radix, bool allow_underscores);
 static bool int_try_from_i64_with_allocator(Int *out, i64 value, Allocator *alloc);
 static bool int_try_clone_value(Int *out, const Int *value);
@@ -1004,16 +1005,28 @@ bool IntShiftLeft(Int *value, u64 positions) {
         return true;
     }
 
-    if (!BitVecResize(INT_BITS(value), bits + positions)) {
+    u64 new_bits = bits + positions;
+
+    if (!BitVecResize(INT_BITS(value), new_bits)) {
         return false;
     }
 
-    for (u64 i = bits; i > 0; i--) {
-        BitVecSet(INT_BITS(value), i - 1 + positions, BitVecGet(INT_BITS(value), i - 1));
-    }
+    // Funnel shift over 64-bit limbs, high to low so each source limb is read
+    // before it is overwritten: out[k] = src[k-ls] << bs | src[k-ls-1] >> (64-bs).
+    u8 *d          = BitVecData(INT_BITS(value));
+    u64 limb_shift = positions / 64u;
+    u64 bit_shift  = positions % 64u;
+    u64 n_out      = (new_bits + 63u) / 64u;
+    u64 byte_len   = (new_bits + 7u) / 8u;
 
-    for (u64 i = 0; i < positions; i++) {
-        BitVecSet(INT_BITS(value), i, false);
+    for (u64 k = n_out; k > 0; k--) {
+        u64 idx = k - 1u;
+        u64 out = idx >= limb_shift ? int_load_le8(d, new_bits, (idx - limb_shift) * 8u) << bit_shift : 0;
+
+        if (bit_shift != 0 && idx > limb_shift) {
+            out |= int_load_le8(d, new_bits, (idx - limb_shift - 1u) * 8u) >> (64u - bit_shift);
+        }
+        int_store_le8(d, byte_len, idx * 8u, out);
     }
 
     return true;
@@ -1032,11 +1045,26 @@ bool IntShiftRight(Int *value, u64 positions) {
         return true;
     }
 
-    for (u64 i = 0; i + positions < bits; i++) {
-        BitVecSet(INT_BITS(value), i, BitVecGet(INT_BITS(value), i + positions));
+    u64 new_bits = bits - positions;
+
+    // Funnel shift over 64-bit limbs, low to high: out[k] = src[k+ls] >> bs |
+    // src[k+ls+1] << (64-bs). Written limbs are below the limbs still being read.
+    u8 *d          = BitVecData(INT_BITS(value));
+    u64 limb_shift = positions / 64u;
+    u64 bit_shift  = positions % 64u;
+    u64 n_out      = (new_bits + 63u) / 64u;
+    u64 byte_len   = (bits + 7u) / 8u;
+
+    for (u64 k = 0; k < n_out; k++) {
+        u64 out = int_load_le8(d, bits, (k + limb_shift) * 8u) >> bit_shift;
+
+        if (bit_shift != 0) {
+            out |= int_load_le8(d, bits, (k + limb_shift + 1u) * 8u) << (64u - bit_shift);
+        }
+        int_store_le8(d, byte_len, k * 8u, out);
     }
 
-    if (!BitVecResize(INT_BITS(value), bits - positions)) {
+    if (!BitVecResize(INT_BITS(value), new_bits)) {
         return false;
     }
     int_normalize(value);
@@ -1064,6 +1092,32 @@ static inline u64 int_add_carry_u64(u64 a, u64 b, u64 carry_in, u64 *out) {
 #endif
 }
 
+// Full 64x64 -> 128 product: returns the low 64 bits, *hi receives the high 64.
+static inline u64 int_mul_wide_u64(u64 a, u64 b, u64 *hi) {
+#if defined(__GNUC__) || defined(__clang__)
+    __uint128_t p = (__uint128_t)a * (__uint128_t)b;
+    *hi           = (u64)(p >> 64);
+    return (u64)p;
+#elif defined(_MSC_VER) && (defined(_M_X64) || defined(_M_AMD64))
+    unsigned long long h  = 0;
+    u64                lo = (u64)_umul128(a, b, &h);
+    *hi                   = (u64)h;
+    return lo;
+#else
+    u64 a_lo  = a & 0xFFFFFFFFu;
+    u64 a_hi  = a >> 32u;
+    u64 b_lo  = b & 0xFFFFFFFFu;
+    u64 b_hi  = b >> 32u;
+    u64 ll    = a_lo * b_lo;
+    u64 lh    = a_lo * b_hi;
+    u64 hl    = a_hi * b_lo;
+    u64 hh    = a_hi * b_hi;
+    u64 cross = (ll >> 32u) + (lh & 0xFFFFFFFFu) + (hl & 0xFFFFFFFFu);
+    *hi       = hh + (lh >> 32u) + (hl >> 32u) + (cross >> 32u);
+    return (cross << 32u) | (ll & 0xFFFFFFFFu);
+#endif
+}
+
 // Read up to 8 bytes of `data` at byte offset `off` as a little-endian u64,
 // then mask off any bits at or above `bit_len` (the operand's significant bit
 // count) -- the top partial byte can hold stale bits above the value's length
@@ -1075,8 +1129,14 @@ static inline u64 int_load_le8(const u8 *data, u64 bit_len, u64 off) {
     u64 k        = avail < 8 ? avail : 8;
     u64 v        = 0;
 
-    for (u64 j = 0; j < k; j++) {
-        v |= (u64)data[off + j] << (8u * j);
+    if (k == 8u) {
+        // Whole limb in bounds: one little-endian load instead of a byte loop.
+        MemCopy(&v, data + off, 8u);
+        v = FROM_LITTLE_ENDIAN8(v);
+    } else {
+        for (u64 j = 0; j < k; j++) {
+            v |= (u64)data[off + j] << (8u * j);
+        }
     }
 
     u64 bit_off = off * 8u;
@@ -1095,8 +1155,14 @@ static inline void int_store_le8(u8 *data, u64 byte_len, u64 off, u64 value) {
     u64 avail = off < byte_len ? byte_len - off : 0;
     u64 k     = avail < 8 ? avail : 8;
 
-    for (u64 j = 0; j < k; j++) {
-        data[off + j] = (u8)(value >> (8u * j));
+    if (k == 8u) {
+        // Whole limb in bounds: one little-endian store instead of a byte loop.
+        u64 le = TO_LITTLE_ENDIAN8(value);
+        MemCopy(data + off, &le, 8u);
+    } else {
+        for (u64 j = 0; j < k; j++) {
+            data[off + j] = (u8)(value >> (8u * j));
+        }
     }
 }
 
@@ -1266,38 +1332,54 @@ bool int_mul(Int *result, const Int *a, const Int *b) {
 
     u64 a_bits  = IntBitLength(a);
     u64 b_bits  = IntBitLength(b);
+    u64 a_words = (a_bits + 63u) / 64u;
+    u64 b_words = (b_bits + 63u) / 64u;
+    u64 r_words = a_words + b_words;
     Int acc     = IntInit(IntAllocator(result));
-    Int partial = IntInit(IntAllocator(result));
 
-    if (!IntReserve(&acc, a_bits + b_bits + 1) || !IntReserve(&partial, a_bits + b_bits)) {
+    // Allocate whole 64-bit limbs (a_words + b_words holds any product) and
+    // zero-fill, so every limb store below is in bounds and starts clean.
+    if (!BitVecResize(INT_BITS(&acc), r_words * 64u)) {
         IntDeinit(&acc);
-        IntDeinit(&partial);
         return false;
     }
 
-    for (u64 i = 0; i < b_bits; i++) {
-        if (!BitVecGet(INT_BITS(b), i)) {
-            continue;
+    // Schoolbook multiply over 64-bit limbs: each a-limb times the whole of b,
+    // accumulating 64x64->128 products with a running carry. a/b are read only,
+    // so it is safe when result aliases a or b (acc is a separate buffer).
+    u8       *rd  = BitVecData(INT_BITS(&acc));
+    const u8 *ad  = BitVecData(INT_BITS(a));
+    const u8 *bd  = BitVecData(INT_BITS(b));
+    u64       n_r = r_words * 8u;
+
+    for (u64 ia = 0; ia < a_words; ia++) {
+        u64 ai    = int_load_le8(ad, a_bits, ia * 8u);
+        u64 carry = 0;
+
+        for (u64 jb = 0; jb < b_words; jb++) {
+            u64 bj  = int_load_le8(bd, b_bits, jb * 8u);
+            u64 off = (ia + jb) * 8u;
+            u64 hi  = 0;
+            u64 lo  = int_mul_wide_u64(ai, bj, &hi);
+            u64 cur = int_load_le8(rd, r_words * 64u, off);
+            u64 s1  = 0;
+            u64 s2  = 0;
+            u64 k1  = int_add_carry_u64(cur, lo, 0, &s1);
+            u64 k2  = int_add_carry_u64(s1, carry, 0, &s2);
+
+            int_store_le8(rd, n_r, off, s2);
+            carry = hi + k1 + k2;
         }
 
-        IntClear(&partial);
-        if (!BitVecResize(INT_BITS(&partial), a_bits + i)) {
-            IntDeinit(&acc);
-            IntDeinit(&partial);
-            return false;
-        }
-        for (u64 j = 0; j < a_bits; j++) {
-            BitVecSet(INT_BITS(&partial), i + j, BitVecGet(INT_BITS(a), j));
-        }
+        for (u64 off = (ia + b_words) * 8u; carry != 0; off += 8u) {
+            u64 cur = int_load_le8(rd, r_words * 64u, off);
+            u64 t   = 0;
 
-        if (!int_add(&acc, &acc, &partial)) {
-            IntDeinit(&acc);
-            IntDeinit(&partial);
-            return false;
+            carry = int_add_carry_u64(cur, carry, 0, &t);
+            int_store_le8(rd, n_r, off, t);
         }
     }
 
-    IntDeinit(&partial);
     int_normalize(&acc);
     IntDeinit(result);
     *result = acc;
