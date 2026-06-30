@@ -219,9 +219,16 @@ bool BitVecTryClone(BitVec *out, BitVec *bv) {
         return false;
     }
 
-    for (u64 i = 0; i < bv->length; i++) {
-        bool bit = BitVecGet(bv, i);
-        BitVecSet(out, i, bit);
+    // Copy whole bytes at once, then clear any stale bits the source carried
+    // above its length in the top partial byte (a shrink-resize leaves them).
+    {
+        u64 nbytes = (bv->length + 7u) / 8u;
+        u64 rem    = bv->length & 7u;
+
+        MemCopy(out->data, bv->data, nbytes);
+        if (rem != 0u) {
+            out->data[nbytes - 1u] &= (u8)((1u << rem) - 1u);
+        }
     }
 
     return true;
