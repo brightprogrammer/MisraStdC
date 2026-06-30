@@ -770,16 +770,33 @@ bool int_try_to_str_radix(Str *out, const Int *value, u8 radix, bool uppercase, 
 
     result = StrInit(alloc);
 
-    while (!IntIsZero(&current)) {
-        Int quotient = IntInit(alloc);
-        u64 digit    = 0;
+    // Extract digits in the largest radix^k chunk that still fits in a u64, so
+    // each big-integer division yields k digits at once. Splitting those k
+    // digits is plain u64 arithmetic (no BitVec ops, no validation), so the
+    // count of validated big-integer divisions drops by a factor of k.
+    u64 chunk        = 1;
+    u32 chunk_digits = 0;
 
-        digit = int_div_u64_rem(&quotient, &current, radix);
-        if (!StrPushBackR(&result, int_radix_char((u8)digit, uppercase))) {
-            IntDeinit(&quotient);
-            IntDeinit(&current);
-            StrDeinit(&result);
-            return false;
+    while (chunk <= UINT64_MAX / radix) {
+        chunk *= radix;
+        chunk_digits++;
+    }
+
+    while (!IntIsZero(&current)) {
+        Int  quotient = IntInit(alloc);
+        u64  rem      = int_div_u64_rem(&quotient, &current, chunk);
+        bool last     = IntIsZero(&quotient);
+
+        // A non-final chunk emits exactly chunk_digits digits (zero-padded for
+        // place value); the most significant chunk stops at its top digit.
+        for (u32 k = 0; (k < chunk_digits) && !(last && rem == 0 && k > 0); k++) {
+            if (!StrPushBackR(&result, int_radix_char((u8)(rem % radix), uppercase))) {
+                IntDeinit(&quotient);
+                IntDeinit(&current);
+                StrDeinit(&result);
+                return false;
+            }
+            rem /= radix;
         }
 
         IntDeinit(&current);
