@@ -256,6 +256,13 @@ static void float_normalize(Float *value) {
         return;
     }
 
+    // An odd significand has no trailing decimal zero (10 = 2*5, so divisible by
+    // 10 implies even), so the strip loop below would do nothing - skip it and
+    // its divisor/quotient allocations entirely.
+    if (IntIsOdd(&value->significand)) {
+        return;
+    }
+
     // Strip trailing decimal zeros. The divisor 10 is built once and each step
     // is a single int_div_mod (quotient and remainder together) instead of a
     // mod-check division followed by a second division. The quotient buffer is

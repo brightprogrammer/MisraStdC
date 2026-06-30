@@ -2324,22 +2324,46 @@ bool IntModAdd(Int *result, const Int *a, const Int *b, const Int *modulus) {
         return false;
     }
 
-    Int ar  = IntInit(IntAllocator(result));
-    Int br  = IntInit(IntAllocator(result));
-    Int sum = IntInit(IntAllocator(result));
+    // Reduce an input only when needed, and finish with a single compare+subtract
+    // instead of a full division: once both inputs are < modulus, sum < 2*modulus,
+    // so at most one subtraction reduces it (mirrors IntModSub).
+    Int        ar   = IntInit(IntAllocator(result));
+    Int        br   = IntInit(IntAllocator(result));
+    Int        sum  = IntInit(IntAllocator(result));
+    const Int *ared = a;
+    const Int *bred = b;
+    bool       ok   = false;
 
-    if (!int_mod(&ar, a, modulus) || !int_mod(&br, b, modulus) || !int_add(&sum, &ar, &br) ||
-        !int_mod(result, &sum, modulus)) {
-        IntDeinit(&ar);
-        IntDeinit(&br);
-        IntDeinit(&sum);
-        return false;
+    if (int_compare(a, modulus) >= 0) {
+        if (!int_mod(&ar, a, modulus)) {
+            goto done;
+        }
+        ared = &ar;
     }
+    if (int_compare(b, modulus) >= 0) {
+        if (!int_mod(&br, b, modulus)) {
+            goto done;
+        }
+        bred = &br;
+    }
+    if (!int_add(&sum, ared, bred)) {
+        goto done;
+    }
+    if (int_compare(&sum, modulus) >= 0) {
+        if (!int_sub(result, &sum, modulus)) {
+            goto done;
+        }
+    } else {
+        int_replace(result, &sum);
+        sum = IntInit(IntAllocator(result));
+    }
+    ok = true;
 
+done:
     IntDeinit(&ar);
     IntDeinit(&br);
     IntDeinit(&sum);
-    return true;
+    return ok;
 }
 
 bool IntModSub(Int *result, const Int *a, const Int *b, const Int *modulus) {
@@ -2408,22 +2432,38 @@ bool IntModMul(Int *result, const Int *a, const Int *b, const Int *modulus) {
         return false;
     }
 
-    Int ar   = IntInit(IntAllocator(result));
-    Int br   = IntInit(IntAllocator(result));
-    Int prod = IntInit(IntAllocator(result));
+    // (a*b) mod m needs only the final reduction; reduce an input only when it is
+    // not already < modulus (the common case in modpow/Miller-Rabin/Tonelli loops,
+    // where operands are already reduced - so both input divisions are skipped).
+    Int        ar   = IntInit(IntAllocator(result));
+    Int        br   = IntInit(IntAllocator(result));
+    Int        prod = IntInit(IntAllocator(result));
+    const Int *ared = a;
+    const Int *bred = b;
+    bool       ok   = false;
 
-    if (!int_mod(&ar, a, modulus) || !int_mod(&br, b, modulus) || !int_mul(&prod, &ar, &br) ||
-        !int_mod(result, &prod, modulus)) {
-        IntDeinit(&ar);
-        IntDeinit(&br);
-        IntDeinit(&prod);
-        return false;
+    if (int_compare(a, modulus) >= 0) {
+        if (!int_mod(&ar, a, modulus)) {
+            goto done;
+        }
+        ared = &ar;
     }
+    if (int_compare(b, modulus) >= 0) {
+        if (!int_mod(&br, b, modulus)) {
+            goto done;
+        }
+        bred = &br;
+    }
+    if (!int_mul(&prod, ared, bred) || !int_mod(result, &prod, modulus)) {
+        goto done;
+    }
+    ok = true;
 
+done:
     IntDeinit(&ar);
     IntDeinit(&br);
     IntDeinit(&prod);
-    return true;
+    return ok;
 }
 
 bool IntModDiv(Int *result, const Int *a, const Int *b, const Int *modulus) {
