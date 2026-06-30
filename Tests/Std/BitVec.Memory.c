@@ -9,6 +9,8 @@
 // Function prototypes
 bool test_bitvec_shrink_to_fit(void);
 bool test_bitvec_reserve(void);
+bool test_reserve_exact_capacity(void);
+bool test_reserve_byte_size(void);
 bool test_bitvec_swap(void);
 bool test_bitvec_clone(void);
 bool test_bitvec_clone_inherits_allocator_config(void);
@@ -108,6 +110,36 @@ bool test_bitvec_reserve(void) {
 
     DefaultAllocatorDeinit(&alloc);
 
+    return result;
+}
+
+// BitVecReserve sets capacity to exactly the requested bit count (not just >=).
+bool test_reserve_exact_capacity(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVecReserve(&bv, 64);
+
+    bool result = (BitVecCapacity(&bv) == 64);
+    result      = result && (BitVecData(&bv) != NULL);
+    result      = result && (BitVecLen(&bv) == 0);
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// BitVecReserve's byte_size is an exact contract: BYTES_FOR_BITS(64) == 8.
+bool test_reserve_byte_size(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVecReserve(&bv, 64);
+
+    bool result = (BitVecByteSize(&bv) == 8);
+
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -700,6 +732,8 @@ int main(void) {
     TestFunction tests[] = {
         test_bitvec_shrink_to_fit,
         test_bitvec_reserve,
+        test_reserve_exact_capacity,
+        test_reserve_byte_size,
         test_bitvec_swap,
         test_bitvec_clone,
         test_bitvec_clone_inherits_allocator_config,

@@ -69,7 +69,7 @@ extern "C" {
             .data      = NULL,                                                                                         \
             .byte_size = 0,                                                                                            \
             .allocator = ALLOCATOR_OF(allocator_ptr),                                                                  \
-            .__magic   = BITVEC_MAGIC | MAGIC_VALIDATED_BIT                                                                                  \
+            .__magic   = BITVEC_MAGIC | MAGIC_VALIDATED_BIT                                                            \
         })
 #else
 #    define BitVecInit_1(allocator_ptr)                                                                                \
@@ -80,24 +80,6 @@ extern "C" {
                    .allocator = ALLOCATOR_OF(allocator_ptr),                                                           \
                    .__magic   = BITVEC_MAGIC | MAGIC_VALIDATED_BIT})
 #endif
-
-    ///
-    /// Initialize an empty `BitVec` and reserve room for at least `cap` bits.
-    /// Public callers reach this through the `BitVecInitWithCapacity` overload set.
-    ///
-    /// cap[in]   : Minimum bit capacity to reserve up front.
-    /// alloc[in] : Allocator that owns the backing buffer.
-    ///
-    /// SUCCESS : Returns a live, empty `BitVec` whose capacity is at least `cap` bits.
-    /// FAILURE : Returns an empty `BitVec` with NULL data and zero capacity on allocator OOM;
-    ///           the caller must check before use.
-    ///
-    /// TAGS: BitVec, Init, Capacity, Construct
-    ///
-    BitVec bitvec_init_with_capacity(u64 cap, Allocator *alloc);
-#define BitVecInitWithCapacity(...)         OVERLOAD(BitVecInitWithCapacity, __VA_ARGS__)
-#define BitVecInitWithCapacity_1(cap)         bitvec_init_with_capacity((cap), MisraScope)
-#define BitVecInitWithCapacity_2(cap, alloc)  bitvec_init_with_capacity((cap), ALLOCATOR_OF(alloc))
 
     ///
     /// Release all storage owned by `bv` and reset it to the zeroed state.

@@ -399,37 +399,6 @@ bool test_bitvec_set_operations_failures(void) {
 }
 
 // Main function that runs all tests
-// Kills 76:cxx_eq_to_ne (cap==0 -> cap!=0 makes a non-zero request bail
-// out empty) and 85:cxx_assign_const (capacity := 42). A 64-bit request
-// must yield exactly the requested capacity with live storage.
-static bool test_init_with_capacity_exact_capacity(void) {
-    DefaultAllocator alloc = DefaultAllocatorInit();
-
-    BitVec bv = BitVecInitWithCapacity(64, ALLOCATOR_OF(&alloc));
-
-    bool result = (BitVecCapacity(&bv) == 64);
-    result      = result && (BitVecData(&bv) != NULL);
-    result      = result && (BitVecLen(&bv) == 0);
-
-    BitVecDeinit(&bv);
-    DefaultAllocatorDeinit(&alloc);
-    return result;
-}
-
-// Kills 86:cxx_assign_const (byte_size := 42). BYTES_FOR_BITS(64) == 8,
-// so the backing storage size is an exact, caller-observable contract.
-static bool test_init_with_capacity_byte_size(void) {
-    DefaultAllocator alloc = DefaultAllocatorInit();
-
-    BitVec bv = BitVecInitWithCapacity(64, ALLOCATOR_OF(&alloc));
-
-    bool result = (BitVecByteSize(&bv) == 8);
-
-    BitVecDeinit(&bv);
-    DefaultAllocatorDeinit(&alloc);
-    return result;
-}
-
 int main(void) {
     WriteFmt("[INFO] Starting BitVec.Init tests\n\n");
 
@@ -444,9 +413,7 @@ int main(void) {
         test_bitvec_reserve_edge_cases,
         test_bitvec_resize_edge_cases,
         test_bitvec_clear_edge_cases,
-        test_bitvec_multiple_cycles,
-        test_init_with_capacity_exact_capacity,
-        test_init_with_capacity_byte_size
+        test_bitvec_multiple_cycles
     };
 
     // Array of deadend test functions (expected failure scenarios)

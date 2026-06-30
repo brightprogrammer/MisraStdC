@@ -30,20 +30,13 @@ static bool int_try_from_i64_with_allocator(Int *out, i64 value, Allocator *allo
 static bool int_try_clone_value(Int *out, const Int *value);
 static u64  int_u64_bits(u64 value);
 
-static Int int_wrap(BitVec bits) {
-    Int value;
-
-    value.bits = bits;
-    return value;
-}
-
 static bool int_try_init_with_capacity(Int *out, u64 capacity, Allocator *alloc) {
     if (!out) {
         LOG_FATAL("Invalid arguments");
     }
 
-    *out = int_wrap(BitVecInitWithCapacity(capacity, alloc));
-    if (capacity != 0 && BitVecCapacity(INT_BITS(out)) < capacity) {
+    *out = IntInit(alloc);
+    if (capacity != 0 && !BitVecReserve(INT_BITS(out), capacity)) {
         IntDeinit(out);
         *out = IntInit(alloc);
         return false;

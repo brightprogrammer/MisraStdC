@@ -70,23 +70,6 @@ static double log2_f64(double x) {
 #define BIT_OFFSET(idx)      ((idx) % BITS_PER_BYTE)
 #define BYTES_FOR_BITS(bits) (((bits) + BITS_PER_BYTE - 1) / BITS_PER_BYTE)
 
-BitVec bitvec_init_with_capacity(u64 cap, Allocator *alloc) {
-    BitVec result = BitVecInit(alloc);
-
-    if (cap == 0) {
-        return result;
-    }
-
-    result.data = (u8 *)AllocatorAlloc(result.allocator, BYTES_FOR_BITS(cap), true);
-    if (!result.data) {
-        return result;
-    }
-
-    result.capacity  = cap;
-    result.byte_size = BYTES_FOR_BITS(cap);
-    return result;
-}
-
 void BitVecDeinit(BitVec *bitvec) {
     ValidateBitVec(bitvec);
     if (bitvec->data) {
