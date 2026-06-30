@@ -1597,34 +1597,68 @@ bool int_div_mod(Int *quotient, Int *remainder, const Int *dividend, const Int *
     {
         u64 dividend_bits = IntBitLength(dividend);
         u64 divisor_bits  = IntBitLength(divisor);
+        u64 r_words       = (divisor_bits + 1u + 63u) / 64u;
 
+        // Size the outputs to whole 64-bit limbs and zero them, so the loop below
+        // works on raw limb buffers: the four operands are validated once here
+        // (and via BitVecData), and nothing inside the per-bit loop re-validates
+        // or re-scans. The remainder needs divisor_bits+1 bits at most, rounded up
+        // to a whole limb so its shift never runs off the buffer.
         IntClear(quotient);
         IntClear(remainder);
-        if (!IntReserve(quotient, dividend_bits) || !IntReserve(remainder, divisor_bits + 1)) {
+        if (!BitVecResize(INT_BITS(quotient), dividend_bits) || !BitVecResize(INT_BITS(remainder), r_words * 64u)) {
             goto cleanup;
         }
 
-        for (u64 bit = dividend_bits; bit > 0; bit--) {
-            u64 i = bit - 1;
+        {
+            u8       *qd     = BitVecData(INT_BITS(quotient));
+            u8       *rd     = BitVecData(INT_BITS(remainder));
+            const u8 *dd     = BitVecData(INT_BITS(dividend));
+            const u8 *vd     = BitVecData(INT_BITS(divisor));
+            u64       rbytes = r_words * 8u;
+            u64       rbits  = r_words * 64u;
 
-            if (!IntShiftLeft(remainder, 1)) {
-                goto cleanup;
-            }
-            if (BitVecGet(INT_BITS(dividend), i)) {
-                if (IntBitLength(remainder) == 0 && !BitVecResize(INT_BITS(remainder), 1)) {
-                    goto cleanup;
-                }
-                BitVecSet(INT_BITS(remainder), 0, true);
-            }
+            for (u64 bit = dividend_bits; bit > 0; bit--) {
+                u64 i     = bit - 1u;
+                u64 carry = 0;
+                int cmp   = 0;
 
-            if (int_compare(remainder, divisor) >= 0) {
-                if (!int_sub(remainder, remainder, divisor)) {
-                    goto cleanup;
+                // remainder <<= 1 (raw limb funnel), then pull in dividend bit i.
+                for (u64 w = 0; w < r_words; w++) {
+                    u64 v = int_load_le8(rd, rbits, w * 8u);
+
+                    int_store_le8(rd, rbytes, w * 8u, (v << 1) | carry);
+                    carry = v >> 63u;
                 }
-                if (IntBitLength(quotient) < i + 1 && !BitVecResize(INT_BITS(quotient), i + 1)) {
-                    goto cleanup;
+                if ((dd[i >> 3u] >> (i & 7u)) & 1u) {
+                    int_store_le8(rd, rbytes, 0, int_load_le8(rd, rbits, 0) | 1u);
                 }
-                BitVecSet(INT_BITS(quotient), i, true);
+
+                // remainder >= divisor ? (raw compare, high limb first)
+                for (u64 w = r_words; w-- > 0;) {
+                    u64 rv = int_load_le8(rd, rbits, w * 8u);
+                    u64 dv = int_load_le8(vd, divisor_bits, w * 8u);
+
+                    if (rv != dv) {
+                        cmp = rv > dv ? 1 : -1;
+                        break;
+                    }
+                }
+
+                if (cmp >= 0) {
+                    // remainder -= divisor (raw borrow chain), set quotient bit i.
+                    u64 borrow = 0;
+
+                    for (u64 w = 0; w < r_words; w++) {
+                        u64 rv  = int_load_le8(rd, rbits, w * 8u);
+                        u64 dv  = int_load_le8(vd, divisor_bits, w * 8u);
+                        u64 out = 0;
+
+                        borrow = int_sub_borrow_u64(rv, dv, borrow, &out);
+                        int_store_le8(rd, rbytes, w * 8u, out);
+                    }
+                    qd[i >> 3u] |= (u8)(1u << (i & 7u));
+                }
             }
         }
 
