@@ -6,8 +6,8 @@
 #include <Misra/Types.h>
 
 // Include test utilities
-#include "../Util/JsonReaderAllocAware.h"
-#include "../Util/TestRunner.h"
+#include "../../Util/JsonReaderAllocAware.h"
+#include "../../Util/TestRunner.h"
 
 
 
@@ -72,8 +72,7 @@ bool compare_persons(const TestPerson *a, const TestPerson *b) {
 // Helper function to compare configs
 bool compare_configs(const TestConfig *a, const TestConfig *b) {
     if (a->debug_mode != b->debug_mode || a->timeout != b->timeout ||
-        StrCmp((Str *)&a->log_level, (Str *)&b->log_level) != 0 ||
-        VecLen(&a->features) != VecLen(&b->features)) {
+        StrCmp((Str *)&a->log_level, (Str *)&b->log_level) != 0 || VecLen(&a->features) != VecLen(&b->features)) {
         return false;
     }
 

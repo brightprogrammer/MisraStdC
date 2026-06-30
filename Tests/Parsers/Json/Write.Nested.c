@@ -5,7 +5,7 @@
 #include <Misra/Types.h>
 
 // Include test utilities
-#include "../Util/TestRunner.h"
+#include "../../Util/TestRunner.h"
 
 // Complex data structures for nested JSON writing examples
 typedef struct AnnSymbol {

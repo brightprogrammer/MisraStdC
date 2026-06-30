@@ -5,7 +5,7 @@
 #include <Misra/Types.h>
 
 // Include test utilities
-#include "../Util/TestRunner.h"
+#include "../../Util/TestRunner.h"
 
 // Helper function to compare JSON output (removes spaces for comparison)
 bool compare_json_output(const Str *output, Zstr expected, DefaultAllocator *alloc) {

@@ -5,7 +5,7 @@
 #include <Misra/Types.h>
 
 // Include test utilities
-#include "../Util/TestRunner.h"
+#include "../../Util/TestRunner.h"
 
 // Simple data structures for basic JSON writing examples
 typedef struct Person {

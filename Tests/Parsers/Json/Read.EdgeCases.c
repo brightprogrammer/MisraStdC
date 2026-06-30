@@ -6,8 +6,8 @@
 #include <Misra/Types.h>
 
 // Include test utilities
-#include "../Util/JsonReaderAllocAware.h"
-#include "../Util/TestRunner.h"
+#include "../../Util/JsonReaderAllocAware.h"
+#include "../../Util/TestRunner.h"
 
 
 

@@ -55,24 +55,24 @@ socket_tests = [
 ]
 
 http_tests = [
-    ['Http', 'Std/Http.c'],
+    ['Http', 'Parsers/Http.c'],
 ]
 
 elf_tests = [
-    ['Elf', 'Std/Elf.c'],
+    ['Elf', 'Parsers/Elf.c'],
 ]
 
 dwarf_tests = [
-    ['Dwarf', 'Std/Dwarf.c'],
-    ['DwarfUnwind', 'Std/DwarfUnwind.c'],
+    ['Dwarf', 'Parsers/Dwarf.c'],
+    ['DwarfUnwind', 'Parsers/DwarfUnwind.c'],
 ]
 
 pe_tests = [
-    ['Pe', 'Std/Pe.c'],
+    ['Pe', 'Parsers/Pe.c'],
 ]
 
 pdb_tests = [
-    ['Pdb', 'Std/Pdb.c'],
+    ['Pdb', 'Parsers/Pdb.c'],
 ]
 
 pdb_cache_tests = [
@@ -80,11 +80,11 @@ pdb_cache_tests = [
 ]
 
 macho_tests = [
-    ['MachO', 'Std/MachO.c'],
+    ['MachO', 'Parsers/MachO.c'],
 ]
 
 dns_tests = [
-    ['Dns', 'Std/Dns.c'],
+    ['Dns', 'Parsers/Dns.c'],
 ]
 
 sys_dns_tests = [
@@ -96,7 +96,7 @@ macho_cache_tests = [
 ]
 
 procmaps_tests = [
-    ['ProcMaps', 'Std/ProcMaps.c'],
+    ['ProcMaps', 'Parsers/ProcMaps.c'],
 ]
 
 symresolve_tests = [
@@ -226,18 +226,18 @@ if opt_list
 endif
 
 json_tests = [
-    ['Json.Read.Simple', 'Json/Read.Simple.c'],
-    ['Json.Read.Nested', 'Json/Read.Nested.c'],
-    ['Json.Read.EdgeCases', 'Json/Read.EdgeCases.c'],
-    ['Json.Write.Simple', 'Json/Write.Simple.c'],
-    ['Json.Write.Nested', 'Json/Write.Nested.c'],
-    ['Json.Write.EdgeCases', 'Json/Write.EdgeCases.c'],
-    ['Json.RoundTrip', 'Json/RoundTrip.c'],
-#['Json.RW', 'Json/RW.c'],
+    ['Json.Read.Simple', 'Parsers/Json/Read.Simple.c'],
+    ['Json.Read.Nested', 'Parsers/Json/Read.Nested.c'],
+    ['Json.Read.EdgeCases', 'Parsers/Json/Read.EdgeCases.c'],
+    ['Json.Write.Simple', 'Parsers/Json/Write.Simple.c'],
+    ['Json.Write.Nested', 'Parsers/Json/Write.Nested.c'],
+    ['Json.Write.EdgeCases', 'Parsers/Json/Write.EdgeCases.c'],
+    ['Json.RoundTrip', 'Parsers/Json/RoundTrip.c'],
+#['Json.RW', 'Parsers/Json/RW.c'],
 ]
 
 kvconfig_tests = [
-    ['KvConfig.Parse', 'KvConfig/Parse.c'],
+    ['KvConfig.Parse', 'Parsers/KvConfig/Parse.c'],
 ]
 
 allocator_tests = [
@@ -280,7 +280,7 @@ endif
 
 if opt_file
     # Tzif (/etc/localtime parser) is gated on opt_file, same as File.c.
-    foreach test_info : file_tests + [['Tzif', 'Std/Tzif.c']]
+    foreach test_info : file_tests + [['Tzif', 'Parsers/Tzif.c']]
         test_name = test_info[0]
         test_src = test_info[1]
 
@@ -582,7 +582,7 @@ if opt_parser_dwarf and tests_need_posix_exe
     if objcopy.found()
         stripped_driver = executable(
             'Dwarf.Stripped',
-            files('Std/StrippedResolve.c'),
+            files('Parsers/StrippedResolve.c'),
             link_with: [misra_std_no_backtrace],
             dependencies: [test_util_dep_no_backtrace],
             c_args: test_args + ['-gdwarf-4'],

@@ -6,7 +6,7 @@
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Utility/StrIter.h>
 
-#include "../Util/TestRunner.h"
+#include "../../Util/TestRunner.h"
 
 // Helper: parse `src` into a fresh cfg, look up `key`, and compare the
 // stored value byte-for-byte against `expect`. Returns true on match.
