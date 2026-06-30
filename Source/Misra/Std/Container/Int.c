@@ -63,10 +63,52 @@ static bool int_try_from_i64_with_allocator(Int *out, i64 value, Allocator *allo
 static u64 int_significant_bits(const Int *value) {
     ValidateInt(value);
 
-    for (u64 i = BitVecLen(INT_BITS(value)); i > 0; i--) {
-        if (BitVecGet(INT_BITS(value), i - 1)) {
-            return i;
+    u64 len = BitVecLen(INT_BITS(value));
+
+    if (len == 0) {
+        return 0;
+    }
+
+    // Skip whole zero limbs from the top in 64-bit strides, then locate the
+    // highest set bit inside the top non-zero limb. int_load_le8 masks the top
+    // limb to `len`, so stale bits above the length never leak in.
+    const u8 *d   = BitVecData(INT_BITS(value));
+    u64       off = ((len - 1u) / 64u) * 8u;
+
+    for (;;) {
+        u64 v = int_load_le8(d, len, off);
+
+        if (v != 0) {
+            // Highest set bit within the limb by binary search (floor(log2 v)).
+            u64 hi = 0;
+
+            if (v >> 32) {
+                hi  += 32;
+                v  >>= 32;
+            }
+            if (v >> 16) {
+                hi  += 16;
+                v  >>= 16;
+            }
+            if (v >> 8) {
+                hi  += 8;
+                v  >>= 8;
+            }
+            if (v >> 4) {
+                hi  += 4;
+                v  >>= 4;
+            }
+            if (v >> 2) {
+                hi  += 2;
+                v  >>= 2;
+            }
+            hi += v >> 1;
+            return off * 8u + hi + 1u;
         }
+        if (off == 0) {
+            break;
+        }
+        off -= 8u;
     }
 
     return 0;
