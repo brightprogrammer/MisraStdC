@@ -10,6 +10,10 @@
 #include <Misra/Std/Container/BitVec.h>
 #include <Misra/Std/Log.h>
 
+#if defined(_MSC_VER) && !defined(__clang__) && (defined(_M_X64) || defined(_M_AMD64))
+#    include <immintrin.h>
+#endif
+
 typedef struct {
     bool negative;
     Int  magnitude;
@@ -17,8 +21,9 @@ typedef struct {
 
 #define INT_BITS(value) (&(value)->bits)
 
-static void int_normalize(Int *value);
-static bool int_validate_radix(u8 radix);
+static void       int_normalize(Int *value);
+static inline u64 int_load_le8(const u8 *data, u64 bit_len, u64 off);
+static bool       int_validate_radix(u8 radix);
 static bool int_try_from_str_radix_impl(Int *out, Zstr digits, u64 length, u64 start, u8 radix, bool allow_underscores);
 static bool int_try_init_with_capacity(Int *out, u64 capacity, Allocator *alloc);
 static bool int_try_from_i64_with_allocator(Int *out, i64 value, Allocator *alloc);
@@ -950,20 +955,29 @@ i32 int_compare(const void *lhs, const void *rhs) {
     u64 a_bits = IntBitLength(a);
     u64 b_bits = IntBitLength(b);
 
-    if (a_bits < b_bits) {
-        return -1;
+    if (a_bits != b_bits) {
+        return a_bits < b_bits ? -1 : 1;
     }
-    if (a_bits > b_bits) {
-        return 1;
+    if (a_bits == 0) {
+        return 0;
     }
 
-    for (u64 i = a_bits; i > 0; i--) {
-        bool a_bit = BitVecGet(INT_BITS(a), i - 1);
-        bool b_bit = BitVecGet(INT_BITS(b), i - 1);
+    const u8 *ad  = BitVecData(INT_BITS(a));
+    const u8 *bd  = BitVecData(INT_BITS(b));
+    u64       n   = (a_bits + 7u) / 8u;
+    u64       off = ((n - 1u) / 8u) * 8u;
 
-        if (a_bit != b_bit) {
-            return a_bit ? 1 : -1;
+    for (;;) {
+        u64 av = int_load_le8(ad, a_bits, off);
+        u64 bv = int_load_le8(bd, a_bits, off);
+
+        if (av != bv) {
+            return av > bv ? 1 : -1;
         }
+        if (off == 0) {
+            break;
+        }
+        off -= 8u;
     }
 
     return 0;
@@ -1052,48 +1066,96 @@ bool IntShiftRight(Int *value, u64 positions) {
     return true;
 }
 
+// out = a + b + carry_in (carry_in is 0 or 1); returns the carry-out.
+static inline u64 int_add_carry_u64(u64 a, u64 b, u64 carry_in, u64 *out) {
+#if defined(__GNUC__) || defined(__clang__)
+    u64 partial;
+    u64 c1 = __builtin_add_overflow(a, b, &partial) ? 1u : 0u;
+    u64 c2 = __builtin_add_overflow(partial, carry_in, out) ? 1u : 0u;
+    return c1 | c2;
+#elif defined(_MSC_VER) && (defined(_M_X64) || defined(_M_AMD64))
+    unsigned long long r = 0;
+    unsigned char      c = _addcarry_u64((unsigned char)carry_in, a, b, &r);
+    *out                 = (u64)r;
+    return (u64)c;
+#else
+    u64 sum = a + b;
+    u64 c1  = sum < a ? 1u : 0u;
+    *out    = sum + carry_in;
+    u64 c2  = *out < sum ? 1u : 0u;
+    return c1 | c2;
+#endif
+}
+
+// Read up to 8 bytes of `data` at byte offset `off` as a little-endian u64,
+// then mask off any bits at or above `bit_len` (the operand's significant bit
+// count) -- the top partial byte can hold stale bits above the value's length
+// (a shrink-resize does not clear them). Byte order is explicit so the result
+// is correct regardless of host endianness.
+static inline u64 int_load_le8(const u8 *data, u64 bit_len, u64 off) {
+    u64 byte_len = (bit_len + 7u) / 8u;
+    u64 avail    = off < byte_len ? byte_len - off : 0;
+    u64 k        = avail < 8 ? avail : 8;
+    u64 v        = 0;
+
+    for (u64 j = 0; j < k; j++) {
+        v |= (u64)data[off + j] << (8u * j);
+    }
+
+    u64 bit_off = off * 8u;
+    if (bit_off >= bit_len) {
+        return 0;
+    }
+
+    u64 valid = bit_len - bit_off;
+    if (valid < 64u) {
+        v &= ((u64)1 << valid) - 1u;
+    }
+    return v;
+}
+
+static inline void int_store_le8(u8 *data, u64 byte_len, u64 off, u64 value) {
+    u64 avail = off < byte_len ? byte_len - off : 0;
+    u64 k     = avail < 8 ? avail : 8;
+
+    for (u64 j = 0; j < k; j++) {
+        data[off + j] = (u8)(value >> (8u * j));
+    }
+}
+
 bool int_add(Int *result, const Int *a, const Int *b) {
     ValidateInt(result);
     ValidateInt(a);
     ValidateInt(b);
 
-    u64  a_bits   = IntBitLength(a);
-    u64  b_bits   = IntBitLength(b);
-    u64  max_bits = MAX2(a_bits, b_bits);
-    Int  temp;
-    bool carry = false;
+    u64 a_bits   = IntBitLength(a);
+    u64 b_bits   = IntBitLength(b);
+    u64 max_bits = MAX2(a_bits, b_bits);
 
-    if (!int_try_init_with_capacity(&temp, max_bits + 1, IntAllocator(result))) {
+    // a + b < 2^(max_bits+1), so max_bits+1 bits always hold the sum (incl. carry).
+    if (!BitVecResize(INT_BITS(result), max_bits + 1)) {
         return false;
     }
 
-    for (u64 i = 0; i < max_bits; i++) {
-        u64 sum = carry ? 1u : 0u;
+    // Magnitudes are little-endian byte buffers (bit i in byte i/8), so we add
+    // 64 bits per step with the hardware carry chain instead of bit-by-bit. A
+    // left-to-right limb ripple keeps it safe when result aliases a or b.
+    u8       *rd    = BitVecData(INT_BITS(result));
+    const u8 *ad    = BitVecData(INT_BITS(a));
+    const u8 *bd    = BitVecData(INT_BITS(b));
+    u64       n     = (max_bits + 1u + 7u) / 8u;
+    u64       carry = 0;
 
-        if (i < a_bits && BitVecGet(INT_BITS(a), i)) {
-            sum++;
-        }
-        if (i < b_bits && BitVecGet(INT_BITS(b), i)) {
-            sum++;
-        }
+    for (u64 off = 0; off < n; off += 8) {
+        u64 av = int_load_le8(ad, a_bits, off);
+        u64 bv = int_load_le8(bd, b_bits, off);
+        u64 r  = 0;
 
-        if (!BitVecPush(INT_BITS(&temp), (sum & 1u) != 0u)) {
-            IntDeinit(&temp);
-            return false;
-        }
-        carry = sum >= 2u;
+        carry = int_add_carry_u64(av, bv, carry, &r);
+        int_store_le8(rd, n, off, r);
     }
 
-    if (carry) {
-        if (!BitVecPush(INT_BITS(&temp), true)) {
-            IntDeinit(&temp);
-            return false;
-        }
-    }
-
-    int_normalize(&temp);
-    IntDeinit(result);
-    *result = temp;
+    int_normalize(result);
     return true;
 }
 
@@ -1131,6 +1193,27 @@ bool int_add_i64(Int *result, const Int *value, i64 addend) {
     return true;
 }
 
+// out = a - b - borrow_in (borrow_in is 0 or 1); returns the borrow-out.
+static inline u64 int_sub_borrow_u64(u64 a, u64 b, u64 borrow_in, u64 *out) {
+#if defined(__GNUC__) || defined(__clang__)
+    u64 partial;
+    u64 b1 = __builtin_sub_overflow(a, b, &partial) ? 1u : 0u;
+    u64 b2 = __builtin_sub_overflow(partial, borrow_in, out) ? 1u : 0u;
+    return b1 | b2;
+#elif defined(_MSC_VER) && (defined(_M_X64) || defined(_M_AMD64))
+    unsigned long long r  = 0;
+    unsigned char      bo = _subborrow_u64((unsigned char)borrow_in, a, b, &r);
+    *out                  = (u64)r;
+    return (u64)bo;
+#else
+    u64 d  = a - b;
+    u64 b1 = a < b ? 1u : 0u;
+    *out   = d - borrow_in;
+    u64 b2 = d < borrow_in ? 1u : 0u;
+    return b1 | b2;
+#endif
+}
+
 bool int_sub(Int *result, const Int *a, const Int *b) {
     ValidateInt(result);
     ValidateInt(a);
@@ -1140,36 +1223,29 @@ bool int_sub(Int *result, const Int *a, const Int *b) {
         return false;
     }
 
-    u64  a_bits = IntBitLength(a);
-    u64  b_bits = IntBitLength(b);
-    Int  temp;
-    bool borrow = false;
+    u64 a_bits = IntBitLength(a);
+    u64 b_bits = IntBitLength(b);
 
-    if (!int_try_init_with_capacity(&temp, a_bits, IntAllocator(result))) {
+    if (!BitVecResize(INT_BITS(result), a_bits)) {
         return false;
     }
 
-    for (u64 i = 0; i < a_bits; i++) {
-        int ai   = (i < a_bits && BitVecGet(INT_BITS(a), i)) ? 1 : 0;
-        int bi   = (i < b_bits && BitVecGet(INT_BITS(b), i)) ? 1 : 0;
-        int diff = ai - bi - (borrow ? 1 : 0);
+    u8       *rd     = BitVecData(INT_BITS(result));
+    const u8 *ad     = BitVecData(INT_BITS(a));
+    const u8 *bd     = BitVecData(INT_BITS(b));
+    u64       n      = (a_bits + 7u) / 8u;
+    u64       borrow = 0;
 
-        if (diff < 0) {
-            diff   += 2;
-            borrow  = true;
-        } else {
-            borrow = false;
-        }
+    for (u64 off = 0; off < n; off += 8) {
+        u64 av = int_load_le8(ad, a_bits, off);
+        u64 bv = int_load_le8(bd, b_bits, off);
+        u64 r  = 0;
 
-        if (!BitVecPush(INT_BITS(&temp), diff != 0)) {
-            IntDeinit(&temp);
-            return false;
-        }
+        borrow = int_sub_borrow_u64(av, bv, borrow, &r);
+        int_store_le8(rd, n, off, r);
     }
 
-    int_normalize(&temp);
-    IntDeinit(result);
-    *result = temp;
+    int_normalize(result);
     return true;
 }
 
@@ -1206,13 +1282,22 @@ bool int_mul(Int *result, const Int *a, const Int *b) {
     ValidateInt(a);
     ValidateInt(b);
 
-    u64 b_bits = IntBitLength(b);
-    Int acc    = IntInit(IntAllocator(result));
-
     if (IntIsZero(a) || IntIsZero(b)) {
-        IntDeinit(result);
-        *result = acc;
+        IntClear(result);
         return true;
+    }
+
+    u64 a_bits = IntBitLength(a);
+    u64 b_bits = IntBitLength(b);
+    Int acc;
+    Int partial;
+
+    if (!int_try_init_with_capacity(&acc, a_bits + b_bits + 1, IntAllocator(result))) {
+        return false;
+    }
+    if (!int_try_init_with_capacity(&partial, a_bits + b_bits, IntAllocator(result))) {
+        IntDeinit(&acc);
+        return false;
     }
 
     for (u64 i = 0; i < b_bits; i++) {
@@ -1220,27 +1305,24 @@ bool int_mul(Int *result, const Int *a, const Int *b) {
             continue;
         }
 
-        Int partial;
-        Int next = IntInit(IntAllocator(result));
-
-        if (!int_try_clone_value(&partial, a)) {
-            IntDeinit(&acc);
-            return false;
-        }
-        int_normalize(&partial);
-        if (!IntShiftLeft(&partial, i) || !int_add(&next, &acc, &partial)) {
+        IntClear(&partial);
+        if (!BitVecResize(INT_BITS(&partial), a_bits + i)) {
             IntDeinit(&acc);
             IntDeinit(&partial);
-            IntDeinit(&next);
             return false;
         }
+        for (u64 j = 0; j < a_bits; j++) {
+            BitVecSet(INT_BITS(&partial), i + j, BitVecGet(INT_BITS(a), j));
+        }
 
-        IntDeinit(&acc);
-        acc = next;
-
-        IntDeinit(&partial);
+        if (!int_add(&acc, &acc, &partial)) {
+            IntDeinit(&acc);
+            IntDeinit(&partial);
+            return false;
+        }
     }
 
+    IntDeinit(&partial);
     int_normalize(&acc);
     IntDeinit(result);
     *result = acc;
@@ -1360,74 +1442,68 @@ bool int_div_mod(Int *quotient, Int *remainder, const Int *dividend, const Int *
         return false;
     }
 
-    Int  normalized_dividend = IntInit(IntAllocator(quotient));
-    Int  normalized_divisor  = IntInit(IntAllocator(quotient));
-    Int  q                   = IntInit(IntAllocator(quotient));
-    Int  r                   = IntInit(IntAllocator(remainder));
-    bool ok                  = false;
+    // dividend < divisor: quotient = 0, remainder = dividend.
+    if (int_compare(dividend, divisor) < 0) {
+        Int r0 = IntInit(IntAllocator(remainder));
 
-    if (!int_try_clone_value(&normalized_dividend, dividend) || !int_try_clone_value(&normalized_divisor, divisor) ||
-        !int_try_clone_value(&r, &normalized_dividend)) {
+        if (!int_try_clone_value(&r0, dividend)) {
+            IntDeinit(&r0);
+            return false;
+        }
+        IntClear(quotient);
+        int_replace(remainder, &r0);
+        return true;
+    }
+
+    // Shift-the-remainder long division: r accumulates the dividend MSB-first;
+    // at each step r <<= 1, pull in the next dividend bit, and if r >= divisor
+    // subtract it (in place) and set the quotient bit. No per-position clone or
+    // shifted-divisor, so the loop does O(1) allocations.
+    u64  dividend_bits = IntBitLength(dividend);
+    u64  divisor_bits  = IntBitLength(divisor);
+    Int  q             = IntInit(IntAllocator(quotient));
+    Int  r             = IntInit(IntAllocator(remainder));
+    bool ok            = false;
+
+    if (!int_try_init_with_capacity(&q, dividend_bits, IntAllocator(quotient)) ||
+        !int_try_init_with_capacity(&r, divisor_bits + 1, IntAllocator(remainder))) {
         goto cleanup;
     }
 
-    if (int_compare(&normalized_dividend, &normalized_divisor) >= 0) {
-        u64 dividend_bits = IntBitLength(&normalized_dividend);
-        u64 divisor_bits  = IntBitLength(&normalized_divisor);
+    for (u64 bit = dividend_bits; bit > 0; bit--) {
+        u64 i = bit - 1;
 
-        IntDeinit(&q);
-        if (!int_try_init_with_capacity(&q, dividend_bits - divisor_bits + 1, IntAllocator(quotient))) {
+        if (!IntShiftLeft(&r, 1)) {
             goto cleanup;
         }
-
-        for (u64 shift = dividend_bits - divisor_bits + 1; shift > 0; shift--) {
-            u64 bit     = shift - 1;
-            Int shifted = IntInit(IntAllocator(quotient));
-
-            if (!int_try_clone_value(&shifted, &normalized_divisor) || !IntShiftLeft(&shifted, bit)) {
-                IntDeinit(&shifted);
+        if (BitVecGet(INT_BITS(dividend), i)) {
+            if (IntBitLength(&r) == 0 && !BitVecResize(INT_BITS(&r), 1)) {
                 goto cleanup;
             }
-
-            if (IntGE(&r, &shifted)) {
-                Int next = IntInit(IntAllocator(quotient));
-
-                if (!int_sub(&next, &r, &shifted)) {
-                    IntDeinit(&shifted);
-                    IntDeinit(&next);
-                    goto cleanup;
-                }
-                IntDeinit(&r);
-                r = next;
-
-                if (IntBitLength(&q) < bit + 1 && !BitVecResize(INT_BITS(&q), bit + 1)) {
-                    IntDeinit(&shifted);
-                    goto cleanup;
-                }
-                BitVecSet(INT_BITS(&q), bit, true);
-            }
-
-            IntDeinit(&shifted);
+            BitVecSet(INT_BITS(&r), 0, true);
         }
-    } else {
-        IntDeinit(&q);
-        q = IntInit(IntAllocator(quotient));
+
+        if (int_compare(&r, divisor) >= 0) {
+            if (!int_sub(&r, &r, divisor)) {
+                goto cleanup;
+            }
+            if (IntBitLength(&q) < i + 1 && !BitVecResize(INT_BITS(&q), i + 1)) {
+                goto cleanup;
+            }
+            BitVecSet(INT_BITS(&q), i, true);
+        }
     }
 
     int_normalize(&q);
     int_normalize(&r);
-
-    IntDeinit(&normalized_dividend);
-    IntDeinit(&normalized_divisor);
     int_replace(quotient, &q);
     int_replace(remainder, &r);
     ok = true;
+
 cleanup:
     if (!ok) {
         IntDeinit(&q);
         IntDeinit(&r);
-        IntDeinit(&normalized_dividend);
-        IntDeinit(&normalized_divisor);
     }
     return ok;
 }
