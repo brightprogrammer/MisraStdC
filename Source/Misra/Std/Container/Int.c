@@ -782,16 +782,44 @@ bool int_try_to_str_radix(Str *out, const Int *value, u8 radix, bool uppercase, 
         chunk_digits++;
     }
 
+    // Hoist the per-chunk allocations out of the loop: build the chunk divisor
+    // once and reuse the quotient/remainder buffers (the quotient reserved once
+    // to the value's width) instead of allocating a fresh Int per digit-chunk.
+    Int chunk_divisor = IntInit(alloc);
+    Int quotient      = IntInit(alloc);
+    Int remainder     = IntInit(alloc);
+
+    if (!int_try_from_u64(&chunk_divisor, chunk, alloc) || !IntReserve(&quotient, IntBitLength(value))) {
+        IntDeinit(&chunk_divisor);
+        IntDeinit(&quotient);
+        IntDeinit(&remainder);
+        IntDeinit(&current);
+        StrDeinit(&result);
+        return false;
+    }
+
     while (!IntIsZero(&current)) {
-        Int  quotient = IntInit(alloc);
-        u64  rem      = int_div_u64_rem(&quotient, &current, chunk);
-        bool last     = IntIsZero(&quotient);
+        u64  rem  = 0;
+        bool last = false;
+
+        if (!int_div_mod(&quotient, &remainder, &current, &chunk_divisor)) {
+            IntDeinit(&chunk_divisor);
+            IntDeinit(&quotient);
+            IntDeinit(&remainder);
+            IntDeinit(&current);
+            StrDeinit(&result);
+            return false;
+        }
+        rem  = IntToU64(&remainder);
+        last = IntIsZero(&quotient);
 
         // A non-final chunk emits exactly chunk_digits digits (zero-padded for
         // place value); the most significant chunk stops at its top digit.
         for (u32 k = 0; (k < chunk_digits) && !(last && rem == 0 && k > 0); k++) {
             if (!StrPushBackR(&result, int_radix_char((u8)(rem % radix), uppercase))) {
+                IntDeinit(&chunk_divisor);
                 IntDeinit(&quotient);
+                IntDeinit(&remainder);
                 IntDeinit(&current);
                 StrDeinit(&result);
                 return false;
@@ -799,9 +827,18 @@ bool int_try_to_str_radix(Str *out, const Int *value, u8 radix, bool uppercase, 
             rem /= radix;
         }
 
-        IntDeinit(&current);
-        current = quotient;
+        // current <- quotient, reusing both buffers (the old current is
+        // overwritten by the next division).
+        {
+            Int tmp  = current;
+            current  = quotient;
+            quotient = tmp;
+        }
     }
+
+    IntDeinit(&chunk_divisor);
+    IntDeinit(&quotient);
+    IntDeinit(&remainder);
 
     for (u64 i = 0; i < StrLen(&result) / 2; i++) {
         char *lhs = StrCharPtrAt(&result, i);
