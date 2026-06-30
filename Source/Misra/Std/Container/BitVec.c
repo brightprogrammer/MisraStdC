@@ -70,6 +70,44 @@ static double log2_f64(double x) {
 #define BIT_OFFSET(idx)      ((idx) % BITS_PER_BYTE)
 #define BYTES_FOR_BITS(bits) (((bits) + BITS_PER_BYTE - 1) / BITS_PER_BYTE)
 
+// Population count of a 64-bit word (hardware popcnt where available).
+static inline u64 bitvec_popcount64(u64 x) {
+#if defined(__GNUC__) || defined(__clang__)
+    return (u64)__builtin_popcountll(x);
+#elif defined(_MSC_VER) && (defined(_M_X64) || defined(_M_AMD64))
+    return (u64)__popcnt64(x);
+#else
+    x = x - ((x >> 1) & 0x5555555555555555ULL);
+    x = (x & 0x3333333333333333ULL) + ((x >> 2) & 0x3333333333333333ULL);
+    x = (x + (x >> 4)) & 0x0F0F0F0F0F0F0F0FULL;
+    return (u64)((x * 0x0101010101010101ULL) >> 56);
+#endif
+}
+
+// Clear stale bits above `len` in the top partial byte of a freshly written
+// buffer (mirrors the masking BitVecResize does on grow).
+static inline void bitvec_mask_tail(u8 *data, u64 len) {
+    u64 off = BIT_OFFSET(len);
+
+    if (off != 0u && data) {
+        data[BIT_INDEX(len)] &= (u8)((1u << off) - 1u);
+    }
+}
+
+// Byte at index k of an operand of `bytes` bytes / `len` bits, masking the top
+// partial byte to its significant bits and zero-extending past the end.
+static inline u8 bitvec_byte(const u8 *data, u64 bytes, u64 len, u64 k) {
+    u64 off = BIT_OFFSET(len);
+
+    if (k >= bytes) {
+        return 0;
+    }
+    if (k == bytes - 1u && off != 0u) {
+        return (u8)(data[k] & (u8)((1u << off) - 1u));
+    }
+    return data[k];
+}
+
 void BitVecDeinit(BitVec *bitvec) {
     ValidateBitVec(bitvec);
     if (bitvec->data) {
@@ -504,11 +542,23 @@ u64 BitVecCountOnes(const BitVec *bitvec) {
     ValidateBitVec(bitvec);
     if (!bitvec->data)
         return 0;
-    u64 count = 0;
-    for (u64 i = 0; i < bitvec->length; i++) {
-        if (BitVecGet(bitvec, i)) {
-            count++;
-        }
+    u64 count      = 0;
+    u64 full_bytes = bitvec->length / BITS_PER_BYTE;
+    u64 k          = 0;
+
+    for (; k + 8u <= full_bytes; k += 8u) {
+        u64 word = 0;
+
+        MemCopy(&word, bitvec->data + k, 8u);
+        count += bitvec_popcount64(word);
+    }
+    for (; k < full_bytes; k++) {
+        count += bitvec_popcount64((u64)bitvec->data[k]);
+    }
+    if (BIT_OFFSET(bitvec->length) != 0u) {
+        u8 top = (u8)(bitvec->data[full_bytes] & (u8)((1u << BIT_OFFSET(bitvec->length)) - 1u));
+
+        count += bitvec_popcount64((u64)top);
     }
     return count;
 }
@@ -523,16 +573,20 @@ void BitVecAnd(BitVec *result, BitVec *a, BitVec *b) {
     ValidateBitVec(a);
     ValidateBitVec(b);
 
-    u64 min_len = MIN2(a->length, b->length);
-    if (!BitVecResize(result, min_len)) {
+    u64 a_len   = a->length;
+    u64 b_len   = b->length;
+    u64 a_bytes = BYTES_FOR_BITS(a_len);
+    u64 b_bytes = BYTES_FOR_BITS(b_len);
+    u64 out_len = MIN2(a_len, b_len);
+
+    if (!BitVecResize(result, out_len)) {
         return;
     }
 
-    for (u64 i = 0; i < min_len; i++) {
-        bool bit_a = BitVecGet(a, i);
-        bool bit_b = BitVecGet(b, i);
-        BitVecSet(result, i, bit_a && bit_b);
+    for (u64 k = 0; k < BYTES_FOR_BITS(out_len); k++) {
+        result->data[k] = (u8)(bitvec_byte(a->data, a_bytes, a_len, k) & bitvec_byte(b->data, b_bytes, b_len, k));
     }
+    bitvec_mask_tail(result->data, out_len);
 }
 
 void BitVecOr(BitVec *result, BitVec *a, BitVec *b) {
@@ -540,16 +594,20 @@ void BitVecOr(BitVec *result, BitVec *a, BitVec *b) {
     ValidateBitVec(a);
     ValidateBitVec(b);
 
-    u64 max_len = MAX2(a->length, b->length);
-    if (!BitVecResize(result, max_len)) {
+    u64 a_len   = a->length;
+    u64 b_len   = b->length;
+    u64 a_bytes = BYTES_FOR_BITS(a_len);
+    u64 b_bytes = BYTES_FOR_BITS(b_len);
+    u64 out_len = MAX2(a_len, b_len);
+
+    if (!BitVecResize(result, out_len)) {
         return;
     }
 
-    for (u64 i = 0; i < max_len; i++) {
-        bool bit_a = i < a->length ? BitVecGet(a, i) : false;
-        bool bit_b = i < b->length ? BitVecGet(b, i) : false;
-        BitVecSet(result, i, bit_a || bit_b);
+    for (u64 k = 0; k < BYTES_FOR_BITS(out_len); k++) {
+        result->data[k] = (u8)(bitvec_byte(a->data, a_bytes, a_len, k) | bitvec_byte(b->data, b_bytes, b_len, k));
     }
+    bitvec_mask_tail(result->data, out_len);
 }
 
 void BitVecXor(BitVec *result, BitVec *a, BitVec *b) {
@@ -557,30 +615,37 @@ void BitVecXor(BitVec *result, BitVec *a, BitVec *b) {
     ValidateBitVec(a);
     ValidateBitVec(b);
 
-    u64 max_len = MAX2(a->length, b->length);
-    if (!BitVecResize(result, max_len)) {
+    u64 a_len   = a->length;
+    u64 b_len   = b->length;
+    u64 a_bytes = BYTES_FOR_BITS(a_len);
+    u64 b_bytes = BYTES_FOR_BITS(b_len);
+    u64 out_len = MAX2(a_len, b_len);
+
+    if (!BitVecResize(result, out_len)) {
         return;
     }
 
-    for (u64 i = 0; i < max_len; i++) {
-        bool bit_a = i < a->length ? BitVecGet(a, i) : false;
-        bool bit_b = i < b->length ? BitVecGet(b, i) : false;
-        BitVecSet(result, i, bit_a != bit_b);
+    for (u64 k = 0; k < BYTES_FOR_BITS(out_len); k++) {
+        result->data[k] = (u8)(bitvec_byte(a->data, a_bytes, a_len, k) ^ bitvec_byte(b->data, b_bytes, b_len, k));
     }
+    bitvec_mask_tail(result->data, out_len);
 }
 
 void BitVecNot(BitVec *result, BitVec *bitvec) {
     ValidateBitVec(result);
     ValidateBitVec(bitvec);
 
-    if (!BitVecResize(result, bitvec->length)) {
+    u64 len   = bitvec->length;
+    u64 bytes = BYTES_FOR_BITS(len);
+
+    if (!BitVecResize(result, len)) {
         return;
     }
 
-    for (u64 i = 0; i < bitvec->length; i++) {
-        bool bit = BitVecGet(bitvec, i);
-        BitVecSet(result, i, !bit);
+    for (u64 k = 0; k < bytes; k++) {
+        result->data[k] = (u8)~bitvec_byte(bitvec->data, bytes, len, k);
     }
+    bitvec_mask_tail(result->data, len);
 }
 
 bool BitVecEquals(const BitVec *bv1, const BitVec *bv2) {
