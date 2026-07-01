@@ -118,6 +118,7 @@ alloc_debug_tests = [
 
 iter_tests = [
     ['Iter', 'Std/Iter/Iter.c'],
+    ['StrIter', 'Std/Iter/StrIter.c'],
 ]
 
 iter_deadend_tests = [

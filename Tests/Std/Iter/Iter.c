@@ -12,6 +12,10 @@ static BufIter from_rev(const u8 *p, size n) {
     return it;
 }
 
+// A typed iter with a >1 element stride, used to exercise the byte-size
+// accessors (which scale length by ALIGN_UP(sizeof(T), alignment)).
+typedef Iter(u32) U32Iter;
+
 bool test_iter_remaining_forward(void) {
     const u8 buf[3] = {1, 2, 3};
     BufIter  it     = BufIterFromMemory(buf, 3);
@@ -363,6 +367,93 @@ bool test_remaining_reverse_pos_eq_length_is_zero(void) {
     return IterRemainingLength(&it) == 0;
 }
 
+// --- IterPos returns the live cursor pointer, NULL sentinel at EOF ---
+// The `IterRemainingLength ? ptr : NULL_ITER_DATA` ternary has two arms:
+// an in-range cursor yields &data[pos]; an exhausted one yields the typed
+// NULL. Mutating the guard collapses one arm into the other.
+bool test_iter_pos_current_and_exhausted(void) {
+    const u8 buf[2] = {40, 50};
+    BufIter  it     = BufIterFromMemory(buf, 2);
+    if (IterPos(&it) != &buf[0] || *IterPos(&it) != 40) {
+        return false;
+    }
+    IterMove(&it, 2); // exhaust
+    return IterPos(&it) == NULL_ITER_DATA(&it);
+}
+
+// --- IterDataAt is index-addressed and defined one past the end ---
+// Unlike IterPos it ignores the cursor: DataAt(i) is data + i for any
+// i in [0, length], including the one-past-end pointer at i == length.
+bool test_iter_data_at_index_and_end(void) {
+    const u8 buf[3] = {7, 8, 9};
+    BufIter  it     = BufIterFromMemory(buf, 3);
+    IterMove(&it, 1); // cursor moves; DataAt must ignore it
+    if (IterDataAt(&it, 0) != &buf[0] || *IterDataAt(&it, 2) != 9) {
+        return false;
+    }
+    return IterDataAt(&it, 3) == &buf[0] + 3;
+}
+
+// --- IterSize / IterRemainingSize scale length by the padded stride ---
+// Byte size is length * ALIGN_UP(sizeof(T), alignment). With a u32 iter
+// over an 8-aligned stride the multiplier is 8, so a dropped multiply or
+// a wrong stride is visible (3*8 == 24, not 3).
+bool test_iter_size_scales_by_stride(void) {
+    u32     arr[3] = {1, 2, 3};
+    U32Iter it     = {.data = arr, .length = 3, .pos = 0, .alignment = 8, .dir = 1};
+    if (IterSize(&it) != 24) {
+        return false;
+    }
+    IterMove(&it, 1);
+    // RemainingSize follows the cursor: 2 elements * 8-byte stride.
+    return IterRemainingSize(&it) == 16;
+}
+
+// --- IterTruncate caps reach; the tail past the new end is unreadable ---
+bool test_iter_truncate_caps_reads(void) {
+    const u8 buf[5] = {1, 2, 3, 4, 5};
+    BufIter  it     = BufIterFromMemory(buf, 5);
+    IterMove(&it, 1);     // cursor at index 1
+    IterTruncate(&it, 2); // only indices 1,2 remain reachable
+    if (IterRemainingLength(&it) != 2) {
+        return false;
+    }
+    u8 v = 0;
+    if (!IterRead(&it, &v) || v != 2) {
+        return false;
+    }
+    if (!IterRead(&it, &v) || v != 3) {
+        return false;
+    }
+    // Indices 3,4 are now past-the-end.
+    return !IterRead(&it, &v);
+}
+
+// --- IterCarve makes a child over [parent.pos, parent.pos + n) ---
+// The child starts at its own pos 0 and reading it leaves the parent's
+// cursor untouched.
+bool test_iter_carve_child_range(void) {
+    const u8 buf[4] = {10, 20, 30, 40};
+    BufIter  parent = BufIterFromMemory(buf, 4);
+    IterMove(&parent, 1); // parent cursor at index 1
+    BufIter child = IterCarve(&parent, 2);
+    if (IterRemainingLength(&child) != 2 || IterIndex(&child) != 0) {
+        return false;
+    }
+    u8 v = 0;
+    if (!IterRead(&child, &v) || v != 20) {
+        return false;
+    }
+    if (!IterRead(&child, &v) || v != 30) {
+        return false;
+    }
+    if (IterRead(&child, &v)) {
+        return false;
+    }
+    // Carving + reading the child must not disturb the parent.
+    return IterIndex(&parent) == 1;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting Iter tests\n\n");
     TestFunction tests[] = {
@@ -390,6 +481,11 @@ int main(void) {
         test_it_validate_accepts_forward,
         test_it_validate_accepts_reverse,
         test_remaining_reverse_pos_eq_length_is_zero,
+        test_iter_pos_current_and_exhausted,
+        test_iter_data_at_index_and_end,
+        test_iter_size_scales_by_stride,
+        test_iter_truncate_caps_reads,
+        test_iter_carve_child_range,
     };
     int total = sizeof(tests) / sizeof(tests[0]);
     return run_test_suite(tests, total, NULL, 0, "Iter");

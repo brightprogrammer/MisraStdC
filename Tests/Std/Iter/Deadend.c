@@ -69,6 +69,25 @@ bool deadend_it_validate_zero_alignment(void) {
     return true;
 }
 
+// --- deadend: remaining_length_iter aborts on an invalid direction ---
+// dir is neither 1 nor -1, so the function falls through both branches to
+// its LOG_FATAL. Constructed directly -- this path does not call
+// ValidateIter, so nothing catches the bad dir earlier.
+bool deadend_it_remaining_bad_dir(void) {
+    const u8 buf[2] = {1, 2};
+    BufIter  it     = {.data = buf, .length = 2, .pos = 0, .alignment = 1, .dir = 0};
+    (void)IterRemainingLength(&it);
+    return true;
+}
+
+// --- deadend: iter_try_move aborts on an invalid direction ---
+bool deadend_it_move_bad_dir(void) {
+    const u8 buf[2] = {1, 2};
+    BufIter  it     = {.data = buf, .length = 2, .pos = 0, .alignment = 1, .dir = 0};
+    (void)IterMove(&it, 1);
+    return true;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting Iter.Deadend tests\n\n");
     TestFunction tests[] = {
@@ -79,6 +98,8 @@ int main(void) {
         deadend_must_prev_underflow,
         deadend_it_validate_bad_dir,
         deadend_it_validate_zero_alignment,
+        deadend_it_remaining_bad_dir,
+        deadend_it_move_bad_dir,
     };
     int total = sizeof(tests) / sizeof(tests[0]);
     return run_test_suite(NULL, 0, tests, total, "Iter.Deadend");
