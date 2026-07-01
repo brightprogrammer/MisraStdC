@@ -24,9 +24,10 @@ typedef Vec(StrIter) StrIters;
 /// Not foolproof but will work most of the time.
 /// Aborts if provided `StrIter` is not valid.
 ///
-/// i[in] : Pointer to `StrIter` object to validate.
+/// si[in] : Pointer to `StrIter` object to validate.
 ///
-/// SUCCESS : Continue execution.
+/// SUCCESS : Continue execution; the given object is most probably a
+///           valid `StrIter`.
 /// FAILURE : `abort`
 ///
 /// TAGS: StrIter, Validate, API
@@ -34,7 +35,14 @@ typedef Vec(StrIter) StrIters;
 #define ValidateStrIter(si) ValidateIter(si)
 
 ///
-/// Validate whether a given `StrIters` object is valid.
+/// Validate whether a given `StrIters` object is valid. Alias for
+/// `ValidateVec`; see `ValidateVec` for the full contract.
+///
+/// siv[in] : Pointer to `StrIters` (`Vec(StrIter)`) object to validate.
+///
+/// SUCCESS : Continue execution; the given object is most probably a
+///           valid `StrIters` vector.
+/// FAILURE : `abort`
 ///
 /// TAGS: StrIter, Validate, API
 ///
@@ -48,6 +56,16 @@ typedef Vec(StrIter) StrIters;
 /// Move the `StrIter` cursor by signed offset `n`. Propagating alias
 /// for `IterMove`; see `IterMove` for the full contract.
 ///
+/// si[in] : Pointer to the `StrIter` cursor to move.
+/// n[in]  : Signed character offset; negative steps backward. The new
+///          position must land in `[0, length]` for a forward iter or in
+///          `[-1, length)` for a reverse iter (where `-1` is the
+///          past-start sentinel).
+///
+/// SUCCESS : Cursor position is updated; returns `true`.
+/// FAILURE : The target position would fall outside the valid range;
+///           position is unchanged, returns `false`.
+///
 /// TAGS: StrIter, Move, Position, Alias
 ///
 #define StrIterMove(si, n) IterMove((si), (n))
@@ -55,6 +73,13 @@ typedef Vec(StrIter) StrIters;
 ///
 /// Aborting variant of `StrIterMove`. Alias for `IterMustMove`; see
 /// `IterMustMove` for the full contract.
+///
+/// si[in] : Pointer to the `StrIter` cursor to move.
+/// n[in]  : Signed character offset; negative steps backward.
+///
+/// SUCCESS : Cursor position is updated; returns to the caller.
+/// FAILURE : Does not return -- aborts via `LOG_FATAL` when the target
+///           position would be out of range.
 ///
 /// TAGS: StrIter, Move, Must, Alias
 ///
@@ -64,6 +89,13 @@ typedef Vec(StrIter) StrIters;
 /// Advance one character. Propagating alias for `IterNext`; see
 /// `IterNext` for the full contract.
 ///
+/// si[in] : Pointer to the `StrIter` cursor to advance.
+///
+/// SUCCESS : Cursor advances one character in the iteration direction;
+///           returns `true`.
+/// FAILURE : Iterator is already exhausted; position is unchanged,
+///           returns `false`.
+///
 /// TAGS: StrIter, Next, Advance, Alias
 ///
 #define StrIterNext(si) IterNext((si))
@@ -71,6 +103,12 @@ typedef Vec(StrIter) StrIters;
 ///
 /// Aborting variant of `StrIterNext`. Alias for `IterMustNext`; see
 /// `IterMustNext` for the full contract.
+///
+/// si[in] : Pointer to the `StrIter` cursor to advance.
+///
+/// SUCCESS : Cursor advances one character; returns to the caller.
+/// FAILURE : Does not return -- aborts via `LOG_FATAL` when the iterator
+///           is already exhausted.
 ///
 /// TAGS: StrIter, Next, Must, Alias
 ///
@@ -80,6 +118,13 @@ typedef Vec(StrIter) StrIters;
 /// Step back one character. Propagating alias for `IterPrev`; see
 /// `IterPrev` for the full contract.
 ///
+/// si[in] : Pointer to the `StrIter` cursor to step back.
+///
+/// SUCCESS : Cursor steps back one character in the iteration direction;
+///           returns `true`.
+/// FAILURE : Stepping back would leave the valid range; position is
+///           unchanged, returns `false`.
+///
 /// TAGS: StrIter, Prev, Reverse, Alias
 ///
 #define StrIterPrev(si) IterPrev((si))
@@ -87,6 +132,12 @@ typedef Vec(StrIter) StrIters;
 ///
 /// Aborting variant of `StrIterPrev`. Alias for `IterMustPrev`; see
 /// `IterMustPrev` for the full contract.
+///
+/// si[in] : Pointer to the `StrIter` cursor to step back.
+///
+/// SUCCESS : Cursor steps back one character; returns to the caller.
+/// FAILURE : Does not return -- aborts via `LOG_FATAL` when stepping back
+///           would leave the valid range.
 ///
 /// TAGS: StrIter, Prev, Must, Alias
 ///
@@ -162,6 +213,12 @@ typedef Vec(StrIter) StrIters;
 /// with alignment 1, this matches the iterator's character length.
 /// See `IterSize` for the full contract.
 ///
+/// mi[in] : Pointer to the `StrIter` to measure.
+///
+/// SUCCESS : Returns the total region size in bytes covered by the
+///           iterator (equal to the character length).
+/// FAILURE : Macro cannot fail.
+///
 /// TAGS: StrIter, Size, Alias
 ///
 #define StrIterSize(mi) IterSize(mi)
@@ -170,6 +227,12 @@ typedef Vec(StrIter) StrIters;
 /// Remaining region size in bytes from the current position to the
 /// end of the iteration direction. Alias-reframe of `IterRemainingSize`
 /// in string vocabulary. See `IterRemainingSize` for the full contract.
+///
+/// mi[in] : Pointer to the `StrIter` to measure.
+///
+/// SUCCESS : Returns the number of bytes from the current position to
+///           the end of the iteration direction (`0` once exhausted).
+/// FAILURE : Macro cannot fail.
 ///
 /// TAGS: StrIter, Size, Remaining, Alias
 ///
@@ -180,6 +243,11 @@ typedef Vec(StrIter) StrIters;
 /// reframe of `IterLength` in string vocabulary. See `IterLength` for
 /// the full contract.
 ///
+/// mi[in] : Pointer to the `StrIter` to measure.
+///
+/// SUCCESS : Returns the total character length of the covered region.
+/// FAILURE : Macro cannot fail.
+///
 /// TAGS: StrIter, Length, Alias
 ///
 #define StrIterLength(mi) IterLength(mi)
@@ -188,6 +256,12 @@ typedef Vec(StrIter) StrIters;
 /// Characters remaining to read in the iteration direction. Alias-
 /// reframe of `IterRemainingLength` in string vocabulary. See
 /// `IterRemainingLength` for the full contract.
+///
+/// mi[in] : Pointer to the `StrIter` to measure.
+///
+/// SUCCESS : Returns the count of characters remaining to read in the
+///           iteration direction (`0` once past the end/start).
+/// FAILURE : Macro cannot fail.
 ///
 /// TAGS: StrIter, Length, Remaining, Alias
 ///
@@ -199,6 +273,13 @@ typedef Vec(StrIter) StrIters;
 /// Alias-reframe of `IterPos` in string vocabulary. See `IterPos` for
 /// the full contract.
 ///
+/// mi[in] : Pointer to the `StrIter` to query.
+///
+/// SUCCESS : Returns a pointer to the character at the current cursor
+///           position, or the `NULL_ITER_DATA(mi)` sentinel when the
+///           iterator is exhausted.
+/// FAILURE : Macro cannot fail.
+///
 /// TAGS: StrIter, Position, Alias
 ///
 #define StrIterPos(mi) IterPos(mi)
@@ -207,6 +288,11 @@ typedef Vec(StrIter) StrIters;
 /// Absolute cursor index within the `StrIter`'s backing region. Alias-
 /// reframe of `IterIndex` in string vocabulary. See `IterIndex` for
 /// the full contract.
+///
+/// mi[in] : Pointer to the `StrIter` to query.
+///
+/// SUCCESS : Returns the absolute cursor index within the backing region.
+/// FAILURE : Macro cannot fail.
 ///
 /// TAGS: StrIter, Position, Alias
 ///
@@ -218,6 +304,14 @@ typedef Vec(StrIter) StrIters;
 /// the one-past-end pointer at `idx == length` is the standard
 /// half-open-range upper bound and is well-defined. See `IterDataAt`
 /// for the full contract.
+///
+/// mi[in]  : Pointer to the `StrIter` whose backing region is addressed.
+/// idx[in] : Absolute index into the backing region; `idx == length`
+///           yields the well-defined one-past-end pointer.
+///
+/// SUCCESS : Returns a pointer to the character at absolute index `idx`.
+/// FAILURE : Macro cannot fail. Passing `idx > length` addresses past
+///           the end of the region (a usage error).
 ///
 /// TAGS: StrIter, Position, Alias
 ///
@@ -232,6 +326,14 @@ typedef Vec(StrIter) StrIters;
 /// Propagating alias for `IterRead`; see `IterRead` for the full
 /// contract.
 ///
+/// mi[in]    : Pointer to the `StrIter` to read from.
+/// out[out]  : Destination `char *`; receives the current character.
+///
+/// SUCCESS : `*out` is set, the cursor advances by one in the iteration
+///           direction, returns `true`.
+/// FAILURE : Iterator is exhausted; `*out` is not written, the cursor is
+///           unchanged, returns `false`.
+///
 /// TAGS: StrIter, Read, Advance, Alias
 ///
 #define StrIterRead(mi, out) IterRead((mi), (out))
@@ -239,6 +341,14 @@ typedef Vec(StrIter) StrIters;
 ///
 /// Aborting variant of `StrIterRead`. Alias for `IterMustRead`; see
 /// `IterMustRead` for the full contract.
+///
+/// mi[in]    : Pointer to the `StrIter` to read from.
+/// out[out]  : Destination `char *`; receives the current character.
+///
+/// SUCCESS : `*out` is set, the cursor advances by one; returns to the
+///           caller.
+/// FAILURE : Does not return -- aborts via `LOG_FATAL` when the iterator
+///           is exhausted.
 ///
 /// TAGS: StrIter, Read, Must, Alias
 ///
@@ -249,6 +359,14 @@ typedef Vec(StrIter) StrIters;
 /// Propagating alias for `IterPeekAt(mi, 0, out)`; see `IterPeekAt`
 /// for the full contract.
 ///
+/// mi[in]    : Pointer to the `StrIter` to peek into.
+/// out[out]  : Destination `char *`; receives the current character.
+///
+/// SUCCESS : `*out` is set to the current character; the cursor is not
+///           advanced; returns `true`.
+/// FAILURE : Iterator is exhausted; `*out` is not written, returns
+///           `false`.
+///
 /// TAGS: StrIter, Peek, Alias
 ///
 #define StrIterPeek(mi, out) IterPeekAt((mi), 0, (out))
@@ -256,6 +374,14 @@ typedef Vec(StrIter) StrIters;
 ///
 /// Aborting variant of `StrIterPeek`. Alias for `IterMustPeekAt(mi,
 /// 0, out)`; see `IterMustPeekAt` for the full contract.
+///
+/// mi[in]    : Pointer to the `StrIter` to peek into.
+/// out[out]  : Destination `char *`; receives the current character.
+///
+/// SUCCESS : `*out` is set to the current character; the cursor is not
+///           advanced; returns to the caller.
+/// FAILURE : Does not return -- aborts via `LOG_FATAL` when the iterator
+///           is exhausted.
 ///
 /// TAGS: StrIter, Peek, Must, Alias
 ///
@@ -266,6 +392,17 @@ typedef Vec(StrIter) StrIters;
 /// advancing. Propagating alias for `IterPeekAt`; see `IterPeekAt`
 /// for the full contract.
 ///
+/// mi[in]    : Pointer to the `StrIter` to peek into.
+/// n[in]     : Signed character offset along the iteration direction
+///             (scaled by `dir`); positive looks ahead in iteration
+///             order, negative looks behind.
+/// out[out]  : Destination `char *`; receives `data[pos + dir * n]`.
+///
+/// SUCCESS : `*out` is set to the character at `pos + dir * n`; the
+///           cursor is not advanced; returns `true`.
+/// FAILURE : `pos + dir * n` is outside `[0, length)`; `*out` is not
+///           written, returns `false`.
+///
 /// TAGS: StrIter, Peek, Offset, Alias
 ///
 #define StrIterPeekAt(mi, n, out) IterPeekAt((mi), (n), (out))
@@ -274,27 +411,58 @@ typedef Vec(StrIter) StrIters;
 /// Aborting variant of `StrIterPeekAt`. Alias for `IterMustPeekAt`;
 /// see `IterMustPeekAt` for the full contract.
 ///
+/// mi[in]    : Pointer to the `StrIter` to peek into.
+/// n[in]     : Signed character offset along the iteration direction
+///             (scaled by `dir`); positive looks ahead in iteration
+///             order, negative looks behind.
+/// out[out]  : Destination `char *`; receives `data[pos + dir * n]`.
+///
+/// SUCCESS : `*out` is set to the character at `pos + dir * n`; the
+///           cursor is not advanced; returns to the caller.
+/// FAILURE : Does not return -- aborts via `LOG_FATAL` when
+///           `pos + dir * n` is outside `[0, length)`.
+///
 /// TAGS: StrIter, Peek, Offset, Must, Alias
 ///
 #define StrIterMustPeekAt(mi, n, out) IterMustPeekAt((mi), (n), (out))
 
 ///
-/// Peek one position ahead in the iteration direction. Honours the
-/// iter's `dir` so that on a reverse iter "next" means the byte the
-/// cursor would land on after one `IterNext` step (i.e. behind the
-/// current position in memory), matching the forward-iter intuition.
+/// Peek one position ahead in the iteration direction, i.e. the
+/// character the cursor would land on after one `StrIterNext` step.
+/// `IterPeekAt` already scales the offset by `dir`, so this passes a
+/// plain `+1` and stays direction-correct for both forward and reverse
+/// iters.
+///
+/// mi[in]    : Pointer to the `StrIter` to peek into.
+/// out[out]  : Destination `char *`; receives the character one step
+///             ahead in the iteration direction.
+///
+/// SUCCESS : `*out` is set to the next character; the cursor is not
+///           advanced; returns `true`.
+/// FAILURE : That position is outside `[0, length)`; `*out` is not
+///           written, returns `false`.
 ///
 /// TAGS: StrIter, Peek, Next
 ///
-#define StrIterPeekNext(mi, out) IterPeekAt((mi), (mi)->dir, (out))
+#define StrIterPeekNext(mi, out) IterPeekAt((mi), 1, (out))
 
 ///
-/// Peek one position behind in the iteration direction. Honours the
-/// iter's `dir` so "prev" stays opposite of `StrIterPeekNext` for both
-/// forward and reverse iters.
+/// Peek one position behind in the iteration direction, i.e. the
+/// character just consumed by the previous `StrIterNext`. `IterPeekAt`
+/// scales the offset by `dir`, so this passes a plain `-1` and stays
+/// opposite of `StrIterPeekNext` for both forward and reverse iters.
+///
+/// mi[in]    : Pointer to the `StrIter` to peek into.
+/// out[out]  : Destination `char *`; receives the character one step
+///             behind in the iteration direction.
+///
+/// SUCCESS : `*out` is set to the previous character; the cursor is not
+///           advanced; returns `true`.
+/// FAILURE : That position is outside `[0, length)`; `*out` is not
+///           written, returns `false`.
 ///
 /// TAGS: StrIter, Peek, Prev
 ///
-#define StrIterPeekPrev(mi, out) IterPeekAt((mi), -((mi)->dir), (out))
+#define StrIterPeekPrev(mi, out) IterPeekAt((mi), -1, (out))
 
 #endif // MISRA_STD_UTILITY_STR_ITER_H

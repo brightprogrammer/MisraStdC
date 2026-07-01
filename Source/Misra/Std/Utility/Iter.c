@@ -27,16 +27,17 @@ size remaining_length_iter(GenericIter *mi) {
 }
 
 size iter_peek_index(GenericIter *it, i64 n) {
-    // Compute pos + n in signed space, then bounds-check. The past-end
-    // sentinel for reverse iteration is the unsigned wrap of -1, so we
-    // need to read pos as signed when reasoning about offsets.
+    // Resolve the element `n` steps along the iteration direction: the
+    // offset is scaled by `dir` so a peek of `n` lands where a move of
+    // `n` would (mirrors `iter_try_move`). Work in signed space because
+    // the reverse past-start sentinel is the unsigned wrap of -1.
     i64 cur;
     if (it->dir == -1 && it->pos == (size)-1) {
         cur = -1;
     } else {
         cur = (i64)it->pos;
     }
-    i64 target = cur + n;
+    i64 target = cur + (i64)it->dir * n;
     if (target < 0 || target >= (i64)it->length) {
         return (size)-1;
     }

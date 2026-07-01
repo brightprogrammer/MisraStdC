@@ -128,12 +128,16 @@
     } while (0)
 
 ///
-/// Propagating peek at signed offset `n` from the current position.
-/// Does not advance the iterator. Writes `data[pos + n]` to `*out`.
+/// Propagating peek at signed offset `n` along the iteration direction
+/// from the current position. `n` is scaled by `dir` so a peek of `n`
+/// targets the element a move of `n` would land on -- `n > 0` looks
+/// ahead in iteration order, `n < 0` looks behind, for both forward and
+/// reverse iters. Does not advance the iterator. Writes the element at
+/// `pos + dir * n` to `*out`.
 ///
 /// SUCCESS : `*out` is set, returns `true`.
-/// FAILURE : `pos + n` is outside `[0, length)`. `*out` is not written,
-///           returns `false`.
+/// FAILURE : `pos + dir * n` is outside `[0, length)`. `*out` is not
+///           written, returns `false`.
 ///
 /// TAGS: Memory, Peek, Iter
 ///

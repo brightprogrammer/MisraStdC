@@ -10,7 +10,8 @@
 size remaining_length_iter(GenericIter *it);
 
 ///
-/// Validate that an in-range index can be read at offset `n` (signed)
+/// Validate that an in-range index can be read at offset `n` (signed,
+/// scaled by `dir` so the offset runs along the iteration direction)
 /// from the current position. Returns the absolute index on success,
 /// or `(size)-1` if the offset would land outside `[0, length)`.
 ///

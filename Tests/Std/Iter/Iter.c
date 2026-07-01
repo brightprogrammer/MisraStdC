@@ -222,9 +222,10 @@ bool test_iter_next_prev(void) {
     return !IterPrev(&it);
 }
 
-// --- iter_peek_index: reverse past-start sentinel handling (34:17, 35:13) ---
-// From the reverse sentinel (pos == (size)-1, cur == -1) a peek of +1 must
-// resolve to index 0. If `dir == -1` is mutated to `!=`, or `cur = -1`
+// --- iter_peek_index: reverse past-start sentinel handling (35:17, 36:13) ---
+// From the reverse sentinel (pos == (size)-1, cur == -1) the peek offset is
+// scaled by `dir`, so a peek of -1 (one step back from exhaustion, delta +1)
+// resolves to index 0. If `dir == -1` is mutated to `!=`, or `cur = -1`
 // becomes `cur = 42`, the computed base is wrong and the peek fails.
 bool test_it_peek_from_reverse_sentinel(void) {
     const u8 buf[3] = {10, 20, 30};
@@ -235,15 +236,15 @@ bool test_it_peek_from_reverse_sentinel(void) {
         return false;
     }
     u8 v = 0;
-    // cur == -1, n == 1 -> target index 0 (value 10).
-    if (!IterPeekAt(&it, 1, &v) || v != 10) {
+    // cur == -1, dir == -1, n == -1 -> target -1 + (-1)*(-1) = index 0 (value 10).
+    if (!IterPeekAt(&it, -1, &v) || v != 10) {
         return false;
     }
-    // cur == -1, n == 3 -> target index 2 (value 30).
-    return IterPeekAt(&it, 3, &v) && v == 30;
+    // cur == -1, dir == -1, n == -3 -> target -1 + (-1)*(-3) = index 2 (value 30).
+    return IterPeekAt(&it, -3, &v) && v == 30;
 }
 
-// --- iter_peek_index: reverse non-sentinel uses real pos (34:34) ---
+// --- iter_peek_index: reverse non-sentinel uses real pos (35:34) ---
 // A reverse iter NOT at the sentinel (pos == 2) must peek from pos, not -1.
 // Mutating `pos == (size)-1` to `!=` forces the `cur = -1` branch here.
 bool test_it_peek_reverse_nonsentinel_uses_pos(void) {
@@ -257,8 +258,8 @@ bool test_it_peek_reverse_nonsentinel_uses_pos(void) {
     if (!IterPeekAt(&it, 0, &v) || v != 30) {
         return false;
     }
-    // cur == 2, n == -2 -> index 0 (value 10).
-    return IterPeekAt(&it, -2, &v) && v == 10;
+    // cur == 2, dir == -1, n == 2 -> target 2 + (-1)*2 = index 0 (value 10).
+    return IterPeekAt(&it, 2, &v) && v == 10;
 }
 
 // --- iter_try_move: reverse move out of the sentinel (48:17, 49:13) ---
