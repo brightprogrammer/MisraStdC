@@ -5,7 +5,9 @@
 /// CalC -- a small immediate-mode calculator, the running playground for the
 /// parser-combinator DSL. It parses and evaluates as it reads (no AST): every
 /// rule folds its result straight into a `Num`. Variables live in the grammar
-/// context, so a result can be named and reused on a later line.
+/// context, and errors are collected greedily: a broken sub-expression records a
+/// `PcReport`, poisons its value, and parsing continues, so one line reports as
+/// many problems as it has.
 ///
 ///   line           = assignment | expr
 ///   assignment     = identifier '=' expr           (stores into ctx->vars)
@@ -17,12 +19,10 @@
 ///   number         = digit+ ( '.' digit+ )?        (int, or float if a '.')
 ///   identifier     = letter+                        (a variable name)
 ///
-/// Whitespace is scannerless: each token consumes trailing whitespace and the
-/// top rule skips leading whitespace once. `pi` and `e` are seeded variables.
-///
 
 typedef struct Num {
     bool is_float;
+    bool is_error; ///< poison: a broken sub-expression; propagates, never aborts
     union {
         i64 i;
         f64 f;
@@ -30,49 +30,63 @@ typedef struct Num {
 } Num;
 
 static Num num_int(i64 v) {
-    return (Num) {.is_float = false, .i = v};
+    return (Num) {.i = v};
 }
 static Num num_flt(f64 v) {
     return (Num) {.is_float = true, .f = v};
 }
+static Num num_poison(void) {
+    return (Num) {.is_error = true};
+}
 static f64 num_f(Num n) {
     return n.is_float ? n.f : (f64)n.i;
 }
+static bool num_is_zero(Num n) {
+    return n.is_float ? (n.f == 0.0) : (n.i == 0);
+}
 
 static Num num_add(Num a, Num b) {
+    if (a.is_error || b.is_error)
+        return num_poison();
     return (a.is_float || b.is_float) ? num_flt(num_f(a) + num_f(b)) : num_int(a.i + b.i);
 }
 static Num num_sub(Num a, Num b) {
+    if (a.is_error || b.is_error)
+        return num_poison();
     return (a.is_float || b.is_float) ? num_flt(num_f(a) - num_f(b)) : num_int(a.i - b.i);
 }
 static Num num_mul(Num a, Num b) {
+    if (a.is_error || b.is_error)
+        return num_poison();
     return (a.is_float || b.is_float) ? num_flt(num_f(a) * num_f(b)) : num_int(a.i * b.i);
 }
 static Num num_div(Num a, Num b) {
-    if (a.is_float || b.is_float) {
-        f64 d = num_f(b);
-        return num_flt(d != 0.0 ? num_f(a) / d : 0.0);
-    }
-    return num_int(b.i != 0 ? a.i / b.i : 0);
+    if (a.is_error || b.is_error || num_is_zero(b))
+        return num_poison();
+    return (a.is_float || b.is_float) ? num_flt(num_f(a) / num_f(b)) : num_int(a.i / b.i);
 }
 static Num num_mod(Num a, Num b) {
-    if (a.is_float || b.is_float)
-        return num_flt(0.0);
-    return num_int(b.i != 0 ? a.i % b.i : 0);
+    if (a.is_error || b.is_error || num_is_zero(b) || a.is_float || b.is_float)
+        return num_poison();
+    return num_int(a.i % b.i);
 }
 static Num num_neg(Num a) {
+    if (a.is_error)
+        return num_poison();
     return a.is_float ? num_flt(-a.f) : num_int(-a.i);
 }
 
 typedef Map(Str, Num) Vars;
+typedef Vec(PcReport) Reports;
 
 ///
-/// The grammar context threaded through every parser as `ctx`. For CalC it is
-/// the variable environment; the map owns its allocator (and deep-copies names),
-/// so a later grammar's `ctx` is where an AST root / arena would join it.
+/// The grammar context threaded through every parser as `ctx`: the variable
+/// environment plus the diagnostics sink the `PcReport*` macros append to. Both
+/// are containers that carry their own allocator.
 ///
 typedef struct ParserCtx {
-    Vars vars;
+    Vars    vars;
+    Reports reports;
 } ParserCtx;
 
 PcRecognizer(WsChar);
@@ -139,8 +153,8 @@ PcParser(SignCh, char) {
     }
 }
 
-/// number = digit+ ( '.' digit+ )?  -- accumulated char-by-char into a Str, then
-/// converted by the library's own parser; int unless a '.' makes it a float
+/// number = digit+ ( '.' digit+ )?  -- accumulated into a Str, converted by the
+/// library parser; a value that does not fit is reported and poisoned, not aborted
 PcParser(Number, Num) {
     char d;
     bool is_float = false;
@@ -160,12 +174,20 @@ PcParser(Number, Num) {
             }
             if (is_float) {
                 f64 f = 0;
-                StrToF64(&tok, &f, NULL);
-                *value = num_flt(f);
+                if (StrToF64(&tok, &f, NULL))
+                    *value = num_flt(f);
+                else {
+                    PcReportError("malformed number");
+                    *value = num_poison();
+                }
             } else {
                 u64 u = 0;
-                StrToU64(&tok, &u, NULL);
-                *value = num_int((i64)u);
+                if (StrToU64(&tok, &u, NULL))
+                    *value = num_int((i64)u);
+                else {
+                    PcReportError("number does not fit in an integer");
+                    *value = num_poison();
+                }
             }
         }
         PcRecognize(Ws);
@@ -185,15 +207,18 @@ PcParser(Identifier, Str) {
     }
 }
 
-/// variable reference: look the name up in the environment; undefined -> reject
+/// variable reference: look the name up; undefined -> report and poison (keep going)
 PcParser(VarRef, Num) {
     PcSeq() {
         StrInitStack(name, 64) {
             PcMatch(Identifier, &name);
             Num *slot = MapGetFirstPtr(&ctx->vars, name);
-            if (!slot)
-                PcReject();
-            *value = *slot;
+            if (slot)
+                *value = *slot;
+            else {
+                PcReportError("undefined variable");
+                *value = num_poison();
+            }
         }
     }
 }
@@ -247,7 +272,15 @@ PcParser(Multiplicative, Num) {
         PcMatch(Unary, value);
         PcMany(MulOp, &op) {
             PcMatch(Unary, &rhs);
-            *value = (op == '*') ? num_mul(*value, rhs) : (op == '/') ? num_div(*value, rhs) : num_mod(*value, rhs);
+            bool fresh = !value->is_error && !rhs.is_error;
+            if (fresh && (op == '/' || op == '%') && num_is_zero(rhs)) {
+                PcReportError("division by zero");
+                *value = num_poison();
+            } else if (fresh && op == '%' && (value->is_float || rhs.is_float)) {
+                PcReportError("modulo needs integer operands");
+                *value = num_poison();
+            } else
+                *value = (op == '*') ? num_mul(*value, rhs) : (op == '/') ? num_div(*value, rhs) : num_mod(*value, rhs);
         }
     }
 }
@@ -276,7 +309,10 @@ PcParser(Assignment, Num) {
             PcMatch(Identifier, &name);
             PcMatch(Sym, '=', &eq);
             PcMatch(Expr, value);
-            (void)MapInsertR(&ctx->vars, name, *value);
+            // upsert (the map is a multimap, so replace rather than add a duplicate); a broken
+            // result does not bind the name
+            if (!value->is_error)
+                MapSetOnlyR(&ctx->vars, name, *value);
         }
     }
 }
@@ -298,28 +334,66 @@ PcParser(Calc, Num) {
 /// bind a predefined variable; the map deep-copies the key, so the temporary is freed
 static void seed(Vars *vars, HeapAllocator *heap, Zstr name, Num v) {
     Str key = StrInitFromCstr(name, ZstrLen(name), heap);
-    (void)MapInsertR(vars, key, v);
+    MapInsertR(vars, key, v);
     StrDeinit(&key);
 }
 
-static void eval_line(ParserCtx *ctx, const char *src, u64 len) {
-    StrIter        in  = StrIterFromCstr((char *)src, len);
+static Zstr level_word(ReportLevel level) {
+    switch (level) {
+        case REPORT_ERROR :
+            return "error";
+        case REPORT_WARN :
+            return "warning";
+        default :
+            return "note";
+    }
+}
+
+/// draw each report rustc-style: level + message, the source line, then carets
+/// under its span. Parsers never touch this -- they only record a `PcReport`.
+static void render(Str *src, Reports *reports) {
+    const char *bytes = StrBegin(src);
+    for (u64 r = 0; r < VecLen(reports); r++) {
+        PcReport rep = VecAt(reports, r);
+        u64      end = rep.end;
+        while (end > rep.start && (bytes[end - 1] == ' ' || bytes[end - 1] == '\t'))
+            end--;
+        WriteFmtLn("{}: {}", level_word(rep.level), rep.message);
+        WriteFmtLn("  {}", *src);
+        StrInitStack(caret, 512) {
+            char space = ' ', hat = '^';
+            for (u64 c = 0; c < rep.start; c++)
+                StrPushBackR(&caret, space);
+            for (u64 c = rep.start; c < end; c++)
+                StrPushBackR(&caret, hat);
+            WriteFmtLn("  {}", caret);
+        }
+    }
+}
+
+static void eval_line(ParserCtx *ctx, Str *line) {
+    VecClear(&ctx->reports);
+    StrIter        in  = StrIterFromStr(*line);
     Num            out = {0};
     PcParserStatus st  = PcRun(Calc, &in, &out);
-    if ((st & PC_PARSER_STATUS_SUCCESS) && in.pos == in.length) {
+    if (VecLen(&ctx->reports) > 0)
+        render(line, &ctx->reports);
+    else if ((st & PC_PARSER_STATUS_SUCCESS) && !StrIterRemainingLength(&in)) {
         if (out.is_float)
-            LOG_INFO("{}", out.f);
+            WriteFmtLn("{}", out.f);
         else
-            LOG_INFO("{}", out.i);
-    } else {
-        LOG_INFO("error at column {}", in.pos + 1);
-    }
+            WriteFmtLn("{}", out.i);
+    } else
+        WriteFmtLn("error at column {}", StrIterIndex(&in) + 1);
 }
 
 int main(int argc, char **argv) {
     HeapAllocator heap = HeapAllocatorInit();
 
-    ParserCtx ctx = {.vars = MapInitWithDeepCopy(str_hash, str_compare, str_init_copy, str_deinit, NULL, NULL, &heap)};
+    ParserCtx ctx = {
+        .vars    = MapInitWithDeepCopy(str_hash, str_compare, str_init_copy, str_deinit, NULL, NULL, &heap),
+        .reports = VecInit(&heap),
+    };
     seed(&ctx.vars, &heap, "pi", num_flt(3.14159265358979323846));
     seed(&ctx.vars, &heap, "e", num_flt(2.71828182845904523536));
 
@@ -333,11 +407,14 @@ int main(int argc, char **argv) {
         status = 1;
     } else if (rc != ARG_RUN_HELP) {
         if (expr != NULL) {
-            eval_line(&ctx, expr, ZstrLen(expr));
+            Str cmd = StrInitFromCstr(expr, ZstrLen(expr), &heap);
+            eval_line(&ctx, &cmd);
+            StrDeinit(&cmd);
         } else {
             File fin = FileStdin();
             StrInitStack(line, 4096) {
                 for (;;) {
+                    WriteFmt("> ");
                     StrClear(&line);
                     bool eof = false;
                     for (;;) {
@@ -352,15 +429,18 @@ int main(int argc, char **argv) {
                         StrPushBack(&line, c);
                     }
                     if (StrLen(&line) > 0)
-                        eval_line(&ctx, StrBegin(&line), StrLen(&line));
-                    if (eof)
+                        eval_line(&ctx, &line);
+                    if (eof) {
+                        WriteFmtLn("");
                         break;
+                    }
                 }
             }
         }
     }
 
     ArgParseDeinit(&args);
+    VecDeinit(&ctx.reports);
     MapDeinit(&ctx.vars);
     HeapAllocatorDeinit(&heap);
     return status;

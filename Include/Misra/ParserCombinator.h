@@ -127,12 +127,34 @@ enum {
 };
 
 ///
+/// Diagnostics. Error reporting is a shared model, not per-grammar: a parser records what it has
+/// to say (a level + a span into the input + its own words) and stays out of the rendering. The
+/// grammar author never draws a caret or computes a column -- a renderer turns these into output.
+/// Reporting does NOT unwind (it is not "raise"): a rule records a `PcReport`, substitutes a
+/// placeholder/poison value, and keeps parsing, so one input yields as many errors as possible.
+///
+typedef enum {
+    REPORT_INFO,
+    REPORT_WARN,
+    REPORT_ERROR
+} ReportLevel;
+
+typedef struct PcReport {
+    u64         start;   ///< span start, an index into the input (see `IterIndex`)
+    u64         end;     ///< span end, exclusive
+    ReportLevel level;
+    Zstr        message; ///< the parser's words; the specifics show under the caret
+} PcReport;
+
+///
 /// ParserCtx is NOT defined here. Each grammar (a C parser, a JSON parser, ...) declares its
 /// own `typedef struct { ... } ParserCtx;` before using `PcParser`, and threads a pointer to
 /// it through every parser as `ctx`. It carries whatever the grammar needs to build output as
 /// it parses, typically:
 ///   - an `Allocator *` the parsers allocate AST nodes from (giving them a lifetime beyond the
-///     parse), and
+///     parse),
+///   - a `Vec(PcReport) reports;` sink the `PcReport*` macros append to (required by those
+///     macros), and
 ///   - the growing root of the AST / a symbol table for context-sensitive rules.
 /// The combinator only forwards `ctx`; it never looks inside it.
 ///
@@ -292,6 +314,21 @@ enum {
 #define PcReject() return PC_CONSUMED(pc_seq.start) | PC_PARSER_STATUS_FAILED
 
 ///
+/// Record a diagnostic and KEEP GOING -- the greedy alternative to `PcReject`. Appends a
+/// `PcReport` (spanning what the current `PcSeq` frame has consumed so far) to `ctx->reports`,
+/// then returns nothing, so the rule substitutes a poison value and parsing continues to collect
+/// more errors. `ctx` must carry a `Vec(PcReport) reports;`. A `PcSeq` step, like `PcReject`.
+///
+#define PcReportError(Msg) PC_REPORT(REPORT_ERROR, Msg)
+#define PcReportWarn(Msg)  PC_REPORT(REPORT_WARN, Msg)
+#define PcReportInfo(Msg)  PC_REPORT(REPORT_INFO, Msg)
+#define PC_REPORT(Level, Msg)                                                                                          \
+    VecPushBack(                                                                                                       \
+        &ctx->reports,                                                                                                 \
+        ((PcReport) {.start = (pc_seq.start).pos, .end = IterIndex(in), .level = (Level), .message = (Msg)})           \
+    )
+
+///
 /// PcMany: zero-or-more. Run parser `Name` repeatedly; the body runs once per match. A match
 /// that consumed nothing would spin forever, so the loop stops on it (it never aborts and never
 /// allocates); the failing/empty iteration is rewound so its bytes are not eaten. Always
@@ -307,11 +344,18 @@ enum {
 ///
 /// PcOpt: zero-or-one. Try parser `Name`; if it matches, run the body once (the parsed value is
 /// available through whatever output pointer was passed). If it does not match, rewind and skip
-/// the body. Never fails the sequence -- it is a step that is simply optional.
+/// the body. Never fails the sequence -- it is a step that is simply optional. Like `PcMany`, it
+/// is one `for` statement with its bookkeeping in the loop scope, so it nests, sits next to other
+/// steps on the same line, and takes an unbraced body without a dangling-`else` surprise.
 ///
 #define PcOpt(Name, ...)                                                                                               \
-    StrIter UNPL(pc_opt_) = *in;                                                                                       \
-    if ((PcParse(Name, __VA_ARGS__) & PC_PARSER_STATUS_SUCCESS) ? true : (*in = UNPL(pc_opt_), false))
+    for (struct {                                                                                                      \
+             StrIter mark;                                                                                             \
+             bool    ran;                                                                                              \
+         } UNPL(pc_opt_) = {*in, false};                                                                               \
+         !UNPL(pc_opt_).ran &&                                                                                         \
+         ((UNPL(pc_opt_).ran = true),                                                                                  \
+          (PcParse(Name, __VA_ARGS__) & PC_PARSER_STATUS_SUCCESS) ? true : (*in = UNPL(pc_opt_).mark, false));)
 
 ///
 /// PcRecognizeMany: the recognizer-flavoured `PcMany` -- a whole recognizer body that runs a
@@ -397,11 +441,13 @@ enum {
 /// FAILURE: `Expect` was not present; nothing consumed; returns FAILED.
 ///
 #define PcSatisfyStr(Expect)                                                                                           \
-    u64  UNPL(pc_ss_len) = ZstrLen(Expect);                                                                            \
+    Zstr UNPL(pc_ss_exp) = (Expect);                                                                                   \
+    u64  UNPL(pc_ss_len) = ZstrLen(UNPL(pc_ss_exp));                                                                   \
     bool UNPL(pc_ss_ok)  = true;                                                                                       \
     for (u64 UNPL(pc_ss_i) = 0; UNPL(pc_ss_i) < UNPL(pc_ss_len); UNPL(pc_ss_i)++) {                                    \
         char UNPL(pc_ss_c);                                                                                            \
-        if (!StrIterPeekAt(in, (i64)UNPL(pc_ss_i), &UNPL(pc_ss_c)) || UNPL(pc_ss_c) != (Expect)[UNPL(pc_ss_i)]) {      \
+        if (!StrIterPeekAt(in, (i64)UNPL(pc_ss_i), &UNPL(pc_ss_c)) ||                                                  \
+            UNPL(pc_ss_c) != UNPL(pc_ss_exp)[UNPL(pc_ss_i)]) {                                                         \
             UNPL(pc_ss_ok) = false;                                                                                    \
             break;                                                                                                     \
         }                                                                                                              \

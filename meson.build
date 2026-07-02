@@ -742,6 +742,22 @@ if opt_sys_dns
     )
 endif
 
+# calc: an immediate-mode parser-combinator calculator (Bin/CalC.c) -- the
+# worked example / playground for Include/Misra/ParserCombinator.h. Built and
+# kept green by the tree, but not installed: it demonstrates the DSL, it is not
+# a shipping utility. Needs Map (variables) and File (the stdin REPL).
+if opt_map and opt_file
+    executable(
+        'calc',
+        files('Bin/CalC.c') + freestanding_extra_sources,
+        link_with: [misra_std],
+        c_args: common_c_args,
+        include_directories: inc_misra,
+        install: false,
+        link_args: freestanding_link_args
+    )
+endif
+
 # Fuzzing harness pulls in List explicitly through Fuzz/Harness/ListInt.c.
 if opt_list
     executable(
