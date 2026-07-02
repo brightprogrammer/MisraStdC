@@ -39,7 +39,7 @@
 #define VecInsertL(v, lval, idx)                                                                                       \
     (ValidateVec(v),                                                                                                   \
      CHECK_TYPE_EQUIVALENCE(TYPE_OF(lval), VEC_DATATYPE(v)),                                                           \
-     vec_insert_one_l(GENERIC_VEC(v), &LVAL_AS(VEC_DATATYPE(v), lval), &(lval), sizeof(VEC_DATATYPE(v)), (idx), true))
+     vec_insert_one_l(GENERIC_VEC(v), &(lval), sizeof(VEC_DATATYPE(v)), (idx), true))
 
 ///
 /// Insert a single element at the given index, preserving order of trailing
@@ -101,14 +101,7 @@
 #define VecInsertFastL(v, lval, idx)                                                                                   \
     (ValidateVec(v),                                                                                                   \
      CHECK_TYPE_EQUIVALENCE(TYPE_OF(lval), VEC_DATATYPE(v)),                                                           \
-     vec_insert_one_l(                                                                                                 \
-         GENERIC_VEC(v),                                                                                               \
-         &LVAL_AS(VEC_DATATYPE(v), lval),                                                                              \
-         &(lval),                                                                                                      \
-         sizeof(VEC_DATATYPE(v)),                                                                                      \
-         (idx),                                                                                                        \
-         false                                                                                                         \
-     ))
+     vec_insert_one_l(GENERIC_VEC(v), &(lval), sizeof(VEC_DATATYPE(v)), (idx), false))
 
 ///
 /// Insert a single element using fast (order-not-preserving) placement.

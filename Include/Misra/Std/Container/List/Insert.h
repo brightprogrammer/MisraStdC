@@ -33,7 +33,7 @@
 #define ListInsertL(l, lval, idx)                                                                                      \
     (ValidateList(l),                                                                                                  \
      CHECK_TYPE_EQUIVALENCE(TYPE_OF(lval), LIST_DATA_TYPE(l)),                                                         \
-     list_insert_one_l(GENERIC_LIST(l), &LVAL_AS(LIST_DATA_TYPE(l), lval), &(lval), sizeof(LIST_DATA_TYPE(l)), (idx)))
+     list_insert_one_l(GENERIC_LIST(l), &(lval), sizeof(LIST_DATA_TYPE(l)), (idx)))
 
 ///
 /// Insert a single element at the given index. R-value form: source is treated
