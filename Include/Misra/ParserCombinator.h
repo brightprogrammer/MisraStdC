@@ -90,7 +90,7 @@
 /// it to a representation that any phase after parsing can use and analyze. This may heavily
 /// depend on the language being parsed.
 ///
-/// The mechanism this library uses is a per-grammar context (`ParserCtx`, see below) threaded
+/// The mechanism this library uses is a per-grammar context (`PcParserCtx`, see below) threaded
 /// through every parser. The grammar author places their in-progress structure (an AST root,
 /// symbol tables, ...) and an allocator on it, so parsers can build long-lived output as the
 /// input is consumed -- immediate-mode parsing with no separate tree-walking pass.
@@ -147,16 +147,67 @@ typedef struct PcReport {
 } PcReport;
 
 ///
-/// ParserCtx is NOT defined here. Each grammar (a C parser, a JSON parser, ...) declares its
-/// own `typedef struct { ... } ParserCtx;` before using `PcParser`, and threads a pointer to
-/// it through every parser as `ctx`. It carries whatever the grammar needs to build output as
-/// it parses, typically:
-///   - an `Allocator *` the parsers allocate AST nodes from (giving them a lifetime beyond the
-///     parse),
-///   - a `Vec(PcReport) reports;` sink the `PcReport*` macros append to (required by those
-///     macros), and
-///   - the growing root of the AST / a symbol table for context-sensitive rules.
-/// The combinator only forwards `ctx`; it never looks inside it.
+/// The parser context and its savepoint contract
+/// ==============================================
+///
+/// `PcParserCtx` is NOT defined here. Each grammar (a C parser, a JSON parser, ...) declares its
+/// own `typedef struct { ... } PcParserCtx;` before using `PcParser`, and it is threaded through
+/// every parser as `ctx`. It carries whatever the grammar accumulates as it parses -- typically an
+/// allocator, a `Vec(PcReport) reports;` sink (required by the `PcReport*` macros), and any
+/// context-sensitive state the grammar discovers along the way (a symbol table, the set of typedef
+/// names, ...). The combinator only forwards `ctx`; it never looks inside it.
+///
+/// Because a backtracking parser abandons speculative attempts, any state a parser writes into
+/// `ctx` while trying an alternative that later fails must be undone -- otherwise a rule that
+/// discovered a symbol on a path the parse did not take would leave that symbol behind. The DSL
+/// undoes it automatically, provided the grammar supplies a small savepoint contract next to its
+/// `PcParserCtx`:
+///
+///   - a type  `PcParserCtxMark`                                     an opaque saved-state handle.
+///   - a func  `PcParserCtxMark PcParserCtxSnapshot(PcParserCtx *ctx)`
+///                                                                    capture the current context.
+///   - a func  `void PcParserCtxRollback(PcParserCtx *ctx, PcParserCtxMark mark)`
+///                                                                    restore a previously captured
+///                                                                    context.
+///
+/// The grammar author writes ONLY the context mutations (bind a symbol, record a type). The author
+/// never calls snapshot or rollback -- the combinators do, around every attempt that may be
+/// abandoned. The division of labour is: you mutate, the DSL saves and restores.
+///
+/// Contract -- what the two functions must guarantee
+/// -------------------------------------------------
+/// Picture the context as a state machine with three states, relative to the most recent mark:
+///
+///     SETTLED   no mark outstanding; the context is the committed baseline.
+///     MARKED    a mark is held and the context still equals it (nothing changed since).
+///     DIRTY     a mark is held and the context has changed since it was taken.
+///
+///                     Snapshot                    (a mutation)
+///     SETTLED  ------------------>   MARKED   ------------------->   DIRTY --.
+///        ^                             |                              |  <--' (a mutation)
+///        |          Rollback(mark)     |          Rollback(mark)      |
+///        '-----------------------------+------------------------------'
+///
+///   - Snapshot does NOT change the context; it returns a mark bound to the current state.
+///   - A mutation is the whole CLASS of context-changing operations the grammar performs; every one
+///     must be reversible with respect to every outstanding mark.
+///   - Rollback(mark) restores the context to exactly what it was when `mark` was taken, however
+///     many mutations happened since. A mark may be rolled back to more than once (an alternation
+///     rewinds to the same mark once per failing arm), so rollback must be repeatable.
+///
+/// How the combinators use it during backtracking
+/// ----------------------------------------------
+/// Before a combinator tries an attempt it might abandon -- an arm of a `PcChoice`, the body of a
+/// `PcOpt`, one round of a `PcMatchZeroOrMore`/`PcMatchOneOrMore` -- it takes a mark. If the attempt is abandoned (an arm
+/// fails without committing, an optional is absent, a repetition stops), the context is rolled back
+/// to that mark, so a failed attempt leaves the context exactly as it found it. If the attempt
+/// commits (it consumed input and belongs to the parse), its mutations stay. A grammar therefore
+/// reads and writes `ctx` as ordinary imperative code and still parses soundly under backtracking,
+/// with no manual save or restore anywhere in the grammar.
+///
+/// The `reports` sink is deliberately OUTSIDE this contract: diagnostics accumulate monotonically
+/// and are never rolled back, so an error explaining why a branch failed survives even after the
+/// parser backtracks past it. Snapshot and rollback concern the grammar's semantic state only.
 ///
 
 /// Mangled name of the parser function for rule `Name`.
@@ -177,7 +228,7 @@ typedef struct PcReport {
 ///   PcParse(Name, Out)      -> pc_parser_Name(in, ctx, Out)
 ///   PcParse(Name, In, Out)  -> pc_parser_Name(in, ctx, In, Out)
 ///
-/// Used internally by `PcMatch`/`PcAlt`/`PcMany`/`PcOpt`; call it directly only to delegate one
+/// Used internally by `PcMatch`/`PcAlt`/`PcMatchOneOrMore`/`PcOpt`; call it directly only to delegate one
 /// rule wholesale to another (`return PcParse(Other, value);`). Because an output parser always
 /// carries the output argument, this family never sees an empty argument list -- so there is no
 /// `__VA_OPT__` here (the recognizer family below has none either, for the same reason: every
@@ -192,8 +243,8 @@ typedef struct PcReport {
 /// the "validator" style. Identical to the `PcParser`/`PcParse` family with the trailing output
 /// slot removed, so the arities shift down by one: 1-arg (no input) or 2-arg (an input to match).
 ///
-///   PcRecognizer(Name)       -> (StrIter *in, ParserCtx *ctx)               define, no input
-///   PcRecognizer(Name, InT)  -> (StrIter *in, ParserCtx *ctx, InT expect)   define, one input
+///   PcRecognizer(Name)       -> (StrIter *in, PcParserCtx *ctx)               define, no input
+///   PcRecognizer(Name, InT)  -> (StrIter *in, PcParserCtx *ctx, InT expect)   define, one input
 ///   PcRecognize(Name)        -> pc_parser_Name(in, ctx)                      call, no input
 ///   PcRecognize(Name, In)    -> pc_parser_Name(in, ctx, In)                  call, one input
 ///
@@ -202,9 +253,9 @@ typedef struct PcReport {
 ///
 #define PcRecognizer(...) OVERLOAD(PcRecognizer, __VA_ARGS__)
 #define PcRecognizer_1(Name)                                                                                           \
-    static inline PcParserStatus PcGenParserName(Name)(StrIter * in, ParserCtx * ctx PC_MAYBE_UNUSED)
+    static inline PcParserStatus PcGenParserName(Name)(StrIter * in, PcParserCtx * ctx PC_MAYBE_UNUSED)
 #define PcRecognizer_2(Name, InT)                                                                                      \
-    static inline PcParserStatus PcGenParserName(Name)(StrIter * in, ParserCtx * ctx PC_MAYBE_UNUSED, InT expect)
+    static inline PcParserStatus PcGenParserName(Name)(StrIter * in, PcParserCtx * ctx PC_MAYBE_UNUSED, InT expect)
 
 #define PcRecognize(...)        OVERLOAD(PcRecognize, __VA_ARGS__)
 #define PcRecognize_1(Name)     PcGenParserName(Name)(in, ctx)
@@ -224,11 +275,11 @@ typedef struct PcReport {
 ///
 /// Define (or, when followed by `;`, forward-declare) a parser. Overloaded by arity:
 ///
-///   PcParser(Name, BuildT)       -> (StrIter *in, ParserCtx *ctx, BuildT *value)
-///   PcParser(Name, InT, BuildT)  -> (StrIter *in, ParserCtx *ctx, InT expect, BuildT *value)
+///   PcParser(Name, BuildT)       -> (StrIter *in, PcParserCtx *ctx, BuildT *value)
+///   PcParser(Name, InT, BuildT)  -> (StrIter *in, PcParserCtx *ctx, InT expect, BuildT *value)
 ///
 /// The names a body reads are `in` (stream), `ctx` (grammar context), `expect` (the input, in
-/// the 3-arg form), and `value` (the output). The consumer must have a `ParserCtx` type in scope.
+/// the 3-arg form), and `value` (the output). The consumer must have a `PcParserCtx` type in scope.
 ///
 /// SUCCESS: The body returns `PC_PARSER_STATUS_SUCCESS` (or'd with `CONSUMED` when it advanced
 ///          `in`); the parsed result has been written to `*value`.
@@ -237,10 +288,10 @@ typedef struct PcReport {
 ///
 #define PcParser(...) OVERLOAD(PcParser, __VA_ARGS__)
 #define PcParser_2(Name, BuildT)                                                                                       \
-    static inline PcParserStatus PcGenParserName(Name)(StrIter * in, ParserCtx * ctx PC_MAYBE_UNUSED, BuildT * value)
+    static inline PcParserStatus PcGenParserName(Name)(StrIter * in, PcParserCtx * ctx PC_MAYBE_UNUSED, BuildT * value)
 #define PcParser_3(Name, InT, BuildT)                                                                                  \
     static inline PcParserStatus                                                                                       \
-        PcGenParserName(Name)(StrIter * in, ParserCtx * ctx PC_MAYBE_UNUSED, InT expect, BuildT * value)
+        PcGenParserName(Name)(StrIter * in, PcParserCtx * ctx PC_MAYBE_UNUSED, InT expect, BuildT * value)
 
 ///
 /// The consumed bit for a parser, derived from the stream position against a snapshot: a parse
@@ -254,7 +305,7 @@ typedef struct PcReport {
 /// Each scopes its bookkeeping in the `for`-init struct so frames nest and sit side by side
 /// without name clashes, and each owns the rule's `return`.
 ///
-/// PcSeq: run the steps (`PcMatch`/`PcMany`/...) in order; a failing step returns early. If the
+/// PcSeq: run the steps (`PcMatch`/`PcMatchOneOrMore`/...) in order; a failing step returns early. If the
 /// body runs to the end, the rule succeeds (consuming whatever the steps consumed).
 ///
 /// SUCCESS: All steps matched; returns SUCCESS with the accumulated CONSUMED bit.
@@ -281,10 +332,11 @@ typedef struct PcReport {
 ///
 #define PcChoice()                                                                                                     \
     for (struct {                                                                                                      \
-             StrIter        mark;                                                                                      \
-             PcParserStatus st;                                                                                        \
-             bool           ran, matched, done;                                                                        \
-         } pc_ch = {*in, 0, false, false, false};                                                                      \
+             StrIter         mark;                                                                                     \
+             PcParserCtxMark ctx_mark;                                                                                 \
+             PcParserStatus  st;                                                                                       \
+             bool            ran, matched, done;                                                                       \
+         } pc_ch = {*in, PcParserCtxSnapshot(ctx), 0, false, false, false};                                            \
          ;                                                                                                             \
          pc_ch.ran = true)                                                                                             \
         if (pc_ch.ran)                                                                                                 \
@@ -344,52 +396,112 @@ typedef struct PcReport {
     )
 
 ///
-/// PcMany: zero-or-more. Run parser `Name` repeatedly; the body runs once per match. A match
-/// that consumed nothing would spin forever, so the loop stops on it (it never aborts and never
-/// allocates); the failing/empty iteration is rewound so its bytes are not eaten. Always
-/// "succeeds" -- it is a step that simply stops.
+/// PcMatchZeroOrMore: zero-or-more ("any number", including none). Run parser `Name` repeatedly; the body runs
+/// once per match. A match that consumed nothing would spin forever, so the loop stops on it (it
+/// never aborts and never allocates); the failing/empty iteration is rewound so its bytes are not
+/// eaten. Always "succeeds" -- it is a step that simply stops.
 ///
-#define PcMany(Name, ...)                                                                                              \
-    for (StrIter UNPL(pc_many_) = *in;                                                                                 \
-         (UNPL(pc_many_) = *in,                                                                                        \
-         (PcParse(Name, __VA_ARGS__) & PC_PARSER_STATUS_SUCCESS) && in->pos != UNPL(pc_many_).pos) ?                   \
+#define PcMatchZeroOrMore(Name, ...)                                                                                   \
+    for (struct {                                                                                                      \
+             StrIter         mark;                                                                                     \
+             PcParserCtxMark ctx_mark;                                                                                 \
+         } UNPL(pc_zom_) = {*in, PcParserCtxSnapshot(ctx)};                                                            \
+         (UNPL(pc_zom_).mark    = *in,                                                                                 \
+         UNPL(pc_zom_).ctx_mark = PcParserCtxSnapshot(ctx),                                                            \
+         (PcParse(Name, __VA_ARGS__) & PC_PARSER_STATUS_SUCCESS) && in->pos != UNPL(pc_zom_).mark.pos) ?               \
              true :                                                                                                    \
-             ((*in = UNPL(pc_many_)), false);)
+             (*in = UNPL(pc_zom_).mark, PcParserCtxRollback(ctx, UNPL(pc_zom_).ctx_mark), false);)
+
+///
+/// PcMatchOneOrMore: one-or-more. Like `PcMatchZeroOrMore`, but at least one match is required: if the first attempt does
+/// not match, the whole rule fails (reporting the sequence's consumed bit, exactly as a failing
+/// `PcMatch` would), so it is a `PcSeq` step. The body runs once per match, the first included --
+/// folding the common "match one, then any more" shape into a single step.
+///
+#define PcMatchOneOrMore(Name, ...)                                                                                    \
+    for (struct {                                                                                                      \
+             StrIter         mark;                                                                                     \
+             PcParserCtxMark ctx_mark;                                                                                 \
+             bool            done;                                                                                     \
+         } UNPL(pc_oom1_) = {*in, PcParserCtxSnapshot(ctx), false};                                                    \
+         !UNPL(pc_oom1_).done;                                                                                         \
+         UNPL(pc_oom1_).done = true)                                                                                   \
+        if ((UNPL(pc_oom1_).mark     = *in,                                                                            \
+             UNPL(pc_oom1_).ctx_mark = PcParserCtxSnapshot(ctx),                                                       \
+             !((PcParse(Name, __VA_ARGS__) & PC_PARSER_STATUS_SUCCESS) && in->pos != UNPL(pc_oom1_).mark.pos)))        \
+            return (                                                                                                   \
+                *in = UNPL(pc_oom1_).mark,                                                                             \
+                PcParserCtxRollback(ctx, UNPL(pc_oom1_).ctx_mark),                                                     \
+                PC_CONSUMED(pc_seq.start) | PC_PARSER_STATUS_FAILED                                                    \
+            );                                                                                                         \
+        else                                                                                                           \
+            for (struct {                                                                                              \
+                     StrIter         mark;                                                                             \
+                     PcParserCtxMark ctx_mark;                                                                         \
+                     bool            first;                                                                            \
+                 } UNPL(pc_oomN_) = {*in, PcParserCtxSnapshot(ctx), true};                                             \
+                 UNPL(pc_oomN_).first ?                                                                                \
+                     true :                                                                                            \
+                     (UNPL(pc_oomN_).mark    = *in,                                                                    \
+                     UNPL(pc_oomN_).ctx_mark = PcParserCtxSnapshot(ctx),                                               \
+                     (PcParse(Name, __VA_ARGS__) & PC_PARSER_STATUS_SUCCESS) && in->pos != UNPL(pc_oomN_).mark.pos ?   \
+                          true :                                                                                       \
+                          (*in = UNPL(pc_oomN_).mark, PcParserCtxRollback(ctx, UNPL(pc_oomN_).ctx_mark), false));      \
+                 UNPL(pc_oomN_).first = false)
 
 ///
 /// PcOpt: zero-or-one. Try parser `Name`; if it matches, run the body once (the parsed value is
 /// available through whatever output pointer was passed). If it does not match, rewind and skip
-/// the body. Never fails the sequence -- it is a step that is simply optional. Like `PcMany`, it
+/// the body. Never fails the sequence -- it is a step that is simply optional. Like `PcMatchOneOrMore`, it
 /// is one `for` statement with its bookkeeping in the loop scope, so it nests, sits next to other
 /// steps on the same line, and takes an unbraced body without a dangling-`else` surprise.
 ///
 #define PcOpt(Name, ...)                                                                                               \
     for (struct {                                                                                                      \
-             StrIter mark;                                                                                             \
-             bool    ran;                                                                                              \
-         } UNPL(pc_opt_) = {*in, false};                                                                               \
+             StrIter         mark;                                                                                     \
+             PcParserCtxMark ctx_mark;                                                                                 \
+             bool            ran;                                                                                      \
+         } UNPL(pc_opt_) = {*in, PcParserCtxSnapshot(ctx), false};                                                     \
          !UNPL(pc_opt_).ran &&                                                                                         \
          ((UNPL(pc_opt_).ran = true),                                                                                  \
-          (PcParse(Name, __VA_ARGS__) & PC_PARSER_STATUS_SUCCESS) ? true : (*in = UNPL(pc_opt_).mark, false));)
+          (PcParse(Name, __VA_ARGS__) & PC_PARSER_STATUS_SUCCESS) ?                                                    \
+              true :                                                                                                   \
+              (*in = UNPL(pc_opt_).mark, PcParserCtxRollback(ctx, UNPL(pc_opt_).ctx_mark), false));)
 
 ///
-/// PcRecognizeMany: the recognizer-flavoured `PcMany` -- a whole recognizer body that runs a
-/// sub-recognizer zero-or-more times and then returns success. Terminal (it owns the `return`), so
-/// it is the entire body of a "recognize zero-or-more of one thing" parser (e.g. whitespace), not
-/// a mid-sequence step. Same empty-match guard as `PcMany`: a non-consuming match stops the loop
+/// PcRecognizeZeroOrMore: the recognizer-flavoured `PcMatchZeroOrMore` -- a whole recognizer body that runs a
+/// sub-recognizer zero-or-more times ("any number", including none) and then returns success.
+/// Terminal (it owns the `return`), so it is the entire body of a "recognize zero-or-more of one
+/// thing" parser (e.g. whitespace), not a mid-sequence step. A non-consuming match stops the loop
 /// and is rewound, so it can never spin. Overloaded 1-arg / 2-arg like `PcRecognize`.
 ///
-#define PcRecognizeMany(...)        OVERLOAD(PcRecognizeMany, __VA_ARGS__)
-#define PcRecognizeMany_1(Name)     PC_RECOGNIZE_MANY(PcRecognize_1(Name))
-#define PcRecognizeMany_2(Name, In) PC_RECOGNIZE_MANY(PcRecognize_2(Name, In))
-#define PC_RECOGNIZE_MANY(call)                                                                                        \
+#define PcRecognizeZeroOrMore(...)        OVERLOAD(PcRecognizeZeroOrMore, __VA_ARGS__)
+#define PcRecognizeZeroOrMore_1(Name)     PC_RECOGNIZE_REPEAT(PcRecognize_1(Name), 0)
+#define PcRecognizeZeroOrMore_2(Name, In) PC_RECOGNIZE_REPEAT(PcRecognize_2(Name, In), 0)
+
+///
+/// PcRecognizeOneOrMore: the one-or-more counterpart of `PcRecognizeZeroOrMore` -- the whole body of a
+/// "recognize one-or-more of one thing" recognizer. Identical, except it returns failure when it
+/// matched nothing at all. Terminal, like `PcRecognizeZeroOrMore`.
+///
+#define PcRecognizeOneOrMore(...)        OVERLOAD(PcRecognizeOneOrMore, __VA_ARGS__)
+#define PcRecognizeOneOrMore_1(Name)     PC_RECOGNIZE_REPEAT(PcRecognize_1(Name), 1)
+#define PcRecognizeOneOrMore_2(Name, In) PC_RECOGNIZE_REPEAT(PcRecognize_2(Name, In), 1)
+#define PC_RECOGNIZE_REPEAT(call, min_one)                                                                             \
     do {                                                                                                               \
         StrIter UNPL(pc_rm_start) = *in;                                                                               \
-        for (StrIter UNPL(pc_rm_mark) = *in;                                                                           \
-             (UNPL(pc_rm_mark) = *in, ((call) & PC_PARSER_STATUS_SUCCESS) && in->pos != UNPL(pc_rm_mark).pos) ?        \
+        for (struct {                                                                                                  \
+                 StrIter         mark;                                                                                 \
+                 PcParserCtxMark ctx_mark;                                                                             \
+             } UNPL(pc_rm_) = {*in, PcParserCtxSnapshot(ctx)};                                                         \
+             (UNPL(pc_rm_).mark    = *in,                                                                              \
+             UNPL(pc_rm_).ctx_mark = PcParserCtxSnapshot(ctx),                                                         \
+             ((call) & PC_PARSER_STATUS_SUCCESS) && in->pos != UNPL(pc_rm_).mark.pos) ?                                \
                  true :                                                                                                \
-                 ((*in = UNPL(pc_rm_mark)), false);)                                                                   \
+                 (*in = UNPL(pc_rm_).mark, PcParserCtxRollback(ctx, UNPL(pc_rm_).ctx_mark), false);)                   \
             ;                                                                                                          \
+        if ((min_one) && in->pos == UNPL(pc_rm_start).pos)                                                             \
+            return PC_PARSER_STATUS_FAILED;                                                                            \
         return PC_CONSUMED(UNPL(pc_rm_start)) | PC_PARSER_STATUS_SUCCESS;                                              \
     } while (0)
 
@@ -404,26 +516,28 @@ typedef struct PcReport {
 /// than trying later arms. `Try` arms BACKTRACK: any failure rewinds and the next arm is tried.
 ///
 #define PcAlt(Name, ...)                                                                                               \
-    ((void)(pc_ch.done ||                                                                                              \
-            ((pc_ch.st = PcParse(Name, __VA_ARGS__)) & PC_PARSER_STATUS_SUCCESS ?                                      \
-                 ((pc_ch.matched = pc_ch.done = true)) :                                                               \
-                 ((pc_ch.st & PC_PARSER_STATUS_CONSUMED) ? (pc_ch.done = true, false) : (*in = pc_ch.mark, false)))))
+    ((void)(pc_ch.done || ((pc_ch.st = PcParse(Name, __VA_ARGS__)) & PC_PARSER_STATUS_SUCCESS ?                        \
+                               ((pc_ch.matched = pc_ch.done = true)) :                                                 \
+                               ((pc_ch.st & PC_PARSER_STATUS_CONSUMED) ?                                               \
+                                    (pc_ch.done = true, false) :                                                       \
+                                    (*in = pc_ch.mark, PcParserCtxRollback(ctx, pc_ch.ctx_mark), false)))))
 
 #define PcTryAlt(Name, ...)                                                                                            \
     ((void)(pc_ch.done || ((pc_ch.st = PcParse(Name, __VA_ARGS__)) & PC_PARSER_STATUS_SUCCESS ?                        \
                                ((pc_ch.matched = pc_ch.done = true)) :                                                 \
-                               (*in = pc_ch.mark, false))))
+                               (*in = pc_ch.mark, PcParserCtxRollback(ctx, pc_ch.ctx_mark), false))))
 
 #define PcAltThen(Name, ...)                                                                                           \
-    if (!pc_ch.done &&                                                                                                 \
-        ((pc_ch.st = PcParse(Name, __VA_ARGS__)) & PC_PARSER_STATUS_SUCCESS ?                                          \
-             ((pc_ch.matched = pc_ch.done = true)) :                                                                   \
-             ((pc_ch.st & PC_PARSER_STATUS_CONSUMED) ? (pc_ch.done = true, false) : (*in = pc_ch.mark, false))))
+    if (!pc_ch.done && ((pc_ch.st = PcParse(Name, __VA_ARGS__)) & PC_PARSER_STATUS_SUCCESS ?                           \
+                            ((pc_ch.matched = pc_ch.done = true)) :                                                    \
+                            ((pc_ch.st & PC_PARSER_STATUS_CONSUMED) ?                                                  \
+                                 (pc_ch.done = true, false) :                                                          \
+                                 (*in = pc_ch.mark, PcParserCtxRollback(ctx, pc_ch.ctx_mark), false))))
 
 #define PcTryAltThen(Name, ...)                                                                                        \
-    if (!pc_ch.done &&                                                                                                 \
-        ((pc_ch.st = PcParse(Name, __VA_ARGS__)) & PC_PARSER_STATUS_SUCCESS ? ((pc_ch.matched = pc_ch.done = true)) :  \
-                                                                              (*in = pc_ch.mark, false)))
+    if (!pc_ch.done && ((pc_ch.st = PcParse(Name, __VA_ARGS__)) & PC_PARSER_STATUS_SUCCESS ?                           \
+                            ((pc_ch.matched = pc_ch.done = true)) :                                                    \
+                            (*in = pc_ch.mark, PcParserCtxRollback(ctx, pc_ch.ctx_mark), false)))
 
 ///
 /// PcElse: the fallback arm of a `PcChoice`. Its body runs iff NO arm matched (every arm failed

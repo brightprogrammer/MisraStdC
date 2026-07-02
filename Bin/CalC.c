@@ -76,7 +76,16 @@ static Num num_neg(Num a) {
     return a.is_float ? num_flt(-a.f) : num_int(-a.i);
 }
 
-typedef Map(Str, Num) Vars;
+typedef struct Binding {
+    Str name;
+    Num value;
+} Binding;
+typedef Vec(Binding) Bindings;
+
+static void binding_deinit(void *copy, const Allocator *alloc) {
+    (void)alloc;
+    StrDeinit(&((Binding *)copy)->name);
+}
 typedef Vec(PcReport) Reports;
 
 ///
@@ -84,10 +93,22 @@ typedef Vec(PcReport) Reports;
 /// environment plus the diagnostics sink the `PcReport*` macros append to. Both
 /// are containers that carry their own allocator.
 ///
-typedef struct ParserCtx {
-    Vars    vars;
-    Reports reports;
-} ParserCtx;
+typedef struct PcParserCtx {
+    Bindings vars;
+    Reports  reports;
+} PcParserCtx;
+
+typedef struct {
+    u64 len;
+} PcParserCtxMark;
+
+static PcParserCtxMark PcParserCtxSnapshot(PcParserCtx *ctx) {
+    return (PcParserCtxMark) {.len = VecLen(&ctx->vars)};
+}
+
+static void PcParserCtxRollback(PcParserCtx *ctx, PcParserCtxMark mark) {
+    VecResize(&ctx->vars, mark.len);
+}
 
 PcRecognizer(WsChar);
 PcRecognizer(Ws);
@@ -116,7 +137,7 @@ PcRecognizer(WsChar) {
 }
 
 PcRecognizer(Ws) {
-    PcRecognizeMany(WsChar);
+    PcRecognizeZeroOrMore(WsChar);
 }
 
 PcParser(DigitCh, char) {
@@ -160,15 +181,13 @@ PcParser(Number, Num) {
     bool is_float = false;
     PcSeq() {
         StrInitStack(tok, 64) {
-            PcMatch(DigitCh, &d);
-            StrPushBack(&tok, d);
-            PcMany(DigitCh, &d) {
+            PcMatchOneOrMore(DigitCh, &d) {
                 StrPushBack(&tok, d);
             }
             PcOpt(CharIfExist, '.', &d) {
                 is_float = true;
                 StrPushBack(&tok, d);
-                PcMany(DigitCh, &d) {
+                PcMatchZeroOrMore(DigitCh, &d) {
                     StrPushBack(&tok, d);
                 }
             }
@@ -198,9 +217,7 @@ PcParser(Number, Num) {
 PcParser(Identifier, Str) {
     char l;
     PcSeq() {
-        PcMatch(LetterCh, &l);
-        StrPushBack(value, l);
-        PcMany(LetterCh, &l) {
+        PcMatchOneOrMore(LetterCh, &l) {
             StrPushBack(value, l);
         }
         PcRecognize(Ws);
@@ -212,7 +229,11 @@ PcParser(VarRef, Num) {
     PcSeq() {
         StrInitStack(name, 64) {
             PcMatch(Identifier, &name);
-            Num *slot = MapGetFirstPtr(&ctx->vars, name);
+            Num *slot = NULL;
+            VecForeachPtrReverse(&ctx->vars, b) if (StrCmp(&b->name, &name) == 0) {
+                slot = &b->value;
+                break;
+            }
             if (slot)
                 *value = *slot;
             else {
@@ -275,7 +296,7 @@ PcParser(Multiplicative, Num) {
     Num  rhs;
     PcSeq() {
         PcMatch(Unary, value);
-        PcMany(MulOp, &op) {
+        PcMatchZeroOrMore(MulOp, &op) {
             PcMatch(Unary, &rhs);
             bool fresh = !value->is_error && !rhs.is_error;
             if (fresh && (op == '/' || op == '%') && num_is_zero(rhs)) {
@@ -295,7 +316,7 @@ PcParser(Additive, Num) {
     Num  rhs;
     PcSeq() {
         PcMatch(Multiplicative, value);
-        PcMany(AddOp, &op) {
+        PcMatchZeroOrMore(AddOp, &op) {
             PcMatch(Multiplicative, &rhs);
             *value = (op == '+') ? num_add(*value, rhs) : num_sub(*value, rhs);
         }
@@ -314,10 +335,10 @@ PcParser(Assignment, Num) {
             PcMatch(Identifier, &name);
             PcMatch(Sym, '=', &eq);
             PcMatch(Expr, value);
-            // upsert (the map is a multimap, so replace rather than add a duplicate); a broken
-            // result does not bind the name
-            if (!value->is_error)
-                MapSetOnlyR(&ctx->vars, name, *value);
+            if (!value->is_error) {
+                Binding b = {.name = StrInitFromStr(&name, VecAllocator(&ctx->vars)), .value = *value};
+                VecPushBack(&ctx->vars, b);
+            }
         }
     }
 }
@@ -337,10 +358,9 @@ PcParser(Calc, Num) {
 }
 
 /// bind a predefined variable; the map deep-copies the key, so the temporary is freed
-static void seed(Vars *vars, HeapAllocator *heap, Zstr name, Num v) {
-    Str key = StrInitFromCstr(name, ZstrLen(name), heap);
-    MapInsertR(vars, key, v);
-    StrDeinit(&key);
+static void seed(Bindings *vars, HeapAllocator *heap, Zstr name, Num v) {
+    Binding b = {.name = StrInitFromCstr(name, ZstrLen(name), heap), .value = v};
+    VecPushBack(vars, b);
 }
 
 static Zstr level_word(PcReportLevel level) {
@@ -376,7 +396,7 @@ static void render(Str *src, Reports *reports) {
     }
 }
 
-static void eval_line(ParserCtx *ctx, Str *line) {
+static void eval_line(PcParserCtx *ctx, Str *line) {
     VecClear(&ctx->reports);
     StrIter        in  = StrIterFromStr(*line);
     Num            out = {0};
@@ -395,8 +415,8 @@ static void eval_line(ParserCtx *ctx, Str *line) {
 int main(int argc, char **argv) {
     HeapAllocator heap = HeapAllocatorInit();
 
-    ParserCtx ctx = {
-        .vars    = MapInitWithDeepCopy(str_hash, str_compare, str_init_copy, str_deinit, NULL, NULL, &heap),
+    PcParserCtx ctx = {
+        .vars    = VecInitWithDeepCopy(NULL, binding_deinit, &heap),
         .reports = VecInit(&heap),
     };
     seed(&ctx.vars, &heap, "pi", num_flt(3.14159265358979323846));
@@ -446,7 +466,7 @@ int main(int argc, char **argv) {
 
     ArgParseDeinit(&args);
     VecDeinit(&ctx.reports);
-    MapDeinit(&ctx.vars);
+    VecDeinit(&ctx.vars);
     HeapAllocatorDeinit(&heap);
     return status;
 }
