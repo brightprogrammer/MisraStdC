@@ -149,12 +149,55 @@ enum {
 #endif
 
 ///
-/// Invoke a parser by name, threading the stream `in` and context `ctx` automatically and
-/// forwarding every extra argument verbatim. Used internally by `PcMatch`/`PcAlt`/...; call
-/// it directly only to delegate one rule wholesale to another (`return PcParse(Other, value);`).
-/// Convention: trailing pointer arguments are outputs, the ones between are inputs.
+/// Invoke an output-producing parser by name, threading the stream `in` and context `ctx`
+/// automatically. Overloaded by arity, mirroring `PcParser` -- the last argument is the output:
 ///
-#define PcParse(Name, ...) PcGenParserName(Name)(in, ctx, __VA_ARGS__)
+///   PcParse(Name, Out)      -> pc_parser_Name(in, ctx, Out)
+///   PcParse(Name, In, Out)  -> pc_parser_Name(in, ctx, In, Out)
+///
+/// Used internally by `PcMatch`/`PcAlt`/`PcMany`/`PcOpt`; call it directly only to delegate one
+/// rule wholesale to another (`return PcParse(Other, value);`). Because an output parser always
+/// carries the output argument, this family never sees an empty argument list -- so there is no
+/// `__VA_OPT__` here (the recognizer family below has none either, for the same reason: every
+/// arity writes its call explicitly).
+///
+#define PcParse(...)             OVERLOAD(PcParse, __VA_ARGS__)
+#define PcParse_2(Name, Out)     PcGenParserName(Name)(in, ctx, Out)
+#define PcParse_3(Name, In, Out) PcGenParserName(Name)(in, ctx, In, Out)
+
+///
+/// The recognizer family: parsers that produce NO output -- they only succeed/fail (and consume),
+/// the "validator" style. Identical to the `PcParser`/`PcParse` family with the trailing output
+/// slot removed, so the arities shift down by one: 1-arg (no input) or 2-arg (an input to match).
+///
+///   PcRecognizer(Name)       -> (StrIter *in, ParserCtx *ctx)               define, no input
+///   PcRecognizer(Name, InT)  -> (StrIter *in, ParserCtx *ctx, InT expect)   define, one input
+///   PcRecognize(Name)        -> pc_parser_Name(in, ctx)                      call, no input
+///   PcRecognize(Name, In)    -> pc_parser_Name(in, ctx, In)                  call, one input
+///
+/// SUCCESS: The body returns `PC_PARSER_STATUS_SUCCESS` (| `CONSUMED` when it advanced `in`).
+/// FAILURE: The body returns `PC_PARSER_STATUS_FAILED` (| `CONSUMED` when it advanced then failed).
+///
+#define PcRecognizer(...) OVERLOAD(PcRecognizer, __VA_ARGS__)
+#define PcRecognizer_1(Name)                                                                                           \
+    static inline PcParserStatus PcGenParserName(Name)(StrIter * in, ParserCtx * ctx PC_MAYBE_UNUSED)
+#define PcRecognizer_2(Name, InT)                                                                                      \
+    static inline PcParserStatus PcGenParserName(Name)(StrIter * in, ParserCtx * ctx PC_MAYBE_UNUSED, InT expect)
+
+#define PcRecognize(...)        OVERLOAD(PcRecognize, __VA_ARGS__)
+#define PcRecognize_1(Name)     PcGenParserName(Name)(in, ctx)
+#define PcRecognize_2(Name, In) PcGenParserName(Name)(in, ctx, In)
+
+///
+/// Run a parser from OUTSIDE a parser body -- the entry point a driver (a REPL, a CLI) uses to
+/// kick off the top rule, so it never spells the mangled `pc_parser_<Name>` by hand. `PcParse`
+/// threads the ambient stream `in` for a rule; a driver owns its own stream, so it passes a
+/// pointer to it explicitly. `ctx` is still taken from the enclosing scope. The remaining args
+/// (the outputs) forward to the parser call.
+///
+///   PcRun(Name, &in, &out)  -> pc_parser_Name(&in, ctx, &out)
+///
+#define PcRun(Name, InPtr, ...) PcGenParserName(Name)(InPtr, ctx, __VA_ARGS__)
 
 ///
 /// Define (or, when followed by `;`, forward-declare) a parser. Overloaded by arity:
@@ -240,6 +283,15 @@ enum {
     } while (0)
 
 ///
+/// PcReject: fail the current rule outright from its body -- the escape hatch for a
+/// context-sensitive rejection no combinator can express (an undefined variable, a name that is
+/// not a typedef, ...). Reports the sequence's consumed bit, exactly as a failing `PcMatch` would,
+/// so an enclosing choice commits/backtracks correctly. A `PcSeq` step, like `PcMatch`; a rule
+/// uses it so it never has to name the consumed bit or the status itself.
+///
+#define PcReject() return PC_CONSUMED(pc_seq.start) | PC_PARSER_STATUS_FAILED
+
+///
 /// PcMany: zero-or-more. Run parser `Name` repeatedly; the body runs once per match. A match
 /// that consumed nothing would spin forever, so the loop stops on it (it never aborts and never
 /// allocates); the failing/empty iteration is rewound so its bytes are not eaten. Always
@@ -251,6 +303,36 @@ enum {
          (PcParse(Name, __VA_ARGS__) & PC_PARSER_STATUS_SUCCESS) && in->pos != UNPL(pc_many_).pos) ?                   \
              true :                                                                                                    \
              ((*in = UNPL(pc_many_)), false);)
+
+///
+/// PcOpt: zero-or-one. Try parser `Name`; if it matches, run the body once (the parsed value is
+/// available through whatever output pointer was passed). If it does not match, rewind and skip
+/// the body. Never fails the sequence -- it is a step that is simply optional.
+///
+#define PcOpt(Name, ...)                                                                                               \
+    StrIter UNPL(pc_opt_) = *in;                                                                                       \
+    if ((PcParse(Name, __VA_ARGS__) & PC_PARSER_STATUS_SUCCESS) ? true : (*in = UNPL(pc_opt_), false))
+
+///
+/// PcRecognizeMany: the recognizer-flavoured `PcMany` -- a whole recognizer body that runs a
+/// sub-recognizer zero-or-more times and then returns success. Terminal (it owns the `return`), so
+/// it is the entire body of a "recognize zero-or-more of one thing" parser (e.g. whitespace), not
+/// a mid-sequence step. Same empty-match guard as `PcMany`: a non-consuming match stops the loop
+/// and is rewound, so it can never spin. Overloaded 1-arg / 2-arg like `PcRecognize`.
+///
+#define PcRecognizeMany(...)        OVERLOAD(PcRecognizeMany, __VA_ARGS__)
+#define PcRecognizeMany_1(Name)     PC_RECOGNIZE_MANY(PcRecognize_1(Name))
+#define PcRecognizeMany_2(Name, In) PC_RECOGNIZE_MANY(PcRecognize_2(Name, In))
+#define PC_RECOGNIZE_MANY(call)                                                                                        \
+    do {                                                                                                               \
+        StrIter UNPL(pc_rm_start) = *in;                                                                               \
+        for (StrIter UNPL(pc_rm_mark) = *in;                                                                           \
+             (UNPL(pc_rm_mark) = *in, ((call) & PC_PARSER_STATUS_SUCCESS) && in->pos != UNPL(pc_rm_mark).pos) ?        \
+                 true :                                                                                                \
+                 ((*in = UNPL(pc_rm_mark)), false);)                                                                   \
+            ;                                                                                                          \
+        return PC_CONSUMED(UNPL(pc_rm_start)) | PC_PARSER_STATUS_SUCCESS;                                              \
+    } while (0)
 
 ///
 /// Choice arms (used inside `PcChoice`). All forward their extra args to the parser call.
