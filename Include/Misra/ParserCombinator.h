@@ -134,16 +134,16 @@ enum {
 /// placeholder/poison value, and keeps parsing, so one input yields as many errors as possible.
 ///
 typedef enum {
-    REPORT_INFO,
-    REPORT_WARN,
-    REPORT_ERROR
-} ReportLevel;
+    PC_REPORT_INFO,
+    PC_REPORT_WARN,
+    PC_REPORT_ERROR
+} PcReportLevel;
 
 typedef struct PcReport {
-    u64         start;   ///< span start, an index into the input (see `IterIndex`)
-    u64         end;     ///< span end, exclusive
-    ReportLevel level;
-    Zstr        message; ///< the parser's words; the specifics show under the caret
+    u64           start;   ///< span start, an index into the input (see `IterIndex`)
+    u64           end;     ///< span end, exclusive
+    PcReportLevel level;
+    Zstr          message; ///< the parser's words; the specifics show under the caret
 } PcReport;
 
 ///
@@ -319,13 +319,28 @@ typedef struct PcReport {
 /// then returns nothing, so the rule substitutes a poison value and parsing continues to collect
 /// more errors. `ctx` must carry a `Vec(PcReport) reports;`. A `PcSeq` step, like `PcReject`.
 ///
-#define PcReportError(Msg) PC_REPORT(REPORT_ERROR, Msg)
-#define PcReportWarn(Msg)  PC_REPORT(REPORT_WARN, Msg)
-#define PcReportInfo(Msg)  PC_REPORT(REPORT_INFO, Msg)
+#define PcReportError(Msg) PC_REPORT(PC_REPORT_ERROR, Msg)
+#define PcReportWarn(Msg)  PC_REPORT(PC_REPORT_WARN, Msg)
+#define PcReportInfo(Msg)  PC_REPORT(PC_REPORT_INFO, Msg)
 #define PC_REPORT(Level, Msg)                                                                                          \
-    VecPushBack(                                                                                                       \
+    VecPushBackR(                                                                                                      \
         &ctx->reports,                                                                                                 \
         ((PcReport) {.start = (pc_seq.start).pos, .end = IterIndex(in), .level = (Level), .message = (Msg)})           \
+    )
+
+///
+/// The `...Here` variants report a diagnostic whose span is the single character at the current
+/// cursor, rather than the enclosing `PcSeq` frame. Use them where nothing has been consumed and
+/// there is no frame span to point at -- an "expected X"-style error, e.g. inside a `PcChoice`
+/// where every arm has rewound. They read only the cursor, so they need no `pc_seq`.
+///
+#define PcReportErrorHere(Msg) PC_REPORT_HERE(PC_REPORT_ERROR, Msg)
+#define PcReportWarnHere(Msg)  PC_REPORT_HERE(PC_REPORT_WARN, Msg)
+#define PcReportInfoHere(Msg)  PC_REPORT_HERE(PC_REPORT_INFO, Msg)
+#define PC_REPORT_HERE(Level, Msg)                                                                                     \
+    VecPushBackR(                                                                                                      \
+        &ctx->reports,                                                                                                 \
+        ((PcReport) {.start = IterIndex(in), .end = IterIndex(in) + 1, .level = (Level), .message = (Msg)})            \
     )
 
 ///
@@ -409,6 +424,24 @@ typedef struct PcReport {
     if (!pc_ch.done &&                                                                                                 \
         ((pc_ch.st = PcParse(Name, __VA_ARGS__)) & PC_PARSER_STATUS_SUCCESS ? ((pc_ch.matched = pc_ch.done = true)) :  \
                                                                               (*in = pc_ch.mark, false)))
+
+///
+/// PcElse: the fallback arm of a `PcChoice`. Its body runs iff NO arm matched (every arm failed
+/// cleanly, consuming nothing), and it marks the choice handled so the rule succeeds with whatever
+/// the body writes to the output (typically a report plus a poison value). Put it last. A rule
+/// uses it so it never has to name `pc_ch`.
+///
+#define PcElse() if (!pc_ch.done && (pc_ch.matched = pc_ch.done = true))
+
+///
+/// PcRecover: recovery skip. Advance the stream until the current character satisfies `IsSync` (a
+/// resynchronization boundary) or the stream ends; `Var` is the loop-scoped peeked char. Pairs
+/// with a report and a poison value to recover from a syntax error and carry on, so one input
+/// surfaces more than just the first structural break.
+///
+#define PcRecover(Var, IsSync)                                                                                         \
+    for (char Var = 0; StrIterPeek(in, &Var) && !(IsSync);)                                                            \
+    StrIterMove(in, 1)
 
 ///
 /// Atoms -- the only place `StrIter` and `PcParserStatus` are handled directly. Every fundamental

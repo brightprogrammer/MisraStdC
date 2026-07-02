@@ -252,6 +252,11 @@ PcParser(Atom, Num) {
         PcAlt(Parenthesized, value);
         PcAlt(VarRef, value);
         PcAlt(Number, value);
+        PcElse() {
+            PcReportErrorHere("expected an operand");
+            PcRecover(c, c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == ')');
+            *value = num_poison();
+        }
     }
 }
 
@@ -338,11 +343,11 @@ static void seed(Vars *vars, HeapAllocator *heap, Zstr name, Num v) {
     StrDeinit(&key);
 }
 
-static Zstr level_word(ReportLevel level) {
+static Zstr level_word(PcReportLevel level) {
     switch (level) {
-        case REPORT_ERROR :
+        case PC_REPORT_ERROR :
             return "error";
-        case REPORT_WARN :
+        case PC_REPORT_WARN :
             return "warning";
         default :
             return "note";
