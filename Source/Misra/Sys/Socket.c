@@ -455,6 +455,29 @@ bool socket_addr_parse_str(SocketAddr *out, const Str *spec, SocketKind kind) {
     return socket_addr_parse_zstr(out, StrBegin(spec), kind);
 }
 
+bool socket_addr_parse_cstr(SocketAddr *out, Zstr spec, size len, SocketKind kind) {
+    if (!out) {
+        LOG_FATAL("SocketAddrParse: out is NULL");
+    }
+    MemSet(out, 0, sizeof(*out));
+
+    // `spec` is a fixed-length view. The shared parsers (split_host_port,
+    // parse_ipv4/parse_ipv6, parse_port) all scan to a NUL terminator, so the
+    // view is copied into a bounded stack buffer and NUL-terminated before
+    // delegating to the zstr arm. A spec longer than this cannot name a valid
+    // host:port anyway.
+    enum {
+        SPEC_CAP = 256
+    };
+    char buf[SPEC_CAP];
+    if (!spec || len >= sizeof(buf)) {
+        return false;
+    }
+    MemCopy(buf, spec, len);
+    buf[len] = '\0';
+    return socket_addr_parse_zstr(out, buf, kind);
+}
+
 Str socket_addr_format(const SocketAddr *addr, Allocator *alloc) {
     Str out = StrInit(alloc);
     if (!addr || addr->length == 0) {

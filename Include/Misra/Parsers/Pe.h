@@ -122,10 +122,19 @@ typedef struct Pe {
 ///
 /// Open and parse a PE file from disk.
 ///
-/// out[out]   : Populated on success.
-/// path[in]   : Filesystem path. `Str *` preferred; `Zstr ` accepted.
-/// alloc[in]  : Allocator for the read-in buffer and the sections
-///              vector. Must outlive the `Pe`.
+/// Call shapes via `OVERLOAD` + `_Generic` on `path`:
+///   `PeOpen(out, path)`                 -- `path` is `Str *` or `Zstr`.
+///   `PeOpen(out, path, alloc)`          -- same, explicit allocator.
+///   `PeOpen(out, path, path_len, alloc)`-- `path` is a fixed-length view
+///                                          (`Zstr`, `size`); it is copied
+///                                          into a stack buffer and
+///                                          NUL-terminated for the open.
+///
+/// out[out]     : Populated on success.
+/// path[in]     : Filesystem path. `Str *` preferred; `Zstr ` accepted.
+/// path_len[in] : Length of `path` for the fixed-length form.
+/// alloc[in]    : Allocator for the read-in buffer and the sections
+///                vector. Must outlive the `Pe`.
 ///
 /// SUCCESS : Returns true; `out` owns the read-in buffer.
 /// FAILURE : Returns false; logs the failing step. `out` is left zeroed.
@@ -147,6 +156,7 @@ typedef struct Pe {
         Zstr: pe_open((out), (Zstr)(path), ALLOCATOR_OF(alloc)),                                                       \
         char *: pe_open((out), (Zstr)(path), ALLOCATOR_OF(alloc))                                                      \
     )
+#define PeOpen_4(out, path, len, alloc) pe_open_n((out), (Zstr)(path), (len), ALLOCATOR_OF(alloc))
 
 ///
 /// Parse a PE image from an in-memory byte range -- **L-value /
@@ -204,17 +214,26 @@ void PeDeinit(Pe *self);
 /// Find a section by name (first match; PE allows duplicates but
 /// they're vanishingly rare).
 ///
+/// Call shapes via `OVERLOAD` + `_Generic` on `name`:
+///   `PeFindSection(self, name)`           -- `name` is `Str *` or `Zstr`.
+///   `PeFindSection(self, name, name_len)` -- `name` is a fixed-length
+///                                            view (`Zstr`, `size`);
+///                                            matched over exactly
+///                                            `name_len` bytes, no copy.
+///
 /// SUCCESS : Returns a pointer to the matching `PeSection`, borrowed
 ///           from `self` (valid until `PeDeinit`).
 /// FAILURE : Returns NULL when no section matches.
 ///
 /// TAGS: Parser, PE, Section, Query
 ///
-#define PeFindSection(self, name)                                                                                      \
+#define PeFindSection(...) OVERLOAD(PeFindSection, __VA_ARGS__)
+#define PeFindSection_2(self, name)                                                                                    \
     _Generic((name), Str *: pe_find_section_str, Zstr: pe_find_section_zstr, char *: pe_find_section_zstr)(            \
         (self),                                                                                                        \
         (name)                                                                                                         \
     )
+#define PeFindSection_3(self, name, name_len) pe_find_section_cstr((self), (Zstr)(name), (name_len))
 
 ///
 /// Convert an RVA (offset from `ImageBase`) to a file offset by

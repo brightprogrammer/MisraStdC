@@ -122,6 +122,15 @@ typedef struct Pdb {
 ///
 /// Open and parse a PDB from disk.
 ///
+/// Call shapes via `OVERLOAD` + `_Generic` on `path`:
+///   `PdbOpen(out, path)`             -- `path` is `Str *` / `Zstr`;
+///                                       reads through `MisraScope`.
+///   `PdbOpen(out, path, alloc)`      -- `path` is `Str *` / `Zstr`;
+///                                       reads through `alloc`.
+///   `PdbOpen(out, path, len, alloc)` -- `path` is a fixed-length view
+///                                       (`Zstr`, `size`); copied into a
+///                                       stack buffer for the syscall.
+///
 /// SUCCESS : Returns true; parser owns the read-in buffer.
 /// FAILURE : Returns false; logs the failing step. `out` is left zeroed.
 ///
@@ -142,6 +151,7 @@ typedef struct Pdb {
         Zstr: pdb_open((out), (Zstr)(path), ALLOCATOR_OF(alloc)),                                                      \
         char *: pdb_open((out), (Zstr)(path), ALLOCATOR_OF(alloc))                                                     \
     )
+#define PdbOpen_4(out, path, len, alloc) pdb_open_n((out), (Zstr)(path), (len), ALLOCATOR_OF(alloc))
 
 ///
 /// Open and parse a PDB from an in-memory byte range -- **L-value /

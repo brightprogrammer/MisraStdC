@@ -277,6 +277,19 @@ DirContents dir_get_contents(Zstr path, Allocator *alloc) {
 #    error "dir_get_contents: unsupported platform/architecture (no direct-syscall path)"
 #endif
 
+DirContents dir_get_contents_cstr(Zstr path, size len, Allocator *alloc) {
+    enum {
+        PATH_CAP = 4096
+    };
+    char buf[PATH_CAP];
+    if (!path || len >= sizeof(buf)) {
+        return (DirContents)VecInit(alloc);
+    }
+    MemCopy(buf, path, len);
+    buf[len] = '\0';
+    return dir_get_contents(buf, alloc);
+}
+
 // Cross-platform function to get file size
 i64 file_get_size(Zstr filename) {
 #if PLATFORM_WINDOWS
@@ -329,6 +342,19 @@ i64 file_get_size(Zstr filename) {
 #endif
 }
 
+i64 file_get_size_cstr(Zstr filename, size len) {
+    enum {
+        PATH_CAP = 4096
+    };
+    char buf[PATH_CAP];
+    if (!filename || len >= sizeof(buf)) {
+        return -1;
+    }
+    MemCopy(buf, filename, len);
+    buf[len] = '\0';
+    return file_get_size(buf);
+}
+
 // ---------------------------------------------------------------------------
 // FileRemove / DirRemove. Linux uses the direct-syscall path when
 // FEATURE_DIRECT_SYSCALL is set (x86_64 -> SYS_unlink/SYS_rmdir;
@@ -366,6 +392,19 @@ i8 file_remove(Zstr path) {
 #endif
 }
 
+i8 file_remove_cstr(Zstr path, size len) {
+    enum {
+        PATH_CAP = 4096
+    };
+    char buf[PATH_CAP];
+    if (!path || len >= sizeof(buf)) {
+        return 0;
+    }
+    MemCopy(buf, path, len);
+    buf[len] = '\0';
+    return file_remove(buf);
+}
+
 i8 dir_remove(Zstr path) {
     if (!path) {
         LOG_FATAL("DirRemove: NULL path");
@@ -394,6 +433,19 @@ i8 dir_remove(Zstr path) {
 #    error                                                                                                             \
         "DirRemove: no direct-syscall path. Add MISRA_SYS_rmdir / MISRA_SYS_unlinkat numbers in _Syscall.h for this arch."
 #endif
+}
+
+i8 dir_remove_cstr(Zstr path, size len) {
+    enum {
+        PATH_CAP = 4096
+    };
+    char buf[PATH_CAP];
+    if (!path || len >= sizeof(buf)) {
+        return 0;
+    }
+    MemCopy(buf, path, len);
+    buf[len] = '\0';
+    return dir_remove(buf);
 }
 
 // ---------------------------------------------------------------------------
@@ -433,6 +485,19 @@ i8 dir_create(Zstr path) {
 #    error                                                                                                             \
         "DirCreate: no direct-syscall path. Add MISRA_SYS_mkdir / MISRA_SYS_mkdirat numbers in _Syscall.h for this arch."
 #endif
+}
+
+i8 dir_create_cstr(Zstr path, size len) {
+    enum {
+        PATH_CAP = 4096
+    };
+    char buf[PATH_CAP];
+    if (!path || len >= sizeof(buf)) {
+        return 0;
+    }
+    MemCopy(buf, path, len);
+    buf[len] = '\0';
+    return dir_create(buf);
 }
 
 // Check whether the given path already exists as a directory. Used by
@@ -508,6 +573,19 @@ i8 dir_create_all(Zstr path) {
     return ok;
 }
 
+i8 dir_create_all_cstr(Zstr path, size len) {
+    enum {
+        PATH_CAP = 4096
+    };
+    char buf[PATH_CAP];
+    if (!path || len >= sizeof(buf)) {
+        return 0;
+    }
+    MemCopy(buf, path, len);
+    buf[len] = '\0';
+    return dir_create_all(buf);
+}
+
 // Per-entry "parent/child" path buffer cap for the recursive removal
 // loop. Kept well under 4 KiB on purpose: on macOS, Clang emits an
 // implicit `___chkstk_darwin` call in the prologue of any function
@@ -574,4 +652,17 @@ i8 dir_remove_all(Zstr path) {
         return 0;
     }
     return DirRemove(path);
+}
+
+i8 dir_remove_all_cstr(Zstr path, size len) {
+    enum {
+        PATH_CAP = 4096
+    };
+    char buf[PATH_CAP];
+    if (!path || len >= sizeof(buf)) {
+        return 0;
+    }
+    MemCopy(buf, path, len);
+    buf[len] = '\0';
+    return dir_remove_all(buf);
 }

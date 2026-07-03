@@ -694,6 +694,22 @@ bool dns_resolve_5_str(DnsResolver *self, const Str *hostname, u16 port, SocketK
     return dns_resolve_5_zstr(self, StrBegin(hostname), port, kind, out);
 }
 
+bool dns_resolve_6_cstr(DnsResolver *self, Zstr hostname, u64 hostname_len, u16 port, SocketKind kind, DnsAddrs *out) {
+    if (!self || !hostname || !out) {
+        return false;
+    }
+    if (hostname_len >= 256) {
+        LOG_ERROR("DnsResolve: hostname exceeds 255 bytes");
+        return false;
+    }
+    bool ok = false;
+    StrInitStack(host, 256) {
+        StrPushBackMany(&host, hostname, hostname_len);
+        ok = dns_resolve_5_zstr(self, StrBegin(&host), port, kind, out);
+    }
+    return ok;
+}
+
 bool dns_resolve_4_vec_str(DnsResolver *self, const Str *spec, SocketKind kind, DnsAddrs *out) {
     if (!self || !spec || !out) {
         return false;

@@ -17,10 +17,11 @@
 extern "C" {
 #endif
 
-typedef struct Pdb Pdb;
+    typedef struct Pdb Pdb;
 
-bool pdb_open(Pdb *out, Zstr path, Allocator *alloc);
-bool pdb_open_from_memory_copy(Pdb *out, const u8 *data, size data_size, Allocator *alloc);
+    bool pdb_open(Pdb *out, Zstr path, Allocator *alloc);
+    bool pdb_open_n(Pdb *out, Zstr path, size len, Allocator *alloc);
+    bool pdb_open_from_memory_copy(Pdb *out, const u8 *data, size data_size, Allocator *alloc);
 
 #ifdef __cplusplus
 }

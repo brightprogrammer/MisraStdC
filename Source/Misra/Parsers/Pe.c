@@ -566,6 +566,19 @@ bool pe_open(Pe *out, Zstr path, Allocator *alloc) {
     return PeOpenFromMemory(out, &data);
 }
 
+bool pe_open_n(Pe *out, Zstr path, size len, Allocator *alloc) {
+    if (!out || !path || !alloc) {
+        LOG_FATAL("PeOpen: NULL argument (contract violation)");
+    }
+    Buf data = BufInit(alloc);
+    if (FileReadAndClose(path, len, &data) < 0) {
+        BufDeinit(&data);
+        LOG_ERROR("PeOpen: failed to read {} path bytes", len);
+        return false;
+    }
+    return PeOpenFromMemory(out, &data);
+}
+
 void PeDeinit(Pe *self) {
     if (!self)
         return;
@@ -590,6 +603,18 @@ const PeSection *pe_find_section_str(const Pe *self, const Str *name) {
     if (!self || !name)
         return NULL;
     return pe_find_section_zstr(self, StrBegin(name));
+}
+
+const PeSection *pe_find_section_cstr(const Pe *self, Zstr name, size name_len) {
+    if (!self || !name)
+        return NULL;
+    for (size i = 0; i < VecLen(&self->sections); ++i) {
+        const PeSection *s = VecPtrAt(&self->sections, i);
+        if (name_len < sizeof(s->name) && s->name[name_len] == '\0' && ZstrCompareN(s->name, name, name_len) == 0) {
+            return s;
+        }
+    }
+    return NULL;
 }
 
 bool PeRvaToOffset(const Pe *self, u32 rva, u64 *out_offset) {

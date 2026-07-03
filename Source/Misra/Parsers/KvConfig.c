@@ -352,6 +352,20 @@ Str *kvconfig_get_ptr_zstr(KvConfig *cfg, Zstr key) {
     return value;
 }
 
+Str *kvconfig_get_ptr_cstr(KvConfig *cfg, Zstr key, size len) {
+    Str  lookup = {0};
+    Str *value  = NULL;
+
+    if (!cfg || !key) {
+        return NULL;
+    }
+
+    lookup = StrInitFromCstr(key, len, MapAllocator(cfg));
+    value  = kvconfig_get_ptr_str(cfg, &lookup);
+    StrDeinit(&lookup);
+    return value;
+}
+
 Str kvconfig_get_str(KvConfig *cfg, const Str *key) {
     Str *value = kvconfig_get_ptr_str(cfg, key);
 
@@ -372,12 +386,26 @@ Str kvconfig_get_zstr(KvConfig *cfg, Zstr key) {
     return StrInitFromCstr(StrBegin(value), StrLen(value), MapAllocator(cfg));
 }
 
+Str kvconfig_get_cstr(KvConfig *cfg, Zstr key, size len) {
+    Str *value = kvconfig_get_ptr_cstr(cfg, key, len);
+
+    if (!value) {
+        return StrInit(MapAllocator(cfg));
+    }
+
+    return StrInitFromCstr(StrBegin(value), StrLen(value), MapAllocator(cfg));
+}
+
 bool kvconfig_contains_str(KvConfig *cfg, const Str *key) {
     return kvconfig_get_ptr_str(cfg, key) != NULL;
 }
 
 bool kvconfig_contains_zstr(KvConfig *cfg, Zstr key) {
     return kvconfig_get_ptr_zstr(cfg, key) != NULL;
+}
+
+bool kvconfig_contains_cstr(KvConfig *cfg, Zstr key, size len) {
+    return kvconfig_get_ptr_cstr(cfg, key, len) != NULL;
 }
 
 bool kvconfig_get_bool_str(KvConfig *cfg, const Str *key, bool *value) {
@@ -392,6 +420,16 @@ bool kvconfig_get_bool_str(KvConfig *cfg, const Str *key, bool *value) {
 
 bool kvconfig_get_bool_zstr(KvConfig *cfg, Zstr key, bool *value) {
     Str *str = kvconfig_get_ptr_zstr(cfg, key);
+
+    if (!str) {
+        return false;
+    }
+
+    return kvconfig_parse_bool_value(str, value);
+}
+
+bool kvconfig_get_bool_cstr(KvConfig *cfg, Zstr key, size len, bool *value) {
+    Str *str = kvconfig_get_ptr_cstr(cfg, key, len);
 
     if (!str) {
         return false;
@@ -420,6 +458,16 @@ bool kvconfig_get_i64_zstr(KvConfig *cfg, Zstr key, i64 *value) {
     return kvconfig_parse_i64_value(str, value);
 }
 
+bool kvconfig_get_i64_cstr(KvConfig *cfg, Zstr key, size len, i64 *value) {
+    Str *str = kvconfig_get_ptr_cstr(cfg, key, len);
+
+    if (!str) {
+        return false;
+    }
+
+    return kvconfig_parse_i64_value(str, value);
+}
+
 bool kvconfig_get_f64_str(KvConfig *cfg, const Str *key, f64 *value) {
     Str *str = kvconfig_get_ptr_str(cfg, key);
 
@@ -432,6 +480,16 @@ bool kvconfig_get_f64_str(KvConfig *cfg, const Str *key, f64 *value) {
 
 bool kvconfig_get_f64_zstr(KvConfig *cfg, Zstr key, f64 *value) {
     Str *str = kvconfig_get_ptr_zstr(cfg, key);
+
+    if (!str) {
+        return false;
+    }
+
+    return kvconfig_parse_f64_value(str, value);
+}
+
+bool kvconfig_get_f64_cstr(KvConfig *cfg, Zstr key, size len, f64 *value) {
+    Str *str = kvconfig_get_ptr_cstr(cfg, key, len);
 
     if (!str) {
         return false;

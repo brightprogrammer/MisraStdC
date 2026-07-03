@@ -112,6 +112,7 @@ typedef Vec(DirEntry) DirContents;
 /// TAGS: System, FileSystem, Directory
 ///
 DirContents dir_get_contents(Zstr path, Allocator *alloc);
+DirContents dir_get_contents_cstr(Zstr path, size len, Allocator *alloc);
 #define DirGetContents(...) OVERLOAD(DirGetContents, __VA_ARGS__)
 #define DirGetContents_1(path)                                                                                         \
     _Generic(                                                                                                          \
@@ -127,6 +128,7 @@ DirContents dir_get_contents(Zstr path, Allocator *alloc);
         Zstr: dir_get_contents((Zstr)(path), ALLOCATOR_OF(alloc)),                                                     \
         char *: dir_get_contents((Zstr)(path), ALLOCATOR_OF(alloc))                                                    \
     )
+#define DirGetContents_3(path, len, alloc) dir_get_contents_cstr((Zstr)(path), (len), ALLOCATOR_OF(alloc))
 
 ///
 /// Get size of file without opening it.
@@ -139,13 +141,16 @@ DirContents dir_get_contents(Zstr path, Allocator *alloc);
 /// TAGS: System, File, Metadata
 ///
 i64 file_get_size(Zstr filename);
-#define FileGetSize(path)                                                                                              \
+i64 file_get_size_cstr(Zstr filename, size len);
+#define FileGetSize(...) OVERLOAD(FileGetSize, __VA_ARGS__)
+#define FileGetSize_1(path)                                                                                            \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: file_get_size((Zstr)StrBegin((Str *)(path))),                                                           \
         Zstr: file_get_size((Zstr)(path)),                                                                             \
         char *: file_get_size((Zstr)(path))                                                                            \
     )
+#define FileGetSize_2(path, len) file_get_size_cstr((Zstr)(path), (len))
 
 ///
 /// Remove a regular file. Direct syscall (`unlink` on Linux x86_64 /
@@ -167,13 +172,16 @@ i64 file_get_size(Zstr filename);
 /// TAGS: System, File, FileSystem
 ///
 i8 file_remove(Zstr path);
-#define FileRemove(path)                                                                                               \
+i8 file_remove_cstr(Zstr path, size len);
+#define FileRemove(...) OVERLOAD(FileRemove, __VA_ARGS__)
+#define FileRemove_1(path)                                                                                             \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: file_remove((Zstr)StrBegin((Str *)(path))),                                                             \
         Zstr: file_remove((Zstr)(path)),                                                                               \
         char *: file_remove((Zstr)(path))                                                                              \
     )
+#define FileRemove_2(path, len) file_remove_cstr((Zstr)(path), (len))
 
 ///
 /// Remove an empty directory. Direct syscall (`rmdir` on Linux
@@ -190,13 +198,16 @@ i8 file_remove(Zstr path);
 /// TAGS: System, Directory, FileSystem
 ///
 i8 dir_remove(Zstr path);
-#define DirRemove(path)                                                                                                \
+i8 dir_remove_cstr(Zstr path, size len);
+#define DirRemove(...) OVERLOAD(DirRemove, __VA_ARGS__)
+#define DirRemove_1(path)                                                                                              \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: dir_remove((Zstr)StrBegin((Str *)(path))),                                                              \
         Zstr: dir_remove((Zstr)(path)),                                                                                \
         char *: dir_remove((Zstr)(path))                                                                               \
     )
+#define DirRemove_2(path, len) dir_remove_cstr((Zstr)(path), (len))
 
 ///
 /// Create a single directory. Direct syscall (`mkdir` on Linux
@@ -213,13 +224,16 @@ i8 dir_remove(Zstr path);
 /// TAGS: System, Directory, FileSystem
 ///
 i8 dir_create(Zstr path);
-#define DirCreate(path)                                                                                                \
+i8 dir_create_cstr(Zstr path, size len);
+#define DirCreate(...) OVERLOAD(DirCreate, __VA_ARGS__)
+#define DirCreate_1(path)                                                                                              \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: dir_create((Zstr)StrBegin((Str *)(path))),                                                              \
         Zstr: dir_create((Zstr)(path)),                                                                                \
         char *: dir_create((Zstr)(path))                                                                               \
     )
+#define DirCreate_2(path, len) dir_create_cstr((Zstr)(path), (len))
 
 ///
 /// Recursive `mkdir -p`. Creates all missing path components.
@@ -235,13 +249,16 @@ i8 dir_create(Zstr path);
 /// TAGS: System, Directory, FileSystem
 ///
 i8 dir_create_all(Zstr path);
-#define DirCreateAll(path)                                                                                             \
+i8 dir_create_all_cstr(Zstr path, size len);
+#define DirCreateAll(...) OVERLOAD(DirCreateAll, __VA_ARGS__)
+#define DirCreateAll_1(path)                                                                                           \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: dir_create_all((Zstr)StrBegin((Str *)(path))),                                                          \
         Zstr: dir_create_all((Zstr)(path)),                                                                            \
         char *: dir_create_all((Zstr)(path))                                                                           \
     )
+#define DirCreateAll_2(path, len) dir_create_all_cstr((Zstr)(path), (len))
 
 ///
 /// Recursive `rm -rf`. Removes a directory tree (regular files,
@@ -256,12 +273,15 @@ i8 dir_create_all(Zstr path);
 /// TAGS: System, Directory, FileSystem
 ///
 i8 dir_remove_all(Zstr path);
-#define DirRemoveAll(path)                                                                                             \
+i8 dir_remove_all_cstr(Zstr path, size len);
+#define DirRemoveAll(...) OVERLOAD(DirRemoveAll, __VA_ARGS__)
+#define DirRemoveAll_1(path)                                                                                           \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: dir_remove_all((Zstr)StrBegin((Str *)(path))),                                                          \
         Zstr: dir_remove_all((Zstr)(path)),                                                                            \
         char *: dir_remove_all((Zstr)(path))                                                                           \
     )
+#define DirRemoveAll_2(path, len) dir_remove_all_cstr((Zstr)(path), (len))
 
 #endif // MISRA_SYS_DIR_H

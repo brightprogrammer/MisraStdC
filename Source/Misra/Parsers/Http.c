@@ -76,6 +76,18 @@ HttpHeader *http_headers_find_str(HttpHeaders *headers, const Str *key) {
     return http_headers_find_zstr(headers, StrBegin(key));
 }
 
+HttpHeader *http_headers_find_cstr(HttpHeaders *headers, Zstr key, size key_len) {
+    if (!headers || !key) {
+        LOG_FATAL("invalid arguments");
+    }
+    VecForeachPtr(headers, header) {
+        if (StrLen(&header->key) == key_len && 0 == ZstrCompareN(StrBegin(&header->key), key, key_len)) {
+            return header;
+        }
+    }
+    return NULL;
+}
+
 // ---------------------------------------------------------------------------
 // HttpRequest
 // ---------------------------------------------------------------------------
@@ -141,7 +153,9 @@ Zstr http_request_parse_zstr(HttpRequest *req, Zstr in) {
     // RFC 7230 § 3.2.5 lets servers cap per-message header count; the
     // attacker-controlled stream otherwise grows req->headers without
     // bound. Match common reverse-proxy ceilings (nginx/haproxy ~100).
-    enum { HTTP_REQUEST_HEADERS_MAX = 100 };
+    enum {
+        HTTP_REQUEST_HEADERS_MAX = 100
+    };
 
     while (true) {
         Zstr line_start = cursor;
@@ -182,6 +196,23 @@ Zstr http_request_parse_str(HttpRequest *req, const Str *in) {
     // parser scans format-by-format with NUL-aware readers, so the
     // .data view is sufficient.
     return http_request_parse_zstr(req, StrBegin(in));
+}
+
+Zstr http_request_parse_cstr(HttpRequest *req, Zstr in, size in_len) {
+    if (!req || !req->allocator || !in) {
+        LOG_FATAL("invalid arguments");
+    }
+    Str staged = StrInit(req->allocator);
+    if (!StrPushBackMany(&staged, in, in_len)) {
+        LOG_ERROR("failed to stage http request input");
+        StrDeinit(&staged);
+        return in;
+    }
+    Zstr base   = StrBegin(&staged);
+    Zstr cursor = http_request_parse_zstr(req, base);
+    Zstr result = (cursor == base) ? in : (in + (cursor - base));
+    StrDeinit(&staged);
+    return result;
 }
 
 void HttpRequestDeinit(HttpRequest *req) {
@@ -447,6 +478,26 @@ HttpResponse *http_respond_with_file_str(
         LOG_FATAL("invalid arguments");
     }
     return http_respond_with_file_zstr(response, status, content_type, (Zstr)StrBegin(filepath));
+}
+
+HttpResponse *http_respond_with_file_cstr(
+    HttpResponse    *response,
+    HttpResponseCode status,
+    HttpContentType  content_type,
+    Zstr             filepath,
+    size             filepath_len
+) {
+    enum {
+        PATH_CAP = 4096
+    };
+    char buf[PATH_CAP];
+    if (!filepath || filepath_len >= sizeof(buf)) {
+        LOG_ERROR("invalid or oversized file path");
+        return NULL;
+    }
+    MemCopy(buf, filepath, filepath_len);
+    buf[filepath_len] = '\0';
+    return http_respond_with_file_zstr(response, status, content_type, buf);
 }
 #endif
 

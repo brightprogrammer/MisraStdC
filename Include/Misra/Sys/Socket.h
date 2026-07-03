@@ -146,7 +146,7 @@ bool socket_addr_parse_zstr(SocketAddr *out, Zstr spec, SocketKind kind);
 /// `Str` overload of `SocketAddrParse`. Identical contract to the Zstr
 /// arm above; provided so callers holding a `Str` don't have to reach
 /// into `.data`. The `_Generic` macro below routes through this for
-/// `Str *` / `const Str *` inputs.
+/// `Str *` inputs.
 ///
 /// SUCCESS : Returns true; `*out` populated.
 /// FAILURE : Returns false; `*out` zeroed. Silent (no log) — caller is
@@ -155,13 +155,31 @@ bool socket_addr_parse_zstr(SocketAddr *out, Zstr spec, SocketKind kind);
 /// TAGS: Socket, Parse, Address
 ///
 bool socket_addr_parse_str(SocketAddr *out, const Str *spec, SocketKind kind);
-#define SocketAddrParse(out, spec, kind)                                                                                                                      \
-    _Generic(                                                                                                                                                 \
-        (spec),                                                                                                                                               \
-        Str *: socket_addr_parse_str((out), (const Str *)(spec), (kind)),                                                                                     \
-        Zstr: socket_addr_parse_zstr((out), (Zstr)(spec), (kind)),                                                                                            \
-        char *: socket_addr_parse_zstr((out), (Zstr)(spec), (kind))                                                                                           \
+
+///
+/// Fixed-length (`Zstr`, `len`) overload of `SocketAddrParse`. `spec`
+/// need not be NUL-terminated; exactly `len` bytes are considered. The
+/// shared IP/port parsers are NUL-terminated scanners, so this copies
+/// the view into a bounded stack buffer before delegating to the zstr
+/// arm. Same contract as the other arms.
+///
+/// SUCCESS : Returns true; `*out` populated.
+/// FAILURE : Returns false; `*out` zeroed. Silent (no log) — caller is
+///           expected to chain into DNS for the hostname case. A view
+///           too long to name a valid host:port also returns false.
+///
+/// TAGS: Socket, Parse, Address
+///
+bool socket_addr_parse_cstr(SocketAddr *out, Zstr spec, size len, SocketKind kind);
+#define SocketAddrParse(...) OVERLOAD(SocketAddrParse, __VA_ARGS__)
+#define SocketAddrParse_3(out, spec, kind)                                                                             \
+    _Generic(                                                                                                          \
+        (spec),                                                                                                        \
+        Str *: socket_addr_parse_str((out), (const Str *)(spec), (kind)),                                              \
+        Zstr: socket_addr_parse_zstr((out), (Zstr)(spec), (kind)),                                                     \
+        char *: socket_addr_parse_zstr((out), (Zstr)(spec), (kind))                                                    \
     )
+#define SocketAddrParse_4(out, spec, len, kind) socket_addr_parse_cstr((out), (Zstr)(spec), (len), (kind))
 
 ///
 /// Render a `SocketAddr` back into a "ip:port" string. IPv6 addresses
