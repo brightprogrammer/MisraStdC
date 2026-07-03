@@ -86,16 +86,14 @@ static void binding_deinit(void *copy, const Allocator *alloc) {
     (void)alloc;
     StrDeinit(&((Binding *)copy)->name);
 }
-typedef Vec(PcReport) Reports;
-
 ///
 /// The grammar context threaded through every parser as `ctx`: the variable
 /// environment plus the diagnostics sink the `PcReport*` macros append to. Both
 /// are containers that carry their own allocator.
 ///
 typedef struct PcParserCtx {
-    Bindings vars;
-    Reports  reports;
+    Bindings  vars;
+    PcReports reports;
 } PcParserCtx;
 
 typedef struct {
@@ -363,47 +361,17 @@ static void seed(Bindings *vars, HeapAllocator *heap, Zstr name, Num v) {
     VecPushBack(vars, b);
 }
 
-static Zstr level_word(PcReportLevel level) {
-    switch (level) {
-        case PC_REPORT_ERROR :
-            return "error";
-        case PC_REPORT_WARN :
-            return "warning";
-        default :
-            return "note";
-    }
-}
-
-/// draw each report rustc-style: level + message, the source line, then carets
-/// under its span. Parsers never touch this -- they only record a `PcReport`.
-static void render(Str *src, Reports *reports) {
-    const char *bytes = StrBegin(src);
-    for (u64 r = 0; r < VecLen(reports); r++) {
-        PcReport rep = VecAt(reports, r);
-        u64      end = rep.end;
-        while (end > rep.start && (bytes[end - 1] == ' ' || bytes[end - 1] == '\t'))
-            end--;
-        WriteFmtLn("{}: {}", level_word(rep.level), rep.message);
-        WriteFmtLn("  {}", *src);
-        StrInitStack(caret, 512) {
-            char space = ' ', hat = '^';
-            for (u64 c = 0; c < rep.start; c++)
-                StrPushBackR(&caret, space);
-            for (u64 c = rep.start; c < end; c++)
-                StrPushBackR(&caret, hat);
-            WriteFmtLn("  {}", caret);
-        }
-    }
-}
-
 static void eval_line(PcParserCtx *ctx, Str *line) {
     VecClear(&ctx->reports);
     StrIter        in  = StrIterFromStr(*line);
     Num            out = {0};
     PcParserStatus st  = PcRun(Calc, &in, &out);
-    if (VecLen(&ctx->reports) > 0)
-        render(line, &ctx->reports);
-    else if ((st & PC_PARSER_STATUS_SUCCESS) && !StrIterRemainingLength(&in)) {
+    if (VecLen(&ctx->reports) > 0) {
+        StrInitStack(diag, 256) {
+            PcReportsRender(&diag, line, &ctx->reports);
+            WriteFmt("{}", diag);
+        }
+    } else if ((st & PC_PARSER_STATUS_SUCCESS) && !StrIterRemainingLength(&in)) {
         if (out.is_float)
             WriteFmtLn("{}", out.f);
         else

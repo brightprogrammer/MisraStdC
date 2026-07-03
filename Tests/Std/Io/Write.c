@@ -4993,7 +4993,7 @@ static bool test_fwrite_roundtrip(void) {
     if (ok) {
         ok = ok && FWriteFmtLn(&f, "n={}", LVAL((i32)42));
         FileClose(&f);
-        File r = FileOpen(StrBegin(&path), "r");
+        File r = FileOpen(&path, "r");
         if (FileIsOpen(&r)) {
             Str back = StrInit(&alloc);
             FileRead(&r, &back);
@@ -5024,7 +5024,7 @@ static bool test_fwrite_empty_skipped(void) {
         ok = ok && FWriteFmt(&f, "");
         ok = ok && FWriteFmt(&f, "X");
         FileClose(&f);
-        File r = FileOpen(StrBegin(&path), "r");
+        File r = FileOpen(&path, "r");
         if (FileIsOpen(&r)) {
             Str back = StrInit(&alloc);
             FileRead(&r, &back);

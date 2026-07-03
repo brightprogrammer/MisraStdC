@@ -30,6 +30,7 @@
 #    include <Misra/Parsers/Dwarf.h>
 #endif
 #include <Misra/Std/Allocator.h>
+#include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Parsers/ProcMaps.h>
 #include <Misra/Types.h>
@@ -73,8 +74,8 @@ typedef struct ResolvedSymbol {
 } ResolvedSymbol;
 
 typedef struct ResolverCacheEntry {
-    Zstr path; // borrowed from ProcMaps.raw
-    Elf  elf;
+    Str path; // owned NUL-terminated copy of the mapping path (the ProcMaps slice is not terminated)
+    Elf elf;
     // Sidecar debug file found via .gnu_debuglink or .note.gnu.build-id.
     // Populated lazily for stripped binaries that have an installed
     // -dbg package or a debug file alongside them. When `has_sidecar`

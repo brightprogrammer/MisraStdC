@@ -243,10 +243,18 @@ typedef struct Elf {
 ///
 /// Open and parse an ELF file from disk.
 ///
-/// out[out]   : Populated on success.
-/// path[in]   : Filesystem path. Prefer `Str *`; `Zstr` (NUL-terminated) accepted.
-/// alloc[in]  : Allocator for the read-in byte buffer and the section /
-///              symbol vectors. Must outlive the `Elf`.
+/// Call shapes via `OVERLOAD` + `_Generic` on `path`:
+///   `ElfOpen(out, path)`                 -- `path` is `Str *` or `Zstr`.
+///   `ElfOpen(out, path, alloc)`          -- same, explicit allocator.
+///   `ElfOpen(out, path, path_len, alloc)`-- `path` is a fixed-length view
+///                                           (`Zstr`, `size`); copied into a
+///                                           stack buffer for the syscall.
+///
+/// out[out]     : Populated on success.
+/// path[in]     : Filesystem path. Prefer `Str *`; `Zstr` (NUL-terminated) accepted.
+/// path_len[in] : Length of `path` for the fixed-length form.
+/// alloc[in]    : Allocator for the read-in byte buffer and the section /
+///                symbol vectors. Must outlive the `Elf`.
 ///
 /// SUCCESS : Returns true; `out` owns the read-in buffer and will free
 ///           it on `ElfDeinit`.
@@ -270,6 +278,7 @@ typedef struct Elf {
         Zstr: elf_open((out), (Zstr)(path), ALLOCATOR_OF(alloc)),                                                      \
         char *: elf_open((out), (Zstr)(path), ALLOCATOR_OF(alloc))                                                     \
     )
+#define ElfOpen_4(out, path, len, alloc) elf_open_n((out), (Zstr)(path), (len), ALLOCATOR_OF(alloc))
 
 ///
 /// Parse an ELF object from an in-memory byte range -- **L-value /

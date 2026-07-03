@@ -32,33 +32,31 @@ typedef enum ProcMapPerms {
 } ProcMapPerms;
 
 ///
-/// One line of `/proc/self/maps`. `path` is borrowed from the
-/// `ProcMaps.raw` buffer and stays valid until `ProcMapsDeinit`. May
-/// be empty for anonymous mappings (heap, stacks, vdso, etc.).
+/// One line of `/proc/self/maps`. `path` is an owned, NUL-terminated copy of the
+/// mapping's backing file, freed by `ProcMapsDeinit`. It is an empty `Str`
+/// (`StrLen(&path) == 0`) for anonymous mappings (heap, stacks, vdso, etc.).
 ///
 typedef struct ProcMapEntry {
-    u64  start;       // runtime virtual address (inclusive)
-    u64  end;         // runtime virtual address (exclusive)
-    u32  perms;       // bitmask of ProcMapPerms
-    u64  file_offset; // offset within the backing file
-    Zstr path;        // backing file path, or "" if anonymous
+    u64 start;       // runtime virtual address (inclusive)
+    u64 end;         // runtime virtual address (exclusive)
+    u32 perms;       // bitmask of ProcMapPerms
+    u64 file_offset; // offset within the backing file
+    Str path;        // owned copy of the mapping path (empty for anonymous mappings)
 } ProcMapEntry;
 
 typedef Vec(ProcMapEntry) ProcMapEntries;
 
 typedef struct ProcMaps {
-    Str            raw;      // owns the raw /proc/self/maps bytes
-    ProcMapEntries entries;  // pointers into `raw`
+    ProcMapEntries entries;  // each entry owns its path copy
     u64            min_addr; // lowest `start` across all entries (0 if none)
 } ProcMaps;
 
 ///
-/// Read and parse `/proc/self/maps`. The full file is held inside
-/// `out->raw` for the lifetime of the ProcMaps so each entry's `path`
-/// can borrow from it without a separate copy.
+/// Read and parse `/proc/self/maps`. The file is parsed into `out->entries`,
+/// each entry owning a copy of its path; the raw buffer is not retained.
 ///
 /// out[out]   : Populated on success.
-/// alloc[in]  : Allocator for the raw buffer and entries vector.
+/// alloc[in]  : Allocator for the entries vector and each entry's path copy.
 ///
 /// SUCCESS : Returns true; `out->entries` is populated.
 /// FAILURE : Returns false; logs the failing step. `out` is left zeroed.

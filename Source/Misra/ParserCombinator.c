@@ -14,6 +14,8 @@
 
 #include <Misra/ParserCombinator.h>
 #include <Misra/Std/Container/Buf.h>
+#include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Io.h>
 
 #define PC_DELIVER_READER(Name, Type, Reader)                                                                          \
     PcParserStatus pc_parser_##Name(BufIter *in, struct PcParserCtx *ctx, Type *value) {                               \
@@ -38,3 +40,48 @@ PC_DELIVER_READER(PcI64BE, i64, BufReadI64BE)
 PC_DELIVER_READER(PcI64LE, i64, BufReadI64LE)
 
 #undef PC_DELIVER_READER
+
+static Zstr pc_level_word(PcReportLevel level) {
+    switch (level) {
+        case PC_REPORT_ERROR :
+            return "error";
+        case PC_REPORT_WARN :
+            return "warning";
+        default :
+            return "note";
+    }
+}
+
+void PcReportsRender(Str *out, Str *src, PcReports *reports) {
+    const char *bytes = StrBegin(src);
+    u64         n     = StrLen(src);
+    for (u64 r = 0; r < VecLen(reports); r++) {
+        PcReport rep = VecAt(reports, r);
+
+        // The source line the span sits on, bounded by a newline -- or a NUL, since
+        // a parser may terminate a borrowed slice in place -- on either side.
+        u64 line_start = rep.start;
+        while (line_start > 0 && bytes[line_start - 1] != '\n' && bytes[line_start - 1] != '\0')
+            line_start--;
+        u64 line_end = rep.start;
+        while (line_end < n && bytes[line_end] != '\n' && bytes[line_end] != '\0')
+            line_end++;
+        u64 span_end = rep.end < line_end ? rep.end : line_end;
+        while (span_end > rep.start && (bytes[span_end - 1] == ' ' || bytes[span_end - 1] == '\t'))
+            span_end--;
+
+        StrAppendFmt(out, "{}: {}\n", pc_level_word(rep.level), rep.message);
+        StrPushBackR(out, ' ');
+        StrPushBackR(out, ' ');
+        for (u64 c = line_start; c < line_end; c++)
+            StrPushBackR(out, bytes[c]);
+        StrPushBackR(out, '\n');
+        StrPushBackR(out, ' ');
+        StrPushBackR(out, ' ');
+        for (u64 c = line_start; c < rep.start; c++)
+            StrPushBackR(out, ' ');
+        for (u64 c = rep.start; c < span_end; c++)
+            StrPushBackR(out, '^');
+        StrPushBackR(out, '\n');
+    }
+}

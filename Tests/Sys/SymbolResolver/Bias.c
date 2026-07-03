@@ -32,10 +32,9 @@ static bool find_rw_mapping(Zstr path, u64 addr, u64 *map_start, u64 *map_file_o
     ProcMaps         maps;
     bool             got = false;
     if (ProcMapsLoad(&maps, ALLOCATOR_OF(&a))) {
-        for (u64 i = 0; i < VecLen(&maps.entries); ++i) {
-            const ProcMapEntry *m = VecPtrAt(&maps.entries, i);
-            if (m->path && ZstrCompare(m->path, path) == 0 && (m->perms & PROC_MAP_PERM_WRITE) && addr >= m->start &&
-                addr < m->end) {
+        VecForeachPtr(&maps.entries, m) {
+            if (!StrEmpty(&m->path) && StrCmp(&m->path, path) == 0 && (m->perms & PROC_MAP_PERM_WRITE) &&
+                addr >= m->start && addr < m->end) {
                 *map_start       = m->start;
                 *map_file_offset = m->file_offset;
                 got              = true;

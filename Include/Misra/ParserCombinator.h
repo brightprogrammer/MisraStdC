@@ -85,6 +85,7 @@
 #include <Misra/Std/Utility/StrIter.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Std/Container/Buf.h>
+#include <Misra/Std/Container/Str.h>
 
 ///
 /// The cursor type. Text grammars use the default `StrIter` (`Iter(char)`); a byte-oriented
@@ -156,6 +157,17 @@ typedef struct PcReport {
     PcReportLevel level;
     Zstr          message; ///< the parser's words; the specifics show under the caret
 } PcReport;
+
+typedef Vec(PcReport) PcReports;
+
+///
+/// PcReportsRender: draw the recorded diagnostics rustc-style into `out`. For each report it appends
+/// a `level: message` line, the source line the report spans (bounded by a newline or NUL on either
+/// side, so it works on the whole multi-line input), and a caret run under the span. `src` is the
+/// parsed input; a grammar only records `PcReport`s and never draws a caret. The caller owns `out`
+/// and decides where it goes -- print it, log it, ... -- so the renderer is I/O-free.
+///
+void PcReportsRender(Str *out, Str *src, PcReports *reports);
 
 ///
 /// The parser context and its savepoint contract
@@ -377,6 +389,21 @@ typedef struct PcReport {
 #define PcReject() return PC_CONSUMED(pc_seq.start) | PC_PARSER_STATUS_FAILED
 
 ///
+/// PcFailIfNotEof: a `PcSeq` step that succeeds only at end of input. If any input remains, it
+/// records `Msg` at the cursor and fails the rule (exactly as `PcReject`, carrying the sequence's
+/// consumed bit) -- the "the whole input had to parse" assertion, so a grammar never inspects the
+/// cursor by hand. `ctx` must carry a `Vec(PcReport) reports;` sink for the recorded cause.
+///
+#define PcFailIfNotEof(Msg)                                                                                            \
+    do {                                                                                                               \
+        char UNPL(pc_eof_) = 0;                                                                                        \
+        if (IterPeekAt(in, 0, &UNPL(pc_eof_))) {                                                                       \
+            PcReportErrorHere(Msg);                                                                                    \
+            return PC_CONSUMED(pc_seq.start) | PC_PARSER_STATUS_FAILED;                                                \
+        }                                                                                                              \
+    } while (0)
+
+///
 /// Record a diagnostic and KEEP GOING -- the greedy alternative to `PcReject`. Appends a
 /// `PcReport` (spanning what the current `PcSeq` frame has consumed so far) to `ctx->reports`,
 /// then returns nothing, so the rule substitutes a poison value and parsing continues to collect
@@ -567,6 +594,24 @@ typedef struct PcReport {
 #define PcRecover(Var, IsSync)                                                                                         \
     for (char Var = 0; IterPeekAt(in, 0, &Var) && !(IsSync);)                                                          \
     IterMove(in, 1)
+
+///
+/// PcCaptureUntil: capture the run of input from the cursor up to (not including) the first char
+/// satisfying `IsStop`, or end of input. Binds `PtrOut` to a `Zstr` at the run's start and `LenOut`
+/// (a `u64`) to its byte length -- a borrowed `(ptr, len)` view the rule does what it wants with:
+/// parse it to a number, copy it into an owned `Str`, or store it as-is. The DSL owns the cursor the
+/// whole time, so the rule never touches `in`. `Var` is the loop-scoped peeked char (as in
+/// `PcRecover`). The cursor is left AT the stop char -- consume it separately if the grammar must
+/// move past it.
+///
+#define PcCaptureUntil(Var, IsStop, PtrOut, LenOut)                                                                    \
+    do {                                                                                                               \
+        u64 UNPL(pc_cap_) = IterIndex(in);                                                                             \
+        for (char Var = 0; IterPeekAt(in, 0, &Var) && !(IsStop);)                                                      \
+            IterMove(in, 1);                                                                                           \
+        *(PtrOut) = (Zstr)IterDataAt(in, UNPL(pc_cap_));                                                               \
+        *(LenOut) = IterIndex(in) - UNPL(pc_cap_);                                                                     \
+    } while (0)
 
 ///
 /// Atoms -- the only place `StrIter` and `PcParserStatus` are handled directly. Every fundamental

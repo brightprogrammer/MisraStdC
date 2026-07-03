@@ -10,6 +10,7 @@
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/File.h>
 #include <Misra/Std/Log.h>
+#include <Misra/Std/Memory.h>
 #include <Misra/Std/Prng.h>
 #include <Misra/Sys.h>
 #include <Misra/Types.h>
@@ -161,6 +162,23 @@ File file_open(Zstr path, Zstr mode) {
     f.owns = true;
     return f;
 #endif
+}
+
+File file_open_n(Zstr path, size len, Zstr mode) {
+    // `path` is a fixed-length view; the OS open() needs a NUL-terminated
+    // C-string, so copy into a stack buffer bounded by the platform path cap
+    // (a path longer than this cannot be opened anyway).
+    enum {
+        PATH_CAP = 4096
+    };
+    char buf[PATH_CAP];
+    if (!path || len >= sizeof(buf)) {
+        File f = {0};
+        return f;
+    }
+    MemCopy(buf, path, len);
+    buf[len] = '\0';
+    return file_open(buf, mode);
 }
 
 File FileFromFd(i32 fd) {
@@ -492,6 +510,23 @@ i64 file_read_and_close_to_buf(Zstr path, Buf *out) {
 
 i64 file_read_and_close_to_str(Zstr path, Str *out) {
     return file_read_and_close_to_buf(path, (Buf *)out);
+}
+
+i64 file_read_and_close_to_buf_n(Zstr path, size len, Buf *out) {
+    if (!path || !out) {
+        LOG_FATAL("FileReadAndClose: NULL argument (contract violation)");
+    }
+    File f = file_open_n(path, len, "rb");
+    if (!FileIsOpen(&f)) {
+        return -1;
+    }
+    i64 got = file_read_to_buf(&f, out);
+    FileClose(&f);
+    return got;
+}
+
+i64 file_read_and_close_to_str_n(Zstr path, size len, Str *out) {
+    return file_read_and_close_to_buf_n(path, len, (Buf *)out);
 }
 
 i64 file_write_and_close_from_bytes(Zstr path, const void *buf, u64 n) {

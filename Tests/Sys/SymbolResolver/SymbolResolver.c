@@ -391,10 +391,9 @@ static bool find_other_module_addr(Zstr self_path, u64 *out_addr) {
     ProcMaps         maps;
     bool             got = false;
     if (ProcMapsLoad(&maps, ALLOCATOR_OF(&a))) {
-        for (u64 i = 0; i < VecLen(&maps.entries); ++i) {
-            const ProcMapEntry *m = VecPtrAt(&maps.entries, i);
-            if (m->path && m->path[0] == '/' && (m->perms & PROC_MAP_PERM_EXEC) &&
-                ZstrCompare(m->path, self_path) != 0) {
+        VecForeachPtr(&maps.entries, m) {
+            if (!StrEmpty(&m->path) && StrBegin(&m->path)[0] == '/' && (m->perms & PROC_MAP_PERM_EXEC) &&
+                StrCmp(&m->path, self_path) != 0) {
                 *out_addr = m->start;
                 got       = true;
                 break;

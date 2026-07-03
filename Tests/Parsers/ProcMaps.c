@@ -15,12 +15,17 @@ static int pm2_marker_fn(int x) {
 }
 
 // Parse crafted `/proc/self/maps`-format TEXT through the public LoadFrom
-// seam. The bytes are copied into `m->raw`, so we can feed string literals
-// and still assert exact parsed fields -- no live `/proc` involved. Returns
-// the loader's own success flag (true even when a line is malformed: a bad
-// line is skipped, not a hard failure).
+// seam. The bytes are parsed through a transient buffer, so we can feed string
+// literals and still assert exact parsed fields -- no live `/proc` involved. Returns
+// the loader's own success flag -- false if any line is malformed, since the
+// parse fails (naming the cause) on the first line it cannot decode.
 static bool pm_load_text(ProcMaps *m, Zstr text, DefaultAllocator *alloc) {
     return ProcMapsLoadFrom(m, text, ZstrLen(text), alloc);
+}
+
+// `path` is an owned, NUL-terminated Str -- compare it against a literal.
+static bool path_eq(const ProcMapEntry *e, Zstr want) {
+    return ZstrCompare(StrBegin(&e->path), want) == 0;
 }
 
 bool test_procmaps_load(void) {
@@ -316,12 +321,14 @@ bool test_pm2_find_no_overrun_past_length(void) {
     DebugAllocator alloc = DebugAllocatorInit();
     ProcMaps       pm;
     MemSet(&pm, 0, sizeof(pm));
-    pm.raw     = StrInit(ALLOCATOR_OF(&alloc));
     pm.entries = VecInitT(pm.entries, ALLOCATOR_OF(&alloc));
 
-    ProcMapEntry e0 = {.start = 0x1000, .end = 0x2000, .perms = 0, .file_offset = 0, .path = ""};
-    ProcMapEntry e1 = {.start = 0x3000, .end = 0x4000, .perms = 0, .file_offset = 0, .path = ""};
-    ProcMapEntry e2 = {.start = 0x5000, .end = 0x6000, .perms = 0, .file_offset = 0, .path = ""};
+    ProcMapEntry e0 = {.start = 0x1000, .end = 0x2000, .perms = 0, .file_offset = 0};
+    ProcMapEntry e1 = {.start = 0x3000, .end = 0x4000, .perms = 0, .file_offset = 0};
+    ProcMapEntry e2 = {.start = 0x5000, .end = 0x6000, .perms = 0, .file_offset = 0};
+    e0.path         = StrInit(ALLOCATOR_OF(&alloc));
+    e1.path         = StrInit(ALLOCATOR_OF(&alloc));
+    e2.path         = StrInit(ALLOCATOR_OF(&alloc));
 
     bool pushed = VecPushBackR(&pm.entries, e0) && VecPushBackR(&pm.entries, e1) && VecPushBackR(&pm.entries, e2);
     if (!pushed) {
@@ -348,13 +355,13 @@ bool test_pm2_find_no_overrun_past_length(void) {
 }
 
 // --------------------------------------------------------------------------
-// ProcMapsDeinit: actually frees the raw buffer + entries vector.
+// ProcMapsDeinit: actually frees every entry's owned path + entries vector.
 // --------------------------------------------------------------------------
 
 // Under a DebugAllocator, every allocation made by the load must be
-// released by Deinit. If `StrDeinit(&self->raw)` is removed, the raw
-// buffer (kilobytes) leaks and the live-allocation count stays above
-// baseline. Asserting the count returns to baseline kills the
+// released by Deinit. If `StrDeinit(&e->path)` is dropped from the per-entry
+// loop, those owned path copies leak and the live-allocation count stays
+// above baseline. Asserting the count returns to baseline kills the
 // removed-Deinit mutation observably.
 bool test_pm2_deinit_releases_all(void) {
     DebugAllocator dbg  = DebugAllocatorInit();
@@ -436,8 +443,7 @@ bool test_pm_parse_full_line_fields(void) {
     if (ok) {
         const ProcMapEntry *e = VecPtrAt(&m.entries, 0);
         ok                    = e->start == 0x1000ULL && e->end == 0x2000ULL && e->file_offset == 0xdeadULL &&
-             e->perms == (u32)(PROC_MAP_PERM_READ | PROC_MAP_PERM_EXEC | PROC_MAP_PERM_PRIVATE) &&
-             ZstrCompare(e->path, "/x/y") == 0;
+             e->perms == (u32)(PROC_MAP_PERM_READ | PROC_MAP_PERM_EXEC | PROC_MAP_PERM_PRIVATE) && path_eq(e, "/x/y");
     }
 
     ProcMapsDeinit(&m);
@@ -491,23 +497,18 @@ bool test_pm_parse_addr_with_nine(void) {
 }
 
 // An address field with NO hex digits (here an empty start, the line opening
-// straight on the '-') is malformed and the whole line is skipped. Pins the
-// "no digits consumed -> reject" guard in the hex reader: a reader that
-// reports success on an empty run would accept the line and emit a bogus
-// zero-based entry, so asserting ZERO entries is the kill.
+// straight on the '-') is malformed, so the load fails. Pins the "no digits
+// consumed -> reject" guard in the hex reader: a reader that reports success on
+// an empty run would accept the line, so asserting the load FAILS is the kill.
 bool test_pm_parse_rejects_empty_start_field(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     ProcMaps         m;
-    if (!pm_load_text(&m, "-2000 r-xp 0 0:0 0 /x\n", &alloc)) {
-        DefaultAllocatorDeinit(&alloc);
-        return false;
-    }
+    bool             failed = !pm_load_text(&m, "-2000 r-xp 0 0:0 0 /x\n", &alloc);
 
-    bool ok = VecLen(&m.entries) == 0;
-
-    ProcMapsDeinit(&m);
+    if (!failed) // a failed load already freed + zeroed `m`; only clean up on success
+        ProcMapsDeinit(&m);
     DefaultAllocatorDeinit(&alloc);
-    return ok;
+    return failed;
 }
 
 // min_addr is the lowest start across ALL entries, regardless of file order.
@@ -534,28 +535,74 @@ bool test_pm_parse_min_addr_descending(void) {
     return ok;
 }
 
-// A line that fails to parse is skipped whole, and the NEXT valid line still
-// decodes correctly from its true start. If the skip-to-newline scan stops
-// short, the recovery resumes mid-garbage and the following entry comes out
-// with the wrong start (e.g. a dropped leading digit) -- so pinning the
-// recovered entry's exact start proves the bad line was consumed cleanly.
-bool test_pm_parse_skips_malformed_line(void) {
+// A line the grammar cannot parse fails the whole load -- this is not a
+// compiler, so the first bad line stops the parse rather than being skipped over
+// to reach a later good line. Feeding "garbage" ahead of a well-formed line and
+// asserting the load FAILS pins that: a skip-and-continue reader would instead
+// return the good entry.
+bool test_pm_parse_fails_on_malformed_line(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     ProcMaps         m;
-    if (!pm_load_text(&m, "garbage line here\n3000-4000 r-xp 0 0:0 0 /good\n", &alloc)) {
-        DefaultAllocatorDeinit(&alloc);
-        return false;
-    }
+    bool             failed = !pm_load_text(&m, "garbage line here\n3000-4000 r-xp 0 0:0 0 /good\n", &alloc);
 
-    bool ok = VecLen(&m.entries) == 1;
-    if (ok) {
-        const ProcMapEntry *e = VecPtrAt(&m.entries, 0);
-        ok                    = e->start == 0x3000ULL && e->end == 0x4000ULL && ZstrCompare(e->path, "/good") == 0;
-    }
-
-    ProcMapsDeinit(&m);
+    if (!failed) // a failed load already freed + zeroed `m`; only clean up on success
+        ProcMapsDeinit(&m);
     DefaultAllocatorDeinit(&alloc);
-    return ok;
+    return failed;
+}
+
+// Field-level fault tolerance: a well-formed line up to a point, then one bad
+// field. The grammar has no partial-line recovery -- a bad field fails the line
+// and thus the load. Each of these logs a caret diagnostic (see the [ERROR]
+// lines when the suite runs); the assertion is just that the load fails.
+
+// A non-hex character in the END address fails the `end` field.
+bool test_pm_parse_fails_on_bad_end(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    ProcMaps         m;
+    bool             failed = !pm_load_text(&m, "1000-XYZ r-xp 0 0:0 0 /x\n", &alloc);
+
+    if (!failed)
+        ProcMapsDeinit(&m);
+    DefaultAllocatorDeinit(&alloc);
+    return failed;
+}
+
+// A character outside `rwxp-s` in the permission field fails `perms`.
+bool test_pm_parse_fails_on_bad_perms(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    ProcMaps         m;
+    bool             failed = !pm_load_text(&m, "1000-2000 rZxp 0 0:0 0 /x\n", &alloc);
+
+    if (!failed)
+        ProcMapsDeinit(&m);
+    DefaultAllocatorDeinit(&alloc);
+    return failed;
+}
+
+// A non-hex character in the file-offset field fails `offset`.
+bool test_pm_parse_fails_on_bad_offset(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    ProcMaps         m;
+    bool             failed = !pm_load_text(&m, "1000-2000 r-xp ZZZ 0:0 0 /x\n", &alloc);
+
+    if (!failed)
+        ProcMapsDeinit(&m);
+    DefaultAllocatorDeinit(&alloc);
+    return failed;
+}
+
+// A line that ends before its offset/dev/inode fields fails: the next field has
+// nothing to parse.
+bool test_pm_parse_fails_on_truncated_line(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    ProcMaps         m;
+    bool             failed = !pm_load_text(&m, "1000-2000 r-xp\n", &alloc);
+
+    if (!failed)
+        ProcMapsDeinit(&m);
+    DefaultAllocatorDeinit(&alloc);
+    return failed;
 }
 
 // The File loader must read to TRUE EOF, not stop at the first chunk. We write
@@ -612,8 +659,7 @@ bool test_pm_parse_large_file_reads_all_chunks(void) {
         // The trailing high mapping lives past the first read chunk; a loader
         // that stopped early would never have parsed it.
         const ProcMapEntry *e = ProcMapsFindByAddr(&m, 0xdeadbeef050ULL);
-        ok                    = e != NULL && e->start == 0xdeadbeef000ULL && e->end == 0xdeadbeef100ULL &&
-             ZstrCompare(e->path, "/late") == 0;
+        ok = e != NULL && e->start == 0xdeadbeef000ULL && e->end == 0xdeadbeef100ULL && path_eq(e, "/late");
         ProcMapsDeinit(&m);
     }
 
@@ -682,7 +728,11 @@ int main(void) {
         test_pm_parse_addr_with_nine,
         test_pm_parse_rejects_empty_start_field,
         test_pm_parse_min_addr_descending,
-        test_pm_parse_skips_malformed_line,
+        test_pm_parse_fails_on_malformed_line,
+        test_pm_parse_fails_on_bad_end,
+        test_pm_parse_fails_on_bad_perms,
+        test_pm_parse_fails_on_bad_offset,
+        test_pm_parse_fails_on_truncated_line,
         test_pm_parse_large_file_reads_all_chunks,
         test_pm_load_from_file_read_fail_frees_raw,
     };
