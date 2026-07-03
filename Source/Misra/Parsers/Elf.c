@@ -535,6 +535,19 @@ bool elf_open(Elf *out, Zstr path, Allocator *alloc) {
     return ElfOpenFromMemory(out, &data);
 }
 
+bool elf_open_n(Elf *out, Zstr path, size len, Allocator *alloc) {
+    if (!out || !path || !alloc) {
+        LOG_FATAL("ElfOpen: NULL argument (contract violation)");
+    }
+    Buf data = BufInit(alloc);
+    if (FileReadAndClose(path, len, &data) < 0) {
+        BufDeinit(&data);
+        LOG_ERROR("ElfOpen: failed to read {} path bytes", len);
+        return false;
+    }
+    return ElfOpenFromMemory(out, &data);
+}
+
 void ElfDeinit(Elf *self) {
     if (!self)
         return;

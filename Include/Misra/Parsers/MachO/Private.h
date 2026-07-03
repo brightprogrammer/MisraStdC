@@ -17,12 +17,15 @@
 extern "C" {
 #endif
 
-typedef struct Macho        Macho;
-typedef struct MachoSection MachoSection;
+    typedef struct Macho        Macho;
+    typedef struct MachoSection MachoSection;
 
-bool macho_open(Macho *out, Zstr path, Allocator *alloc);
-bool macho_open_from_memory_copy(Macho *out, const u8 *data, size data_size, Allocator *alloc);
-const MachoSection *macho_find_section(const Macho *self, Zstr segment, Zstr section);
+    bool                macho_open(Macho *out, Zstr path, Allocator *alloc);
+    bool                macho_open_n(Macho *out, Zstr path, size len, Allocator *alloc);
+    bool                macho_open_from_memory_copy(Macho *out, const u8 *data, size data_size, Allocator *alloc);
+    const MachoSection *macho_find_section(const Macho *self, Zstr segment, Zstr section);
+    const MachoSection *
+        macho_find_section_cstr(const Macho *self, Zstr segment, size segment_len, Zstr section, size section_len);
 
 #ifdef __cplusplus
 }

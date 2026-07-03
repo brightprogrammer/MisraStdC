@@ -216,8 +216,10 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg);
 ///
 /// TAGS: KvConfig, Get, API
 ///
-#define KvConfigGet(cfg, key)                                                                                          \
+#define KvConfigGet(...) OVERLOAD(KvConfigGet, __VA_ARGS__)
+#define KvConfigGet_2(cfg, key)                                                                                        \
     _Generic((key), Str *: kvconfig_get_str, Zstr: kvconfig_get_zstr, char *: kvconfig_get_zstr)((cfg), (key))
+#define KvConfigGet_3(cfg, key, key_len) kvconfig_get_cstr((cfg), (Zstr)(key), (key_len))
 
 ///
 /// Get stored value for `key` by internal reference.
@@ -230,11 +232,13 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg);
 ///
 /// TAGS: KvConfig, Get, Pointer
 ///
-#define KvConfigGetPtr(cfg, key)                                                                                       \
+#define KvConfigGetPtr(...) OVERLOAD(KvConfigGetPtr, __VA_ARGS__)
+#define KvConfigGetPtr_2(cfg, key)                                                                                     \
     _Generic((key), Str *: kvconfig_get_ptr_str, Zstr: kvconfig_get_ptr_zstr, char *: kvconfig_get_ptr_zstr)(          \
         (cfg),                                                                                                         \
         (key)                                                                                                          \
     )
+#define KvConfigGetPtr_3(cfg, key, key_len) kvconfig_get_ptr_cstr((cfg), (Zstr)(key), (key_len))
 
 ///
 /// Check whether a key exists in config.
@@ -247,11 +251,13 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg);
 ///
 /// TAGS: KvConfig, Contains, API
 ///
-#define KvConfigContains(cfg, key)                                                                                     \
+#define KvConfigContains(...) OVERLOAD(KvConfigContains, __VA_ARGS__)
+#define KvConfigContains_2(cfg, key)                                                                                   \
     _Generic((key), Str *: kvconfig_contains_str, Zstr: kvconfig_contains_zstr, char *: kvconfig_contains_zstr)(       \
         (cfg),                                                                                                         \
         (key)                                                                                                          \
     )
+#define KvConfigContains_3(cfg, key, key_len) kvconfig_contains_cstr((cfg), (Zstr)(key), (key_len))
 
 ///
 /// Parse and fetch a boolean config value.
@@ -267,12 +273,14 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg);
 ///
 /// TAGS: KvConfig, Get, Bool
 ///
-#define KvConfigGetBool(cfg, key, value)                                                                               \
+#define KvConfigGetBool(...) OVERLOAD(KvConfigGetBool, __VA_ARGS__)
+#define KvConfigGetBool_3(cfg, key, value)                                                                             \
     _Generic((key), Str *: kvconfig_get_bool_str, Zstr: kvconfig_get_bool_zstr, char *: kvconfig_get_bool_zstr)(       \
         (cfg),                                                                                                         \
         (key),                                                                                                         \
         (value)                                                                                                        \
     )
+#define KvConfigGetBool_4(cfg, key, key_len, value) kvconfig_get_bool_cstr((cfg), (Zstr)(key), (key_len), (value))
 
 ///
 /// Parse and fetch a signed 64-bit integer config value.
@@ -286,12 +294,14 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg);
 ///
 /// TAGS: KvConfig, Get, I64
 ///
-#define KvConfigGetI64(cfg, key, value)                                                                                \
+#define KvConfigGetI64(...) OVERLOAD(KvConfigGetI64, __VA_ARGS__)
+#define KvConfigGetI64_3(cfg, key, value)                                                                              \
     _Generic((key), Str *: kvconfig_get_i64_str, Zstr: kvconfig_get_i64_zstr, char *: kvconfig_get_i64_zstr)(          \
         (cfg),                                                                                                         \
         (key),                                                                                                         \
         (value)                                                                                                        \
     )
+#define KvConfigGetI64_4(cfg, key, key_len, value) kvconfig_get_i64_cstr((cfg), (Zstr)(key), (key_len), (value))
 
 ///
 /// Parse and fetch a double-precision floating config value.
@@ -305,12 +315,14 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg);
 ///
 /// TAGS: KvConfig, Get, F64
 ///
-#define KvConfigGetF64(cfg, key, value)                                                                                \
+#define KvConfigGetF64(...) OVERLOAD(KvConfigGetF64, __VA_ARGS__)
+#define KvConfigGetF64_3(cfg, key, value)                                                                              \
     _Generic((key), Str *: kvconfig_get_f64_str, Zstr: kvconfig_get_f64_zstr, char *: kvconfig_get_f64_zstr)(          \
         (cfg),                                                                                                         \
         (key),                                                                                                         \
         (value)                                                                                                        \
     )
+#define KvConfigGetF64_4(cfg, key, key_len, value) kvconfig_get_f64_cstr((cfg), (Zstr)(key), (key_len), (value))
 
 // Snake_case backends live in <Misra/Parsers/KvConfig/Private.h>, pulled
 // in from the top of this file so the _Generic dispatch arms above can

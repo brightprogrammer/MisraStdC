@@ -66,9 +66,17 @@ typedef enum FileWhence {
 /// the `"b"` suffix is accepted but has no effect on the
 /// implementation.
 ///
-/// path[in] : Path to open. Prefer `Str *` (carries length, can't
-///            silently drop the NUL terminator). `Zstr` is accepted
-///            as a literal / borrowed-buffer convenience.
+/// Three call shapes via `OVERLOAD` + `_Generic` on `path`:
+///   `FileOpen(path, mode)`            -- `path` is `Str *` or `Zstr`.
+///   `FileOpen(path, path_len, mode)`  -- `path` is a fixed-length view
+///                                        (`Zstr`, `size`); it is copied
+///                                        into a stack buffer and
+///                                        NUL-terminated for the syscall.
+///
+/// path[in]     : Path to open. Prefer `Str *` (carries length, can't
+///                silently drop the NUL terminator). `Zstr` is accepted
+///                as a literal / borrowed-buffer convenience.
+/// path_len[in] : Length of `path` for the 3-arg fixed-length form.
 ///
 /// SUCCESS : Returns a File where `FileIsOpen(&out)` is true.
 /// FAILURE : Returns a File where `FileIsOpen(&out)` is false.
@@ -76,13 +84,16 @@ typedef enum FileWhence {
 /// TAGS: File, Open, API
 ///
 File file_open(Zstr path, Zstr mode);
-#define FileOpen(path, mode)                                                                                           \
+File file_open_n(Zstr path, size len, Zstr mode);
+#define FileOpen(...) OVERLOAD(FileOpen, __VA_ARGS__)
+#define FileOpen_2(path, mode)                                                                                         \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: file_open((Zstr)StrBegin((Str *)(path)), (mode)),                                                       \
         Zstr: file_open((Zstr)(path), (mode)),                                                                         \
         char *: file_open((Zstr)(path), (mode))                                                                        \
     )
+#define FileOpen_3(path, len, mode) file_open_n((Zstr)(path), (len), (mode))
 
 ///
 /// Borrow a POSIX fd into a `File`. The returned File has `owns = false`
@@ -199,7 +210,10 @@ i64 file_read_to_buf(File *f, Buf *out);
 ///
 i64 file_read_and_close_to_buf(Zstr path, Buf *out);
 i64 file_read_and_close_to_str(Zstr path, Str *out);
-#define FileReadAndClose(path, out)                                                                                    \
+i64 file_read_and_close_to_buf_n(Zstr path, size len, Buf *out);
+i64 file_read_and_close_to_str_n(Zstr path, size len, Str *out);
+#define FileReadAndClose(...) OVERLOAD(FileReadAndClose, __VA_ARGS__)
+#define FileReadAndClose_2(path, out)                                                                                  \
     _Generic(                                                                                                          \
         (out),                                                                                                         \
         Buf *: _Generic(                                                                                               \
@@ -214,6 +228,12 @@ i64 file_read_and_close_to_str(Zstr path, Str *out);
                 Zstr: file_read_and_close_to_str((Zstr)(path), (Str *)(out)),                                          \
                 char *: file_read_and_close_to_str((Zstr)(path), (Str *)(out))                                         \
              )                                                                                                         \
+    )
+#define FileReadAndClose_3(path, len, out)                                                                             \
+    _Generic(                                                                                                          \
+        (out),                                                                                                         \
+        Buf *: file_read_and_close_to_buf_n((Zstr)(path), (len), (Buf *)(out)),                                        \
+        Str *: file_read_and_close_to_str_n((Zstr)(path), (len), (Str *)(out))                                         \
     )
 
 // FileGetSize lives in `Sys/Dir.h` -- path-based size query that

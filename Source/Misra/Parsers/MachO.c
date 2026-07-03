@@ -471,6 +471,23 @@ bool macho_open(Macho *out, Zstr path, Allocator *alloc) {
     return MachoOpenFromMemory(out, &data);
 }
 
+bool macho_open_n(Macho *out, Zstr path, size len, Allocator *alloc) {
+    if (!out || !path || !alloc) {
+        LOG_FATAL("MachoOpen: NULL argument (contract violation)");
+    }
+    enum {
+        PATH_CAP = 4096
+    };
+    char buf[PATH_CAP];
+    if (len >= sizeof(buf)) {
+        LOG_ERROR("MachoOpen: path length {} exceeds cap", (u64)len);
+        return false;
+    }
+    MemCopy(buf, path, len);
+    buf[len] = '\0';
+    return macho_open(out, buf, alloc);
+}
+
 void MachoDeinit(Macho *self) {
     if (!self)
         return;
@@ -487,6 +504,21 @@ const MachoSection *macho_find_section(const Macho *self, Zstr segment, Zstr sec
     for (size i = 0; i < VecLen(&self->sections); ++i) {
         const MachoSection *s = VecPtrAt(&self->sections, i);
         if (ZstrCompare(s->segment, segment) == 0 && ZstrCompare(s->section, section) == 0) {
+            return s;
+        }
+    }
+    return NULL;
+}
+
+const MachoSection *
+    macho_find_section_cstr(const Macho *self, Zstr segment, size segment_len, Zstr section, size section_len) {
+    if (!self || !segment || !section)
+        return NULL;
+    for (size i = 0; i < VecLen(&self->sections); ++i) {
+        const MachoSection *s = VecPtrAt(&self->sections, i);
+        if (segment_len < sizeof(s->segment) && s->segment[segment_len] == '\0' && section_len < sizeof(s->section) &&
+            s->section[section_len] == '\0' && ZstrCompareN(s->segment, segment, segment_len) == 0 &&
+            ZstrCompareN(s->section, section, section_len) == 0) {
             return s;
         }
     }

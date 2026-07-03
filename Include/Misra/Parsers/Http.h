@@ -80,10 +80,16 @@ void HttpHeaderDeinit(HttpHeader *header);
 /// TAGS: Http, Deinit, Header, Init
 ///
 ///
-/// Find a header by key (case-sensitive zero-terminated comparison).
+/// Find a header by key (case-sensitive comparison).
+///
+/// Two call shapes via `OVERLOAD` + `_Generic` on `key`:
+///   `HttpHeadersFind(headers, key)`          -- `key` is `Str *` / `Zstr`.
+///   `HttpHeadersFind(headers, key, key_len)` -- `key` is a counted view
+///                                               (`Zstr`, `size`).
 ///
 /// headers[in] : Caller's `Vec(HttpHeader)` to search.
 /// key[in]     : Key to look up.
+/// key_len[in] : Length of `key` for the 3-arg counted form.
 ///
 /// SUCCESS : Returns a pointer to the matching header inside the
 ///           vector. The pointer is valid until `*headers` is mutated
@@ -95,11 +101,14 @@ void HttpHeaderDeinit(HttpHeader *header);
 ///
 HttpHeader *http_headers_find_zstr(HttpHeaders *headers, Zstr key);
 HttpHeader *http_headers_find_str(HttpHeaders *headers, const Str *key);
-#define HttpHeadersFind(headers, key)                                                                                  \
+HttpHeader *http_headers_find_cstr(HttpHeaders *headers, Zstr key, size key_len);
+#define HttpHeadersFind(...) OVERLOAD(HttpHeadersFind, __VA_ARGS__)
+#define HttpHeadersFind_2(headers, key)                                                                                \
     _Generic((key), Str *: http_headers_find_str, Zstr: http_headers_find_zstr, char *: http_headers_find_zstr)(       \
         (headers),                                                                                                     \
         (key)                                                                                                          \
     )
+#define HttpHeadersFind_3(headers, key, key_len) http_headers_find_cstr((headers), (Zstr)(key), (key_len))
 
 typedef enum HttpResponseCode {
     HTTP_RESPONSE_CODE_INVALID = 0,
@@ -254,19 +263,26 @@ typedef struct HttpRequest {
 /// be initialized with `HttpRequestInit(...)` so the parser has an
 /// allocator to write into.
 ///
+/// Two call shapes via `OVERLOAD` + `_Generic` on `in`:
+///   `HttpRequestParse(req, in)`         -- `in` is `Str *` / `Zstr`.
+///   `HttpRequestParse(req, in, in_len)` -- `in` is a counted view
+///                                          (`Zstr`, `size`).
+///
 /// SUCCESS : Returns a pointer past the parsed request line + headers
-///           (start of the body).
+///           (start of the body), pointing into the caller's `in`.
 /// FAILURE : Returns `in` unchanged when the input is malformed.
 ///
 /// TAGS: Http, Parse, Request
 ///
-#define HttpRequestParse(req, in)                                                                                      \
+#define HttpRequestParse(...) OVERLOAD(HttpRequestParse, __VA_ARGS__)
+#define HttpRequestParse_2(req, in)                                                                                    \
     _Generic(                                                                                                          \
         (in),                                                                                                          \
         Str *: http_request_parse_str((req), (const Str *)(in)),                                                       \
         Zstr: http_request_parse_zstr((req), (Zstr)(in)),                                                              \
         char *: http_request_parse_zstr((req), (Zstr)(in))                                                             \
     )
+#define HttpRequestParse_3(req, in, in_len) http_request_parse_cstr((req), (Zstr)(in), (in_len))
 
 ///
 /// Release storage owned by `req` and zero the struct. Safe to call on
@@ -312,7 +328,7 @@ typedef struct HttpResponse {
     ((HttpResponse) {.allocator    = ALLOCATOR_OF(alloc_ptr),                                                          \
                      .content_type = HTTP_CONTENT_TYPE_INVALID,                                                        \
                      .status_code  = HTTP_RESPONSE_CODE_INVALID,                                                       \
-                     .headers      = VecInitWithDeepCopy_3(NULL, http_header_deinit, alloc_ptr),                        \
+                     .headers      = VecInitWithDeepCopy_3(NULL, http_header_deinit, alloc_ptr),                       \
                      .body         = StrInit_1(alloc_ptr)})
 
 ///
@@ -347,18 +363,27 @@ HttpResponse *HttpRespondWithHtml(HttpResponse *response, HttpResponseCode statu
 /// through `response->allocator`. Only available when the `file`
 /// feature is enabled.
 ///
+/// Two call shapes via `OVERLOAD` + `_Generic` on `filepath`:
+///   `HttpRespondWithFile(response, status, content_type, filepath)`
+///       -- `filepath` is `Str *` / `Zstr`.
+///   `HttpRespondWithFile(response, status, content_type, filepath, filepath_len)`
+///       -- `filepath` is a counted view (`Zstr`, `size`).
+///
 /// SUCCESS : Returns `response` with body filled.
 /// FAILURE : Returns NULL on I/O or allocation failure.
 ///
 /// TAGS: Http, Respond, File
 ///
-#    define HttpRespondWithFile(response, status, content_type, filepath)                                              \
+#    define HttpRespondWithFile(...) OVERLOAD(HttpRespondWithFile, __VA_ARGS__)
+#    define HttpRespondWithFile_4(response, status, content_type, filepath)                                            \
         _Generic(                                                                                                      \
             (filepath),                                                                                                \
             Str *: http_respond_with_file_str((response), (status), (content_type), (const Str *)(filepath)),          \
             Zstr: http_respond_with_file_zstr((response), (status), (content_type), (Zstr)(filepath)),                 \
             char *: http_respond_with_file_zstr((response), (status), (content_type), (Zstr)(filepath))                \
         )
+#    define HttpRespondWithFile_5(response, status, content_type, filepath, filepath_len)                              \
+        http_respond_with_file_cstr((response), (status), (content_type), (Zstr)(filepath), (filepath_len))
 #endif
 
 ///

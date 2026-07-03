@@ -178,7 +178,9 @@ extern "C" {
     /// strategy -- we always look up both A and AAAA).
     ///
     /// hostname[in] : Hostname to resolve. Prefer `Str *`; `Zstr`
-    ///                accepted. Trailing dot tolerated.
+    ///                accepted; a `(Zstr, len)` counted view is
+    ///                accepted via the 6-arg form. Trailing dot
+    ///                tolerated.
     /// port[in]     : Port number to stamp on every returned address.
     /// kind[in]     : `SOCKET_KIND_TCP` or `SOCKET_KIND_UDP`.
     /// out[in,out]  : Vec to append results to. Stays untouched on failure.
@@ -192,6 +194,14 @@ extern "C" {
     ///
     bool dns_resolve_5_zstr(DnsResolver *self, Zstr hostname, u16 port, SocketKind kind, DnsAddrs *out);
     bool dns_resolve_5_str(DnsResolver *self, const Str *hostname, u16 port, SocketKind kind, DnsAddrs *out);
+    bool dns_resolve_6_cstr(
+        DnsResolver *self,
+        Zstr         hostname,
+        u64          hostname_len,
+        u16          port,
+        SocketKind   kind,
+        DnsAddrs    *out
+    );
 #define DnsResolve_5(self, hostname, port, kind, out)                                                                  \
     _Generic(                                                                                                          \
         (hostname),                                                                                                    \
@@ -199,6 +209,8 @@ extern "C" {
         Zstr: dns_resolve_5_zstr((self), (Zstr)(hostname), (port), (kind), (out)),                                     \
         char *: dns_resolve_5_zstr((self), (Zstr)(hostname), (port), (kind), (out))                                    \
     )
+#define DnsResolve_6(self, hostname, hostname_len, port, kind, out)                                                    \
+    dns_resolve_6_cstr((self), (Zstr)(hostname), (hostname_len), (port), (kind), (out))
 
     ///
     /// Spec-based overload (vec form). Accepts a single `"host:port"`
@@ -243,7 +255,16 @@ extern "C" {
     /// `DnsResolve` dispatches by argument count. The 4-arg form
     /// additionally dispatches on the `out` parameter type:
     /// `DnsAddrs *` selects the vec form, `SocketAddr *` selects the
-    /// single-addr form.
+    /// single-addr form. The 6-arg form is the counted-hostname
+    /// overload: `(self, hostname, hostname_len, port, kind, out)`
+    /// takes a `(Zstr, len)` view (the fourth string-input branch,
+    /// alongside `Str *` / `Zstr` / `char *` in the 5-arg form).
+    ///
+    /// The 4-arg spec form has no counted `(Zstr, len)` sibling: its
+    /// base+1 arity is 5, which is already the hostname form, so a
+    /// counted spec cannot be routed through this by-count OVERLOAD
+    /// without ambiguity. Callers with a non-terminated `host:port`
+    /// slice should terminate it (or wrap in a `Str`) themselves.
     ///
     /// TAGS: Dns, Resolve, API
     ///

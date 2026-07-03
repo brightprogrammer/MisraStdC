@@ -59,7 +59,7 @@ typedef Iter(const u8) BufIter;
 ///
 /// TAGS: Buf, Clear, Reuse
 ///
-#define BufClear(b)  VecClear(b)
+#define BufClear(b) VecClear(b)
 
 // Read-only accessors. The leading `((void)0, ...)` makes each macro a
 // comma expression, and the result of a C comma expression is not an
@@ -73,7 +73,7 @@ typedef Iter(const u8) BufIter;
 ///
 /// TAGS: Buf, Length, Accessor
 ///
-#define BufLength(b)     ((void)0, (b)->length)
+#define BufLength(b) ((void)0, (b)->length)
 
 ///
 /// Pointer to the contiguous byte storage backing `b`. Read-only at
@@ -83,7 +83,7 @@ typedef Iter(const u8) BufIter;
 ///
 /// TAGS: Buf, Data, Accessor
 ///
-#define BufData(b)       ((void)0, (b)->data)
+#define BufData(b) ((void)0, (b)->data)
 
 ///
 /// Allocator backing `b`'s storage. Read-only; rebinding the
@@ -91,7 +91,7 @@ typedef Iter(const u8) BufIter;
 ///
 /// TAGS: Buf, Allocator, Accessor
 ///
-#define BufAllocator(b)  ((void)0, (b)->allocator)
+#define BufAllocator(b) ((void)0, (b)->allocator)
 
 ///
 /// Ensure `b` has capacity for at least `n` bytes without changing
@@ -118,7 +118,7 @@ typedef Iter(const u8) BufIter;
 ///
 /// TAGS: Buf, Resize, Capacity, Allocation
 ///
-#define BufResize(b, n)  VecResize((b), (n))
+#define BufResize(b, n) VecResize((b), (n))
 
 ///
 /// Construct a `BufIter` over `[data, data + length)`. The iterator
@@ -178,6 +178,9 @@ static inline bool BufPushBytes(Buf *b, const u8 *data, size n) {
 ///
 /// Read a single byte at the cursor and advance one byte.
 ///
+/// c[in,out] : Byte cursor; read from and advanced past the field on success.
+/// out[out]  : Receives the decoded value.
+///
 /// SUCCESS : Returns `true`; `*out` holds the byte at `c->pos` and
 ///           `c->pos` has advanced by one.
 /// FAILURE : Returns `false` when fewer than one byte remains in `c`
@@ -196,6 +199,9 @@ static inline bool BufReadU8(BufIter *c, u8 *out) {
 
 ///
 /// Read two little-endian bytes (low byte first) and advance two bytes.
+///
+/// c[in,out] : Byte cursor; read from and advanced past the field on success.
+/// out[out]  : Receives the decoded value.
 ///
 /// SUCCESS : Returns `true`; `*out` holds the decoded `u16` and
 ///           `c->pos` has advanced by two.
@@ -216,6 +222,9 @@ static inline bool BufReadU16LE(BufIter *c, u16 *out) {
 ///
 /// Read two big-endian bytes (high byte first) and advance two bytes.
 ///
+/// c[in,out] : Byte cursor; read from and advanced past the field on success.
+/// out[out]  : Receives the decoded value.
+///
 /// SUCCESS : Returns `true`; `*out` holds the decoded `u16` and
 ///           `c->pos` has advanced by two.
 /// FAILURE : Returns `false` when fewer than two bytes remain in `c`;
@@ -234,6 +243,9 @@ static inline bool BufReadU16BE(BufIter *c, u16 *out) {
 
 ///
 /// Read four little-endian bytes and advance four bytes.
+///
+/// c[in,out] : Byte cursor; read from and advanced past the field on success.
+/// out[out]  : Receives the decoded value.
 ///
 /// SUCCESS : Returns `true`; `*out` holds the decoded `u32` and
 ///           `c->pos` has advanced by four.
@@ -255,6 +267,9 @@ static inline bool BufReadU32LE(BufIter *c, u32 *out) {
 ///
 /// Read four big-endian bytes and advance four bytes.
 ///
+/// c[in,out] : Byte cursor; read from and advanced past the field on success.
+/// out[out]  : Receives the decoded value.
+///
 /// SUCCESS : Returns `true`; `*out` holds the decoded `u32` and
 ///           `c->pos` has advanced by four.
 /// FAILURE : Returns `false` when fewer than four bytes remain in `c`;
@@ -274,6 +289,9 @@ static inline bool BufReadU32BE(BufIter *c, u32 *out) {
 
 ///
 /// Read eight little-endian bytes and advance eight bytes.
+///
+/// c[in,out] : Byte cursor; read from and advanced past the field on success.
+/// out[out]  : Receives the decoded value.
 ///
 /// SUCCESS : Returns `true`; `*out` holds the decoded `u64` and
 ///           `c->pos` has advanced by eight.
@@ -298,6 +316,9 @@ static inline bool BufReadU64LE(BufIter *c, u64 *out) {
 ///
 /// Read eight big-endian bytes and advance eight bytes.
 ///
+/// c[in,out] : Byte cursor; read from and advanced past the field on success.
+/// out[out]  : Receives the decoded value.
+///
 /// SUCCESS : Returns `true`; `*out` holds the decoded `u64` and
 ///           `c->pos` has advanced by eight.
 /// FAILURE : Returns `false` when fewer than eight bytes remain in `c`;
@@ -315,6 +336,168 @@ static inline bool BufReadU64BE(BufIter *c, u64 *out) {
     }
     *out    = v;
     c->pos += 8;
+    return true;
+}
+
+///
+/// Read a single byte at the cursor as a two's-complement signed value and
+/// advance one byte.
+///
+/// c[in,out] : Byte cursor; read from and advanced past the field on success.
+/// out[out]  : Receives the decoded signed value.
+///
+/// SUCCESS : Returns `true`; `*out` holds the signed byte at `c->pos` and
+///           `c->pos` has advanced by one.
+/// FAILURE : Returns `false` when fewer than one byte remains in `c`
+///           (`c->pos >= c->length`); `*out` is unchanged and `c->pos`
+///           is unchanged.
+///
+/// TAGS: Buf, Read, I8
+///
+static inline bool BufReadI8(BufIter *c, i8 *out) {
+    u8 raw = 0;
+    if (!BufReadU8(c, &raw)) {
+        return false;
+    }
+    *out = (i8)raw;
+    return true;
+}
+
+///
+/// Read two little-endian bytes (low byte first) as a two's-complement signed
+/// value and advance two bytes.
+///
+/// c[in,out] : Byte cursor; read from and advanced past the field on success.
+/// out[out]  : Receives the decoded signed value.
+///
+/// SUCCESS : Returns `true`; `*out` holds the decoded `i16` and
+///           `c->pos` has advanced by two.
+/// FAILURE : Returns `false` when fewer than two bytes remain in `c`;
+///           `*out` is unchanged and `c->pos` is unchanged.
+///
+/// TAGS: Buf, Read, I16, LittleEndian
+///
+static inline bool BufReadI16LE(BufIter *c, i16 *out) {
+    u16 raw = 0;
+    if (!BufReadU16LE(c, &raw)) {
+        return false;
+    }
+    *out = (i16)raw;
+    return true;
+}
+
+///
+/// Read two big-endian bytes (high byte first) as a two's-complement signed
+/// value and advance two bytes.
+///
+/// c[in,out] : Byte cursor; read from and advanced past the field on success.
+/// out[out]  : Receives the decoded signed value.
+///
+/// SUCCESS : Returns `true`; `*out` holds the decoded `i16` and
+///           `c->pos` has advanced by two.
+/// FAILURE : Returns `false` when fewer than two bytes remain in `c`;
+///           `*out` is unchanged and `c->pos` is unchanged.
+///
+/// TAGS: Buf, Read, I16, BigEndian
+///
+static inline bool BufReadI16BE(BufIter *c, i16 *out) {
+    u16 raw = 0;
+    if (!BufReadU16BE(c, &raw)) {
+        return false;
+    }
+    *out = (i16)raw;
+    return true;
+}
+
+///
+/// Read four little-endian bytes as a two's-complement signed value and advance
+/// four bytes.
+///
+/// c[in,out] : Byte cursor; read from and advanced past the field on success.
+/// out[out]  : Receives the decoded signed value.
+///
+/// SUCCESS : Returns `true`; `*out` holds the decoded `i32` and
+///           `c->pos` has advanced by four.
+/// FAILURE : Returns `false` when fewer than four bytes remain in `c`;
+///           `*out` is unchanged and `c->pos` is unchanged.
+///
+/// TAGS: Buf, Read, I32, LittleEndian
+///
+static inline bool BufReadI32LE(BufIter *c, i32 *out) {
+    u32 raw = 0;
+    if (!BufReadU32LE(c, &raw)) {
+        return false;
+    }
+    *out = (i32)raw;
+    return true;
+}
+
+///
+/// Read four big-endian bytes as a two's-complement signed value and advance
+/// four bytes.
+///
+/// c[in,out] : Byte cursor; read from and advanced past the field on success.
+/// out[out]  : Receives the decoded signed value.
+///
+/// SUCCESS : Returns `true`; `*out` holds the decoded `i32` and
+///           `c->pos` has advanced by four.
+/// FAILURE : Returns `false` when fewer than four bytes remain in `c`;
+///           `*out` is unchanged and `c->pos` is unchanged.
+///
+/// TAGS: Buf, Read, I32, BigEndian
+///
+static inline bool BufReadI32BE(BufIter *c, i32 *out) {
+    u32 raw = 0;
+    if (!BufReadU32BE(c, &raw)) {
+        return false;
+    }
+    *out = (i32)raw;
+    return true;
+}
+
+///
+/// Read eight little-endian bytes as a two's-complement signed value and advance
+/// eight bytes.
+///
+/// c[in,out] : Byte cursor; read from and advanced past the field on success.
+/// out[out]  : Receives the decoded signed value.
+///
+/// SUCCESS : Returns `true`; `*out` holds the decoded `i64` and
+///           `c->pos` has advanced by eight.
+/// FAILURE : Returns `false` when fewer than eight bytes remain in `c`;
+///           `*out` is unchanged and `c->pos` is unchanged.
+///
+/// TAGS: Buf, Read, I64, LittleEndian
+///
+static inline bool BufReadI64LE(BufIter *c, i64 *out) {
+    u64 raw = 0;
+    if (!BufReadU64LE(c, &raw)) {
+        return false;
+    }
+    *out = (i64)raw;
+    return true;
+}
+
+///
+/// Read eight big-endian bytes as a two's-complement signed value and advance
+/// eight bytes.
+///
+/// c[in,out] : Byte cursor; read from and advanced past the field on success.
+/// out[out]  : Receives the decoded signed value.
+///
+/// SUCCESS : Returns `true`; `*out` holds the decoded `i64` and
+///           `c->pos` has advanced by eight.
+/// FAILURE : Returns `false` when fewer than eight bytes remain in `c`;
+///           `*out` is unchanged and `c->pos` is unchanged.
+///
+/// TAGS: Buf, Read, I64, BigEndian
+///
+static inline bool BufReadI64BE(BufIter *c, i64 *out) {
+    u64 raw = 0;
+    if (!BufReadU64BE(c, &raw)) {
+        return false;
+    }
+    *out = (i64)raw;
     return true;
 }
 

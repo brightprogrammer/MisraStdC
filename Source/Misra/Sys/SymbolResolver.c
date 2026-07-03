@@ -140,35 +140,34 @@ static bool try_open_sidecar(Zstr main_path, const Elf *main, Elf *out, Allocato
 // Cache management
 // ---------------------------------------------------------------------------
 
-static ResolverCacheEntry *resolver_cache_find_or_open(SymbolResolver *self, Zstr path) {
+static ResolverCacheEntry *resolver_cache_find_or_open(SymbolResolver *self, Zstr path, u64 path_len) {
     for (u64 i = 0; i < VecLen(&self->cache); ++i) {
         ResolverCacheEntry *e = VecPtrAt(&self->cache, i);
-        if (e->path == path) {
-            return e;
-        }
-        // Some `/proc/self/maps` lines share the same path string in
-        // different positions of the raw buffer if the kernel
-        // generated separate copies — fall back to string compare.
-        if (e->path && path && ZstrCompare(e->path, path) == 0) {
+        // The cache owns its path copy; match it against the caller's path.
+        if (StrCmp(&e->path, path, path_len) == 0) {
             return e;
         }
     }
 
     ResolverCacheEntry entry;
     MemSet(&entry, 0, sizeof(entry));
-    entry.path = path;
-    if (!ElfOpen(&entry.elf, path, self->allocator)) {
+    // Keep the cache's own copy of the path so the entry (and the public
+    // module_path that borrows it) stay valid independent of the ProcMaps.
+    entry.path = StrInitFromCstr(path, path_len, self->allocator);
+    if (!ElfOpen(&entry.elf, &entry.path, self->allocator)) {
+        StrDeinit(&entry.path);
         return NULL;
     }
     // Best-effort sidecar lookup. Silent failure is fine — we'll just
     // resolve against whatever the main file has.
-    if (try_open_sidecar(path, &entry.elf, &entry.sidecar, self->allocator)) {
+    if (try_open_sidecar(StrBegin(&entry.path), &entry.elf, &entry.sidecar, self->allocator)) {
         entry.has_sidecar = true;
     }
     if (!VecPushBackR(&self->cache, entry)) {
         if (entry.has_sidecar)
             ElfDeinit(&entry.sidecar);
         ElfDeinit(&entry.elf);
+        StrDeinit(&entry.path);
         return NULL;
     }
     return VecPtrAt(&self->cache, VecLen(&self->cache) - 1);
@@ -219,6 +218,7 @@ void SymbolResolverDeinit(SymbolResolver *self) {
             ElfDeinit(&e->sidecar);
         }
         ElfDeinit(&e->elf);
+        StrDeinit(&e->path);
     }
     VecDeinit(&self->cache);
     ProcMapsDeinit(&self->maps);
@@ -265,10 +265,10 @@ bool SymbolResolverFindFde(
 
     u64                 addr  = (u64)runtime_addr;
     const ProcMapEntry *entry = ProcMapsFindByAddr(&self->maps, addr);
-    if (!entry || !entry->path || entry->path[0] == '\0')
+    if (!entry || StrEmpty(&entry->path))
         return false;
 
-    ResolverCacheEntry *cache_entry = resolver_cache_find_or_open(self, entry->path);
+    ResolverCacheEntry *cache_entry = resolver_cache_find_or_open(self, StrBegin(&entry->path), StrLen(&entry->path));
     if (!cache_entry)
         return false;
     // p_vaddr-space bias (not the file-offset shortcut) -- see resolver_load_bias.
@@ -348,11 +348,11 @@ bool SymbolResolverResolve(SymbolResolver *self, void *runtime_addr, ResolvedSym
     u64 addr = (u64)runtime_addr;
 
     const ProcMapEntry *entry = ProcMapsFindByAddr(&self->maps, addr);
-    if (!entry || !entry->path || entry->path[0] == '\0') {
+    if (!entry || StrEmpty(&entry->path)) {
         return false;
     }
 
-    ResolverCacheEntry *cache_entry = resolver_cache_find_or_open(self, entry->path);
+    ResolverCacheEntry *cache_entry = resolver_cache_find_or_open(self, StrBegin(&entry->path), StrLen(&entry->path));
     if (!cache_entry) {
         return false;
     }
@@ -361,7 +361,7 @@ bool SymbolResolverResolve(SymbolResolver *self, void *runtime_addr, ResolvedSym
     // equals the mapping start, so the absolute base still falls out.
     u64 load_base = resolver_load_bias(&cache_entry->elf, entry->start, entry->file_offset, addr);
 
-    out->module_path = entry->path;
+    out->module_path = StrBegin(&cache_entry->path);
     out->module_base = load_base;
 
     u64 file_relative = addr - load_base;

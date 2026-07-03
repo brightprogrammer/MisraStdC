@@ -19,13 +19,14 @@
 extern "C" {
 #endif
 
-typedef struct Elf        Elf;
-typedef struct ElfSection ElfSection;
+    typedef struct Elf        Elf;
+    typedef struct ElfSection ElfSection;
 
-bool elf_open(Elf *out, Zstr path, Allocator *alloc);
-bool elf_open_from_memory_copy(Elf *out, const u8 *data, size data_size, Allocator *alloc);
-const ElfSection *elf_find_section_zstr(const Elf *self, Zstr name);
-const ElfSection *elf_find_section_str(const Elf *self, const Str *name);
+    bool              elf_open(Elf *out, Zstr path, Allocator *alloc);
+    bool              elf_open_n(Elf *out, Zstr path, size len, Allocator *alloc);
+    bool              elf_open_from_memory_copy(Elf *out, const u8 *data, size data_size, Allocator *alloc);
+    const ElfSection *elf_find_section_zstr(const Elf *self, Zstr name);
+    const ElfSection *elf_find_section_str(const Elf *self, const Str *name);
 
 #ifdef __cplusplus
 }

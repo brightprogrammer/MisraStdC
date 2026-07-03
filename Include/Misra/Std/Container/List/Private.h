@@ -27,7 +27,7 @@ GenericListNode *get_node_relative_to_list_node(GenericListNode *node, i64 ridx)
 GenericListNode *get_node_random_access(GenericList *list, GenericListNode *node, u64 nidx, i64 ridx);
 GenericListNode *get_node_for_list_iteration(GenericList *list, GenericListNode *node, u64 nidx, u64 target_idx);
 
-bool list_insert_one_l(GenericList *list, const void *item_copy, void *source, u64 item_size, u64 idx);
+bool list_insert_one_l(GenericList *list, void *source, u64 item_size, u64 idx);
 bool list_insert_one_r(GenericList *list, const void *item_copy, u64 item_size, u64 idx);
 bool list_insert_range_l(GenericList *list, void *items, u64 item_size, u64 count);
 bool list_insert_range_r(GenericList *list, const void *items, u64 item_size, u64 count);

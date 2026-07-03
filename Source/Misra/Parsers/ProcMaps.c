@@ -15,8 +15,15 @@
 ///   inode      : decimal (we ignore)
 ///   path       : optional; anonymous mappings have no path field
 ///
-/// Paths can contain spaces — we treat everything after the inode
-/// field's trailing whitespace as the path, up to the line terminator.
+/// The whole file is a grammar on the parser-combinator DSL over a
+/// `StrIter` (the default cursor -- no `#define PC_ITER`): each field is
+/// its own rule, `ProcMapLine` a line, and `ProcMapLines` the file --
+/// which decodes each line into an entry while folding in `min_addr`,
+/// and fails on the first line it cannot parse (naming the cause in the
+/// diagnostics sink), so the loader just runs it. Paths can contain
+/// spaces -- everything after the inode token runs to the line terminator
+/// and is copied into the entry's owned `Str`, so the transient parse
+/// buffer is dropped once loading returns.
 
 #include <Misra/Parsers/ProcMaps.h>
 
@@ -27,175 +34,175 @@
 #include <Misra/Std/File.h>
 #include <Misra/Std/Utility/StrIter.h>
 
+#include <Misra/ParserCombinator.h>
+
+// The context carries only the diagnostics sink the `PcReport*` macros append to:
+// a malformed line is recorded here, not silently dropped. Nothing else is
+// ambient -- every field is a return value. Reports are not rolled back on
+// backtracking (a recorded error stays recorded), so the savepoint is a no-op.
+typedef struct PcParserCtx {
+    PcReports  reports;
+    Allocator *alloc; // copies each entry's path into an owned Str
+} PcParserCtx;
+typedef struct {
+    u8 unused;
+} PcParserCtxMark;
+static PcParserCtxMark PcParserCtxSnapshot(PcParserCtx *ctx) {
+    (void)ctx;
+    return (PcParserCtxMark) {0};
+}
+static void PcParserCtxRollback(PcParserCtx *ctx, PcParserCtxMark mark) {
+    (void)ctx;
+    (void)mark;
+}
+
 // ---------------------------------------------------------------------------
-// Field parsers
+// Field grammar
 // ---------------------------------------------------------------------------
 
-static int hex_digit_value(char c) {
-    if (c >= '0' && c <= '9')
-        return c - '0';
-    if (c >= 'a' && c <= 'f')
-        return 10 + (c - 'a');
-    if (c >= 'A' && c <= 'F')
-        return 10 + (c - 'A');
-    return -1;
-}
-
-// Parse a hex run at the cursor. Advances the iter past the digits.
-// Returns false if no digits are consumed.
-static bool parse_hex_u64(StrIter *si, u64 *out) {
-    u64  v        = 0;
-    int  consumed = 0;
-    char c;
-    while (StrIterPeek(si, &c)) {
-        int d = hex_digit_value(c);
-        if (d < 0)
-            break;
-        v = (v << 4) | (u64)d;
-        StrIterMustNext(si);
-        ++consumed;
-    }
-    if (!consumed)
-        return false;
-    *out = v;
-    return true;
-}
-
-static bool expect_char(StrIter *si, char want) {
-    char c;
-    if (!StrIterPeek(si, &c) || c != want)
-        return false;
-    StrIterMustNext(si);
-    return true;
-}
-
-static void skip_ws(StrIter *si) {
-    char c;
-    while (StrIterPeek(si, &c) && (c == ' ' || c == '\t')) {
-        StrIterMustNext(si);
+// One hex digit -> its 0..15 value (lower or upper case).
+PcParser(HexDigit, u8) {
+    PcSatisfyChar(c, (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+        *value = (u8)(c <= '9' ? c - '0' : (c | 0x20) - 'a' + 10);
     }
 }
 
-// Read one "non-whitespace blob" (the dev/inode tokens). Just skip it.
-static void skip_token(StrIter *si) {
-    char c;
-    while (StrIterPeek(si, &c) && c != ' ' && c != '\t' && c != '\n') {
-        StrIterMustNext(si);
+// A hex run -> u64. One-or-more, so an empty field (no digits) fails the rule.
+PcParser(HexU64, u64) {
+    u8  d = 0;
+    u64 v = 0;
+    PcSeq() {
+        PcMatchOneOrMore(HexDigit, &d) {
+            v = (v << 4) | (u64)d;
+        }
+        *value = v;
     }
 }
 
-// ---------------------------------------------------------------------------
-// Line decode
-// ---------------------------------------------------------------------------
+// Inter-field whitespace (spaces/tabs), any amount including none.
+PcRecognizer(SpaceCh) {
+    PcSatisfyChar(c, c == ' ' || c == '\t') {}
+}
+PcRecognizer(Spaces) {
+    PcRecognizeZeroOrMore(SpaceCh);
+}
 
-// Parses one `/proc/self/maps` line from `si`. On success the path is
-// NUL-terminated in place (the trailing '\n' becomes '\0'), and
-// `out->path` aliases the iter's underlying buffer. The iter is
-// advanced past the line terminator so the next call resumes at the
-// next line.
-static bool parse_one_line(StrIter *si, ProcMapEntry *out) {
-    u64 start = 0, ende = 0, offset = 0;
-    if (!parse_hex_u64(si, &start))
-        return false;
-    if (!expect_char(si, '-'))
-        return false;
-    if (!parse_hex_u64(si, &ende))
-        return false;
-    skip_ws(si);
+// The '-' between start and end.
+PcRecognizer(Dash) {
+    PcSatisfyChar(c, c == '-') {}
+}
 
-    // perms: 4 chars
-    if (StrIterRemainingLength(si) < 4)
-        return false;
-    u32  perms = 0;
+// The four permission characters -> a ProcMapPerms bitmask. Position is
+// significant: r/w/x/p set their bit, anything else (a '-' or 's') clears it.
+PcParser(PermCh, char) {
+    PcSatisfyChar(c, c == 'r' || c == 'w' || c == 'x' || c == 'p' || c == 's' || c == '-') {
+        *value = c;
+    }
+}
+PcParser(Perms, u32) {
     char p0 = 0, p1 = 0, p2 = 0, p3 = 0;
-    StrIterMustPeekAt(si, 0, &p0);
-    StrIterMustPeekAt(si, 1, &p1);
-    StrIterMustPeekAt(si, 2, &p2);
-    StrIterMustPeekAt(si, 3, &p3);
-    if (p0 == 'r')
-        perms |= PROC_MAP_PERM_READ;
-    if (p1 == 'w')
-        perms |= PROC_MAP_PERM_WRITE;
-    if (p2 == 'x')
-        perms |= PROC_MAP_PERM_EXEC;
-    if (p3 == 'p')
-        perms |= PROC_MAP_PERM_PRIVATE;
-    StrIterMustMove(si, 4);
-    skip_ws(si);
-
-    if (!parse_hex_u64(si, &offset))
-        return false;
-    skip_ws(si);
-
-    // dev_major:dev_minor — we don't care, but the field must be there.
-    skip_token(si);
-    skip_ws(si);
-
-    // inode — skip.
-    skip_token(si);
-    skip_ws(si);
-
-    // path — optional, runs to end-of-line. We replace the newline
-    // with \0 in place so the path is a usable C string aliasing the
-    // iter's backing buffer.
-    size path_start_pos = StrIterIndex(si);
-    char c;
-    while (StrIterPeek(si, &c) && c != '\n') {
-        StrIterMustNext(si);
+    PcSeq() {
+        PcMatch(PermCh, &p0);
+        PcMatch(PermCh, &p1);
+        PcMatch(PermCh, &p2);
+        PcMatch(PermCh, &p3);
+        *value = (u32)((p0 == 'r' ? PROC_MAP_PERM_READ : 0u) | (p1 == 'w' ? PROC_MAP_PERM_WRITE : 0u) |
+                       (p2 == 'x' ? PROC_MAP_PERM_EXEC : 0u) | (p3 == 'p' ? PROC_MAP_PERM_PRIVATE : 0u));
     }
-    size line_terminator_pos = StrIterIndex(si);
+}
 
-    out->start       = start;
-    out->end         = ende;
-    out->perms       = perms;
-    out->file_offset = offset;
-    out->path        = (Zstr)StrIterDataAt(si, path_start_pos); // may be empty if anonymous
+// A whitespace-delimited token (the dev and inode fields, which we only skip).
+PcRecognizer(TokenCh) {
+    PcSatisfyChar(c, c != ' ' && c != '\t' && c != '\n') {}
+}
+PcRecognizer(Token) {
+    PcRecognizeOneOrMore(TokenCh);
+}
 
-    if (line_terminator_pos < StrIterLength(si) && *StrIterDataAt(si, line_terminator_pos) == '\n') {
-        // intentional bypass: in-place mutation of the iter's backing
-        // buffer to NUL-terminate the path slice we just exposed via
-        // `out->path`. Iter accessors are read-only; no public mutator
-        // covers single-byte writes to the underlying storage.
-        *StrIterDataAt(si, line_terminator_pos) = '\0';
-        StrIterMustNext(si);
+// The line terminator, consumed after the path has been captured.
+PcRecognizer(NewlineCh) {
+    PcSatisfyChar(c, c == '\n') {}
+}
+
+// One `/proc/self/maps` line's fields -> an entry. Any field failing fails the
+// whole rule.
+PcParser(ProcMapLine, ProcMapEntry) {
+    PcSeq() {
+        PcMatch(HexU64, &value->start);
+        PcExpect(Dash);
+        PcMatch(HexU64, &value->end);
+        PcRecognize(Spaces);
+        PcMatch(Perms, &value->perms);
+        PcRecognize(Spaces);
+        PcMatch(HexU64, &value->file_offset);
+        PcRecognize(Spaces);
+        PcExpect(Token); // dev_major:dev_minor
+        PcRecognize(Spaces);
+        PcExpect(Token); // inode
+        PcRecognize(Spaces);
+        // Path: the rest of the line. PcCaptureUntil hands back a (pointer,
+        // length) slice into the parse buffer; we copy it into an owned,
+        // NUL-terminated Str after the newline is consumed, so a line that fails
+        // to terminate never leaks a half-built path.
+        Zstr pc_path     = NULL;
+        u64  pc_path_len = 0;
+        PcCaptureUntil(c, c == '\n', &pc_path, &pc_path_len);
+        PcRecognize(NewlineCh);
+        value->path = StrInitFromCstr(pc_path, pc_path_len, ctx->alloc);
     }
-    return true;
+}
+
+// The whole file: decode each line into `value->entries` (which the caller
+// pre-initialized), folding `min_addr` in the same pass. This is not a compiler
+// -- the first line the grammar cannot parse records its cause in the sink and
+// faults (FAILED, carrying the consumed bit from wherever it got to), rather than
+// skipping on; the caller fixes the input and reparses.
+PcParser(ProcMapLines, ProcMaps) {
+    ProcMapEntry e = {0};
+    PcSeq() {
+        PcMatchZeroOrMore(ProcMapLine, &e) {
+            if (!VecPushBackR(&value->entries, e)) {
+                StrDeinit(&e.path);
+                PcReject();
+            }
+            if (VecLen(&value->entries) == 1 || e.start < value->min_addr)
+                value->min_addr = e.start;
+        }
+        // The zero-or-more stops at the first line it cannot parse; anything left
+        // means that line is malformed -- name the cause and fault.
+        PcFailIfNotEof("malformed /proc/self/maps line");
+    }
 }
 
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
-// Parse `out->raw` (already populated + NUL-terminated) into `entries` and
-// `min_addr`. Shared by every loader. Deinits `out` on allocation failure.
-static bool proc_maps_parse_raw(ProcMaps *out) {
-    // `StrResize`/`StrReserve` keep a NUL sentinel at index `length`, so path
-    // slices that alias the buffer are usable as `Zstr`.
-    StrIter si = StrIterFromStr(out->raw);
-    while (StrIterRemainingLength(&si)) {
-        ProcMapEntry e = {0};
-        if (!parse_one_line(&si, &e)) {
-            // Skip past whatever line we couldn't parse.
-            char c;
-            while (StrIterPeek(&si, &c) && c != '\n') {
-                StrIterMustNext(&si);
-            }
-            if (StrIterRemainingLength(&si)) {
-                StrIterMustNext(&si);
-            }
-            continue;
-        }
-        if (!VecPushBackR(&out->entries, e)) {
-            ProcMapsDeinit(out);
-            return false;
+// Parse `raw` (already populated + NUL-terminated) into `entries` and `min_addr`
+// through the `ProcMapLines` grammar, each entry owning a copy of its path. A
+// line the grammar cannot parse fails the whole load: render its cause under a
+// caret to the log and return false (`out` left zeroed). An allocation failure
+// fails the same way, without a recorded cause. `raw` is the caller's transient
+// buffer -- it is not retained past this call.
+static bool proc_maps_parse(ProcMaps *out, Str *raw) {
+    StrIter     si = StrIterFromStr(*raw);
+    PcParserCtx cx;
+    cx.reports       = VecInitT(cx.reports, VecAllocator(&out->entries));
+    cx.alloc         = VecAllocator(&out->entries);
+    PcParserCtx *ctx = &cx;
+
+    bool ok = (PcRun(ProcMapLines, &si, out) & PC_PARSER_STATUS_SUCCESS);
+    if (!ok && VecLen(&cx.reports) > 0) {
+        StrInitStack(diag, 256) {
+            PcReportsRender(&diag, raw, &cx.reports);
+            LOG_ERROR("ProcMaps: {}", diag);
         }
     }
+    VecDeinit(&cx.reports);
 
-    // Cache the lowest mapped address so callers don't rescan the vector.
-    for (u64 i = 0; i < VecLen(&out->entries); ++i) {
-        const ProcMapEntry *e = VecPtrAt(&out->entries, i);
-        if (i == 0 || e->start < out->min_addr)
-            out->min_addr = e->start;
+    if (!ok) {
+        ProcMapsDeinit(out);
+        return false;
     }
     return true;
 }
@@ -227,30 +234,35 @@ bool proc_maps_load(ProcMaps *out, Allocator *alloc) {
         LOG_FATAL("ProcMapsLoad: NULL argument");
     }
     MemSet(out, 0, sizeof(*out));
-    out->raw     = StrInit(alloc);
     out->entries = VecInitT(out->entries, alloc);
+    Str raw      = StrInit(alloc);
 
     // `/proc/self/maps` reports stat-size 0 because it's generated by the
     // kernel on read, so we loop-read into a growing buffer ourselves.
     File f = FileOpen("/proc/self/maps", "rb");
     if (!FileIsOpen(&f)) {
         LOG_ERROR("ProcMapsLoad: FileOpen(/proc/self/maps) failed");
+        StrDeinit(&raw);
         ProcMapsDeinit(out);
         return false;
     }
-    bool ok = proc_maps_read_all(&f, &out->raw);
+    bool ok = proc_maps_read_all(&f, &raw);
     FileClose(&f);
     if (!ok) {
         LOG_ERROR("ProcMapsLoad: FileRead failed");
+        StrDeinit(&raw);
         ProcMapsDeinit(out);
         return false;
     }
-    if (StrLen(&out->raw) == 0) {
+    if (StrLen(&raw) == 0) {
         LOG_ERROR("ProcMapsLoad: /proc/self/maps was empty");
+        StrDeinit(&raw);
         ProcMapsDeinit(out);
         return false;
     }
-    return proc_maps_parse_raw(out);
+    bool parsed = proc_maps_parse(out, &raw);
+    StrDeinit(&raw);
+    return parsed;
 }
 
 bool proc_maps_load_from_file(ProcMaps *out, File *f, Allocator *alloc) {
@@ -258,19 +270,23 @@ bool proc_maps_load_from_file(ProcMaps *out, File *f, Allocator *alloc) {
         LOG_FATAL("ProcMapsLoadFrom: NULL argument");
     }
     MemSet(out, 0, sizeof(*out));
-    out->raw     = StrInit(alloc);
     out->entries = VecInitT(out->entries, alloc);
+    Str raw      = StrInit(alloc);
     if (!FileIsOpen(f)) {
         LOG_ERROR("ProcMapsLoadFrom: file is not open");
+        StrDeinit(&raw);
         ProcMapsDeinit(out);
         return false;
     }
-    if (!proc_maps_read_all(f, &out->raw)) {
+    if (!proc_maps_read_all(f, &raw)) {
         LOG_ERROR("ProcMapsLoadFrom: FileRead failed");
+        StrDeinit(&raw);
         ProcMapsDeinit(out);
         return false;
     }
-    return proc_maps_parse_raw(out);
+    bool parsed = proc_maps_parse(out, &raw);
+    StrDeinit(&raw);
+    return parsed;
 }
 
 bool proc_maps_load_from_bytes(ProcMaps *out, const u8 *bytes, u64 len, Allocator *alloc) {
@@ -278,23 +294,29 @@ bool proc_maps_load_from_bytes(ProcMaps *out, const u8 *bytes, u64 len, Allocato
         LOG_FATAL("ProcMapsLoadFrom: NULL argument");
     }
     MemSet(out, 0, sizeof(*out));
-    out->raw     = StrInit(alloc);
     out->entries = VecInitT(out->entries, alloc);
+    Str raw      = StrInit(alloc);
     if (len) {
-        if (!StrReserve(&out->raw, len + 1)) {
+        if (!StrReserve(&raw, len + 1)) {
+            StrDeinit(&raw);
             ProcMapsDeinit(out);
             return false;
         }
-        MemCopy(StrEnd(&out->raw), bytes, len);
-        StrResize(&out->raw, len);
+        MemCopy(StrEnd(&raw), bytes, len);
+        StrResize(&raw, len);
     }
-    return proc_maps_parse_raw(out);
+    bool parsed = proc_maps_parse(out, &raw);
+    StrDeinit(&raw);
+    return parsed;
 }
 
 void ProcMapsDeinit(ProcMaps *self) {
     if (!self)
         return;
-    StrDeinit(&self->raw);
+    for (u64 i = 0; i < VecLen(&self->entries); ++i) {
+        ProcMapEntry *e = VecPtrAt(&self->entries, i);
+        StrDeinit(&e->path);
+    }
     VecDeinit(&self->entries);
     MemSet(self, 0, sizeof(*self));
 }

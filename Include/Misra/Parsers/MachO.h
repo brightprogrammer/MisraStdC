@@ -146,6 +146,19 @@ typedef struct Macho {
 ///
 /// Open and parse a Mach-O file from disk.
 ///
+/// Four call shapes on `path`:
+///   `MachoOpen(out, path)`             -- `path` is `Str *` / `Zstr` /
+///                                         `char *`; default allocator.
+///   `MachoOpen(out, path, alloc)`      -- same, explicit allocator.
+///   `MachoOpen(out, path, len, alloc)` -- `path` is a fixed-length view
+///                                         (`Zstr`, `size`); explicit
+///                                         allocator. Arity 3 is already
+///                                         the NUL-terminated + allocator
+///                                         form, so the fixed-length form
+///                                         takes its allocator explicitly.
+/// The fixed-length path is copied into a NUL-terminated stack buffer
+/// (bounded by the platform path cap) before it reaches `open`.
+///
 /// SUCCESS : Returns true; parser owns the read-in buffer.
 /// FAILURE : Returns false on read / magic / load-command parse error.
 ///           Fat/universal headers (`CAFEBABE`) are rejected as
@@ -168,6 +181,7 @@ typedef struct Macho {
         Zstr: macho_open((out), (Zstr)(path), ALLOCATOR_OF(alloc)),                                                    \
         char *: macho_open((out), (Zstr)(path), ALLOCATOR_OF(alloc))                                                   \
     )
+#define MachoOpen_4(out, path, len, alloc) macho_open_n((out), (Zstr)(path), (len), ALLOCATOR_OF(alloc))
 
 ///
 /// Parse a Mach-O image from an in-memory byte range -- **L-value /
@@ -226,18 +240,28 @@ void MachoDeinit(Macho *self);
 ///
 /// Find a section by (segment, section) name pair.
 ///
+/// Two arities on the name keys:
+///   `MachoFindSection(self, segment, section)`
+///       -- each key is `Str *` / `Zstr` / `char *`.
+///   `MachoFindSection(self, segment, segment_len, section, section_len)`
+///       -- each key is a fixed-length view (`Zstr`, `size`). The bounds
+///          are threaded into the compare (exactly N bytes, no copy).
+///
 /// SUCCESS : Returns a pointer to the matching `MachoSection`,
 ///           borrowed from `self` (valid until `MachoDeinit`).
 /// FAILURE : Returns NULL when no section matches.
 ///
 /// TAGS: Parser, MachO, Section, Query
 ///
-#define MachoFindSection(self, segment, section)                                                                       \
+#define MachoFindSection(...) OVERLOAD(MachoFindSection, __VA_ARGS__)
+#define MachoFindSection_3(self, segment, section)                                                                     \
     macho_find_section(                                                                                                \
         (self),                                                                                                        \
         _Generic((segment), Str *: (Zstr)StrBegin((Str *)(segment)), Zstr: (Zstr)(segment), char *: (Zstr)(segment)),  \
         _Generic((section), Str *: (Zstr)StrBegin((Str *)(section)), Zstr: (Zstr)(section), char *: (Zstr)(section))   \
     )
+#define MachoFindSection_5(self, segment, segment_len, section, section_len)                                           \
+    macho_find_section_cstr((self), (Zstr)(segment), (segment_len), (Zstr)(section), (section_len))
 
 ///
 /// Look up the symbol whose `value` is closest-not-greater than

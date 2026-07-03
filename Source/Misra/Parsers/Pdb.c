@@ -18,8 +18,8 @@
 // ---------------------------------------------------------------------------
 
 static const u8 MSF_MAGIC_7[32] = {'M', 'i', 'c',  'r',  'o',    's', 'o', 'f',  't',  ' ', 'C',
-                                    '/', 'C', '+',  '+',  ' ',    'M', 'S', 'F',  ' ',  '7', '.',
-                                    '0', '0', '\r', '\n', '\x1A', 'D', 'S', '\0', '\0', '\0'};
+                                   '/', 'C', '+',  '+',  ' ',    'M', 'S', 'F',  ' ',  '7', '.',
+                                   '0', '0', '\r', '\n', '\x1A', 'D', 'S', '\0', '\0', '\0'};
 
 enum {
     SUPERBLOCK_SIZE = 56,
@@ -749,6 +749,19 @@ bool pdb_open(Pdb *out, Zstr path, Allocator *alloc) {
     if (FileReadAndClose(path, &data) < 0) {
         BufDeinit(&data);
         LOG_ERROR("PdbOpen: failed to read {}", path);
+        return false;
+    }
+    return PdbOpenFromMemory(out, &data);
+}
+
+bool pdb_open_n(Pdb *out, Zstr path, size len, Allocator *alloc) {
+    if (!out || !path || !alloc) {
+        LOG_FATAL("PdbOpen: NULL argument (contract violation)");
+    }
+    Buf data = BufInit(alloc);
+    if (FileReadAndClose(path, len, &data) < 0) {
+        BufDeinit(&data);
+        LOG_ERROR("PdbOpen: failed to read {} path bytes", len);
         return false;
     }
     return PdbOpenFromMemory(out, &data);

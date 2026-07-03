@@ -538,16 +538,9 @@ void validate_vec(const GenericVec *v) {
     ((GenericVec *)(void *)v)->__magic &= ~MAGIC_VALIDATED_BIT;
 }
 
-bool vec_insert_one_l(
-    GenericVec *vec,
-    const void *item_copy,
-    void       *source,
-    size        item_size,
-    size        idx,
-    bool        preserve_order
-) {
-    bool success = preserve_order ? insert_range_into_vec(vec, item_copy, item_size, idx, 1) :
-                                    insert_range_fast_into_vec(vec, item_copy, item_size, idx, 1);
+bool vec_insert_one_l(GenericVec *vec, void *source, size item_size, size idx, bool preserve_order) {
+    bool success = preserve_order ? insert_range_into_vec(vec, source, item_size, idx, 1) :
+                                    insert_range_fast_into_vec(vec, source, item_size, idx, 1);
 
     return vec_zero_source_on_success(vec, source, item_size, success);
 }

@@ -54,9 +54,9 @@
 #define VecForeachReverseIdx(v, var, idx)                                                                              \
     for (TYPE_OF(v) UNPL(pv) = (v); UNPL(pv); UNPL(pv) = NULL)                                                         \
         if ((ValidateVec(UNPL(pv)), 1) && UNPL(pv)->length > 0)                                                        \
-            for (u64 idx = UNPL(pv)->length; idx-- > 0 && idx < UNPL(pv)->length;)                                     \
-                for (u8 UNPL(run_once) = 1; UNPL(run_once); UNPL(run_once) = 0)                                        \
-                    for (VEC_DATATYPE(UNPL(pv)) var = VecAt(UNPL(pv), idx); UNPL(run_once); UNPL(run_once) = 0)
+            for (u64 idx = UNPL(pv)->length, UNPL(d) = 1; UNPL(d); UNPL(d)--)                                          \
+                for (VEC_DATATYPE(UNPL(pv)) var = {0};                                                                 \
+                     idx-- > 0 && idx < UNPL(pv)->length && (var = VecAt(UNPL(pv), idx), 1);)
 
 ///
 /// Iterate over each element `var` of given vector `v` at each index `idx` into the vector.
@@ -107,9 +107,9 @@
 #define VecForeachPtrReverseIdx(v, var, idx)                                                                           \
     for (TYPE_OF(v) UNPL(pv) = (v); UNPL(pv); UNPL(pv) = NULL)                                                         \
         if ((ValidateVec(UNPL(pv)), 1) && UNPL(pv)->length > 0)                                                        \
-            for (u64 idx = UNPL(pv)->length; idx-- > 0 && idx < UNPL(pv)->length;)                                     \
-                for (u8 UNPL(run_once) = 1; UNPL(run_once); UNPL(run_once) = 0)                                        \
-                    for (VEC_DATATYPE(UNPL(pv)) *var = VecPtrAt(UNPL(pv), idx); UNPL(run_once); UNPL(run_once) = 0)
+            for (u64 idx = UNPL(pv)->length, UNPL(d) = 1; UNPL(d); UNPL(d)--)                                          \
+                for (VEC_DATATYPE(UNPL(pv)) *var = NULL;                                                               \
+                     idx-- > 0 && idx < UNPL(pv)->length && (var = VecPtrAt(UNPL(pv), idx), 1);)
 
 ///
 /// Walk each element of `v` forward, binding `var` to the element value.

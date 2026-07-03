@@ -2,13 +2,18 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// TZif (`/etc/localtime`) offset resolver backing `ClockLocal`. See
-/// `Tzif.h` for the contract and the scope note. All on-disk decoding
-/// goes through `BufReadFmt` big-endian (`{>Nr}`) directives -- TZif is
-/// a big-endian format (RFC 8536) -- so there are no packed structs and
-/// no manual byteswaps, matching the rest of the Parsers/ family. Every
-/// read is the non-`Must` `BufReadFmt` / `IterMove`, which return false
-/// on a short file instead of aborting: `/etc/localtime` is untrusted.
+/// TZif (`/etc/localtime`) offset resolver backing `ClockLocal`. See `Tzif.h`
+/// for the contract and the scope note. Written on the parser combinator DSL
+/// over a `BufIter` (`#define PC_ITER BufIter`): TZif is big-endian (RFC 8536).
+/// The grammar reads the header (a produced value) and the version chooses the
+/// block (`Dispatch`); each version arm reads transition times at its own width
+/// (`FindBestTransitionTimeV1` vs `...V2`), so the width is a control-flow
+/// decision, not a field anyone checks. Each resolution phase is its own parser
+/// that takes what it needs and returns what it found, the arrays stream through
+/// `PcMatchExactlyN`, and the context holds only the one ambient fact the phases
+/// read down the stack: the instant being resolved. Every read is
+/// bounds-checked and fails the rule (never aborts) on a short file --
+/// `/etc/localtime` is untrusted -- surfacing as a soft `false`.
 
 #include <Misra/Parsers/Tzif.h>
 
@@ -17,25 +22,12 @@
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 
-// TZif fixed-layout header (RFC 8536 4.1): "TZif" magic, 1-byte
-// version, 15 reserved bytes, then six big-endian u32 counts. 44 bytes.
-#define TZIF_HEADER_SIZE 44
+#define PC_ITER BufIter
+#include <Misra/ParserCombinator.h>
 
-// The six u32 counts, read in one shot.
-#define FMT_TZIF_COUNTS_BE                                                                                             \
-    "{>4r}" /* isutcnt  */                                                                                             \
-    "{>4r}" /* isstdcnt */                                                                                             \
-    "{>4r}" /* leapcnt  */                                                                                             \
-    "{>4r}" /* timecnt  */                                                                                             \
-    "{>4r}" /* typecnt  */                                                                                             \
-    "{>4r}" /* charcnt  */
-
-// One ttinfo record (RFC 8536 4.2): i32 utoff, u8 isdst, u8 desigidx.
-#define FMT_TZIF_TTINFO_BE                                                                                             \
-    "{>4r}" /* utoff    */                                                                                             \
-    "{>1r}" /* isdst    */                                                                                             \
-    "{>1r}" /* desigidx */
-
+// TZif fixed-layout header (RFC 8536 4.1): "TZif" magic, version, 15 reserved
+// bytes, then six big-endian u32 counts. Produced by `Header`, threaded into the
+// block parsers as an input.
 typedef struct {
     u8  version;
     u32 isutcnt;
@@ -46,144 +38,202 @@ typedef struct {
     u32 charcnt;
 } TzifHeader;
 
-static bool tzif_read_header(BufIter *it, TzifHeader *h) {
-    if ((u64)IterRemainingLength(it) < TZIF_HEADER_SIZE)
-        return false;
+// One count-prefixed array to scan for a record at a selected index: `count`
+// records, keep the one at `sel` (-1 = nothing selected).
+typedef struct {
+    u32 count;
+    i64 sel;
+} PhaseIn;
 
-    // "TZif" magic matched inline; a non-TZif file fails the read here.
-    u8 ver = 0;
-    if (!BufReadFmt(it, "TZif{>1r}", ver))
-        return false;
-    if (!IterMove(it, 15)) // reserved
-        return false;
+// One ttinfo record's decoded fields.
+typedef struct {
+    i32 utoff;
+    u8  isdst;
+} TtInfoVal;
 
-    if (!BufReadFmt(it, FMT_TZIF_COUNTS_BE, h->isutcnt, h->isstdcnt, h->leapcnt, h->timecnt, h->typecnt, h->charcnt))
-        return false;
-    h->version = ver;
-    return true;
+// The one ambient fact the phases read down the call stack: the instant being
+// resolved. Everything a phase *produces* is a return value, not a field here,
+// and the block's time width is decided by which version arm runs, not stored.
+typedef struct PcParserCtx {
+    i64 unix_seconds;
+} PcParserCtx;
+
+// Backtracking savepoint: the context is a flat value, so a mark is a copy of it
+// and rollback restores it -- a `PcChoice` arm leaves nothing behind.
+typedef PcParserCtx    PcParserCtxMark;
+static PcParserCtxMark PcParserCtxSnapshot(PcParserCtx *ctx) {
+    return *ctx;
+}
+static void PcParserCtxRollback(PcParserCtx *ctx, PcParserCtxMark mark) {
+    *ctx = mark;
 }
 
-// Size of a version-1 data block, used only to skip it on the way to
-// the version-2+ block. v1 transition times and leap records are 4 and
-// 4+4 bytes respectively.
+// Size of a version-1 data block, used only to skip it on the way to the
+// version-2+ block (transition times 4 bytes, leap records 4+4).
 static u64 tzif_v1_data_size(const TzifHeader *h) {
     return (u64)h->timecnt * 4 + (u64)h->timecnt * 1 + (u64)h->typecnt * 6 + (u64)h->charcnt * 1 + (u64)h->leapcnt * 8 +
            (u64)h->isstdcnt * 1 + (u64)h->isutcnt * 1;
 }
 
-// Resolve the offset from a data block whose transition times are
-// `time_width` bytes (4 for v1, 8 for v2+). The cursor must sit at the
-// start of the transition-time array. Streams through the block without
-// storing it: find the last transition <= `unix_seconds`, take its
-// type's utoff, with the first standard-time (isdst==0) ttinfo as the
-// pre-history / past-table fallback.
-static bool tzif_resolve(BufIter *it, u32 time_width, u32 timecnt, u32 typecnt, i64 unix_seconds, i32 *out_offset) {
-    if (typecnt == 0)
-        return false;
+// The magic and a generic byte skip.
+PcRecognizer(TzifMagic) {
+    PcSatisfyStr("TZif") {}
+}
+PcRecognizer(Skip, u64) {
+    PcSkipBytes(expect);
+}
 
-    // Phase 1: transitions are ascending; remember the index of the
-    // last one not in the future.
-    bool found = false;
-    i64  best  = 0;
-    for (u32 i = 0; i < timecnt; ++i) {
-        i64 t = 0;
-        if (time_width == 8) {
-            if (!BufReadFmt(it, "{>8r}", t))
-                return false;
-        } else {
-            i32 t32 = 0;
-            if (!BufReadFmt(it, "{>4r}", t32))
-                return false;
-            t = t32;
-        }
-        if (t <= unix_seconds) {
-            found = true;
-            best  = (i64)i;
-        }
+// "TZif" + version + 15 reserved + six big-endian u32 counts.
+PcParser(Header, TzifHeader) {
+    PcSeq() {
+        PcExpect(TzifMagic);
+        PcMatch(PcU8, &value->version);
+        PcExpect(Skip, 15);
+        PcMatch(PcU32BE, &value->isutcnt);
+        PcMatch(PcU32BE, &value->isstdcnt);
+        PcMatch(PcU32BE, &value->leapcnt);
+        PcMatch(PcU32BE, &value->timecnt);
+        PcMatch(PcU32BE, &value->typecnt);
+        PcMatch(PcU32BE, &value->charcnt);
     }
+}
 
-    // Phase 2: the type-index array is `timecnt` bytes; pick the one at
-    // `best` and step the cursor to the array's end either way.
-    u8   chosen      = 0;
-    bool have_chosen = false;
-    if (found) {
-        if (best > 0 && !IterMove(it, best))
-            return false;
-        if (!BufReadFmt(it, "{>1r}", chosen))
-            return false;
-        have_chosen = true;
-        i64 rest    = (i64)timecnt - best - 1;
-        if (rest > 0 && !IterMove(it, rest))
-            return false;
-    } else if (timecnt > 0 && !IterMove(it, (i64)timecnt)) {
-        return false;
+// One ttinfo record: utoff (signed), the isdst flag, and a designation index we
+// skip. `PcI32BE` reads straight into the signed field -- no unsigned temporary.
+PcParser(TtInfo, TtInfoVal) {
+    PcSeq() {
+        PcMatch(PcI32BE, &value->utoff);
+        PcMatch(PcU8, &value->isdst);
+        PcExpect(Skip, 1);
     }
+}
 
-    // Phase 3: ttinfo records. Grab the chosen type's utoff; remember
-    // the first standard-time offset for the fallback.
-    bool have_std = false;
-    i32  std_off  = 0;
-    bool have_off = false;
-    i32  off      = 0;
-    for (u32 i = 0; i < typecnt; ++i) {
-        i32 utoff = 0;
-        u8  isdst = 0, desigidx = 0;
-        if (!BufReadFmt(it, FMT_TZIF_TTINFO_BE, utoff, isdst, desigidx))
-            return false;
-        if (have_chosen && i == (u32)chosen) {
-            off      = utoff;
-            have_off = true;
-        }
-        if (!have_std && isdst == 0) {
-            std_off  = utoff;
-            have_std = true;
+// Phase 1: transitions are ascending; the last index not in the future, or -1 if
+// they are all ahead of the instant. The time is signed and its width is the
+// version's (32-bit v1, 64-bit v2) -- so the two arms read via `PcI32BE` and
+// `PcI64BE`, and that reader choice is the only difference between them.
+PcParser(FindBestTransitionTimeV1, u32, i64) {
+    i32 t = 0;
+    PcSeq() {
+        *value = -1;
+        PcMatchExactlyN(expect, i, PcI32BE, &t) {
+            if (t <= ctx->unix_seconds) // i32 t sign-extends against the i64 instant
+                *value = (i64)i;
         }
     }
+}
+PcParser(FindBestTransitionTimeV2, u32, i64) {
+    i64 t = 0;
+    PcSeq() {
+        *value = -1;
+        PcMatchExactlyN(expect, i, PcI64BE, &t) {
+            if (t <= ctx->unix_seconds)
+                *value = (i64)i;
+        }
+    }
+}
 
-    if (have_off) {
-        *out_offset = off;
-        return true;
+// Phase 2: the type-index array; the index recorded at `sel`, or -1 when there
+// was no transition to select.
+PcParser(PickTransitionType, PhaseIn, i64) {
+    u8 tix = 0;
+    PcSeq() {
+        *value = -1;
+        PcMatchExactlyN(expect.count, i, PcU8, &tix) {
+            if ((i64)i == expect.sel)
+                *value = (i64)tix;
+        }
     }
-    if (have_std) {
-        *out_offset = std_off;
-        return true;
+}
+
+// Phase 3: the ttinfo records; the selected type's utoff, else the first
+// standard-time (isdst==0) type as the pre-history fallback. No usable type ->
+// the rule rejects.
+PcParser(PickUtOffset, PhaseIn, i32) {
+    TtInfoVal tt       = {0};
+    i32       off      = 0;
+    i32       std_off  = 0;
+    bool      have_off = false;
+    bool      have_std = false;
+    PcSeq() {
+        PcMatchExactlyN(expect.count, i, TtInfo, &tt) {
+            if ((i64)i == expect.sel) {
+                off      = tt.utoff;
+                have_off = true;
+            }
+            if (!have_std && tt.isdst == 0) {
+                std_off  = tt.utoff;
+                have_std = true;
+            }
+        }
+        if (have_off)
+            *value = off;
+        else if (have_std)
+            *value = std_off;
+        else
+            PcReject();
     }
-    return false;
+}
+
+// Version dispatch. v1: resolve the block right here (4-byte times). v2+: skip
+// the v1 block, read the v2 header, resolve its block (8-byte times). Each arm's
+// guard rejects before consuming, so the choice falls through cleanly.
+PcParser(ResolveV1, TzifHeader, i32) {
+    i64 best   = 0;
+    i64 chosen = 0;
+    PcSeq() {
+        if (expect.version >= '2')
+            PcReject();
+        PcMatch(FindBestTransitionTimeV1, expect.timecnt, &best);
+        PcMatch(PickTransitionType, ((PhaseIn) {expect.timecnt, best}), &chosen);
+        PcMatch(PickUtOffset, ((PhaseIn) {expect.typecnt, chosen}), value);
+    }
+}
+PcParser(ResolveV2, TzifHeader, i32) {
+    TzifHeader h2     = {0};
+    i64        best   = 0;
+    i64        chosen = 0;
+    PcSeq() {
+        if (expect.version < '2')
+            PcReject();
+        PcExpect(Skip, tzif_v1_data_size(&expect));
+        PcMatch(Header, &h2);
+        PcMatch(FindBestTransitionTimeV2, h2.timecnt, &best);
+        PcMatch(PickTransitionType, ((PhaseIn) {h2.timecnt, best}), &chosen);
+        PcMatch(PickUtOffset, ((PhaseIn) {h2.typecnt, chosen}), value);
+    }
+}
+PcParser(Dispatch, TzifHeader, i32) {
+    PcChoice() {
+        PcAlt(ResolveV1, expect, value);
+        PcAlt(ResolveV2, expect, value);
+    }
+}
+
+// TZif: the fixed header, then the version-appropriate data block.
+PcParser(Tzif, i32) {
+    TzifHeader h = {0};
+    PcSeq() {
+        PcMatch(Header, &h);
+        PcMatch(Dispatch, h, value);
+    }
 }
 
 bool TzifOffsetFromBuf(const u8 *data, size len, i64 unix_seconds, i32 *out_offset_seconds) {
     if (!data || !out_offset_seconds)
         return false;
 
-    BufIter    it = BufIterFromMemory((u8 *)data, len);
-    TzifHeader h1;
-    if (!tzif_read_header(&it, &h1)) {
-        LOG_ERROR("Tzif: malformed header");
+    BufIter      in     = BufIterFromMemory((u8 *)data, len);
+    PcParserCtx  cx     = {.unix_seconds = unix_seconds};
+    PcParserCtx *ctx    = &cx;
+    i32          offset = 0;
+
+    if (!(PcRun(Tzif, &in, &offset) & PC_PARSER_STATUS_SUCCESS)) {
+        LOG_ERROR("Tzif: malformed or unresolvable TZif data");
         return false;
     }
-
-    bool ok;
-    i32  offset = 0;
-    if (h1.version >= '2') {
-        // Skip the v1 data block, then parse the v2+ header and its
-        // 8-byte-time data block (the authoritative one).
-        if (!IterMove(&it, (i64)tzif_v1_data_size(&h1))) {
-            LOG_ERROR("Tzif: truncated v1 data block");
-            return false;
-        }
-        TzifHeader h2;
-        if (!tzif_read_header(&it, &h2)) {
-            LOG_ERROR("Tzif: malformed v2 header");
-            return false;
-        }
-        ok = tzif_resolve(&it, 8, h2.timecnt, h2.typecnt, unix_seconds, &offset);
-    } else {
-        ok = tzif_resolve(&it, 4, h1.timecnt, h1.typecnt, unix_seconds, &offset);
-    }
-
-    if (ok)
-        *out_offset_seconds = offset;
-    return ok;
+    *out_offset_seconds = offset;
+    return true;
 }
 
 bool TzifLocalOffsetSeconds(i64 unix_seconds, i32 *out_offset_seconds, Allocator *alloc) {

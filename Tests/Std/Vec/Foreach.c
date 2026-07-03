@@ -16,6 +16,8 @@ bool test_vec_foreach_reverse(void);
 bool test_vec_foreach_reverse_idx(void);
 bool test_vec_foreach_ptr_reverse(void);
 bool test_vec_foreach_ptr_reverse_idx(void);
+bool test_vec_foreach_early_break(void);
+bool test_vec_foreach_reverse_early_break(void);
 
 bool test_vec_foreach_out_of_bounds_access(void);
 bool test_vec_foreach_idx_out_of_bounds_access(void);
@@ -571,6 +573,70 @@ bool test_vec_foreach_idx_basic_out_of_bounds_access(void) {
     return true;
 }
 
+// Early break: `break` inside a forward VecForeach must stop iteration immediately.
+bool test_vec_foreach_early_break(void) {
+    WriteFmt("Testing early break through forward VecForeach variants\n");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit(&alloc);
+    for (int i = 0; i < 5; i++)
+        VecPushBackR(&vec, i); // 0,1,2,3,4
+
+    bool result = true;
+
+    int visited = 0, last = -1;
+    VecForeach(&vec, item) {
+        visited++;
+        last = item;
+        if (item == 2)
+            break;
+    }
+    result = result && (visited == 3) && (last == 2);
+
+    visited = 0;
+    last    = -1;
+    VecForeachPtr(&vec, item_ptr) {
+        visited++;
+        last = *item_ptr;
+        if (*item_ptr == 2)
+            break;
+    }
+    result = result && (visited == 3) && (last == 2);
+
+    visited = 0;
+    VecForeachIdx(&vec, item, idx) {
+        visited++;
+        (void)item;
+        if (idx == 2)
+            break;
+    }
+    result = result && (visited == 3);
+
+    VecDeinit(&vec);
+    return result;
+}
+
+// Early break through the reverse variant (visits 4,3,2,1,0; break at 2 -> 3 visits).
+bool test_vec_foreach_reverse_early_break(void) {
+    WriteFmt("Testing early break through reverse VecForeach\n");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit(&alloc);
+    for (int i = 0; i < 5; i++)
+        VecPushBackR(&vec, i);
+
+    int visited = 0, last = -1;
+    VecForeachReverse(&vec, item) {
+        visited++;
+        last = item;
+        if (item == 2)
+            break;
+    }
+
+    VecDeinit(&vec);
+    return (visited == 3) && (last == 2);
+}
+
 // Main function that runs all tests
 int main(void) {
     alloc = DefaultAllocatorInit();
@@ -586,6 +652,8 @@ int main(void) {
         test_vec_foreach_reverse_idx,
         test_vec_foreach_ptr_reverse,
         test_vec_foreach_ptr_reverse_idx,
+        test_vec_foreach_early_break,
+        test_vec_foreach_reverse_early_break,
         test_vec_foreach_out_of_bounds_access,
         test_vec_foreach_idx_out_of_bounds_access,
         test_vec_foreach_idx_basic_out_of_bounds_access,

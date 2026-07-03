@@ -18,13 +18,15 @@
 extern "C" {
 #endif
 
-typedef struct Pe        Pe;
-typedef struct PeSection PeSection;
+    typedef struct Pe        Pe;
+    typedef struct PeSection PeSection;
 
-bool pe_open(Pe *out, Zstr path, Allocator *alloc);
-bool pe_open_from_memory_copy(Pe *out, const u8 *data, size data_size, Allocator *alloc);
-const PeSection *pe_find_section_zstr(const Pe *self, Zstr name);
-const PeSection *pe_find_section_str(const Pe *self, const Str *name);
+    bool             pe_open(Pe *out, Zstr path, Allocator *alloc);
+    bool             pe_open_n(Pe *out, Zstr path, size len, Allocator *alloc);
+    bool             pe_open_from_memory_copy(Pe *out, const u8 *data, size data_size, Allocator *alloc);
+    const PeSection *pe_find_section_zstr(const Pe *self, Zstr name);
+    const PeSection *pe_find_section_str(const Pe *self, const Str *name);
+    const PeSection *pe_find_section_cstr(const Pe *self, Zstr name, size name_len);
 
 #ifdef __cplusplus
 }

@@ -213,6 +213,7 @@ misra_std_sources = files(
     'Source/Misra/Std/Memory.c',
     'Source/Misra/Std/Zstr.c',
     'Source/Misra/Std/DateTime.c',
+    'Source/Misra/ParserCombinator.c',
     'Source/Misra/Std/Allocator.c',
     'Source/Misra/Std/Allocator/_Os.c',
     'Source/Misra/Std/Allocator/Page.c',
@@ -738,6 +739,22 @@ if opt_sys_dns
         c_args: common_c_args,
         include_directories: inc_misra,
         install: true,
+        link_args: freestanding_link_args
+    )
+endif
+
+# calc: an immediate-mode parser-combinator calculator (Bin/CalC.c) -- the
+# worked example / playground for Include/Misra/ParserCombinator.h. Built and
+# kept green by the tree, but not installed: it demonstrates the DSL, it is not
+# a shipping utility. Needs Map (variables) and File (the stdin REPL).
+if opt_map and opt_file
+    executable(
+        'calc',
+        files('Bin/CalC.c') + freestanding_extra_sources,
+        link_with: [misra_std],
+        c_args: common_c_args,
+        include_directories: inc_misra,
+        install: false,
         link_args: freestanding_link_args
     )
 endif

@@ -547,8 +547,8 @@ GenericListNode *get_node_for_list_iteration(GenericList *list, GenericListNode 
     return get_node_random_access(list, node, nidx, (i64)target_idx - (i64)nidx);
 }
 
-bool list_insert_one_l(GenericList *list, const void *item_copy, void *source, u64 item_size, u64 idx) {
-    return list_zero_source_on_success(list, source, item_size, insert_into_list(list, item_copy, item_size, idx));
+bool list_insert_one_l(GenericList *list, void *source, u64 item_size, u64 idx) {
+    return list_zero_source_on_success(list, source, item_size, insert_into_list(list, source, item_size, idx));
 }
 
 bool list_insert_one_r(GenericList *list, const void *item_copy, u64 item_size, u64 idx) {
