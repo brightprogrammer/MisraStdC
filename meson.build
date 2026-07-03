@@ -213,6 +213,7 @@ misra_std_sources = files(
     'Source/Misra/Std/Memory.c',
     'Source/Misra/Std/Zstr.c',
     'Source/Misra/Std/DateTime.c',
+    'Source/Misra/ParserCombinator.c',
     'Source/Misra/Std/Allocator.c',
     'Source/Misra/Std/Allocator/_Os.c',
     'Source/Misra/Std/Allocator/Page.c',

@@ -84,6 +84,17 @@
 #include <Misra/Types.h>
 #include <Misra/Std/Utility/StrIter.h>
 #include <Misra/Std/Zstr.h>
+#include <Misra/Std/Container/Buf.h>
+
+///
+/// The cursor type. Text grammars use the default `StrIter` (`Iter(char)`); a byte-oriented
+/// grammar sets `#define PC_ITER BufIter` (`Iter(const u8)`) before including this header. The
+/// block frames are cursor-agnostic (they only use `in->pos` / `*in` / `IterIndex`); only the
+/// atoms are element-specific -- `PcSatisfy*` for characters, the `PcU*` family below for bytes.
+///
+#ifndef PC_ITER
+#    define PC_ITER StrIter
+#endif
 
 ///
 /// A parser combinator does not only need a way to parse a string. It also needs to convert
@@ -243,8 +254,8 @@ typedef struct PcReport {
 /// the "validator" style. Identical to the `PcParser`/`PcParse` family with the trailing output
 /// slot removed, so the arities shift down by one: 1-arg (no input) or 2-arg (an input to match).
 ///
-///   PcRecognizer(Name)       -> (StrIter *in, PcParserCtx *ctx)               define, no input
-///   PcRecognizer(Name, InT)  -> (StrIter *in, PcParserCtx *ctx, InT expect)   define, one input
+///   PcRecognizer(Name)       -> (PC_ITER *in, PcParserCtx *ctx)               define, no input
+///   PcRecognizer(Name, InT)  -> (PC_ITER *in, PcParserCtx *ctx, InT expect)   define, one input
 ///   PcRecognize(Name)        -> pc_parser_Name(in, ctx)                      call, no input
 ///   PcRecognize(Name, In)    -> pc_parser_Name(in, ctx, In)                  call, one input
 ///
@@ -253,9 +264,9 @@ typedef struct PcReport {
 ///
 #define PcRecognizer(...) OVERLOAD(PcRecognizer, __VA_ARGS__)
 #define PcRecognizer_1(Name)                                                                                           \
-    static inline PcParserStatus PcGenParserName(Name)(StrIter * in, PcParserCtx * ctx PC_MAYBE_UNUSED)
+    static inline PcParserStatus PcGenParserName(Name)(PC_ITER * in, PcParserCtx * ctx PC_MAYBE_UNUSED)
 #define PcRecognizer_2(Name, InT)                                                                                      \
-    static inline PcParserStatus PcGenParserName(Name)(StrIter * in, PcParserCtx * ctx PC_MAYBE_UNUSED, InT expect)
+    static inline PcParserStatus PcGenParserName(Name)(PC_ITER * in, PcParserCtx * ctx PC_MAYBE_UNUSED, InT expect)
 
 #define PcRecognize(...)        OVERLOAD(PcRecognize, __VA_ARGS__)
 #define PcRecognize_1(Name)     PcGenParserName(Name)(in, ctx)
@@ -275,8 +286,8 @@ typedef struct PcReport {
 ///
 /// Define (or, when followed by `;`, forward-declare) a parser. Overloaded by arity:
 ///
-///   PcParser(Name, BuildT)       -> (StrIter *in, PcParserCtx *ctx, BuildT *value)
-///   PcParser(Name, InT, BuildT)  -> (StrIter *in, PcParserCtx *ctx, InT expect, BuildT *value)
+///   PcParser(Name, BuildT)       -> (PC_ITER *in, PcParserCtx *ctx, BuildT *value)
+///   PcParser(Name, InT, BuildT)  -> (PC_ITER *in, PcParserCtx *ctx, InT expect, BuildT *value)
 ///
 /// The names a body reads are `in` (stream), `ctx` (grammar context), `expect` (the input, in
 /// the 3-arg form), and `value` (the output). The consumer must have a `PcParserCtx` type in scope.
@@ -288,10 +299,10 @@ typedef struct PcReport {
 ///
 #define PcParser(...) OVERLOAD(PcParser, __VA_ARGS__)
 #define PcParser_2(Name, BuildT)                                                                                       \
-    static inline PcParserStatus PcGenParserName(Name)(StrIter * in, PcParserCtx * ctx PC_MAYBE_UNUSED, BuildT * value)
+    static inline PcParserStatus PcGenParserName(Name)(PC_ITER * in, PcParserCtx * ctx PC_MAYBE_UNUSED, BuildT * value)
 #define PcParser_3(Name, InT, BuildT)                                                                                  \
     static inline PcParserStatus                                                                                       \
-        PcGenParserName(Name)(StrIter * in, PcParserCtx * ctx PC_MAYBE_UNUSED, InT expect, BuildT * value)
+        PcGenParserName(Name)(PC_ITER * in, PcParserCtx * ctx PC_MAYBE_UNUSED, InT expect, BuildT * value)
 
 ///
 /// The consumed bit for a parser, derived from the stream position against a snapshot: a parse
@@ -313,7 +324,7 @@ typedef struct PcReport {
 ///
 #define PcSeq()                                                                                                        \
     for (struct {                                                                                                      \
-             StrIter start;                                                                                            \
+             PC_ITER start;                                                                                            \
              bool    ran;                                                                                              \
          } pc_seq = {*in, false};                                                                                      \
          ;                                                                                                             \
@@ -332,7 +343,7 @@ typedef struct PcReport {
 ///
 #define PcChoice()                                                                                                     \
     for (struct {                                                                                                      \
-             StrIter         mark;                                                                                     \
+             PC_ITER         mark;                                                                                     \
              PcParserCtxMark ctx_mark;                                                                                 \
              PcParserStatus  st;                                                                                       \
              bool            ran, matched, done;                                                                       \
@@ -403,7 +414,7 @@ typedef struct PcReport {
 ///
 #define PcMatchZeroOrMore(Name, ...)                                                                                   \
     for (struct {                                                                                                      \
-             StrIter         mark;                                                                                     \
+             PC_ITER         mark;                                                                                     \
              PcParserCtxMark ctx_mark;                                                                                 \
          } UNPL(pc_zom_) = {*in, PcParserCtxSnapshot(ctx)};                                                            \
          (UNPL(pc_zom_).mark    = *in,                                                                                 \
@@ -420,7 +431,7 @@ typedef struct PcReport {
 ///
 #define PcMatchOneOrMore(Name, ...)                                                                                    \
     for (struct {                                                                                                      \
-             StrIter         mark;                                                                                     \
+             PC_ITER         mark;                                                                                     \
              PcParserCtxMark ctx_mark;                                                                                 \
              bool            done;                                                                                     \
          } UNPL(pc_oom1_) = {*in, PcParserCtxSnapshot(ctx), false};                                                    \
@@ -436,7 +447,7 @@ typedef struct PcReport {
             );                                                                                                         \
         else                                                                                                           \
             for (struct {                                                                                              \
-                     StrIter         mark;                                                                             \
+                     PC_ITER         mark;                                                                             \
                      PcParserCtxMark ctx_mark;                                                                         \
                      bool            first;                                                                            \
                  } UNPL(pc_oomN_) = {*in, PcParserCtxSnapshot(ctx), true};                                             \
@@ -458,7 +469,7 @@ typedef struct PcReport {
 ///
 #define PcOpt(Name, ...)                                                                                               \
     for (struct {                                                                                                      \
-             StrIter         mark;                                                                                     \
+             PC_ITER         mark;                                                                                     \
              PcParserCtxMark ctx_mark;                                                                                 \
              bool            ran;                                                                                      \
          } UNPL(pc_opt_) = {*in, PcParserCtxSnapshot(ctx), false};                                                     \
@@ -489,9 +500,9 @@ typedef struct PcReport {
 #define PcRecognizeOneOrMore_2(Name, In) PC_RECOGNIZE_REPEAT(PcRecognize_2(Name, In), 1)
 #define PC_RECOGNIZE_REPEAT(call, min_one)                                                                             \
     do {                                                                                                               \
-        StrIter UNPL(pc_rm_start) = *in;                                                                               \
+        PC_ITER UNPL(pc_rm_start) = *in;                                                                               \
         for (struct {                                                                                                  \
-                 StrIter         mark;                                                                                 \
+                 PC_ITER         mark;                                                                                 \
                  PcParserCtxMark ctx_mark;                                                                             \
              } UNPL(pc_rm_) = {*in, PcParserCtxSnapshot(ctx)};                                                         \
              (UNPL(pc_rm_).mark    = *in,                                                                              \
@@ -554,8 +565,8 @@ typedef struct PcReport {
 /// surfaces more than just the first structural break.
 ///
 #define PcRecover(Var, IsSync)                                                                                         \
-    for (char Var = 0; StrIterPeek(in, &Var) && !(IsSync);)                                                            \
-    StrIterMove(in, 1)
+    for (char Var = 0; IterPeekAt(in, 0, &Var) && !(IsSync);)                                                          \
+    IterMove(in, 1)
 
 ///
 /// Atoms -- the only place `StrIter` and `PcParserStatus` are handled directly. Every fundamental
@@ -574,9 +585,9 @@ typedef struct PcReport {
         for (bool UNPL(pc_sc_ran) = false;; UNPL(pc_sc_ran) = true)                                                    \
             if (UNPL(pc_sc_ran))                                                                                       \
                 return PC_PARSER_STATUS_SUCCESS | PC_PARSER_STATUS_CONSUMED;                                           \
-            else if (!(StrIterPeek(in, &Var) && (Pred)))                                                               \
+            else if (!(IterPeekAt(in, 0, &Var) && (Pred)))                                                             \
                 return PC_PARSER_STATUS_FAILED;                                                                        \
-            else if ((StrIterMove(in, 1), true))
+            else if ((IterMove(in, 1), true))
 
 ///
 /// PcSatisfyStr: match the literal string `Expect` (a `Zstr`; pass `StrBegin(&s)` for a `Str`) at
@@ -593,19 +604,99 @@ typedef struct PcReport {
     bool UNPL(pc_ss_ok)  = true;                                                                                       \
     for (u64 UNPL(pc_ss_i) = 0; UNPL(pc_ss_i) < UNPL(pc_ss_len); UNPL(pc_ss_i)++) {                                    \
         char UNPL(pc_ss_c);                                                                                            \
-        if (!StrIterPeekAt(in, (i64)UNPL(pc_ss_i), &UNPL(pc_ss_c)) ||                                                  \
-            UNPL(pc_ss_c) != UNPL(pc_ss_exp)[UNPL(pc_ss_i)]) {                                                         \
+        if (!IterPeekAt(in, (i64)UNPL(pc_ss_i), &UNPL(pc_ss_c)) || UNPL(pc_ss_c) != UNPL(pc_ss_exp)[UNPL(pc_ss_i)]) {  \
             UNPL(pc_ss_ok) = false;                                                                                    \
             break;                                                                                                     \
         }                                                                                                              \
     }                                                                                                                  \
     if (UNPL(pc_ss_ok))                                                                                                \
-        StrIterMustMove(in, (i64)UNPL(pc_ss_len));                                                                     \
+        IterMustMove(in, (i64)UNPL(pc_ss_len));                                                                        \
     for (bool UNPL(pc_ss_ran) = false;; UNPL(pc_ss_ran) = true)                                                        \
         if (!UNPL(pc_ss_ok))                                                                                           \
             return PC_PARSER_STATUS_FAILED;                                                                            \
         else if (UNPL(pc_ss_ran))                                                                                      \
             return PC_PARSER_STATUS_SUCCESS | PC_PARSER_STATUS_CONSUMED;                                               \
         else
+
+///
+/// Binary fields -- for a grammar with `#define PC_ITER BufIter`. The fixed-width readers are NOT
+/// written per grammar: `PcU8`/`PcI8`, `Pc{U,I}16BE`/`LE`, `Pc{U,I}32BE`/`LE`, `Pc{U,I}64BE`/`LE`
+/// are fundamental parsers delivered out of the box (declared here, defined in ParserCombinator.c)
+/// and used through `PcMatch` / `PcAlt` -- e.g. `PcMatch(PcI32BE, &field)`. Each reads one field
+/// from the cursor at the stated endianness and signedness; a short buffer fails the rule. Magic is
+/// `PcSatisfyStr`, not a reader.
+///
+/// The delivered parsers live outside the grammar's translation unit, so they see the context only
+/// as an opaque `struct PcParserCtx` (which they ignore) -- so a grammar MUST define its context as
+/// a tagged `typedef struct PcParserCtx { ... } PcParserCtx;`, so the opaque pointer lines up.
+///
+struct PcParserCtx;
+PcParserStatus pc_parser_PcU8(BufIter *in, struct PcParserCtx *ctx, u8 *value);
+PcParserStatus pc_parser_PcU16BE(BufIter *in, struct PcParserCtx *ctx, u16 *value);
+PcParserStatus pc_parser_PcU16LE(BufIter *in, struct PcParserCtx *ctx, u16 *value);
+PcParserStatus pc_parser_PcU32BE(BufIter *in, struct PcParserCtx *ctx, u32 *value);
+PcParserStatus pc_parser_PcU32LE(BufIter *in, struct PcParserCtx *ctx, u32 *value);
+PcParserStatus pc_parser_PcU64BE(BufIter *in, struct PcParserCtx *ctx, u64 *value);
+PcParserStatus pc_parser_PcU64LE(BufIter *in, struct PcParserCtx *ctx, u64 *value);
+PcParserStatus pc_parser_PcI8(BufIter *in, struct PcParserCtx *ctx, i8 *value);
+PcParserStatus pc_parser_PcI16BE(BufIter *in, struct PcParserCtx *ctx, i16 *value);
+PcParserStatus pc_parser_PcI16LE(BufIter *in, struct PcParserCtx *ctx, i16 *value);
+PcParserStatus pc_parser_PcI32BE(BufIter *in, struct PcParserCtx *ctx, i32 *value);
+PcParserStatus pc_parser_PcI32LE(BufIter *in, struct PcParserCtx *ctx, i32 *value);
+PcParserStatus pc_parser_PcI64BE(BufIter *in, struct PcParserCtx *ctx, i64 *value);
+PcParserStatus pc_parser_PcI64LE(BufIter *in, struct PcParserCtx *ctx, i64 *value);
+
+///
+/// PC_BYTE_ATOM: the terminal body of a fundamental byte reader (the delivered parsers and
+/// `PcSkipBytes`) -- read/advance or fail the rule; on success return success|consumed.
+///
+#define PC_BYTE_ATOM(call)                                                                                             \
+    do {                                                                                                               \
+        if (!(call))                                                                                                   \
+            return PC_PARSER_STATUS_FAILED;                                                                            \
+        return PC_PARSER_STATUS_SUCCESS | PC_PARSER_STATUS_CONSUMED;                                                   \
+    } while (0)
+
+///
+/// PcSkipBytes: advance `N` bytes; a short buffer fails. TERMINAL, the body of a recognizer.
+///
+#define PcSkipBytes(N) PC_BYTE_ATOM(IterMove(in, (i64)(N)))
+
+///
+/// PcExpect: a `PcSeq` step that runs a RECOGNIZER (no output) and fails the rule if it did not
+/// match -- the recognizer twin of `PcMatch`, for fixed markers (a magic recognizer, a skip).
+///
+#define PcExpect(...)                                                                                                  \
+    do {                                                                                                               \
+        if (!(PcRecognize(__VA_ARGS__) & PC_PARSER_STATUS_SUCCESS))                                                    \
+            return PC_CONSUMED(pc_seq.start) | PC_PARSER_STATUS_FAILED;                                                \
+    } while (0)
+
+///
+/// PcMatchExactlyN: run parser `Name` exactly `N` times as a `PcSeq` step, binding `Idx` (a `u64`)
+/// to the iteration index for the body to read -- the counted, index-bearing sibling of
+/// `PcMatchZeroOrMore` (as `VecForeachIdx` is to `VecForeach`). Any of the `N` failing fails the
+/// rule (with the sequence's consumed bit). The body runs after each match.
+///
+#define PcMatchExactlyN(N, Idx, Name, ...)                                                                             \
+    for (u64 Idx = 0; Idx < (u64)(N); Idx++)                                                                           \
+        if (!(PcParse(Name, __VA_ARGS__) & PC_PARSER_STATUS_SUCCESS))                                                  \
+            return PC_CONSUMED(pc_seq.start) | PC_PARSER_STATUS_FAILED;                                                \
+        else
+
+///
+/// PcRecognizeExactlyN: run recognizer `Name` exactly `N` times -- the counted sibling of
+/// `PcRecognizeZeroOrMore`. TERMINAL (the whole recognizer body); any failure fails.
+///
+#define PcRecognizeExactlyN(...)           OVERLOAD(PcRecognizeExactlyN, __VA_ARGS__)
+#define PcRecognizeExactlyN_2(N, Name)     PC_RECOGNIZE_EXACTLY((N), PcRecognize_1(Name))
+#define PcRecognizeExactlyN_3(N, Name, In) PC_RECOGNIZE_EXACTLY((N), PcRecognize_2(Name, In))
+#define PC_RECOGNIZE_EXACTLY(N, call)                                                                                  \
+    do {                                                                                                               \
+        for (u64 UNPL(pc_rxn_) = 0; UNPL(pc_rxn_) < (u64)(N); UNPL(pc_rxn_)++)                                         \
+            if (!((call) & PC_PARSER_STATUS_SUCCESS))                                                                  \
+                return PC_PARSER_STATUS_FAILED;                                                                        \
+        return PC_PARSER_STATUS_SUCCESS | PC_PARSER_STATUS_CONSUMED;                                                   \
+    } while (0)
 
 #endif // MISRA_PARSER_COMBINATOR
