@@ -188,13 +188,8 @@ of the codebase to see them in action.
   shouldn't be — adjusting state has invariants the mutators enforce.
   Intentional-corruption tests that need to bypass an invariant (to
   verify that a validator catches it) write the field directly, with
-  an inline comment opening with the canonical phrase
-  `// intentional bypass:` followed by *why* no public accessor /
-  mutator covers the case. The phrase is grep-able; a stray field
-  write without it is a review finding. See
-  `Tests/Std/Allocator.Heap.c`, `Tests/Std/BitVec.Convert.c`,
-  `Tests/Std/Graph.Init.c`, and the other `Tests/Std/*` Deadend
-  fixtures for the established shape.
+  an inline comment explaining why no public accessor or mutator
+  covers the case.
 - **Container key types ship `*_hash` and `*_compare`.** Any type
   meant to be a `Map` key (or `Vec`/`List` element with comparison
   semantics) must expose two snake_case helpers in the
@@ -675,10 +670,7 @@ up-cast.
   exercise the validators by violating an invariant — bypassing
   capacity bookkeeping, scrambling a magic value, overrunning a buffer.
   These tests write fields directly because that's the whole point of
-  the test; open each such site with the canonical
-  `// intentional bypass:` comment (same phrase used by the
-  non-Deadend tests in *Accessor macros are read-only* above) so it
-  stays grep-able and doesn't get swept on the next pass.
+  the test.
 - **Fixture-local owned storage** (e.g. `Vec.Complex.c`'s `char *name`
   / `int *values` inside a `ComplexItem` that exercises
   `VecInitWithDeepCopy` callbacks) is fine as raw pointers because the
